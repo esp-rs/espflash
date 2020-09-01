@@ -18,7 +18,7 @@ enum Timeouts {
     Sync = 100,
 }
 
-const MAX_RAM_BLOCK_SIZE: u32 = 0x1800;
+const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
@@ -193,7 +193,7 @@ impl Flasher {
         Ok(())
     }
 
-    fn mem_block(&mut self, data: &[u8], sequence: u32) -> Result<(), Error> {
+    fn mem_block(&mut self, data: &[u8], padding: usize, sequence: u32) -> Result<(), Error> {
         #[derive(Zeroable, Pod, Copy, Clone, Debug)]
         #[repr(C)]
         struct MemBlockParams {
@@ -204,19 +204,21 @@ impl Flasher {
         }
 
         let params = MemBlockParams {
-            size: data.len() as u32,
+            size: (data.len() + padding) as u32,
             sequence,
             dummy1: 0,
             dummy2: 0,
         };
 
-        let length = size_of::<MemBlockParams>() + data.len();
+        let length = size_of::<MemBlockParams>() + data.len() + padding;
 
         self.command(
             Command::MemData,
             (length as u16, |encoder: &mut Encoder| {
                 encoder.write(bytes_of(&params))?;
-                encoder.write(data)?;
+                encoder.write(&data)?;
+                let padding = &[0; 4][0..padding];
+                encoder.write(padding)?;
                 Ok(())
             }),
             checksum(&data, CHECKSUM_INIT) as u32,
@@ -252,21 +254,19 @@ impl Flasher {
         }
 
         for segment in image.ram_segments() {
+            let padding = 4 - segment.data.len() % 4;
             let block_count =
-                (segment.data.len() as u32 + MAX_RAM_BLOCK_SIZE - 1) / MAX_RAM_BLOCK_SIZE;
+                (segment.data.len() + padding + MAX_RAM_BLOCK_SIZE - 1) / MAX_RAM_BLOCK_SIZE;
             self.mem_begin(
                 segment.data.len() as u32,
                 block_count as u32,
-                MAX_RAM_BLOCK_SIZE,
+                MAX_RAM_BLOCK_SIZE as u32,
                 segment.addr,
             )?;
 
-            let padding = 4 - segment.data.len() % 4;
-            let mut data = segment.data.to_vec();
-            data.resize(data.len() + padding, 0);
-
-            for (i, block) in data.chunks(MAX_RAM_BLOCK_SIZE as usize).enumerate() {
-                self.mem_block(&block, i as u32)?;
+            for (i, block) in segment.data.chunks(MAX_RAM_BLOCK_SIZE).enumerate() {
+                let block_padding = if i == block_count - 1 { padding } else { 0 };
+                self.mem_block(&block, block_padding, i as u32)?;
             }
         }
 
