@@ -32,7 +32,7 @@ fn main() -> Result<(), Error> {
 
     let input_bytes = read(&input).unwrap();
 
-    flasher.load_elf_to_ram(&input_bytes)?;
+    flasher.load_elf_to_flash(&input_bytes)?;
 
     Ok(())
 }
