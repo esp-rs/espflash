@@ -41,7 +41,7 @@ fn main() {
     flasher.mem_elf(&input_bytes);
 }
 
-const MAX_RAM_BLOCK_SIZE: u32 = 1024; //0x1800;
+const MAX_RAM_BLOCK_SIZE: u32 = 0x1800;
 const ESP_ROM_BAUD: u32 = 0x1000;
 
 #[derive(Copy, Clone, Debug)]
@@ -119,7 +119,7 @@ impl Flasher {
     }
 
     fn send_command(&mut self, command: Command, data: &[u8], check: u32, timeout: Timeouts) -> Result<CommandResponse, slip_codec::Error> {
-        println!("command: {:?}", command);
+        println!("command: {:?}, len {}", command, data.len());
         let mut packet = Vec::new();
         packet.push(0);
         packet.push(command as u8);
@@ -245,7 +245,13 @@ impl Flasher {
 
             for (i, block) in segment.data.chunks(MAX_RAM_BLOCK_SIZE as usize).enumerate() {
                 dbg!(block.len());
-                self.mem_block(block, i as u32);
+
+                let mut block = block.to_vec();
+                let padding = 4 - block.len() % 4;
+                for _ in 0..padding {
+                    block.push(0);
+                }
+                self.mem_block(&block, i as u32);
             }
         }
 
