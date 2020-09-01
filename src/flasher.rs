@@ -9,6 +9,8 @@ use std::mem::size_of;
 use std::thread::sleep;
 use std::time::Duration;
 
+type Encoder<'a> = SlipEncoder<'a, Box<dyn SerialPort>>;
+
 #[derive(Copy, Clone)]
 #[repr(u64)]
 enum Timeouts {
@@ -87,67 +89,26 @@ impl Flasher {
         Ok(Some(header))
     }
 
-    fn write_command_writer<F>(
+    fn write_command(
         &mut self,
         command: Command,
-        length: u16,
-        writer: F,
+        data: impl CommandData<Box<dyn SerialPort>>,
         check: u32,
-    ) -> Result<(), Error>
-    where
-        F: Fn(&mut SlipEncoder<Box<(dyn serial::core::SerialPort + 'static)>>) -> Result<(), Error>,
-    {
+    ) -> Result<(), Error> {
         let mut encoder = SlipEncoder::new(&mut self.serial)?;
         encoder.write(&[0])?;
         encoder.write(&[command as u8])?;
-        encoder.write(&(length.to_le_bytes()))?;
+        encoder.write(&(data.length().to_le_bytes()))?;
         encoder.write(&(check.to_le_bytes()))?;
-
-        writer(&mut encoder)?;
-
-        encoder.finish()?;
-
-        Ok(())
-    }
-
-    fn write_command(&mut self, command: Command, data: &[u8], check: u32) -> Result<(), Error> {
-        let mut encoder = SlipEncoder::new(&mut self.serial)?;
-        encoder.write(&[0])?;
-        encoder.write(&[command as u8])?;
-        encoder.write(&((data.len() as u16).to_le_bytes()))?;
-        encoder.write(&(check.to_le_bytes()))?;
-        encoder.write(&data)?;
+        data.write(&mut encoder)?;
         encoder.finish()?;
         Ok(())
-    }
-
-    fn command_writer<F>(
-        &mut self,
-        command: Command,
-        length: u16,
-        writer: F,
-        check: u32,
-        timeout: Timeouts,
-    ) -> Result<CommandResponse, Error>
-    where
-        F: Fn(&mut SlipEncoder<Box<(dyn serial::core::SerialPort + 'static)>>) -> Result<(), Error>,
-    {
-        self.write_command_writer::<F>(command, length, writer, check)?;
-
-        for _ in 0..10 {
-            match self.read_response(timeout)? {
-                Some(response) if response.return_op == command as u8 => return Ok(response),
-                _ => continue,
-            };
-        }
-
-        Err(Error::ConnectionFailed)
     }
 
     fn command<'a>(
         &mut self,
         command: Command,
-        data: &[u8],
+        data: impl CommandData<Box<dyn SerialPort>>,
         check: u32,
         timeout: Timeouts,
     ) -> Result<CommandResponse, Error> {
@@ -171,11 +132,13 @@ impl Flasher {
     }
 
     fn sync(&mut self) -> Result<(), Error> {
-        let mut data = Vec::with_capacity(40);
-        data.extend_from_slice(&[0x07, 0x07, 0x012, 0x20]);
-        data.extend_from_slice(&[0x55; 32]);
+        let data = &[
+            0x07u8, 0x07, 0x012, 0x20, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+            0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+            0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+        ][..];
 
-        self.command(Command::Sync, &data, 0, Timeouts::Sync)?;
+        self.command(Command::Sync, data, 0, Timeouts::Sync)?;
 
         for _ in 0..7 {
             loop {
@@ -249,14 +212,13 @@ impl Flasher {
 
         let length = size_of::<MemBlockParams>() + data.len();
 
-        self.command_writer(
+        self.command(
             Command::MemData,
-            length as u16,
-            |encoder| {
+            (length as u16, |encoder: &mut Encoder| {
                 encoder.write(bytes_of(&params))?;
                 encoder.write(data)?;
                 Ok(())
-            },
+            }),
             checksum(&data, CHECKSUM_INIT) as u32,
             Timeouts::Default,
         )?;
@@ -322,4 +284,31 @@ fn checksum(data: &[u8], mut checksum: u8) -> u8 {
     }
 
     checksum
+}
+
+trait CommandData<W: Write> {
+    fn write(self, encoder: &mut SlipEncoder<W>) -> Result<(), Error>;
+
+    fn length(&self) -> u16;
+}
+
+impl<W: Write> CommandData<W> for &[u8] {
+    fn write(self, encoder: &mut SlipEncoder<W>) -> Result<(), Error> {
+        encoder.write(self)?;
+        Ok(())
+    }
+
+    fn length(&self) -> u16 {
+        self.len() as u16
+    }
+}
+
+impl<W: Write, F: Fn(&mut SlipEncoder<W>) -> Result<(), Error>> CommandData<W> for (u16, F) {
+    fn write(self, encoder: &mut SlipEncoder<W>) -> Result<(), Error> {
+        self.1(encoder)
+    }
+
+    fn length(&self) -> u16 {
+        self.0
+    }
 }
