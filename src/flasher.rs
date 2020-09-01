@@ -5,6 +5,7 @@ use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use serial::SerialPort;
 use slip_codec::Decoder;
 use std::io::Write;
+use std::mem::size_of;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -86,12 +87,30 @@ impl Flasher {
         Ok(Some(header))
     }
 
-    fn write_command<'a>(
+    fn write_command_writer<F>(
         &mut self,
         command: Command,
-        data: &[u8],
+        length: u16,
+        writer: F,
         check: u32,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+    where
+        F: Fn(&mut SlipEncoder<Box<(dyn serial::core::SerialPort + 'static)>>) -> Result<(), Error>,
+    {
+        let mut encoder = SlipEncoder::new(&mut self.serial)?;
+        encoder.write(&[0])?;
+        encoder.write(&[command as u8])?;
+        encoder.write(&(length.to_le_bytes()))?;
+        encoder.write(&(check.to_le_bytes()))?;
+
+        writer(&mut encoder)?;
+
+        encoder.finish()?;
+
+        Ok(())
+    }
+
+    fn write_command(&mut self, command: Command, data: &[u8], check: u32) -> Result<(), Error> {
         let mut encoder = SlipEncoder::new(&mut self.serial)?;
         encoder.write(&[0])?;
         encoder.write(&[command as u8])?;
@@ -100,6 +119,29 @@ impl Flasher {
         encoder.write(&data)?;
         encoder.finish()?;
         Ok(())
+    }
+
+    fn command_writer<F>(
+        &mut self,
+        command: Command,
+        length: u16,
+        writer: F,
+        check: u32,
+        timeout: Timeouts,
+    ) -> Result<CommandResponse, Error>
+    where
+        F: Fn(&mut SlipEncoder<Box<(dyn serial::core::SerialPort + 'static)>>) -> Result<(), Error>,
+    {
+        self.write_command_writer::<F>(command, length, writer, check)?;
+
+        for _ in 0..10 {
+            match self.read_response(timeout)? {
+                Some(response) if response.return_op == command as u8 => return Ok(response),
+                _ => continue,
+            };
+        }
+
+        Err(Error::ConnectionFailed)
     }
 
     fn command<'a>(
@@ -117,7 +159,8 @@ impl Flasher {
                 _ => continue,
             };
         }
-        panic!("timeout?");
+
+        Err(Error::ConnectionFailed)
     }
 
     fn read(&mut self, timeout: Timeouts) -> Result<Vec<u8>, Error> {
@@ -204,12 +247,16 @@ impl Flasher {
             dummy2: 0,
         };
 
-        let mut buff = Vec::new();
-        buff.extend_from_slice(bytes_of(&params));
-        buff.extend_from_slice(data);
-        self.command(
+        let length = size_of::<MemBlockParams>() + data.len();
+
+        self.command_writer(
             Command::MemData,
-            &buff,
+            length as u16,
+            |encoder| {
+                encoder.write(bytes_of(&params))?;
+                encoder.write(data)?;
+                Ok(())
+            },
             checksum(&data, CHECKSUM_INIT) as u32,
             Timeouts::Default,
         )?;
@@ -252,10 +299,11 @@ impl Flasher {
                 segment.addr,
             )?;
 
-            for (i, block) in segment.data.chunks(MAX_RAM_BLOCK_SIZE as usize).enumerate() {
-                let mut block = block.to_vec();
-                let padding = 4 - block.len() % 4;
-                block.resize(block.len() + padding, 0);
+            let padding = 4 - segment.data.len() % 4;
+            let mut data = segment.data.to_vec();
+            data.resize(data.len() + padding, 0);
+
+            for (i, block) in data.chunks(MAX_RAM_BLOCK_SIZE as usize).enumerate() {
                 self.mem_block(&block, i as u32)?;
             }
         }
