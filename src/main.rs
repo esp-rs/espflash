@@ -5,7 +5,7 @@ mod encoder;
 
 use bytemuck::__core::iter::once;
 use bytemuck::__core::marker::PhantomData;
-use bytemuck::{bytes_of, Pod, Zeroable};
+use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use elf2esp::FirmwareImage;
 use encoder::SlipEncoder;
 use serial::{BaudRate, SerialPort};
@@ -62,13 +62,16 @@ enum Command {
     ReadReg = 0x0a,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Zeroable, Pod, Copy, Clone)]
+#[repr(C)]
+#[repr(packed)]
 struct CommandResponse {
     resp: u8,
     return_op: u8,
     return_length: u16,
     value: u32,
-    data: Vec<u8>,
+    status: u8,
+    error: u8,
 }
 
 struct Flasher {
@@ -103,22 +106,13 @@ impl Flasher {
         timeout: Timeouts,
     ) -> Result<Option<CommandResponse>, slip_codec::Error> {
         let response = self.read(timeout)?;
-        if response.len() < 8 {
+        if response.len() < 10 {
             return Ok(None);
         }
 
-        let resp = response[0];
-        let return_op = response[1];
-        let return_length = u16::from_le_bytes([response[2], response[3]]);
-        let value = u32::from_le_bytes([response[4], response[5], response[6], response[7]]);
+        let header: CommandResponse = *from_bytes(&response[0..10]);
 
-        Ok(Some(CommandResponse {
-            resp,
-            return_op,
-            return_length,
-            value,
-            data: response[8..].to_vec(),
-        }))
+        Ok(Some(header))
     }
 
     fn send_command<'a>(
@@ -146,13 +140,10 @@ impl Flasher {
     }
 
     fn read(&mut self, timeout: Timeouts) -> Result<Vec<u8>, slip_codec::Error> {
-        let mut buff = vec![0; 64];
         self.serial
             .set_timeout(Duration::from_millis(timeout as u64))
             .unwrap();
-        let count = self.serial.read(&mut buff)?;
-        buff.resize(count, 0);
-        self.decoder.decode(&mut Cursor::new(buff))
+        self.decoder.decode(&mut self.serial)
     }
 
     fn sync(&mut self) -> Result<(), slip_codec::Error> {
