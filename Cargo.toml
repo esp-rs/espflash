@@ -3,6 +3,9 @@ name = "espflash"
 version = "0.1.0"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
+license = "GPL-2.0"
+description = "ESP8266 and ESP32 serial flasher"
+repository = "https://github.com/icewind1991/espflash"
 
 [[bin]]
 name = "espflash"
@@ -16,3 +19,5 @@ slip-codec =  "0.1.2"
 bytemuck = { version = "1.4.0", features = ["derive"] }
 xmas-elf = "0.7.0"
 thiserror = "1.0.20"
+pico-args = "0.3.4"
+main_error = "0.1.1"

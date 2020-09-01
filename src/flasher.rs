@@ -1,4 +1,4 @@
-use crate::elf::{FirmwareImage, ESP8266V1, IROM_MAP_START};
+use crate::elf::{FirmwareImage, ESP8266V1};
 use crate::encoder::SlipEncoder;
 use crate::error::RomError;
 use crate::Error;
