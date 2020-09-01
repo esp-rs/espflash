@@ -4,11 +4,15 @@ version = "0.1.0"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "espflash"
+
+[lib]
 
 [dependencies]
 serial = "0.4"
 byteorder = "1.3.4"
-slip-codec =  { version = "0.1.2", path = "../slip-codec" }
+slip-codec =  "0.1.2"
 bytemuck = { version = "1.4.0", features = ["derive"] }
-elf2esp = { path = "../elf2esp" }
+xmas-elf = "0.7.0"
+thiserror = "1.0.20"

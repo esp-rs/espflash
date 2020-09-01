@@ -27,23 +27,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08c48aae112d48ed9f069b33538ea9e3e90aa263cfa3d1c24309612b1f7472de"
 
 [[package]]
-name = "elf2esp"
-version = "0.1.0"
-dependencies = [
- "byteorder",
- "thiserror",
- "xmas-elf",
-]
-
-[[package]]
 name = "espflash"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
  "byteorder",
- "elf2esp",
  "serial",
  "slip-codec",
+ "thiserror",
+ "xmas-elf",
 ]
 
 [[package]]
@@ -124,6 +116,8 @@ dependencies = [
 [[package]]
 name = "slip-codec"
 version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1951c7a9ecb8fc06621f53e0a22af4d9fb6ffdce0427ff3ee924d99ae5e765f"
 
 [[package]]
 name = "syn"
