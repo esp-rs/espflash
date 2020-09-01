@@ -1,16 +1,20 @@
 // #![allow(unused_must_use)]
 #![allow(dead_code)]
 
-use serial::{SerialPort, BaudRate};
-use std::thread::sleep;
-use std::time::Duration;
-use byteorder::{WriteBytesExt, LittleEndian};
-use slip_codec::{Encoder, Decoder};
-use bytemuck::{Pod, Zeroable, bytes_of};
-use std::io::Cursor;
-use elf2esp::{FirmwareImage, ESP8266V1};
+mod encoder;
+
+use bytemuck::__core::iter::once;
+use bytemuck::__core::marker::PhantomData;
+use bytemuck::{bytes_of, Pod, Zeroable};
+use elf2esp::FirmwareImage;
+use encoder::SlipEncoder;
+use serial::{BaudRate, SerialPort};
+use slip_codec::Decoder;
 use std::env::args;
 use std::fs::read;
+use std::io::{Cursor, Write};
+use std::thread::sleep;
+use std::time::Duration;
 
 #[derive(Copy, Clone)]
 #[repr(u64)]
@@ -26,14 +30,14 @@ fn main() {
 
         Ok(())
     });
-    serial.set_timeout(Duration::from_millis(Timeouts::Default as u64)).unwrap();
+    serial
+        .set_timeout(Duration::from_millis(Timeouts::Default as u64))
+        .unwrap();
     let mut flasher = Flasher::new(serial);
 
     let mut args = args();
     let bin = args.next().unwrap();
-    let input = args
-        .next()
-        .expect(&format!("usage: {} <input>", bin));
+    let input = args.next().expect(&format!("usage: {} <input>", bin));
 
     let input_bytes = read(&input).unwrap();
 
@@ -69,7 +73,6 @@ struct CommandResponse {
 
 struct Flasher {
     serial: Box<dyn SerialPort>,
-    encoder: Encoder,
     decoder: Decoder,
 }
 
@@ -77,7 +80,6 @@ impl Flasher {
     pub fn new(serial: impl SerialPort + 'static) -> Self {
         Flasher {
             serial: Box::new(serial),
-            encoder: Encoder::new(),
             decoder: Decoder::new(1024),
         }
     }
@@ -96,7 +98,10 @@ impl Flasher {
         self.serial.set_dtr(true).unwrap();
     }
 
-    fn read_response(&mut self, timeout: Timeouts) -> Result<Option<CommandResponse>, slip_codec::Error> {
+    fn read_response(
+        &mut self,
+        timeout: Timeouts,
+    ) -> Result<Option<CommandResponse>, slip_codec::Error> {
         let response = self.read(timeout)?;
         if response.len() < 8 {
             return Ok(None);
@@ -107,8 +112,6 @@ impl Flasher {
         let return_length = u16::from_le_bytes([response[2], response[3]]);
         let value = u32::from_le_bytes([response[4], response[5], response[6], response[7]]);
 
-        println!("resp_op {}", return_op);
-
         Ok(Some(CommandResponse {
             resp,
             return_op,
@@ -118,35 +121,35 @@ impl Flasher {
         }))
     }
 
-    fn send_command(&mut self, command: Command, data: &[u8], check: u32, timeout: Timeouts) -> Result<CommandResponse, slip_codec::Error> {
-        println!("command: {:?}, len {}", command, data.len());
-        let mut packet = Vec::new();
-        packet.push(0);
-        packet.push(command as u8);
-        packet.write_u16::<LittleEndian>(data.len() as u16)?;
-        packet.write_u32::<LittleEndian>(check)?;
-        packet.extend_from_slice(data);
+    fn send_command<'a>(
+        &mut self,
+        command: Command,
+        data: &[u8],
+        check: u32,
+        timeout: Timeouts,
+    ) -> Result<CommandResponse, slip_codec::Error> {
+        let mut encoder = SlipEncoder::new(&mut self.serial)?;
+        encoder.write(&[0])?;
+        encoder.write(&[command as u8])?;
+        encoder.write(&((data.len() as u16).to_le_bytes()))?;
+        encoder.write(&(check.to_le_bytes()))?;
+        encoder.write(&data)?;
+        encoder.finish()?;
 
-        self.write(&packet);
-
-        for _ in 0..100 {
+        for _ in 0..10 {
             match dbg!(self.read_response(timeout)?) {
-                Some(response)if response.return_op == command as u8 => return Ok(response),
-                _ => continue
+                Some(response) if response.return_op == command as u8 => return Ok(response),
+                _ => continue,
             };
         }
         panic!("timeout?");
     }
 
-    fn write(&mut self, packet: &[u8]) {
-        let mut buff = Vec::new();
-        self.encoder.encode(packet, &mut buff).unwrap();
-        self.serial.write(&buff).unwrap();
-    }
-
     fn read(&mut self, timeout: Timeouts) -> Result<Vec<u8>, slip_codec::Error> {
         let mut buff = vec![0; 64];
-        self.serial.set_timeout(Duration::from_millis(timeout as u64)).unwrap();
+        self.serial
+            .set_timeout(Duration::from_millis(timeout as u64))
+            .unwrap();
         let count = self.serial.read(&mut buff)?;
         buff.resize(count, 0);
         self.decoder.decode(&mut Cursor::new(buff))
@@ -163,7 +166,7 @@ impl Flasher {
             loop {
                 match self.read_response(Timeouts::Sync)? {
                     Some(_) => break,
-                    _ => continue
+                    _ => continue,
                 }
             }
         }
@@ -193,8 +196,14 @@ impl Flasher {
             offset: u32,
         }
 
-        let params = dbg!(MemBeginParams { size, blocks, block_size, offset });
-        self.send_command(Command::MemBegin, bytes_of(&params), 0, Timeouts::Default).unwrap();
+        let params = dbg!(MemBeginParams {
+            size,
+            blocks,
+            block_size,
+            offset,
+        });
+        self.send_command(Command::MemBegin, bytes_of(&params), 0, Timeouts::Default)
+            .unwrap();
     }
 
     fn mem_block(&mut self, data: &[u8], sequence: u32) {
@@ -217,7 +226,13 @@ impl Flasher {
         let mut buff = Vec::new();
         buff.extend_from_slice(bytes_of(&params));
         buff.extend_from_slice(data);
-        self.send_command(Command::MemData, &buff, checksum(&data, CHECKSUM_INIT) as u32, Timeouts::Default).unwrap();
+        self.send_command(
+            Command::MemData,
+            &buff,
+            checksum(&data, CHECKSUM_INIT) as u32,
+            Timeouts::Default,
+        )
+        .unwrap();
     }
 
     fn mem_finish(&mut self, entry: u32) {
@@ -231,21 +246,24 @@ impl Flasher {
             no_entry: (entry == 0) as u32,
             entry,
         };
-        self.send_command(Command::MemEnd, bytes_of(&params), 0, Timeouts::Default).unwrap();
+        self.send_command(Command::MemEnd, bytes_of(&params), 0, Timeouts::Default)
+            .unwrap();
     }
 
     fn mem_elf(&mut self, elf_data: &[u8]) {
         let image = FirmwareImage::from_data(elf_data).unwrap();
 
-        let segments = image.save::<ESP8266V1>();
-
         for segment in image.ram_segments() {
-            let block_count = (segment.data.len() as u32 + MAX_RAM_BLOCK_SIZE - 1) / MAX_RAM_BLOCK_SIZE;
-            self.mem_begin(segment.data.len() as u32, block_count as u32, MAX_RAM_BLOCK_SIZE, segment.addr);
+            let block_count =
+                (segment.data.len() as u32 + MAX_RAM_BLOCK_SIZE - 1) / MAX_RAM_BLOCK_SIZE;
+            self.mem_begin(
+                segment.data.len() as u32,
+                block_count as u32,
+                MAX_RAM_BLOCK_SIZE,
+                segment.addr,
+            );
 
             for (i, block) in segment.data.chunks(MAX_RAM_BLOCK_SIZE as usize).enumerate() {
-                dbg!(block.len());
-
                 let mut block = block.to_vec();
                 let padding = 4 - block.len() % 4;
                 for _ in 0..padding {
@@ -255,7 +273,6 @@ impl Flasher {
             }
         }
 
-        eprintln!("entry: {:#x}", image.entry());
         self.mem_finish(image.entry())
     }
 }

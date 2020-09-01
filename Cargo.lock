@@ -124,8 +124,6 @@ dependencies = [
 [[package]]
 name = "slip-codec"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1951c7a9ecb8fc06621f53e0a22af4d9fb6ffdce0427ff3ee924d99ae5e765f"
 
 [[package]]
 name = "syn"
