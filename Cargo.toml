@@ -7,14 +7,13 @@ license = "GPL-2.0"
 description = "ESP8266 and ESP32 serial flasher"
 repository = "https://github.com/icewind1991/espflash"
 
-#[[bin]]
-#name = "espflash"
-#
-#[lib]
+[[bin]]
+name = "espflash"
+
+[lib]
 
 [dependencies]
 serial = "0.4"
-byteorder = "1.3.4"
 slip-codec =  "0.1.2"
 bytemuck = { version = "1.4.0", features = ["derive"] }
 xmas-elf = "0.7.0"

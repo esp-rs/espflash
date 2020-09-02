@@ -2,21 +2,36 @@ use super::Chip;
 use crate::elf::{update_checksum, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
 use crate::Error;
 use bytemuck::__core::iter::once;
-use byteorder::{LittleEndian, WriteBytesExt};
+use bytemuck::{bytes_of, Pod, Zeroable};
 use std::borrow::Cow;
 use std::io::Write;
+use std::mem::size_of;
 
-const ESP8266V1_MAGIC: u8 = 0xe9;
+const ESP8266_MAGIC: u8 = 0xe9;
+
+#[derive(Copy, Clone, Zeroable, Pod)]
+#[repr(C)]
+struct ESP8266Header {
+    magic: u8,
+    segment_count: u8,
+    flash_mode: u8,
+    flash_config: u8,
+    entry: u32,
+}
+
+#[derive(Copy, Clone, Zeroable, Pod)]
+#[repr(C)]
+struct ESP8266SegmentHeader {
+    addr: u32,
+    length: u32,
+}
 
 pub struct ESP8266;
 
-impl<'a> Chip<'a> for ESP8266 {
-    type Iter = std::iter::Chain<
-        std::option::IntoIter<std::result::Result<RomSegment<'a>, Error>>,
-        std::iter::Once<std::result::Result<RomSegment<'a>, Error>>,
-    >;
-
-    fn get_rom_segments(image: &'a FirmwareImage) -> Self::Iter {
+impl Chip for ESP8266 {
+    fn get_flash_segments<'a>(
+        image: &'a FirmwareImage,
+    ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         // irom goes into a separate plain bin
         let irom_data = image
             .rom_segments()
@@ -38,11 +53,14 @@ impl<'a> Chip<'a> for ESP8266 {
                     .sum(),
             );
             // common header
-            common_data.write_u8(ESP8266V1_MAGIC)?;
-            common_data.write_u8(image.ram_segments().count() as u8)?;
-            common_data.write_u8(image.flash_mode as u8)?;
-            common_data.write_u8(image.flash_size as u8 + image.flash_frequency as u8)?;
-            common_data.write_u32::<LittleEndian>(image.entry)?;
+            let header = ESP8266Header {
+                magic: ESP8266_MAGIC,
+                segment_count: image.ram_segments().count() as u8,
+                flash_mode: image.flash_mode as u8,
+                flash_config: image.flash_size as u8 + image.flash_frequency as u8,
+                entry: image.entry,
+            };
+            common_data.write(bytes_of(&header))?;
 
             let mut total_len = 8;
 
@@ -51,22 +69,24 @@ impl<'a> Chip<'a> for ESP8266 {
             for segment in image.ram_segments() {
                 let data = segment.data;
                 let padding = 4 - data.len() % 4;
-                common_data.write_u32::<LittleEndian>(segment.addr)?;
-                common_data.write_u32::<LittleEndian>((data.len() + padding) as u32)?;
+                let segment_header = ESP8266SegmentHeader {
+                    addr: segment.addr,
+                    length: (data.len() + padding) as u32,
+                };
+                total_len += size_of::<ESP8266SegmentHeader>() as u32 + segment_header.length;
+                common_data.write(bytes_of(&segment_header))?;
                 common_data.write(data)?;
-                for _ in 0..padding {
-                    common_data.write_u8(0)?;
-                }
-                total_len += 8 + data.len() + padding;
+
+                let padding = &[0u8; 4][0..padding];
+                common_data.write(padding)?;
                 checksum = update_checksum(data, checksum);
             }
 
             let padding = 15 - (total_len % 16);
-            for _ in 0..padding {
-                common_data.write_u8(0)?;
-            }
+            let padding = &[0u8; 16][0..padding as usize];
+            common_data.write(padding)?;
 
-            common_data.write_u8(checksum)?;
+            common_data.write(&[checksum])?;
 
             Ok(RomSegment {
                 addr: 0,
@@ -74,7 +94,7 @@ impl<'a> Chip<'a> for ESP8266 {
             })
         }
 
-        irom_data.chain(once(common(image)))
+        Box::new(irom_data.chain(once(common(image))))
     }
 }
 
@@ -87,7 +107,7 @@ fn test_esp8266_rom() {
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
 
-    let segments = ESP8266::get_rom_segments(&image)
+    let segments = ESP8266::get_flash_segments(&image)
         .collect::<Result<Vec<_>, Error>>()
         .unwrap();
 

@@ -323,7 +323,7 @@ impl Flasher {
         self.enable_flash()?;
         let image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
 
-        for segment in ESP8266::get_rom_segments(&image) {
+        for segment in ESP8266::get_flash_segments(&image) {
             let segment = segment?;
             let addr = segment.addr;
             let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;
