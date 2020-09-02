@@ -7,10 +7,10 @@ license = "GPL-2.0"
 description = "ESP8266 and ESP32 serial flasher"
 repository = "https://github.com/icewind1991/espflash"
 
-[[bin]]
-name = "espflash"
-
-[lib]
+#[[bin]]
+#name = "espflash"
+#
+#[lib]
 
 [dependencies]
 serial = "0.4"

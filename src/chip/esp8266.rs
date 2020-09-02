@@ -77,3 +77,22 @@ impl<'a> Chip<'a> for ESP8266 {
         irom_data.chain(once(common(image)))
     }
 }
+
+#[test]
+fn test_esp8266_rom() {
+    use std::fs::read;
+
+    let input_bytes = read("./tests/data/esp.elf").unwrap();
+    let expected_bin = read("./tests/data/esp.bin").unwrap();
+
+    let image = FirmwareImage::from_data(&input_bytes).unwrap();
+
+    let segments = ESP8266::get_rom_segments(&image)
+        .collect::<Result<Vec<_>, Error>>()
+        .unwrap();
+
+    assert_eq!(1, segments.len());
+    let buff = segments[0].data.as_ref();
+    assert_eq!(expected_bin.len(), buff.len());
+    assert_eq!(expected_bin.as_slice(), buff);
+}
