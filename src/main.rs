@@ -1,3 +1,4 @@
+mod chip;
 mod elf;
 mod encoder;
 mod error;

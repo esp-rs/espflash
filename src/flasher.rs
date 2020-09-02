@@ -1,4 +1,5 @@
-use crate::elf::{FirmwareImage, ESP8266V1};
+use crate::chip::{Chip, ESP8266};
+use crate::elf::FirmwareImage;
 use crate::encoder::SlipEncoder;
 use crate::error::RomError;
 use crate::Error;
@@ -52,12 +53,6 @@ struct CommandResponse {
     error: u8,
 }
 
-pub struct Flasher {
-    serial: Box<dyn SerialPort>,
-    decoder: Decoder,
-    connected: bool,
-}
-
 #[derive(Zeroable, Pod, Copy, Clone, Debug)]
 #[repr(C)]
 struct BlockParams {
@@ -81,6 +76,12 @@ struct BeginParams {
 struct EntryParams {
     no_entry: u32,
     entry: u32,
+}
+
+pub struct Flasher {
+    serial: Box<dyn SerialPort>,
+    decoder: Decoder,
+    connected: bool,
 }
 
 impl Flasher {
@@ -322,7 +323,7 @@ impl Flasher {
         self.enable_flash()?;
         let image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
 
-        for segment in image.save::<ESP8266V1>() {
+        for segment in ESP8266::get_rom_segments(&image) {
             let segment = segment?;
             let addr = segment.addr;
             let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;

@@ -1,16 +1,11 @@
-use crate::Error;
-use bytemuck::__core::iter::once;
-use byteorder::{LittleEndian, WriteBytesExt};
 use std::borrow::Cow;
-use std::io::Write;
 use xmas_elf::program::{SegmentData, Type};
 use xmas_elf::ElfFile;
 
 pub const IROM_MAP_START: u32 = 0x40200000;
 const IROM_MAP_END: u32 = 0x40300000;
 
-const ESP8266V1_MAGIC: u8 = 0xe9;
-const ESP_CHECKSUM_MAGIC: u8 = 0xef;
+pub const ESP_CHECKSUM_MAGIC: u8 = 0xef;
 
 #[derive(Copy, Clone)]
 #[allow(dead_code)]
@@ -43,11 +38,11 @@ pub enum FlashFrequency {
 }
 
 pub struct FirmwareImage<'a> {
-    entry: u32,
-    elf: ElfFile<'a>,
-    flash_mode: FlashMode,
-    flash_size: FlashSize,
-    flash_frequency: FlashFrequency,
+    pub entry: u32,
+    pub elf: ElfFile<'a>,
+    pub flash_mode: FlashMode,
+    pub flash_size: FlashSize,
+    pub flash_frequency: FlashFrequency,
 }
 
 impl<'a> FirmwareImage<'a> {
@@ -95,15 +90,10 @@ impl<'a> FirmwareImage<'a> {
     pub fn ram_segments(&'a self) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
         self.segments().filter(|segment| !segment.is_rom())
     }
-
-    pub fn save<Target: ESPTarget<'a>>(
-        &'a self,
-    ) -> impl Iterator<Item = Result<ImageSegment<'a>, Error>> {
-        Target::save(self)
-    }
 }
 
 #[derive(Debug)]
+/// A segment of code from the source elf
 pub struct CodeSegment<'a> {
     pub addr: u32,
     pub size: u32,
@@ -116,85 +106,10 @@ impl<'a> CodeSegment<'a> {
     }
 }
 
-pub struct ImageSegment<'a> {
+/// A segment of data to write to the flash
+pub struct RomSegment<'a> {
     pub addr: u32,
     pub data: Cow<'a, [u8]>,
-}
-
-pub trait ESPTarget<'a> {
-    type Iter: Iterator<Item = Result<ImageSegment<'a>, Error>>;
-
-    fn save(image: &'a FirmwareImage) -> Self::Iter;
-}
-
-pub struct ESP8266V1;
-
-impl<'a> ESPTarget<'a> for ESP8266V1 {
-    type Iter = std::iter::Chain<
-        std::option::IntoIter<std::result::Result<ImageSegment<'a>, Error>>,
-        std::iter::Once<std::result::Result<ImageSegment<'a>, Error>>,
-    >;
-
-    fn save(image: &'a FirmwareImage) -> Self::Iter {
-        // irom goes into a separate plain bin
-        let irom_data = image
-            .rom_segments()
-            .next()
-            .map(|segment| {
-                Ok(ImageSegment {
-                    addr: segment.addr,
-                    data: Cow::Borrowed(segment.data),
-                })
-            })
-            .into_iter();
-
-        // my kingdom for a try {} block
-        fn common<'a>(image: &'a FirmwareImage) -> Result<ImageSegment<'a>, Error> {
-            let mut common_data = Vec::with_capacity(
-                image
-                    .ram_segments()
-                    .map(|segment| segment.size as usize)
-                    .sum(),
-            );
-            // common header
-            common_data.write_u8(ESP8266V1_MAGIC)?;
-            common_data.write_u8(image.ram_segments().count() as u8)?;
-            common_data.write_u8(image.flash_mode as u8)?;
-            common_data.write_u8(image.flash_size as u8 + image.flash_frequency as u8)?;
-            common_data.write_u32::<LittleEndian>(image.entry)?;
-
-            let mut total_len = 8;
-
-            let mut checksum = ESP_CHECKSUM_MAGIC;
-
-            for segment in image.ram_segments() {
-                let data = segment.data;
-                let padding = 4 - data.len() % 4;
-                common_data.write_u32::<LittleEndian>(segment.addr)?;
-                common_data.write_u32::<LittleEndian>((data.len() + padding) as u32)?;
-                common_data.write(data)?;
-                for _ in 0..padding {
-                    common_data.write_u8(0)?;
-                }
-                total_len += 8 + data.len() + padding;
-                checksum = update_checksum(data, checksum);
-            }
-
-            let padding = 15 - (total_len % 16);
-            for _ in 0..padding {
-                common_data.write_u8(0)?;
-            }
-
-            common_data.write_u8(checksum)?;
-
-            Ok(ImageSegment {
-                addr: 0,
-                data: Cow::Owned(common_data),
-            })
-        }
-
-        irom_data.chain(once(common(image)))
-    }
 }
 
 pub fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
