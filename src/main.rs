@@ -1,4 +1,5 @@
 mod chip;
+mod connection;
 mod elf;
 mod encoder;
 mod error;
@@ -41,7 +42,7 @@ fn main() -> Result<(), MainError> {
         Ok(())
     })?;
 
-    let mut flasher = Flasher::new(serial);
+    let mut flasher = Flasher::connect(serial)?;
 
     let input_bytes = read(&input)?;
 

@@ -1,0 +1,138 @@
+use crate::encoder::SlipEncoder;
+use crate::error::RomError;
+use crate::Error;
+use bytemuck::{from_bytes, Pod, Zeroable};
+use serial::SerialPort;
+use slip_codec::Decoder;
+use std::io::Write;
+use std::thread::sleep;
+use std::time::Duration;
+
+pub struct Connection {
+    serial: Box<dyn SerialPort>,
+    decoder: Decoder,
+}
+
+#[derive(Debug, Zeroable, Pod, Copy, Clone)]
+#[repr(C)]
+#[repr(packed)]
+pub struct CommandResponse {
+    pub resp: u8,
+    pub return_op: u8,
+    pub return_length: u16,
+    pub value: u32,
+    pub status: u8,
+    pub error: u8,
+}
+
+impl Connection {
+    pub fn new(serial: impl SerialPort + 'static) -> Self {
+        Connection {
+            serial: Box::new(serial),
+            decoder: Decoder::new(1024),
+        }
+    }
+
+    pub fn reset_to_flash(&mut self) -> Result<(), Error> {
+        self.serial.set_dtr(false)?;
+        self.serial.set_rts(true)?;
+
+        sleep(Duration::from_millis(100));
+
+        self.serial.set_dtr(true)?;
+        self.serial.set_rts(false)?;
+
+        sleep(Duration::from_millis(50));
+
+        self.serial.set_dtr(true)?;
+
+        Ok(())
+    }
+
+    pub fn read_response(&mut self, timeout: u64) -> Result<Option<CommandResponse>, Error> {
+        let response = self.read(timeout)?;
+        if response.len() < 10 {
+            return Ok(None);
+        }
+
+        let header: CommandResponse = *from_bytes(&response[0..10]);
+
+        Ok(Some(header))
+    }
+
+    pub fn write_command(
+        &mut self,
+        command: u8,
+        data: impl LazyBytes<Box<dyn SerialPort>>,
+        check: u32,
+    ) -> Result<(), Error> {
+        let mut encoder = SlipEncoder::new(&mut self.serial)?;
+        encoder.write(&[0])?;
+        encoder.write(&[command])?;
+        encoder.write(&(data.length().to_le_bytes()))?;
+        encoder.write(&(check.to_le_bytes()))?;
+        data.write(&mut encoder)?;
+        encoder.finish()?;
+        Ok(())
+    }
+
+    pub fn command<'a>(
+        &mut self,
+        command: u8,
+        data: impl LazyBytes<Box<dyn SerialPort>>,
+        check: u32,
+        timeout: u64,
+    ) -> Result<CommandResponse, Error> {
+        self.write_command(command, data, check)?;
+
+        match self.read_response(timeout)? {
+            Some(response) if response.return_op == command as u8 => {
+                if response.status == 1 {
+                    Err(Error::RomError(RomError::from(response.error)))
+                } else {
+                    Ok(response)
+                }
+            }
+            _ => Err(Error::ConnectionFailed),
+        }
+    }
+
+    fn read(&mut self, timeout: u64) -> Result<Vec<u8>, Error> {
+        self.serial
+            .set_timeout(Duration::from_millis(timeout))
+            .unwrap();
+        Ok(self.decoder.decode(&mut self.serial)?)
+    }
+
+    pub fn flush(&mut self) -> Result<(), Error> {
+        self.serial.flush()?;
+        Ok(())
+    }
+}
+
+pub trait LazyBytes<W: Write> {
+    fn write(self, encoder: &mut SlipEncoder<W>) -> Result<(), Error>;
+
+    fn length(&self) -> u16;
+}
+
+impl<W: Write> LazyBytes<W> for &[u8] {
+    fn write(self, encoder: &mut SlipEncoder<W>) -> Result<(), Error> {
+        encoder.write(self)?;
+        Ok(())
+    }
+
+    fn length(&self) -> u16 {
+        self.len() as u16
+    }
+}
+
+impl<W: Write, F: Fn(&mut SlipEncoder<W>) -> Result<(), Error>> LazyBytes<W> for (u16, F) {
+    fn write(self, encoder: &mut SlipEncoder<W>) -> Result<(), Error> {
+        self.1(encoder)
+    }
+
+    fn length(&self) -> u16 {
+        self.0
+    }
+}

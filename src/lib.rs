@@ -1,4 +1,5 @@
 mod chip;
+mod connection;
 mod elf;
 mod encoder;
 mod error;
