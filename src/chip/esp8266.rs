@@ -1,4 +1,4 @@
-use super::Chip;
+use super::ChipType;
 use crate::elf::{update_checksum, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
 use crate::Error;
 use bytemuck::__core::iter::once;
@@ -28,7 +28,10 @@ struct ESP8266SegmentHeader {
 
 pub struct ESP8266;
 
-impl Chip for ESP8266 {
+impl ChipType for ESP8266 {
+    const DATE_REG1_VALUE: u32 = 0x00062000;
+    const DATE_REG2_VALUE: u32 = 0;
+
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {

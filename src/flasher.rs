@@ -1,4 +1,4 @@
-use crate::chip::{Chip, ESP8266};
+use crate::chip::Chip;
 use crate::connection::Connection;
 use crate::elf::FirmwareImage;
 use crate::encoder::SlipEncoder;
@@ -22,6 +22,10 @@ const FLASH_SECTOR_SIZE: usize = 0x1000;
 const FLASH_BLOCK_SIZE: usize = 0x100;
 const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 const FLASH_WRITE_SIZE: usize = 0x400;
+
+// registers used for chip detect
+const UART_DATE_REG_ADDR: u32 = 0x60000078;
+const UART_DATE_REG2_ADDR: u32 = 0x3f400074;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
@@ -65,15 +69,28 @@ struct EntryParams {
 
 pub struct Flasher {
     connection: Connection,
+    chip: Chip,
 }
 
 impl Flasher {
     pub fn connect(serial: impl SerialPort + 'static) -> Result<Self, Error> {
         let mut flasher = Flasher {
             connection: Connection::new(serial),
+            chip: Chip::Esp8266, // dummy, set properly later
         };
         flasher.start_connection()?;
+        flasher.chip_detect()?;
+
         Ok(flasher)
+    }
+
+    fn chip_detect(&mut self) -> Result<(), Error> {
+        let reg1 = self.read_reg(UART_DATE_REG_ADDR)?;
+        let reg2 = self.read_reg(UART_DATE_REG2_ADDR)?;
+        let chip = Chip::from_regs(reg1, reg2).ok_or(Error::UnrecognizedChip)?;
+
+        self.chip = chip;
+        Ok(())
     }
 
     fn sync(&mut self) -> Result<(), Error> {
@@ -87,7 +104,7 @@ impl Flasher {
             .write_command(Command::Sync as u8, data, 0)?;
 
         for _ in 0..10 {
-            match self.connection.read_response(Timeouts::Sync as u64)? {
+            match self.connection.read_response::<()>(Timeouts::Sync as u64)? {
                 Some(response) if response.return_op == Command::Sync as u8 => {
                     if response.status == 1 {
                         return Err(Error::RomError(RomError::from(response.error)));
@@ -101,7 +118,7 @@ impl Flasher {
 
         for _ in 0..7 {
             loop {
-                match self.connection.read_response(Timeouts::Sync as u64)? {
+                match self.connection.read_response::<()>(Timeouts::Sync as u64)? {
                     Some(_) => break,
                     _ => continue,
                 }
@@ -136,7 +153,7 @@ impl Flasher {
             block_size,
             offset,
         };
-        self.connection.command(
+        self.connection.command::<(), _>(
             command as u8,
             bytes_of(&params),
             0,
@@ -162,7 +179,7 @@ impl Flasher {
 
         let length = size_of::<BlockParams>() + data.len() + padding;
 
-        self.connection.command(
+        self.connection.command::<(), _>(
             command as u8,
             (length as u16, |encoder: &mut Encoder| {
                 encoder.write(bytes_of(&params))?;
@@ -197,6 +214,16 @@ impl Flasher {
         // todo esp32 has a separate command for this
         self.begin_command(Command::FlashBegin, 0, 0, FLASH_WRITE_SIZE as u32, 0)?;
         Ok(())
+    }
+
+    fn read_reg(&mut self, reg: u32) -> Result<u32, Error> {
+        let result = self.connection.command::<(), _>(
+            Command::ReadReg as u8,
+            &reg.to_le_bytes()[..],
+            0,
+            Timeouts::Default as u64,
+        )?;
+        Ok(result.1)
     }
 
     /// Load an elf image to ram and execute it
@@ -239,7 +266,7 @@ impl Flasher {
         self.enable_flash()?;
         let image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
 
-        for segment in ESP8266::get_flash_segments(&image) {
+        for segment in self.chip.get_flash_segments(&image) {
             let segment = segment?;
             let addr = segment.addr;
             let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;

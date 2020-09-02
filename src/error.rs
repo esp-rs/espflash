@@ -18,6 +18,8 @@ pub enum Error {
     ElfNotRamLoadable,
     #[error("bootloader returned an error: {0:?}")]
     RomError(RomError),
+    #[error("chip not recognized")]
+    UnrecognizedChip,
 }
 
 impl From<std::io::Error> for Error {
@@ -32,6 +34,15 @@ impl From<SlipError> for Error {
             SlipError::FramingError => Self::FramingError,
             SlipError::OversizedPacket => Self::OverSizedPacket,
             SlipError::ReadError(io) => Self::from(io),
+        }
+    }
+}
+
+impl From<binread::Error> for Error {
+    fn from(err: binread::Error) -> Self {
+        match err {
+            binread::Error::Io(e) => Error::from(e),
+            _ => unreachable!(),
         }
     }
 }

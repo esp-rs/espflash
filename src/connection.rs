@@ -1,10 +1,12 @@
 use crate::encoder::SlipEncoder;
 use crate::error::RomError;
 use crate::Error;
-use bytemuck::{from_bytes, Pod, Zeroable};
+use binread::io::Cursor;
+use binread::{BinRead, BinReaderExt};
 use serial::SerialPort;
 use slip_codec::Decoder;
 use std::io::Write;
+use std::mem::size_of;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -13,16 +15,15 @@ pub struct Connection {
     decoder: Decoder,
 }
 
-#[derive(Debug, Zeroable, Pod, Copy, Clone)]
-#[repr(C)]
-#[repr(packed)]
-pub struct CommandResponse {
+#[derive(Debug, Copy, Clone, BinRead)]
+pub struct CommandResponse<Data: BinRead<Args = ()>> {
     pub resp: u8,
     pub return_op: u8,
     pub return_length: u16,
     pub value: u32,
     pub status: u8,
     pub error: u8,
+    pub data: Data,
 }
 
 impl Connection {
@@ -49,13 +50,18 @@ impl Connection {
         Ok(())
     }
 
-    pub fn read_response(&mut self, timeout: u64) -> Result<Option<CommandResponse>, Error> {
+    pub fn read_response<Return: BinRead<Args = ()>>(
+        &mut self,
+        timeout: u64,
+    ) -> Result<Option<CommandResponse<Return>>, Error> {
         let response = self.read(timeout)?;
-        if response.len() < 10 {
+        if response.len() < 10 + size_of::<Return>() {
+            dbg!(response);
             return Ok(None);
         }
 
-        let header: CommandResponse = *from_bytes(&response[0..10]);
+        let mut cursor = Cursor::new(response);
+        let header = cursor.read_le()?;
 
         Ok(Some(header))
     }
@@ -76,13 +82,13 @@ impl Connection {
         Ok(())
     }
 
-    pub fn command<'a>(
+    pub fn command<'a, Return: BinRead<Args = ()>, Data: LazyBytes<Box<dyn SerialPort>>>(
         &mut self,
         command: u8,
-        data: impl LazyBytes<Box<dyn SerialPort>>,
+        data: Data,
         check: u32,
         timeout: u64,
-    ) -> Result<CommandResponse, Error> {
+    ) -> Result<(Return, u32), Error> {
         self.write_command(command, data, check)?;
 
         match self.read_response(timeout)? {
@@ -90,7 +96,7 @@ impl Connection {
                 if response.status == 1 {
                     Err(Error::RomError(RomError::from(response.error)))
                 } else {
-                    Ok(response)
+                    Ok((response.data, response.value))
                 }
             }
             _ => Err(Error::ConnectionFailed),
