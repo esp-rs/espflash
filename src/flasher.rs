@@ -40,6 +40,8 @@ enum Command {
     Sync = 0x08,
     WriteReg = 0x09,
     ReadReg = 0x0a,
+    SpiSetParams = 0x0B,
+    SpiAttach = 0x0D,
 }
 
 #[derive(Zeroable, Pod, Copy, Clone, Debug)]
@@ -153,6 +155,7 @@ impl Flasher {
             block_size,
             offset,
         };
+        println!("{:?}", params);
         self.connection.command::<(), _>(
             command as u8,
             bytes_of(&params),
@@ -176,6 +179,7 @@ impl Flasher {
             dummy1: 0,
             dummy2: 0,
         };
+        println!("{:?}", params);
 
         let length = size_of::<BlockParams>() + data.len() + padding;
 
@@ -211,8 +215,19 @@ impl Flasher {
     }
 
     fn enable_flash(&mut self) -> Result<(), Error> {
-        // todo esp32 has a separate command for this
-        self.begin_command(Command::FlashBegin, 0, 0, FLASH_WRITE_SIZE as u32, 0)?;
+        match self.chip {
+            Chip::Esp8266 => {
+                self.begin_command(Command::FlashBegin, 0, 0, FLASH_WRITE_SIZE as u32, 0)?;
+            }
+            Chip::Esp32 => {
+                self.connection.command::<(), _>(
+                    Command::SpiAttach as u8,
+                    &[0, 0, 0, 0, 0][..],
+                    0,
+                    Timeouts::Default as u64,
+                )?;
+            }
+        }
         Ok(())
     }
 
@@ -233,11 +248,11 @@ impl Flasher {
         self.start_connection()?;
         let image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
 
-        if image.rom_segments().next().is_some() {
+        if image.rom_segments(self.chip).next().is_some() {
             return Err(Error::ElfNotRamLoadable);
         }
 
-        for segment in image.ram_segments() {
+        for segment in image.ram_segments(self.chip) {
             let padding = 4 - segment.data.len() % 4;
             let block_count =
                 (segment.data.len() + padding + MAX_RAM_BLOCK_SIZE - 1) / MAX_RAM_BLOCK_SIZE;
@@ -268,23 +283,31 @@ impl Flasher {
 
         for segment in self.chip.get_flash_segments(&image) {
             let segment = segment?;
+            dbg!(segment.addr, segment.data.len());
             let addr = segment.addr;
             let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;
 
+            let erase_size = match self.chip {
+                Chip::Esp32 => segment.data.len() as u32,
+                Chip::Esp8266 => get_erase_size(addr as usize, segment.data.len()) as u32,
+            };
+
             self.begin_command(
                 Command::FlashBegin,
-                get_erase_size(addr as usize, segment.data.len()) as u32,
+                erase_size,
                 block_count as u32,
                 FLASH_WRITE_SIZE as u32,
                 addr,
             )?;
 
             for (i, block) in segment.data.chunks(FLASH_WRITE_SIZE).enumerate() {
+                dbg!("block");
                 let block_padding = FLASH_WRITE_SIZE - block.len();
                 self.block_command(Command::FlashData, &block, block_padding, 0xff, i as u32)?;
             }
         }
 
+        dbg!("finish");
         self.flash_finish(true)?;
 
         Ok(())

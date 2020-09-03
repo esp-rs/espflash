@@ -1,30 +1,15 @@
-use super::ChipType;
+use super::{ChipType, ESPCommonHeader, SegmentHeader, ESP_MAGIC};
+use crate::chip::Chip;
 use crate::elf::{update_checksum, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
 use crate::Error;
 use bytemuck::__core::iter::once;
-use bytemuck::{bytes_of, Pod, Zeroable};
+use bytemuck::bytes_of;
 use std::borrow::Cow;
 use std::io::Write;
 use std::mem::size_of;
 
-const ESP8266_MAGIC: u8 = 0xe9;
-
-#[derive(Copy, Clone, Zeroable, Pod)]
-#[repr(C)]
-struct ESP8266Header {
-    magic: u8,
-    segment_count: u8,
-    flash_mode: u8,
-    flash_config: u8,
-    entry: u32,
-}
-
-#[derive(Copy, Clone, Zeroable, Pod)]
-#[repr(C)]
-struct ESP8266SegmentHeader {
-    addr: u32,
-    length: u32,
-}
+pub const IROM_MAP_START: u32 = 0x40200000;
+const IROM_MAP_END: u32 = 0x40300000;
 
 pub struct ESP8266;
 
@@ -32,12 +17,16 @@ impl ChipType for ESP8266 {
     const DATE_REG1_VALUE: u32 = 0x00062000;
     const DATE_REG2_VALUE: u32 = 0;
 
+    fn addr_is_flash(addr: u32) -> bool {
+        addr >= IROM_MAP_START && addr < IROM_MAP_END
+    }
+
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         // irom goes into a separate plain bin
         let irom_data = image
-            .rom_segments()
+            .rom_segments(Chip::Esp8266)
             .next()
             .map(|segment| {
                 Ok(RomSegment {
@@ -51,14 +40,14 @@ impl ChipType for ESP8266 {
         fn common<'a>(image: &'a FirmwareImage) -> Result<RomSegment<'a>, Error> {
             let mut common_data = Vec::with_capacity(
                 image
-                    .ram_segments()
+                    .ram_segments(Chip::Esp8266)
                     .map(|segment| segment.size as usize)
                     .sum(),
             );
             // common header
-            let header = ESP8266Header {
-                magic: ESP8266_MAGIC,
-                segment_count: image.ram_segments().count() as u8,
+            let header = ESPCommonHeader {
+                magic: ESP_MAGIC,
+                segment_count: image.ram_segments(Chip::Esp8266).count() as u8,
                 flash_mode: image.flash_mode as u8,
                 flash_config: image.flash_size as u8 + image.flash_frequency as u8,
                 entry: image.entry,
@@ -69,14 +58,14 @@ impl ChipType for ESP8266 {
 
             let mut checksum = ESP_CHECKSUM_MAGIC;
 
-            for segment in image.ram_segments() {
+            for segment in image.ram_segments(Chip::Esp8266) {
                 let data = segment.data;
                 let padding = 4 - data.len() % 4;
-                let segment_header = ESP8266SegmentHeader {
+                let segment_header = SegmentHeader {
                     addr: segment.addr,
                     length: (data.len() + padding) as u32,
                 };
-                total_len += size_of::<ESP8266SegmentHeader>() as u32 + segment_header.length;
+                total_len += size_of::<SegmentHeader>() as u32 + segment_header.length;
                 common_data.write(bytes_of(&segment_header))?;
                 common_data.write(data)?;
 

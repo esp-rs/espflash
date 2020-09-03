@@ -1,9 +1,7 @@
+use crate::chip::Chip;
 use std::borrow::Cow;
 use xmas_elf::program::{SegmentData, Type};
 use xmas_elf::ElfFile;
-
-pub const IROM_MAP_START: u32 = 0x40200000;
-const IROM_MAP_END: u32 = 0x40300000;
 
 pub const ESP_CHECKSUM_MAGIC: u8 = 0xef;
 
@@ -83,12 +81,14 @@ impl<'a> FirmwareImage<'a> {
             })
     }
 
-    pub fn rom_segments(&'a self) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
-        self.segments().filter(|segment| segment.is_rom())
+    pub fn rom_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
+        self.segments()
+            .filter(move |segment| chip.addr_is_flash(segment.addr))
     }
 
-    pub fn ram_segments(&'a self) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
-        self.segments().filter(|segment| !segment.is_rom())
+    pub fn ram_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
+        self.segments()
+            .filter(move |segment| !chip.addr_is_flash(segment.addr))
     }
 }
 
@@ -98,12 +98,6 @@ pub struct CodeSegment<'a> {
     pub addr: u32,
     pub size: u32,
     pub data: &'a [u8],
-}
-
-impl<'a> CodeSegment<'a> {
-    pub fn is_rom(&self) -> bool {
-        self.addr >= IROM_MAP_START && self.addr < IROM_MAP_END
-    }
 }
 
 /// A segment of data to write to the flash
