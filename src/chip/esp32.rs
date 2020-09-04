@@ -68,29 +68,42 @@ impl ChipType for ESP32 {
             let mut checksum = ESP_CHECKSUM_MAGIC;
 
             let flash_segments = image.rom_segments(Chip::Esp32);
-            let ram_segments = image.ram_segments(Chip::Esp32);
+            let mut ram_segments = image.ram_segments(Chip::Esp32);
 
             let mut segment_count = 0;
 
             for segment in flash_segments {
-                println!("addr: {:#x}, len: {:#x}", segment.addr, segment.size);
-                let pad_len = get_segment_padding(data.len(), &segment);
-                if pad_len > 0 {
-                    let pad_header = SegmentHeader {
-                        addr: 0,
-                        length: pad_len as u32,
-                    };
-                    data.write(bytes_of(&pad_header))?;
-                    for _ in 0..pad_len {
-                        data.write(&[0])?;
+                loop {
+                    let pad_len = dbg!(get_segment_padding(data.len(), &segment));
+                    if pad_len > 0 {
+                        if pad_len > SEG_HEADER_LEN {
+                            if let Some(ram_segment) = ram_segments.next() {
+                                checksum = save_segment(&mut data, &ram_segment, checksum)?;
+                                segment_count += 1;
+                                continue;
+                            }
+                        }
+                        let pad_header = SegmentHeader {
+                            addr: 0,
+                            length: pad_len as u32,
+                        };
+                        data.write(bytes_of(&pad_header))?;
+                        for _ in 0..pad_len {
+                            data.write(&[0])?;
+                        }
+                        segment_count += 1;
+                    } else {
+                        break;
                     }
-                    segment_count += 1;
                 }
                 checksum = save_flash_segment(&mut data, &segment, checksum)?;
+                segment_count += 1;
             }
 
             for segment in ram_segments {
+                println!("addr: {:#x}, len: {:#x}", segment.addr, segment.size);
                 checksum = save_segment(&mut data, &segment, checksum)?;
+                segment_count += 1;
             }
 
             let padding = 15 - (data.len() % 16);
@@ -101,6 +114,7 @@ impl ChipType for ESP32 {
 
             // since we added some dummy segments, we need to patch the segment count
             data[1] = segment_count as u8;
+            dbg!(segment_count);
 
             Ok(RomSegment {
                 addr: 0x1000,
@@ -116,6 +130,7 @@ const IROM_ALIGN: u32 = 65536;
 const SEG_HEADER_LEN: u32 = 8;
 
 fn get_segment_padding(offset: usize, segment: &CodeSegment) -> u32 {
+    println!("addr: {:#x}", segment.addr);
     let align_past = (segment.addr % IROM_ALIGN) - SEG_HEADER_LEN;
     let pad_len = (IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past;
     if pad_len == 0 || pad_len == IROM_ALIGN {
@@ -146,21 +161,35 @@ fn save_flash_segment(
 }
 
 fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment, checksum: u8) -> Result<u8, Error> {
+    let padding = 4 - segment.data.len() % 4;
+    println!(
+        "addr: {:#x}, len: {:#x}",
+        segment.addr,
+        segment.size + padding as u32
+    );
+
     let header = SegmentHeader {
         addr: segment.addr,
-        length: segment.data.len() as u32,
+        length: (segment.data.len() + padding) as u32,
     };
     data.write(bytes_of(&header))?;
     data.write(segment.data)?;
+    let padding = &[0u8; 4][0..padding];
+    data.write(padding)?;
+
     Ok(update_checksum(segment.data, checksum))
 }
 
 #[test]
 fn test_esp32_rom() {
+    use bytemuck::from_bytes;
+
     use std::fs::read;
 
-    let input_bytes = read("./tests/data/esp32.elf").unwrap();
+    let input_bytes = read("./tests/data/esp32").unwrap();
     let expected_bin = read("./tests/data/esp32.bin").unwrap();
+
+    dbg!(from_bytes::<ESPCommonHeader>(&expected_bin[0..8]));
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
 

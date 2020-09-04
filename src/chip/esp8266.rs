@@ -94,7 +94,7 @@ impl ChipType for ESP8266 {
 fn test_esp8266_rom() {
     use std::fs::read;
 
-    let input_bytes = read("./tests/data/esp.elf").unwrap();
+    let input_bytes = read("./tests/data/esp").unwrap();
     let expected_bin = read("./tests/data/esp.bin").unwrap();
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();

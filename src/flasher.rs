@@ -4,18 +4,12 @@ use crate::elf::FirmwareImage;
 use crate::encoder::SlipEncoder;
 use crate::error::RomError;
 use crate::Error;
+use bytemuck::__core::time::Duration;
 use bytemuck::{bytes_of, Pod, Zeroable};
 use serial::SerialPort;
 use std::mem::size_of;
 
 type Encoder<'a> = SlipEncoder<'a, Box<dyn SerialPort>>;
-
-#[derive(Copy, Clone)]
-#[repr(u64)]
-enum Timeouts {
-    Default = 3000,
-    Sync = 100,
-}
 
 const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 const FLASH_SECTOR_SIZE: usize = 0x1000;
@@ -81,6 +75,7 @@ impl Flasher {
             chip: Chip::Esp8266, // dummy, set properly later
         };
         flasher.start_connection()?;
+        flasher.connection.set_timeout(Duration::from_secs(3))?;
         flasher.chip_detect()?;
 
         Ok(flasher)
@@ -96,38 +91,39 @@ impl Flasher {
     }
 
     fn sync(&mut self) -> Result<(), Error> {
-        let data = &[
-            0x07u8, 0x07, 0x012, 0x20, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
-            0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
-            0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
-        ][..];
-
         self.connection
-            .write_command(Command::Sync as u8, data, 0)?;
+            .with_timeout(Duration::from_millis(100), |connection| {
+                let data = &[
+                    0x07u8, 0x07, 0x012, 0x20, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+                    0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+                    0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+                ][..];
 
-        for _ in 0..10 {
-            match self.connection.read_response::<()>(Timeouts::Sync as u64)? {
-                Some(response) if response.return_op == Command::Sync as u8 => {
-                    if response.status == 1 {
-                        return Err(Error::RomError(RomError::from(response.error)));
-                    } else {
-                        break;
+                connection.write_command(Command::Sync as u8, data, 0)?;
+
+                for _ in 0..10 {
+                    match connection.read_response()? {
+                        Some(response) if response.return_op == Command::Sync as u8 => {
+                            if response.status == 1 {
+                                return Err(Error::RomError(RomError::from(response.error)));
+                            } else {
+                                break;
+                            }
+                        }
+                        _ => continue,
                     }
                 }
-                _ => continue,
-            }
-        }
 
-        for _ in 0..7 {
-            loop {
-                match self.connection.read_response::<()>(Timeouts::Sync as u64)? {
-                    Some(_) => break,
-                    _ => continue,
+                for _ in 0..7 {
+                    loop {
+                        match connection.read_response()? {
+                            Some(_) => break,
+                            _ => continue,
+                        }
+                    }
                 }
-            }
-        }
-
-        Ok(())
+                Ok(())
+            })
     }
 
     fn start_connection(&mut self) -> Result<(), Error> {
@@ -156,12 +152,8 @@ impl Flasher {
             offset,
         };
         println!("{:?}", params);
-        self.connection.command::<(), _>(
-            command as u8,
-            bytes_of(&params),
-            0,
-            Timeouts::Default as u64,
-        )?;
+        self.connection
+            .command(command as u8, bytes_of(&params), 0)?;
         Ok(())
     }
 
@@ -183,7 +175,7 @@ impl Flasher {
 
         let length = size_of::<BlockParams>() + data.len() + padding;
 
-        self.connection.command::<(), _>(
+        self.connection.command(
             command as u8,
             (length as u16, |encoder: &mut Encoder| {
                 encoder.write(bytes_of(&params))?;
@@ -193,7 +185,6 @@ impl Flasher {
                 Ok(())
             }),
             checksum(&data, CHECKSUM_INIT) as u32,
-            Timeouts::Default as u64,
         )?;
         Ok(())
     }
@@ -220,25 +211,16 @@ impl Flasher {
                 self.begin_command(Command::FlashBegin, 0, 0, FLASH_WRITE_SIZE as u32, 0)?;
             }
             Chip::Esp32 => {
-                self.connection.command::<(), _>(
-                    Command::SpiAttach as u8,
-                    &[0, 0, 0, 0, 0][..],
-                    0,
-                    Timeouts::Default as u64,
-                )?;
+                self.connection
+                    .command(Command::SpiAttach as u8, &[0; 5][..], 0)?;
             }
         }
         Ok(())
     }
 
     fn read_reg(&mut self, reg: u32) -> Result<u32, Error> {
-        let result = self.connection.command::<(), _>(
-            Command::ReadReg as u8,
-            &reg.to_le_bytes()[..],
-            0,
-            Timeouts::Default as u64,
-        )?;
-        Ok(result.1)
+        self.connection
+            .command(Command::ReadReg as u8, &reg.to_le_bytes()[..], 0)
     }
 
     /// Load an elf image to ram and execute it

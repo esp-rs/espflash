@@ -6,7 +6,6 @@ use binread::{BinRead, BinReaderExt};
 use serial::SerialPort;
 use slip_codec::Decoder;
 use std::io::Write;
-use std::mem::size_of;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -16,14 +15,13 @@ pub struct Connection {
 }
 
 #[derive(Debug, Copy, Clone, BinRead)]
-pub struct CommandResponse<Data: BinRead<Args = ()>> {
+pub struct CommandResponse {
     pub resp: u8,
     pub return_op: u8,
     pub return_length: u16,
     pub value: u32,
     pub status: u8,
     pub error: u8,
-    pub data: Data,
 }
 
 impl Connection {
@@ -50,12 +48,26 @@ impl Connection {
         Ok(())
     }
 
-    pub fn read_response<Return: BinRead<Args = ()>>(
+    pub fn set_timeout(&mut self, timeout: Duration) -> Result<(), Error> {
+        self.serial.set_timeout(timeout)?;
+        Ok(())
+    }
+
+    pub fn with_timeout<T, F: FnMut(&mut Connection) -> Result<T, Error>>(
         &mut self,
-        timeout: u64,
-    ) -> Result<Option<CommandResponse<Return>>, Error> {
-        let response = self.read(timeout)?;
-        if response.len() < 10 + size_of::<Return>() {
+        timeout: Duration,
+        mut f: F,
+    ) -> Result<T, Error> {
+        let old_timeout = self.serial.timeout();
+        self.serial.set_timeout(timeout)?;
+        let result = f(self);
+        self.serial.set_timeout(old_timeout)?;
+        result
+    }
+
+    pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
+        let response = self.read()?;
+        if response.len() < 10 {
             dbg!(response);
             return Ok(None);
         }
@@ -82,31 +94,27 @@ impl Connection {
         Ok(())
     }
 
-    pub fn command<'a, Return: BinRead<Args = ()>, Data: LazyBytes<Box<dyn SerialPort>>>(
+    pub fn command<'a, Data: LazyBytes<Box<dyn SerialPort>>>(
         &mut self,
         command: u8,
         data: Data,
         check: u32,
-        timeout: u64,
-    ) -> Result<(Return, u32), Error> {
+    ) -> Result<u32, Error> {
         self.write_command(command, data, check)?;
 
-        match self.read_response(timeout)? {
+        match self.read_response()? {
             Some(response) if response.return_op == command as u8 => {
                 if response.status == 1 {
                     Err(Error::RomError(RomError::from(response.error)))
                 } else {
-                    Ok((response.data, response.value))
+                    Ok(response.value)
                 }
             }
             _ => Err(Error::ConnectionFailed),
         }
     }
 
-    fn read(&mut self, timeout: u64) -> Result<Vec<u8>, Error> {
-        self.serial
-            .set_timeout(Duration::from_millis(timeout))
-            .unwrap();
+    fn read(&mut self) -> Result<Vec<u8>, Error> {
         Ok(self.decoder.decode(&mut self.serial)?)
     }
 

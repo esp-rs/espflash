@@ -55,7 +55,7 @@ impl Chip {
     }
 }
 
-#[derive(Copy, Clone, Zeroable, Pod)]
+#[derive(Copy, Clone, Zeroable, Pod, Debug)]
 #[repr(C)]
 struct ESPCommonHeader {
     magic: u8,
@@ -65,7 +65,7 @@ struct ESPCommonHeader {
     entry: u32,
 }
 
-#[derive(Copy, Clone, Zeroable, Pod)]
+#[derive(Copy, Clone, Zeroable, Pod, Debug)]
 #[repr(C)]
 struct SegmentHeader {
     addr: u32,
