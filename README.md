@@ -4,7 +4,9 @@ ESP8266 and ESP32 serial flasher
 
 ## Status
 
-Currently only ESP8266 is supported, ESP32 support will follow.
+Flashing *should* work for both ESP32 and ESP8266.
+
+If you're have an elf file that flashes correctly with `esptool.py` but not with this tool than please open an issue with the elf in question.
 
 ## Usage
 
