@@ -17,6 +17,10 @@ const IROM_MAP_END: u32 = 0x40400000;
 const DROM_MAP_START: u32 = 0x3F400000;
 const DROM_MAP_END: u32 = 0x3F800000;
 
+const BOOT_ADDR: u32 = 0x1000;
+const PARTION_ADDR: u32 = 0x8000;
+const APP_ADDR: u32 = 0x10000;
+
 #[derive(Copy, Clone, Zeroable, Pod)]
 #[repr(C)]
 struct ExtendedHeader {
@@ -42,6 +46,9 @@ impl ChipType for ESP32 {
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
+        let bootloader = include_bytes!("../../bootloader/bootloader.bin");
+        let partition_table = include_bytes!("../../bootloader/partitions.bin");
+
         fn get_data<'a>(image: &'a FirmwareImage) -> Result<RomSegment<'a>, Error> {
             let mut data = Vec::new();
 
@@ -126,12 +133,22 @@ impl ChipType for ESP32 {
             data.write(&hash)?;
 
             Ok(RomSegment {
-                addr: 0x1000,
+                addr: APP_ADDR,
                 data: Cow::Owned(data),
             })
         };
 
-        Box::new(once(get_data(image)))
+        Box::new(
+            once(Ok(RomSegment {
+                addr: BOOT_ADDR,
+                data: Cow::Borrowed(bootloader),
+            }))
+            .chain(once(Ok(RomSegment {
+                addr: PARTION_ADDR,
+                data: Cow::Borrowed(partition_table),
+            })))
+            .chain(once(get_data(image))),
+        )
     }
 }
 
@@ -201,8 +218,8 @@ fn test_esp32_rom() {
         .collect::<Result<Vec<_>, Error>>()
         .unwrap();
 
-    assert_eq!(1, segments.len());
-    let buff = segments[0].data.as_ref();
+    assert_eq!(3, segments.len());
+    let buff = segments[2].data.as_ref();
     assert_eq!(expected_bin.len(), buff.len());
     assert_eq!(&expected_bin.as_slice(), &buff);
 }
