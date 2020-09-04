@@ -151,7 +151,6 @@ impl Flasher {
             block_size,
             offset,
         };
-        println!("{:?}", params);
         self.connection
             .command(command as u8, bytes_of(&params), 0)?;
         Ok(())
@@ -171,7 +170,6 @@ impl Flasher {
             dummy1: 0,
             dummy2: 0,
         };
-        println!("{:?}", params);
 
         let length = size_of::<BlockParams>() + data.len() + padding;
 
@@ -265,7 +263,6 @@ impl Flasher {
 
         for segment in self.chip.get_flash_segments(&image) {
             let segment = segment?;
-            dbg!(segment.addr, segment.data.len());
             let addr = segment.addr;
             let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;
 
@@ -283,14 +280,14 @@ impl Flasher {
             )?;
 
             for (i, block) in segment.data.chunks(FLASH_WRITE_SIZE).enumerate() {
-                dbg!("block");
                 let block_padding = FLASH_WRITE_SIZE - block.len();
                 self.block_command(Command::FlashData, &block, block_padding, 0xff, i as u32)?;
             }
         }
 
-        dbg!("finish");
-        self.flash_finish(true)?;
+        self.flash_finish(false)?;
+
+        self.connection.reset()?;
 
         Ok(())
     }
