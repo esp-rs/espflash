@@ -3,6 +3,7 @@ use crate::elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CH
 use crate::Error;
 use bytemuck::__core::iter::once;
 use bytemuck::{bytes_of, Pod, Zeroable};
+use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::io::Write;
 
@@ -67,6 +68,8 @@ impl ChipType for ESP32 {
 
             let mut checksum = ESP_CHECKSUM_MAGIC;
 
+            let _ = image.segments().collect::<Vec<_>>();
+
             let flash_segments = image.rom_segments(Chip::Esp32);
             let mut ram_segments = image.ram_segments(Chip::Esp32);
 
@@ -78,6 +81,7 @@ impl ChipType for ESP32 {
                     if pad_len > 0 {
                         if pad_len > SEG_HEADER_LEN {
                             if let Some(ram_segment) = ram_segments.next() {
+                                println!("ram addr: {:#x}, len: {:#x}", segment.addr, segment.size);
                                 checksum = save_segment(&mut data, &ram_segment, checksum)?;
                                 segment_count += 1;
                                 continue;
@@ -101,7 +105,6 @@ impl ChipType for ESP32 {
             }
 
             for segment in ram_segments {
-                println!("addr: {:#x}, len: {:#x}", segment.addr, segment.size);
                 checksum = save_segment(&mut data, &segment, checksum)?;
                 segment_count += 1;
             }
@@ -114,7 +117,11 @@ impl ChipType for ESP32 {
 
             // since we added some dummy segments, we need to patch the segment count
             data[1] = segment_count as u8;
-            dbg!(segment_count);
+
+            let mut hasher = Sha256::new();
+            hasher.update(&data);
+            let hash = hasher.finalize();
+            data.write(&hash)?;
 
             Ok(RomSegment {
                 addr: 0x1000,
@@ -129,8 +136,12 @@ impl ChipType for ESP32 {
 const IROM_ALIGN: u32 = 65536;
 const SEG_HEADER_LEN: u32 = 8;
 
+/// Actual alignment (in data bytes) required for a segment header: positioned so that
+/// after we write the next 8 byte header, file_offs % IROM_ALIGN == segment.addr % IROM_ALIGN
+///
+/// (this is because the segment's vaddr may not be IROM_ALIGNed, more likely is aligned
+/// IROM_ALIGN+0x18 to account for the binary file header
 fn get_segment_padding(offset: usize, segment: &CodeSegment) -> u32 {
-    println!("addr: {:#x}", segment.addr);
     let align_past = (segment.addr % IROM_ALIGN) - SEG_HEADER_LEN;
     let pad_len = (IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past;
     if pad_len == 0 || pad_len == IROM_ALIGN {
@@ -183,13 +194,11 @@ fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment, checksum: u8) -> Resu
 #[test]
 fn test_esp32_rom() {
     use bytemuck::from_bytes;
-
+    use pretty_assertions::assert_eq;
     use std::fs::read;
 
     let input_bytes = read("./tests/data/esp32").unwrap();
     let expected_bin = read("./tests/data/esp32.bin").unwrap();
-
-    dbg!(from_bytes::<ESPCommonHeader>(&expected_bin[0..8]));
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
 
@@ -200,5 +209,5 @@ fn test_esp32_rom() {
     assert_eq!(1, segments.len());
     let buff = segments[0].data.as_ref();
     assert_eq!(expected_bin.len(), buff.len());
-    assert_eq!(expected_bin.as_slice(), buff);
+    assert_eq!(&expected_bin.as_slice(), &buff);
 }

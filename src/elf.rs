@@ -65,14 +65,10 @@ impl<'a> FirmwareImage<'a> {
     pub fn segments(&'a self) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
         self.elf
             .program_iter()
-            .filter(|section| {
-                section.file_size() > 0
-                    && section.get_type() == Ok(Type::Load)
-                    && section.flags().is_execute()
-            })
+            .filter(|header| header.file_size() > 0 && header.get_type() == Ok(Type::Load))
             .flat_map(move |header| {
-                let addr = header.physical_addr() as u32;
-                let size = header.mem_size() as u32;
+                let addr = header.virtual_addr() as u32;
+                let size = header.file_size() as u32;
                 let data = match header.get_data(&self.elf) {
                     Ok(SegmentData::Undefined(data)) => data,
                     _ => return None,
