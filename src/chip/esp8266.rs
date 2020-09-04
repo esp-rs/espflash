@@ -25,16 +25,12 @@ impl ChipType for ESP8266 {
         image: &'a FirmwareImage,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         // irom goes into a separate plain bin
-        let irom_data = image
-            .rom_segments(Chip::Esp8266)
-            .next()
-            .map(|segment| {
-                Ok(RomSegment {
-                    addr: segment.addr,
-                    data: Cow::Borrowed(segment.data),
-                })
+        let irom_data = image.rom_segments(Chip::Esp8266).map(|segment| {
+            Ok(RomSegment {
+                addr: segment.addr - IROM_MAP_START,
+                data: Cow::Borrowed(segment.data),
             })
-            .into_iter();
+        });
 
         // my kingdom for a try {} block
         fn common<'a>(image: &'a FirmwareImage) -> Result<RomSegment<'a>, Error> {
@@ -94,8 +90,10 @@ impl ChipType for ESP8266 {
 fn test_esp8266_rom() {
     use std::fs::read;
 
-    let input_bytes = read("./tests/data/esp").unwrap();
-    let expected_bin = read("./tests/data/esp.bin").unwrap();
+    use pretty_assertions::assert_eq;
+
+    let input_bytes = read("./tests/data/esp8266").unwrap();
+    let expected_bin = read("./tests/data/esp8266.bin").unwrap();
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
 

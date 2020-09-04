@@ -21,3 +21,6 @@ thiserror = "1.0.20"
 pico-args = "0.3.4"
 main_error = "0.1.1"
 binread = "1.1.1"
+
+[dev-dependencies]
+pretty_assertions = "0.6.1"
