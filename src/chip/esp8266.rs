@@ -2,10 +2,10 @@ use super::{ChipType, ESPCommonHeader, SegmentHeader, ESP_MAGIC};
 use crate::chip::Chip;
 use crate::elf::{update_checksum, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
 use crate::Error;
-use bytemuck::__core::iter::once;
 use bytemuck::bytes_of;
 use std::borrow::Cow;
 use std::io::Write;
+use std::iter::once;
 use std::mem::size_of;
 
 pub const IROM_MAP_START: u32 = 0x40200000;

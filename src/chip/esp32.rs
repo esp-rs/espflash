@@ -1,11 +1,11 @@
 use crate::chip::{Chip, ChipType, ESPCommonHeader, SegmentHeader, ESP_MAGIC};
 use crate::elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
 use crate::Error;
-use bytemuck::__core::iter::once;
 use bytemuck::{bytes_of, Pod, Zeroable};
 use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::io::Write;
+use std::iter::once;
 
 pub struct ESP32;
 
@@ -190,8 +190,6 @@ fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment, checksum: u8) -> Resu
 
 #[test]
 fn test_esp32_rom() {
-    use bytemuck::from_bytes;
-    // use pretty_assertions::assert_eq;
     use std::fs::read;
 
     let input_bytes = read("./tests/data/esp32").unwrap();

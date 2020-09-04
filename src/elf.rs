@@ -1,6 +1,6 @@
 use crate::chip::Chip;
-use bytemuck::__core::cmp::Ordering;
 use std::borrow::Cow;
+use std::cmp::Ordering;
 use xmas_elf::program::{SegmentData, Type};
 use xmas_elf::ElfFile;
 
@@ -66,7 +66,9 @@ impl<'a> FirmwareImage<'a> {
     pub fn segments(&'a self) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
         self.elf
             .program_iter()
-            .filter(|header| header.file_size() > 0 && header.get_type() == Ok(Type::Load))
+            .filter(|header| {
+                header.file_size() > 0 && header.get_type() == Ok(Type::Load) && header.offset() > 0
+            })
             .flat_map(move |header| {
                 let addr = header.virtual_addr() as u32;
                 let size = header.file_size() as u32;
