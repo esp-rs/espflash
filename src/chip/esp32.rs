@@ -70,18 +70,20 @@ impl ChipType for ESP32 {
 
             let _ = image.segments().collect::<Vec<_>>();
 
-            let flash_segments = image.rom_segments(Chip::Esp32);
-            let mut ram_segments = image.ram_segments(Chip::Esp32);
+            let mut flash_segments: Vec<_> = image.rom_segments(Chip::Esp32).collect();
+            flash_segments.sort();
+            let mut ram_segments: Vec<_> = image.ram_segments(Chip::Esp32).collect();
+            ram_segments.sort();
+            let mut ram_segments = ram_segments.into_iter();
 
             let mut segment_count = 0;
 
             for segment in flash_segments {
                 loop {
-                    let pad_len = dbg!(get_segment_padding(data.len(), &segment));
+                    let pad_len = get_segment_padding(data.len(), &segment);
                     if pad_len > 0 {
                         if pad_len > SEG_HEADER_LEN {
                             if let Some(ram_segment) = ram_segments.next() {
-                                println!("ram addr: {:#x}, len: {:#x}", segment.addr, segment.size);
                                 checksum = save_segment(&mut data, &ram_segment, checksum)?;
                                 segment_count += 1;
                                 continue;
@@ -172,12 +174,7 @@ fn save_flash_segment(
 }
 
 fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment, checksum: u8) -> Result<u8, Error> {
-    let padding = 4 - segment.data.len() % 4;
-    println!(
-        "addr: {:#x}, len: {:#x}",
-        segment.addr,
-        segment.size + padding as u32
-    );
+    let padding = (4 - segment.data.len() % 4) % 4;
 
     let header = SegmentHeader {
         addr: segment.addr,
@@ -194,7 +191,7 @@ fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment, checksum: u8) -> Resu
 #[test]
 fn test_esp32_rom() {
     use bytemuck::from_bytes;
-    use pretty_assertions::assert_eq;
+    // use pretty_assertions::assert_eq;
     use std::fs::read;
 
     let input_bytes = read("./tests/data/esp32").unwrap();

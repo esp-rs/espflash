@@ -1,4 +1,5 @@
 use crate::chip::Chip;
+use bytemuck::__core::cmp::Ordering;
 use std::borrow::Cow;
 use xmas_elf::program::{SegmentData, Type};
 use xmas_elf::ElfFile;
@@ -88,12 +89,24 @@ impl<'a> FirmwareImage<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Ord, Eq)]
 /// A segment of code from the source elf
 pub struct CodeSegment<'a> {
     pub addr: u32,
     pub size: u32,
     pub data: &'a [u8],
+}
+
+impl PartialEq for CodeSegment<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.addr.eq(&other.addr)
+    }
+}
+
+impl PartialOrd for CodeSegment<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.addr.partial_cmp(&other.addr)
+    }
 }
 
 /// A segment of data to write to the flash
