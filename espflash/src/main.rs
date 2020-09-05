@@ -1,15 +1,9 @@
-mod chip;
-mod connection;
-mod elf;
-mod encoder;
-mod error;
-mod flasher;
-
-pub use error::Error;
-use flasher::Flasher;
-use main_error::MainError;
-use serial::{BaudRate, SerialPort};
 use std::fs::read;
+
+use espflash::Flasher;
+use main_error::MainError;
+use pico_args::Arguments;
+use serial::{BaudRate, SerialPort};
 
 fn help() -> Result<(), MainError> {
     println!("Usage: espflash [--ram] <serial> <elf image>");
@@ -17,7 +11,7 @@ fn help() -> Result<(), MainError> {
 }
 
 fn main() -> Result<(), MainError> {
-    let mut args = pico_args::Arguments::from_env();
+    let mut args = Arguments::from_env();
 
     if args.contains(["-h", "--help"]) {
         return help();
@@ -43,7 +37,6 @@ fn main() -> Result<(), MainError> {
     })?;
 
     let mut flasher = Flasher::connect(serial)?;
-
     let input_bytes = read(&input)?;
 
     if ram {

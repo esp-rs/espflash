@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use crate::chip::Chip;
 use crate::connection::Connection;
 use crate::elf::FirmwareImage;
@@ -7,7 +9,6 @@ use crate::Error;
 use bytemuck::__core::time::Duration;
 use bytemuck::{bytes_of, Pod, Zeroable};
 use serial::SerialPort;
-use std::mem::size_of;
 
 type Encoder<'a> = SlipEncoder<'a, Box<dyn SerialPort>>;
 

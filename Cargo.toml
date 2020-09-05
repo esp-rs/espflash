@@ -1,28 +1,4 @@
-[package]
-name = "espflash"
-version = "0.1.0"
-authors = ["Robin Appelman <robin@icewind.nl>"]
-edition = "2018"
-license = "GPL-2.0"
-description = "ESP8266 and ESP32 serial flasher"
-repository = "https://github.com/icewind1991/espflash"
-
-[[bin]]
-name = "espflash"
-
-[lib]
-
-[dependencies]
-serial = "0.4"
-slip-codec =  "0.1.2"
-bytemuck = { version = "1.4.0", features = ["derive"] }
-xmas-elf = "0.7.0"
-thiserror = "1.0.20"
-pico-args = "0.3.4"
-main_error = "0.1.1"
-binread = "1.1.1"
-sha2 = "0.9.1"
-md5 = "0.7.0"
-
-[dev-dependencies]
-pretty_assertions = "0.6.1"
+[workspace]
+members = [
+    "espflash",
+]
