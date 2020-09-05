@@ -1,3 +1,6 @@
+mod partition_table;
+
+use crate::chip::esp32::partition_table::PartitionTable;
 use crate::chip::{Chip, ChipType, ESPCommonHeader, SegmentHeader, ESP_MAGIC};
 use crate::elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
 use crate::Error;
@@ -47,7 +50,8 @@ impl ChipType for ESP32 {
         image: &'a FirmwareImage,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         let bootloader = include_bytes!("../../bootloader/bootloader.bin");
-        let partition_table = include_bytes!("../../bootloader/partitions.bin");
+
+        let partition_table = PartitionTable::basic(0x10000, 0x3f0000).to_bytes();
 
         fn get_data<'a>(image: &'a FirmwareImage) -> Result<RomSegment<'a>, Error> {
             let mut data = Vec::new();
@@ -145,7 +149,7 @@ impl ChipType for ESP32 {
             }))
             .chain(once(Ok(RomSegment {
                 addr: PARTION_ADDR,
-                data: Cow::Borrowed(partition_table),
+                data: Cow::Owned(partition_table),
             })))
             .chain(once(get_data(image))),
         )

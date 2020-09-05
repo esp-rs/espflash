@@ -102,6 +102,7 @@ dependencies = [
  "binread",
  "bytemuck",
  "main_error",
+ "md5",
  "pico-args",
  "pretty_assertions",
  "serial",
@@ -141,6 +142,12 @@ name = "main_error"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb63bb1e282e0b6aba0addb1f0e87cb5181ea68142b2dfd21ba108f8e8088a64"
+
+[[package]]
+name = "md5"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "490cc448043f947bae3cbee9c203358d62dbee0db12107a74be5c30ccfd09771"
 
 [[package]]
 name = "opaque-debug"
