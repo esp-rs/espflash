@@ -81,7 +81,6 @@ impl Connection {
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
         let response = self.read()?;
         if response.len() < 10 {
-            dbg!(response);
             return Ok(None);
         }
 
