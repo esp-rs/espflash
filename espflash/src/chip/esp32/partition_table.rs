@@ -1,5 +1,6 @@
-use md5::{Context, Digest};
 use std::io::Write;
+
+use md5::{Context, Digest};
 
 const MAX_PARTITION_LENGTH: usize = 0xC00;
 const PARTITION_TABLE_SIZE: usize = 0x1000;

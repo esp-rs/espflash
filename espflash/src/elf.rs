@@ -1,6 +1,7 @@
-use crate::chip::Chip;
 use std::borrow::Cow;
 use std::cmp::Ordering;
+
+use crate::chip::Chip;
 use xmas_elf::program::{SegmentData, Type};
 use xmas_elf::ElfFile;
 

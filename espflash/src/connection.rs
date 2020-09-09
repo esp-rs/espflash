@@ -1,13 +1,13 @@
+use std::io::Write;
+use std::thread::sleep;
+use std::time::Duration;
+
 use crate::encoder::SlipEncoder;
-use crate::error::RomError;
-use crate::Error;
+use crate::error::{Error, RomError};
 use binread::io::Cursor;
 use binread::{BinRead, BinReaderExt};
 use serial::SerialPort;
 use slip_codec::Decoder;
-use std::io::Write;
-use std::thread::sleep;
-use std::time::Duration;
 
 pub struct Connection {
     serial: Box<dyn SerialPort>,

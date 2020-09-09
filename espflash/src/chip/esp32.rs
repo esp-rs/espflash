@@ -1,4 +1,6 @@
-mod partition_table;
+use std::borrow::Cow;
+use std::io::Write;
+use std::iter::once;
 
 use crate::chip::esp32::partition_table::PartitionTable;
 use crate::chip::{Chip, ChipType, ESPCommonHeader, SegmentHeader, ESP_MAGIC};
@@ -6,9 +8,8 @@ use crate::elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CH
 use crate::Error;
 use bytemuck::{bytes_of, Pod, Zeroable};
 use sha2::{Digest, Sha256};
-use std::borrow::Cow;
-use std::io::Write;
-use std::iter::once;
+
+mod partition_table;
 
 pub struct ESP32;
 
@@ -159,11 +160,12 @@ impl ChipType for ESP32 {
 const IROM_ALIGN: u32 = 65536;
 const SEG_HEADER_LEN: u32 = 8;
 
-/// Actual alignment (in data bytes) required for a segment header: positioned so that
-/// after we write the next 8 byte header, file_offs % IROM_ALIGN == segment.addr % IROM_ALIGN
+/// Actual alignment (in data bytes) required for a segment header: positioned
+/// so that after we write the next 8 byte header, file_offs % IROM_ALIGN ==
+/// segment.addr % IROM_ALIGN
 ///
-/// (this is because the segment's vaddr may not be IROM_ALIGNed, more likely is aligned
-/// IROM_ALIGN+0x18 to account for the binary file header
+/// (this is because the segment's vaddr may not be IROM_ALIGNed, more likely is
+/// aligned IROM_ALIGN+0x18 to account for the binary file header
 fn get_segment_padding(offset: usize, segment: &CodeSegment) -> u32 {
     let align_past = (segment.addr % IROM_ALIGN) - SEG_HEADER_LEN;
     let pad_len = (IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past;
@@ -188,7 +190,8 @@ fn save_flash_segment(
 
     if segment_reminder < 0x24 {
         // Work around a bug in ESP-IDF 2nd stage bootloader, that it didn't map the
-        // last MMU page, if an IROM/DROM segment was < 0x24 bytes over the page boundary.
+        // last MMU page, if an IROM/DROM segment was < 0x24 bytes over the page
+        // boundary.
         data.write(&[0u8; 0x24][0..(0x24 - segment_reminder as usize)])?;
     }
     Ok(checksum)
