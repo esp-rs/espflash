@@ -7,7 +7,7 @@ Currently, `cargo-espflash` requires that you have [xargo](https://github.com/ja
 ## Usage
 
 ```bash
-$ cargo espflash [--ram] [--release] [--example EXAMPLE] --chip {esp32,esp8266} <serial>
+$ cargo espflash [--ram] [--release] [--example EXAMPLE] [--chip {esp32,esp8266}] <serial>
 ```
 
 When the `--ram` option is specified, the provided ELF image will be loaded into ram and executed without touching the flash.
@@ -15,7 +15,7 @@ When the `--ram` option is specified, the provided ELF image will be loaded into
 ### Example
 
 ```bash
-$ cargo espflash --release --example=blinky --chip=esp8266 /dev/ttyUSB0
+$ cargo espflash --release --example=blinky /dev/ttyUSB0
 ```
 
 ## License

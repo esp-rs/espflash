@@ -222,6 +222,11 @@ impl Flasher {
             .command(Command::ReadReg as u8, &reg.to_le_bytes()[..], 0)
     }
 
+    /// The chip type that the flasher is connected to
+    pub fn chip(&self) -> Chip {
+        self.chip
+    }
+
     /// Load an elf image to ram and execute it
     ///
     /// Note that this will not touch the flash on the device

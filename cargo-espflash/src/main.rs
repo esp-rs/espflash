@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::{exit, Command, ExitStatus, Stdio};
 
 use cargo_project::{Artifact, Profile, Project};
-use espflash::Flasher;
+use espflash::{Chip, Flasher};
 use main_error::MainError;
 use pico_args::Arguments;
 use serial::{BaudRate, SerialPort};
@@ -12,15 +12,26 @@ use serial::{BaudRate, SerialPort};
 fn main() -> Result<(), MainError> {
     let args = parse_args().expect("Unable to parse command-line arguments");
 
-    if args.help || args.chip.is_none() || args.serial.is_none() {
+    if args.help || args.serial.is_none() {
         return usage();
     }
 
-    let chip = args.chip.unwrap().to_lowercase();
-    let target = match chip.as_str() {
-        "esp32" => "xtensa-esp32-none-elf",
-        "esp8266" => "xtensa-esp8266-none-elf",
-        _ => return usage(),
+    let port = args.serial.unwrap();
+
+    let chip = args
+        .chip
+        .as_ref()
+        .map(|chip| chip.as_str())
+        .or_else(|| chip_detect(&port));
+
+    let target = match chip {
+        Some("esp32") => "xtensa-esp32-none-elf",
+        Some("esp8266") => "xtensa-esp8266-none-elf",
+        Some(_) => return usage(),
+        None => {
+            eprintln!("Unable to detect chip type, ensure your device is connected or manually specify the chip");
+            return Ok(());
+        }
     };
 
     let path = get_artifact_path(target, args.release, &args.example)
@@ -31,7 +42,6 @@ fn main() -> Result<(), MainError> {
         exit_with_process_status(status)
     }
 
-    let port = args.serial.unwrap();
     let mut serial = serial::open(&port)?;
     serial.reconfigure(&|settings| {
         settings.set_baud_rate(BaudRate::Baud115200)?;
@@ -64,7 +74,7 @@ struct AppArgs {
 fn usage() -> Result<(), MainError> {
     let mut usage = String::from("Usage: cargo espflash ");
     usage += "[--ram] [--release] [--example EXAMPLE] ";
-    usage += "--chip {{esp32,esp8266}} <serial>";
+    usage += "[--chip {{esp32,esp8266}}] <serial>";
 
     println!("{}", usage);
 
@@ -138,6 +148,15 @@ fn build(release: bool, example: Option<String>) -> ExitStatus {
         .unwrap()
         .wait()
         .unwrap()
+}
+
+fn chip_detect(port: &str) -> Option<&'static str> {
+    let serial = serial::open(port).ok()?;
+    let flasher = Flasher::connect(serial).ok()?;
+    Some(match flasher.chip() {
+        Chip::Esp8266 => "esp8266",
+        Chip::Esp32 => "esp32",
+    })
 }
 
 #[cfg(unix)]
