@@ -2,7 +2,13 @@
 
 _ESP8266_ and _ESP32_ cross-compiler and serial flasher cargo subcommand.
 
-Currently, `cargo-espflash` requires that you have [xargo](https://github.com/japaric/xargo) installed on your system.
+<!-- Currently, `cargo-espflash` requires that you have [xargo](https://github.com/japaric/xargo) installed on your system. -->
+
+To build the project before flashing, `cargo-espflash` has a few options, specified with the `--tool TOOL` flag.
+
+ - `--tool cargo`, build using the `build-std` unstable cargo feature. This is the default option.
+ - `--tool xargo`, build using `xargo`. Requires [xargo](https://github.com/japaric/xargo) installed on your system.
+ - `--tool xbuild`, build using `cargo xbuild`. Requires [cargo xbuild](https://github.com/rust-osdev/cargo-xbuild) installed on your system.
 
 ## Usage
 

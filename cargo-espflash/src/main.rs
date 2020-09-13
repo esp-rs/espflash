@@ -16,6 +16,21 @@ fn main() -> Result<(), MainError> {
         return usage();
     }
 
+    let tool = args
+        .build_tool
+        .as_ref()
+        .map(|build_tool| build_tool.as_str())
+        .or_else(|| Some("cargo"));
+
+    let tool = match tool {
+        Some("xargo") | Some("cargo") | Some("xbuild") => tool.unwrap(),
+        Some(_) => {
+            eprintln!("Only 'xargo', 'cargo' and 'xbuild' are valid build types.");
+            return Ok(());
+        }
+        None => return usage(),
+    };
+
     let port = args.serial.unwrap();
 
     let chip = args
@@ -37,7 +52,7 @@ fn main() -> Result<(), MainError> {
     let path = get_artifact_path(target, args.release, &args.example)
         .expect("Could not find the build artifact path");
 
-    let status = build(args.release, args.example);
+    let status = build(args.release, args.example, tool);
     if !status.success() {
         exit_with_process_status(status)
     }
@@ -68,12 +83,13 @@ struct AppArgs {
     release: bool,
     example: Option<String>,
     chip: Option<String>,
+    build_tool: Option<String>,
     serial: Option<String>,
 }
 
 fn usage() -> Result<(), MainError> {
     let mut usage = String::from("Usage: cargo espflash ");
-    usage += "[--ram] [--release] [--example EXAMPLE] ";
+    usage += "[--ram] [--release] [--example EXAMPLE] [--build-tool {{cargo,xargo,xbuild}}]";
     usage += "[--chip {{esp32,esp8266}}] <serial>";
 
     println!("{}", usage);
@@ -97,6 +113,7 @@ fn parse_args() -> Result<AppArgs, MainError> {
         release: args.contains("--release"),
         example: args.opt_value_from_str("--example")?,
         chip: args.opt_value_from_str("--chip")?,
+        build_tool: args.opt_value_from_str("--tool")?,
         serial: args.free_from_str()?,
     };
 
@@ -127,7 +144,7 @@ fn get_artifact_path(
     path.map_err(|e| MainError::from(e))
 }
 
-fn build(release: bool, example: Option<String>) -> ExitStatus {
+fn build(release: bool, example: Option<String>, tool: &str) -> ExitStatus {
     let mut args: Vec<String> = vec![];
 
     if release {
@@ -139,8 +156,19 @@ fn build(release: bool, example: Option<String>) -> ExitStatus {
         args.push(example.unwrap());
     }
 
-    Command::new("xargo")
-        .arg("build")
+    let mut command = match tool {
+        "cargo" | "xbuild" => Command::new("cargo"),
+        "xargo" => Command::new("xargo"),
+        _ => unreachable!(),
+    };
+
+    let command = match tool {
+        "xargo" | "cargo" => command.arg("build"),
+        "xbuild" => command.arg("xbuild"),
+        _ => unreachable!(),
+    };
+
+    command
         .args(args)
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
