@@ -5,10 +5,12 @@ _ESP8266_ and _ESP32_ serial flasher library and CLI application.
 ## Usage
 
 ```bash
-$ espflash [--ram] <path to serial> <path to elf image>
+$ espflash [--board-info] [--ram] <path to serial> <path to elf image>
 ```
 
 When the `--ram` option is specified, the provided ELF image will be loaded into ram and executed without touching the flash.
+
+When the `--board-info` is specified, instead of flashing anything, the chip type and flash size will be printed.
 
 ### As cargo runner
 

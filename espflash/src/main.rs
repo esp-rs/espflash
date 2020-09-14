@@ -6,7 +6,7 @@ use pico_args::Arguments;
 use serial::{BaudRate, SerialPort};
 
 fn help() -> Result<(), MainError> {
-    println!("Usage: espflash [--ram] <serial> <elf image>");
+    println!("Usage: espflash [--board-info] [--ram] <serial> [<elf image>]");
     Ok(())
 }
 
@@ -18,14 +18,10 @@ fn main() -> Result<(), MainError> {
     }
 
     let ram = args.contains("--ram");
+    let board_info = args.contains("--board-info");
 
     let serial: String = match args.free_from_str()? {
         Some(serial) => serial,
-        _ => return help(),
-    };
-
-    let input: String = match args.free_from_str()? {
-        Some(input) => input,
         _ => return help(),
     };
 
@@ -37,6 +33,18 @@ fn main() -> Result<(), MainError> {
     })?;
 
     let mut flasher = Flasher::connect(serial)?;
+
+    if board_info {
+        println!("Chip type: {:?}", flasher.chip());
+        println!("Flash size: {:?}", flasher.flash_size());
+
+        return Ok(());
+    }
+
+    let input: String = match args.free_from_str()? {
+        Some(input) => input,
+        _ => return help(),
+    };
     let input_bytes = read(&input)?;
 
     if ram {

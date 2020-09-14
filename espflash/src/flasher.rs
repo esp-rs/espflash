@@ -105,6 +105,7 @@ struct EntryParams {
 pub struct Flasher {
     connection: Connection,
     chip: Chip,
+    flash_size: FlashSize,
 }
 
 impl Flasher {
@@ -112,10 +113,13 @@ impl Flasher {
         let mut flasher = Flasher {
             connection: Connection::new(serial),
             chip: Chip::Esp8266, // dummy, set properly later
+            flash_size: FlashSize::Flash4MB,
         };
         flasher.start_connection()?;
         flasher.connection.set_timeout(Duration::from_secs(3))?;
         flasher.chip_detect()?;
+        flasher.enable_flash()?;
+        flasher.flash_detect()?;
 
         Ok(flasher)
     }
@@ -129,11 +133,12 @@ impl Flasher {
         Ok(())
     }
 
-    fn flash_detect(&mut self) -> Result<FlashSize, Error> {
+    fn flash_detect(&mut self) -> Result<(), Error> {
         let flash_id = self.spi_command(0x9f, &[], 24)?;
         let size_id = flash_id >> 16;
 
-        FlashSize::from(size_id as u8)
+        self.flash_size = FlashSize::from(size_id as u8)?;
+        Ok(())
     }
 
     fn sync(&mut self) -> Result<(), Error> {
@@ -355,6 +360,11 @@ impl Flasher {
         self.chip
     }
 
+    /// The flash size of the board that the flasher is connected to
+    pub fn flash_size(&self) -> FlashSize {
+        self.flash_size
+    }
+
     /// Load an elf image to ram and execute it
     ///
     /// Note that this will not touch the flash on the device
@@ -392,9 +402,8 @@ impl Flasher {
     /// Load an elf image to flash and execute it
     pub fn load_elf_to_flash(&mut self, elf_data: &[u8]) -> Result<(), Error> {
         self.start_connection()?;
-        self.enable_flash()?;
         let mut image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
-        image.flash_size = self.flash_detect()?;
+        image.flash_size = self.flash_size();
 
         for segment in self.chip.get_flash_segments(&image) {
             let segment = segment?;
