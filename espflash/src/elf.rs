@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 
 use crate::chip::Chip;
+use crate::flasher::FlashSize;
 use xmas_elf::program::{SegmentData, Type};
 use xmas_elf::ElfFile;
 
@@ -14,17 +15,6 @@ pub enum FlashMode {
     Qout,
     Dio,
     Dout,
-}
-
-#[derive(Copy, Clone)]
-#[repr(u8)]
-#[allow(dead_code)]
-pub enum FlashSize {
-    Flash1MB = 0x00,
-    Flash2MB = 0x10,
-    Flash4MB = 0x20,
-    Flash8MB = 0x30,
-    Flash16MB = 0x40,
 }
 
 #[derive(Copy, Clone)]

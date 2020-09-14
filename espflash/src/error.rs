@@ -8,6 +8,8 @@ pub enum Error {
     Serial(#[from] serial::core::Error),
     #[error("Failed to connect to the device")]
     ConnectionFailed,
+    #[error("Timeout while running command")]
+    Timeout,
     #[error("Invalid SLIP framing")]
     FramingError,
     #[error("Packet to large for buffer")]
@@ -20,6 +22,8 @@ pub enum Error {
     RomError(RomError),
     #[error("chip not recognized")]
     UnrecognizedChip,
+    #[error("flash chip not supported")]
+    UnsupportedFlash,
 }
 
 impl From<std::io::Error> for Error {

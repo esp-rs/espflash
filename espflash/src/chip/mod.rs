@@ -13,6 +13,7 @@ const ESP_MAGIC: u8 = 0xe9;
 pub trait ChipType {
     const DATE_REG1_VALUE: u32;
     const DATE_REG2_VALUE: u32;
+    const SPI_REGISTERS: SPIRegisters;
 
     /// Get the firmware segments for writing an image to flash
     fn get_flash_segments<'a>(
@@ -20,6 +21,46 @@ pub trait ChipType {
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a>;
 
     fn addr_is_flash(addr: u32) -> bool;
+}
+
+pub struct SPIRegisters {
+    base: u32,
+    usr_offset: u32,
+    usr1_offset: u32,
+    usr2_offset: u32,
+    w0_offset: u32,
+    mosi_length_offset: Option<u32>,
+    miso_length_offset: Option<u32>,
+}
+
+impl SPIRegisters {
+    pub fn cmd(&self) -> u32 {
+        self.base
+    }
+
+    pub fn usr(&self) -> u32 {
+        self.base + self.usr_offset
+    }
+
+    pub fn usr1(&self) -> u32 {
+        self.base + self.usr1_offset
+    }
+
+    pub fn usr2(&self) -> u32 {
+        self.base + self.usr2_offset
+    }
+
+    pub fn w0(&self) -> u32 {
+        self.base + self.w0_offset
+    }
+
+    pub fn mosi_length(&self) -> Option<u32> {
+        self.mosi_length_offset.map(|offset| self.base + offset)
+    }
+
+    pub fn miso_length(&self) -> Option<u32> {
+        self.miso_length_offset.map(|offset| self.base + offset)
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -51,6 +92,13 @@ impl Chip {
         match self {
             Chip::Esp8266 => ESP8266::addr_is_flash(addr),
             Chip::Esp32 => ESP32::addr_is_flash(addr),
+        }
+    }
+
+    pub fn spi_registers(&self) -> SPIRegisters {
+        match self {
+            Chip::Esp8266 => ESP8266::SPI_REGISTERS,
+            Chip::Esp32 => ESP32::SPI_REGISTERS,
         }
     }
 }

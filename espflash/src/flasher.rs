@@ -9,6 +9,7 @@ use crate::Error;
 use bytemuck::__core::time::Duration;
 use bytemuck::{bytes_of, Pod, Zeroable};
 use serial::SerialPort;
+use std::thread::sleep;
 
 type Encoder<'a> = SlipEncoder<'a, Box<dyn SerialPort>>;
 
@@ -39,6 +40,34 @@ enum Command {
     SpiAttach = 0x0D,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(dead_code)]
+#[repr(u8)]
+pub enum FlashSize {
+    Flash256KB = 0x12,
+    Flash512KB = 0x13,
+    Flash1MB = 0x14,
+    Flash2MB = 0x15,
+    Flash4MB = 0x16,
+    Flash8MB = 0x17,
+    Flash16MB = 0x18,
+}
+
+impl FlashSize {
+    fn from(value: u8) -> Result<FlashSize, Error> {
+        match value {
+            0x12 => Ok(FlashSize::Flash256KB),
+            0x13 => Ok(FlashSize::Flash512KB),
+            0x14 => Ok(FlashSize::Flash1MB),
+            0x15 => Ok(FlashSize::Flash2MB),
+            0x16 => Ok(FlashSize::Flash4MB),
+            0x17 => Ok(FlashSize::Flash8MB),
+            0x18 => Ok(FlashSize::Flash16MB),
+            _ => Err(Error::UnsupportedFlash),
+        }
+    }
+}
+
 #[derive(Zeroable, Pod, Copy, Clone, Debug)]
 #[repr(C)]
 struct BlockParams {
@@ -55,6 +84,15 @@ struct BeginParams {
     blocks: u32,
     block_size: u32,
     offset: u32,
+}
+
+#[derive(Zeroable, Pod, Copy, Clone, Debug)]
+#[repr(C)]
+struct WriteRegParams {
+    addr: u32,
+    value: u32,
+    mask: u32,
+    delay_us: u32,
 }
 
 #[derive(Zeroable, Pod, Copy, Clone)]
@@ -89,6 +127,13 @@ impl Flasher {
 
         self.chip = chip;
         Ok(())
+    }
+
+    fn flash_detect(&mut self) -> Result<FlashSize, Error> {
+        let flash_id = self.spi_command(0x9f, &[], 24)?;
+        let size_id = flash_id >> 16;
+
+        FlashSize::from(size_id as u8)
     }
 
     fn sync(&mut self) -> Result<(), Error> {
@@ -217,9 +262,92 @@ impl Flasher {
         Ok(())
     }
 
+    fn spi_command(&mut self, command: u8, data: &[u8], read_bits: u32) -> Result<u32, Error> {
+        assert!(read_bits < 32);
+        assert!(data.len() < 64);
+
+        let spi_registers = self.chip.spi_registers();
+
+        let old_spi_usr = self.read_reg(spi_registers.usr())?;
+        let old_spi_usr2 = self.read_reg(spi_registers.usr2())?;
+
+        let mut flags = 1 << 31;
+        if !data.is_empty() {
+            flags |= 1 << 27;
+        }
+        if read_bits > 0 {
+            flags |= 1 << 28;
+        }
+
+        self.write_reg(spi_registers.usr(), flags, None)?;
+        self.write_reg(spi_registers.usr2(), 7 << 28 | command as u32, None)?;
+
+        if let (Some(mosi_data_length), Some(miso_data_length)) =
+            (spi_registers.mosi_length(), spi_registers.miso_length())
+        {
+            if data.len() > 0 {
+                self.write_reg(mosi_data_length, data.len() as u32 * 8 - 1, None)?;
+            }
+            if read_bits > 0 {
+                self.write_reg(miso_data_length, read_bits - 1, None)?;
+            }
+        } else {
+            let mosi_mask = if data.is_empty() {
+                0
+            } else {
+                data.len() as u32 * 8 - 1
+            };
+            let miso_mask = if read_bits == 0 { 0 } else { read_bits - 1 };
+            self.write_reg(spi_registers.usr1(), miso_mask << 8 | mosi_mask << 17, None)?;
+        }
+
+        if data.is_empty() {
+            self.write_reg(spi_registers.w0(), 0, None)?;
+        } else {
+            for (i, bytes) in data.chunks(4).enumerate() {
+                let mut data_bytes = [0; 4];
+                data_bytes[0..bytes.len()].copy_from_slice(bytes);
+                let data = u32::from_le_bytes(data_bytes);
+                self.write_reg(spi_registers.w0() + i as u32, data, None)?;
+            }
+        }
+
+        self.write_reg(spi_registers.cmd(), 1 << 18, None)?;
+
+        let mut i = 0;
+        loop {
+            sleep(Duration::from_millis(1));
+            if self.read_reg(spi_registers.usr())? & (1 << 18) == 0 {
+                break;
+            }
+            i += 1;
+            if i > 10 {
+                return Err(Error::Timeout);
+            }
+        }
+
+        let result = self.read_reg(spi_registers.w0())?;
+        self.write_reg(spi_registers.usr(), old_spi_usr, None)?;
+        self.write_reg(spi_registers.usr2(), old_spi_usr2, None)?;
+
+        Ok(result)
+    }
+
     fn read_reg(&mut self, reg: u32) -> Result<u32, Error> {
         self.connection
             .command(Command::ReadReg as u8, &reg.to_le_bytes()[..], 0)
+    }
+
+    fn write_reg(&mut self, addr: u32, value: u32, mask: Option<u32>) -> Result<(), Error> {
+        let params = WriteRegParams {
+            addr,
+            value,
+            mask: mask.unwrap_or(0xFFFFFFFF),
+            delay_us: 0,
+        };
+        self.connection
+            .command(Command::WriteReg as u8, bytes_of(&params), 0)?;
+        Ok(())
     }
 
     /// The chip type that the flasher is connected to
@@ -265,7 +393,8 @@ impl Flasher {
     pub fn load_elf_to_flash(&mut self, elf_data: &[u8]) -> Result<(), Error> {
         self.start_connection()?;
         self.enable_flash()?;
-        let image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
+        let mut image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
+        image.flash_size = self.flash_detect()?;
 
         for segment in self.chip.get_flash_segments(&image) {
             let segment = segment?;

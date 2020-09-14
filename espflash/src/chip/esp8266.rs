@@ -4,8 +4,9 @@ use std::iter::once;
 use std::mem::size_of;
 
 use super::{ChipType, ESPCommonHeader, SegmentHeader, ESP_MAGIC};
-use crate::chip::Chip;
+use crate::chip::{Chip, SPIRegisters};
 use crate::elf::{update_checksum, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
+use crate::flasher::FlashSize;
 use crate::Error;
 use bytemuck::bytes_of;
 
@@ -17,6 +18,15 @@ pub struct ESP8266;
 impl ChipType for ESP8266 {
     const DATE_REG1_VALUE: u32 = 0x00062000;
     const DATE_REG2_VALUE: u32 = 0;
+    const SPI_REGISTERS: SPIRegisters = SPIRegisters {
+        base: 0x60000200,
+        usr_offset: 0x1c,
+        usr1_offset: 0x20,
+        usr2_offset: 0x24,
+        w0_offset: 0x40,
+        mosi_length_offset: None,
+        miso_length_offset: None,
+    };
 
     fn addr_is_flash(addr: u32) -> bool {
         addr >= IROM_MAP_START && addr < IROM_MAP_END
@@ -46,7 +56,7 @@ impl ChipType for ESP8266 {
                 magic: ESP_MAGIC,
                 segment_count: image.ram_segments(Chip::Esp8266).count() as u8,
                 flash_mode: image.flash_mode as u8,
-                flash_config: image.flash_size as u8 + image.flash_frequency as u8,
+                flash_config: encode_flash_size(image.flash_size)? + image.flash_frequency as u8,
                 entry: image.entry,
             };
             common_data.write(bytes_of(&header))?;
@@ -85,6 +95,18 @@ impl ChipType for ESP8266 {
 
         Box::new(irom_data.chain(once(common(image))))
     }
+}
+
+fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
+    Ok(match size {
+        FlashSize::Flash256KB => 0x10,
+        FlashSize::Flash512KB => 0x00,
+        FlashSize::Flash1MB => 0x20,
+        FlashSize::Flash2MB => 0x30,
+        FlashSize::Flash4MB => 0x40,
+        FlashSize::Flash8MB => 0x80,
+        FlashSize::Flash16MB => 0x90,
+    })
 }
 
 #[test]

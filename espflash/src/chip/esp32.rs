@@ -3,8 +3,9 @@ use std::io::Write;
 use std::iter::once;
 
 use crate::chip::esp32::partition_table::PartitionTable;
-use crate::chip::{Chip, ChipType, ESPCommonHeader, SegmentHeader, ESP_MAGIC};
+use crate::chip::{Chip, ChipType, ESPCommonHeader, SPIRegisters, SegmentHeader, ESP_MAGIC};
 use crate::elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
+use crate::flasher::FlashSize;
 use crate::Error;
 use bytemuck::{bytes_of, Pod, Zeroable};
 use sha2::{Digest, Sha256};
@@ -41,6 +42,15 @@ struct ExtendedHeader {
 impl ChipType for ESP32 {
     const DATE_REG1_VALUE: u32 = 0x15122500;
     const DATE_REG2_VALUE: u32 = 0;
+    const SPI_REGISTERS: SPIRegisters = SPIRegisters {
+        base: 0x3ff42000,
+        usr_offset: 0x1c,
+        usr1_offset: 0x20,
+        usr2_offset: 0x24,
+        w0_offset: 0x80,
+        mosi_length_offset: Some(0x28),
+        miso_length_offset: Some(0x2c),
+    };
 
     fn addr_is_flash(addr: u32) -> bool {
         addr >= IROM_MAP_START && addr < IROM_MAP_END
@@ -61,7 +71,7 @@ impl ChipType for ESP32 {
                 magic: ESP_MAGIC,
                 segment_count: 0,
                 flash_mode: image.flash_mode as u8,
-                flash_config: image.flash_size as u8 + image.flash_frequency as u8,
+                flash_config: encode_flash_size(image.flash_size)? + image.flash_frequency as u8,
                 entry: image.entry,
             };
             data.write(bytes_of(&header))?;
@@ -154,6 +164,18 @@ impl ChipType for ESP32 {
             })))
             .chain(once(get_data(image))),
         )
+    }
+}
+
+fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
+    match size {
+        FlashSize::Flash256KB => Err(Error::UnsupportedFlash),
+        FlashSize::Flash512KB => Err(Error::UnsupportedFlash),
+        FlashSize::Flash1MB => Ok(0x00),
+        FlashSize::Flash2MB => Ok(0x10),
+        FlashSize::Flash4MB => Ok(0x20),
+        FlashSize::Flash8MB => Ok(0x30),
+        FlashSize::Flash16MB => Ok(0x40),
     }
 }
 
