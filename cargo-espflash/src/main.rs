@@ -52,7 +52,7 @@ fn main() -> Result<(), MainError> {
     let path = get_artifact_path(target, args.release, &args.example)
         .expect("Could not find the build artifact path");
 
-    let status = build(args.release, args.example, tool);
+    let status = build(args.release, args.example, tool, target);
     if !status.success() {
         exit_with_process_status(status)
     }
@@ -144,7 +144,7 @@ fn get_artifact_path(
     path.map_err(|e| MainError::from(e))
 }
 
-fn build(release: bool, example: Option<String>, tool: &str) -> ExitStatus {
+fn build(release: bool, example: Option<String>, tool: &str, target: &str) -> ExitStatus {
     let mut args: Vec<String> = vec![];
 
     if release {
@@ -167,6 +167,14 @@ fn build(release: bool, example: Option<String>, tool: &str) -> ExitStatus {
         "xbuild" => command.arg("xbuild"),
         _ => unreachable!(),
     };
+
+    let command = match tool {
+        "cargo" => command.arg("-Z build-std"),
+        _ => command,
+    };
+
+    args.push("--target".to_string());
+    args.push(target.to_string());
 
     command
         .args(args)
