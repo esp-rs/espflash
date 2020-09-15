@@ -15,7 +15,7 @@ When the `--board-info` is specified, instead of flashing anything, the chip typ
 ### Config
 
 You can also specify the serial port by setting it in the config file located at `~/.config/espflash/espflash.toml` or linux
-or `%APPDATA%/esp/espflash/espflash.toml`.
+or `%APPDATA%/esp/espflash/espflash.toml` on windows.
 
 ```toml
 [connection]
