@@ -20,7 +20,7 @@ fn main() -> Result<(), MainError> {
         .build_tool
         .as_ref()
         .map(|build_tool| build_tool.as_str())
-        .or_else(|| Some("cargo"));
+        .or_else(|| Some("xbuild"));
 
     let tool = match tool {
         Some("xargo") | Some("cargo") | Some("xbuild") => tool.unwrap(),
@@ -89,7 +89,7 @@ struct AppArgs {
 
 fn usage() -> Result<(), MainError> {
     let mut usage = String::from("Usage: cargo espflash ");
-    usage += "[--ram] [--release] [--example EXAMPLE] [--build-tool {{cargo,xargo,xbuild}}]";
+    usage += "[--ram] [--release] [--example EXAMPLE] [--tool {{cargo,xargo,xbuild}}]";
     usage += "[--chip {{esp32,esp8266}}] <serial>";
 
     println!("{}", usage);
