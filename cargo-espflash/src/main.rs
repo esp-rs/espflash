@@ -168,9 +168,12 @@ fn build(release: bool, example: Option<String>, tool: &str, target: &str) -> Ex
         _ => unreachable!(),
     };
 
-    let command = match tool {
-        "cargo" => command.arg("-Z build-std"),
-        _ => command,
+    match tool {
+        "cargo" => {
+            args.push("-Z".to_string());
+            args.push("build-std".to_string());
+        }
+        _ => {}
     };
 
     args.push("--target".to_string());
