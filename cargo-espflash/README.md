@@ -16,6 +16,19 @@ $ cargo espflash [--ram] [--release] [--example EXAMPLE] [--chip {esp32,esp8266}
 
 When the `--ram` option is specified, the provided ELF image will be loaded into ram and executed without touching the flash.
 
+### Config
+
+You can also specify the serial port or build tool by setting it in the config file located at `~/.config/espflash/espflash.toml` or linux
+or `%APPDATA%/esp/espflash/espflash.toml`.
+
+```toml
+[connection]
+serial = "/dev/ttyUSB0"
+
+[build]
+tool = "cargo"
+```
+
 ### Example
 
 ```bash

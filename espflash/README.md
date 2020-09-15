@@ -12,6 +12,17 @@ When the `--ram` option is specified, the provided ELF image will be loaded into
 
 When the `--board-info` is specified, instead of flashing anything, the chip type and flash size will be printed.
 
+### Config
+
+You can also specify the serial port by setting it in the config file located at `~/.config/espflash/espflash.toml` or linux
+or `%APPDATA%/esp/espflash/espflash.toml`.
+
+```toml
+[connection]
+serial = "/dev/ttyUSB0"
+```
+
+
 ### As cargo runner
 
 You can also use `espflash` as a cargo runner by setting

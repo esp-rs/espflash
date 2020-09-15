@@ -4,15 +4,16 @@ use std::path::PathBuf;
 use std::process::{exit, Command, ExitStatus, Stdio};
 
 use cargo_project::{Artifact, Profile, Project};
-use espflash::{Chip, Flasher};
+use espflash::{Chip, Config, Flasher};
 use main_error::MainError;
 use pico_args::Arguments;
 use serial::{BaudRate, SerialPort};
 
 fn main() -> Result<(), MainError> {
     let args = parse_args().expect("Unable to parse command-line arguments");
+    let config = Config::load();
 
-    if args.help || args.serial.is_none() {
+    if args.help || (args.serial.is_none() && config.connection.serial.is_none()) {
         return usage();
     }
 
@@ -20,7 +21,8 @@ fn main() -> Result<(), MainError> {
         .build_tool
         .as_ref()
         .map(|build_tool| build_tool.as_str())
-        .or_else(|| Some("xbuild"));
+        .or(config.build.tool.as_ref().map(|tool| tool.as_str()))
+        .or(Some("xbuild"));
 
     let tool = match tool {
         Some("xargo") | Some("cargo") | Some("xbuild") => tool.unwrap(),
@@ -31,7 +33,7 @@ fn main() -> Result<(), MainError> {
         None => return usage(),
     };
 
-    let port = args.serial.unwrap();
+    let port = args.serial.or(config.connection.serial).unwrap();
 
     let chip = args
         .chip
