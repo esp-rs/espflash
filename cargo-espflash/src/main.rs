@@ -51,12 +51,13 @@ fn main() -> Result<(), MainError> {
         }
     };
 
-    let path = get_artifact_path(target, args.release, &args.example)
-        .expect("Could not find the build artifact path");
-
-    let status = build(args.release, args.example, tool, target);
-    if !status.success() {
-        exit_with_process_status(status)
+    // Since the application exits without flashing the device when '--board-info'
+    // is passed, we will not waste time building if said flag was set.
+    if !args.board_info {
+        let status = build(args.release, &args.example, tool, target);
+        if !status.success() {
+            exit_with_process_status(status)
+        }
     }
 
     let mut serial = serial::open(&port)?;
@@ -67,6 +68,12 @@ fn main() -> Result<(), MainError> {
     })?;
 
     let mut flasher = Flasher::connect(serial)?;
+    if args.board_info {
+        return board_info(&flasher);
+    }
+
+    let path = get_artifact_path(target, args.release, &args.example)
+        .expect("Could not find the build artifact path");
     let elf_data = read(&path)?;
 
     if args.ram {
@@ -81,6 +88,7 @@ fn main() -> Result<(), MainError> {
 #[derive(Debug)]
 struct AppArgs {
     help: bool,
+    board_info: bool,
     ram: bool,
     release: bool,
     example: Option<String>,
@@ -90,11 +98,23 @@ struct AppArgs {
 }
 
 fn usage() -> Result<(), MainError> {
-    let mut usage = String::from("Usage: cargo espflash ");
-    usage += "[--ram] [--release] [--example EXAMPLE] [--tool {{cargo,xargo,xbuild}}]";
-    usage += "[--chip {{esp32,esp8266}}] <serial>";
+    let usage = "Usage: cargo espflash \
+      [--board-info] \
+      [--ram] \
+      [--release] \
+      [--example EXAMPLE] \
+      [--tool {{cargo,xargo,xbuild}}] \
+      [--chip {{esp32,esp8266}}] \
+      <serial>";
 
     println!("{}", usage);
+
+    Ok(())
+}
+
+fn board_info(flasher: &Flasher) -> Result<(), MainError> {
+    println!("Chip type:  {:?}", flasher.chip());
+    println!("Flash size: {:?}", flasher.flash_size());
 
     Ok(())
 }
@@ -111,6 +131,7 @@ fn parse_args() -> Result<AppArgs, MainError> {
 
     let app_args = AppArgs {
         help: args.contains("--help"),
+        board_info: args.contains("--board-info"),
         ram: args.contains("--ram"),
         release: args.contains("--release"),
         example: args.opt_value_from_str("--example")?,
@@ -146,16 +167,19 @@ fn get_artifact_path(
     path.map_err(|e| MainError::from(e))
 }
 
-fn build(release: bool, example: Option<String>, tool: &str, target: &str) -> ExitStatus {
+fn build(release: bool, example: &Option<String>, tool: &str, target: &str) -> ExitStatus {
     let mut args: Vec<String> = vec![];
 
     if release {
         args.push("--release".to_string());
     }
 
-    if example.is_some() {
-        args.push("--example".to_string());
-        args.push(example.unwrap());
+    match example {
+        Some(example) => {
+            args.push("--example".to_string());
+            args.push(example.to_string());
+        }
+        None => {}
     }
 
     let mut command = match tool {
@@ -194,10 +218,13 @@ fn build(release: bool, example: Option<String>, tool: &str, target: &str) -> Ex
 fn chip_detect(port: &str) -> Option<&'static str> {
     let serial = serial::open(port).ok()?;
     let flasher = Flasher::connect(serial).ok()?;
-    Some(match flasher.chip() {
+
+    let chip = match flasher.chip() {
         Chip::Esp8266 => "esp8266",
         Chip::Esp32 => "esp32",
-    })
+    };
+
+    Some(chip)
 }
 
 #[cfg(unix)]
