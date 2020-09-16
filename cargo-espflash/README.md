@@ -11,15 +11,15 @@ To build the project before flashing, `cargo-espflash` has a few options, specif
 ## Usage
 
 ```bash
-$ cargo espflash [--ram] [--release] [--example EXAMPLE] [--chip {esp32,esp8266}] [--tool {{cargo,xargo,xbuild}}] <serial>
+$ cargo espflash [--board-info] [--ram] [--release] [--example EXAMPLE] [--chip {esp32,esp8266}] [--tool {{cargo,xargo,xbuild}}] <serial>
 ```
 
 When the `--ram` option is specified, the provided ELF image will be loaded into ram and executed without touching the flash.
 
 ### Config
 
-You can also specify the serial port or build tool by setting it in the config file located at `~/.config/espflash/espflash.toml` or linux
-or `%APPDATA%/esp/espflash/espflash.toml` on windows.
+You can also specify the serial port or build tool by setting it in the config file located at `~/.config/espflash/espflash.toml` or Linux
+or `%APPDATA%/esp/espflash/espflash.toml` on Windows.
 
 ```toml
 [connection]
