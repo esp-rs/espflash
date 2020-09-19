@@ -402,6 +402,7 @@ impl Flasher {
     /// Load an elf image to flash and execute it
     pub fn load_elf_to_flash(&mut self, elf_data: &[u8]) -> Result<(), Error> {
         self.start_connection()?;
+        self.enable_flash()?;
         let mut image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
         image.flash_size = self.flash_size();
 
