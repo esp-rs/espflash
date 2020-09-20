@@ -54,7 +54,7 @@ fn main() -> Result<(), MainError> {
     // Since the application exits without flashing the device when '--board-info'
     // is passed, we will not waste time building if said flag was set.
     if !args.board_info {
-        let status = build(args.release, &args.example, tool, target);
+        let status = build(args.release, &args.example, & args.features, tool, target);
         if !status.success() {
             exit_with_process_status(status)
         }
@@ -92,6 +92,7 @@ struct AppArgs {
     ram: bool,
     release: bool,
     example: Option<String>,
+    features: Option<String>,
     chip: Option<String>,
     build_tool: Option<String>,
     serial: Option<String>,
@@ -135,6 +136,7 @@ fn parse_args() -> Result<AppArgs, MainError> {
         ram: args.contains("--ram"),
         release: args.contains("--release"),
         example: args.opt_value_from_str("--example")?,
+        features: args.opt_value_from_str("--features")?,
         chip: args.opt_value_from_str("--chip")?,
         build_tool: args.opt_value_from_str("--tool")?,
         serial: args.free_from_str()?,
@@ -167,7 +169,7 @@ fn get_artifact_path(
     path.map_err(|e| MainError::from(e))
 }
 
-fn build(release: bool, example: &Option<String>, tool: &str, target: &str) -> ExitStatus {
+fn build(release: bool, example: &Option<String>, features: &Option<String>, tool: &str, target: &str) -> ExitStatus {
     let mut args: Vec<String> = vec![];
 
     if release {
@@ -178,6 +180,14 @@ fn build(release: bool, example: &Option<String>, tool: &str, target: &str) -> E
         Some(example) => {
             args.push("--example".to_string());
             args.push(example.to_string());
+        }
+        None => {}
+    }
+
+    match features {
+        Some(features) => {
+            args.push("--features".to_string());
+            args.push(features.to_string());
         }
         None => {}
     }
