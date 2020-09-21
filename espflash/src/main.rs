@@ -41,7 +41,7 @@ fn main() -> Result<(), MainError> {
         Ok(())
     })?;
 
-    let mut flasher = Flasher::connect(serial)?;
+    let mut flasher = Flasher::connect(serial, None)?;
 
     if board_info {
         println!("Chip type: {:?}", flasher.chip());

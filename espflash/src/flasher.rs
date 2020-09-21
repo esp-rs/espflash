@@ -8,7 +8,7 @@ use crate::error::RomError;
 use crate::Error;
 use bytemuck::__core::time::Duration;
 use bytemuck::{bytes_of, Pod, Zeroable};
-use serial::SerialPort;
+use serial::{SerialPort,BaudRate};
 use std::thread::sleep;
 
 type Encoder<'a> = SlipEncoder<'a, Box<dyn SerialPort>>;
@@ -38,6 +38,7 @@ enum Command {
     ReadReg = 0x0a,
     SpiSetParams = 0x0B,
     SpiAttach = 0x0D,
+    ChangeBaud = 0x0F,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -109,9 +110,9 @@ pub struct Flasher {
 }
 
 impl Flasher {
-    pub fn connect(serial: impl SerialPort + 'static) -> Result<Self, Error> {
+    pub fn connect(serial: impl SerialPort + 'static, speed: Option<BaudRate>) -> Result<Self, Error> {
         let mut flasher = Flasher {
-            connection: Connection::new(serial),
+            connection: Connection::new(serial), // default baud is always 115200
             chip: Chip::Esp8266, // dummy, set properly later
             flash_size: FlashSize::Flash4MB,
         };
@@ -120,6 +121,16 @@ impl Flasher {
         flasher.chip_detect()?;
         flasher.enable_flash()?;
         flasher.flash_detect()?;
+
+        if let Some(b) = speed {
+            match flasher.chip {
+                Chip::Esp8266 => (), /* Not available */
+                Chip::Esp32 => if b.speed() > BaudRate::Baud115200.speed() {
+                    println!("WARN setting baud rate higher than 115200 can cause issues.");
+                    flasher.change_baud(b)?;
+                }
+            }
+        }
 
         Ok(flasher)
     }
@@ -369,7 +380,6 @@ impl Flasher {
     ///
     /// Note that this will not touch the flash on the device
     pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
-        self.start_connection()?;
         let image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
 
         if image.rom_segments(self.chip).next().is_some() {
@@ -401,7 +411,6 @@ impl Flasher {
 
     /// Load an elf image to flash and execute it
     pub fn load_elf_to_flash(&mut self, elf_data: &[u8]) -> Result<(), Error> {
-        self.start_connection()?;
         self.enable_flash()?;
         let mut image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
         image.flash_size = self.flash_size();
@@ -434,6 +443,12 @@ impl Flasher {
 
         self.connection.reset()?;
 
+        Ok(())
+    }
+
+    pub fn change_baud(&mut self, speed: BaudRate) -> Result<(), Error> {
+        self.connection.command(Command::ChangeBaud as u8, &(speed.speed()).to_le_bytes()[..], 0)?;
+        self.connection.set_baud(speed)?;
         Ok(())
     }
 }

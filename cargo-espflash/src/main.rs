@@ -35,6 +35,8 @@ fn main() -> Result<(), MainError> {
 
     let port = args.serial.or(config.connection.serial).unwrap();
 
+    let speed = args.speed.map(|v| BaudRate::from_speed(v as usize));
+
     let chip = args
         .chip
         .as_ref()
@@ -63,11 +65,10 @@ fn main() -> Result<(), MainError> {
     let mut serial = serial::open(&port)?;
     serial.reconfigure(&|settings| {
         settings.set_baud_rate(BaudRate::Baud115200)?;
-
         Ok(())
     })?;
 
-    let mut flasher = Flasher::connect(serial)?;
+    let mut flasher = Flasher::connect(serial, speed)?;
     if args.board_info {
         return board_info(&flasher);
     }
@@ -95,6 +96,7 @@ struct AppArgs {
     features: Option<String>,
     chip: Option<String>,
     build_tool: Option<String>,
+    speed: Option<u32>,
     serial: Option<String>,
 }
 
@@ -106,6 +108,7 @@ fn usage() -> Result<(), MainError> {
       [--example EXAMPLE] \
       [--tool {{cargo,xargo,xbuild}}] \
       [--chip {{esp32,esp8266}}] \
+      [--speed BAUD] \
       <serial>";
 
     println!("{}", usage);
@@ -138,6 +141,7 @@ fn parse_args() -> Result<AppArgs, MainError> {
         example: args.opt_value_from_str("--example")?,
         features: args.opt_value_from_str("--features")?,
         chip: args.opt_value_from_str("--chip")?,
+        speed: args.opt_value_from_str("--speed")?,
         build_tool: args.opt_value_from_str("--tool")?,
         serial: args.free_from_str()?,
     };
@@ -227,7 +231,7 @@ fn build(release: bool, example: &Option<String>, features: &Option<String>, too
 
 fn chip_detect(port: &str) -> Option<&'static str> {
     let serial = serial::open(port).ok()?;
-    let flasher = Flasher::connect(serial).ok()?;
+    let flasher = Flasher::connect(serial, None).ok()?;
 
     let chip = match flasher.chip() {
         Chip::Esp8266 => "esp8266",
