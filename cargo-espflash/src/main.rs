@@ -56,7 +56,7 @@ fn main() -> Result<(), MainError> {
     // Since the application exits without flashing the device when '--board-info'
     // is passed, we will not waste time building if said flag was set.
     if !args.board_info {
-        let status = build(args.release, &args.example, & args.features, tool, target);
+        let status = build(args.release, &args.example, &args.features, tool, target);
         if !status.success() {
             exit_with_process_status(status)
         }
@@ -173,7 +173,13 @@ fn get_artifact_path(
     path.map_err(|e| MainError::from(e))
 }
 
-fn build(release: bool, example: &Option<String>, features: &Option<String>, tool: &str, target: &str) -> ExitStatus {
+fn build(
+    release: bool,
+    example: &Option<String>,
+    features: &Option<String>,
+    tool: &str,
+    target: &str,
+) -> ExitStatus {
     let mut args: Vec<String> = vec![];
 
     if release {

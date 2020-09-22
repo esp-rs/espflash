@@ -1,4 +1,4 @@
-use std::io::{Write};
+use std::io::Write;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -6,7 +6,7 @@ use crate::encoder::SlipEncoder;
 use crate::error::{Error, RomError};
 use binread::io::Cursor;
 use binread::{BinRead, BinReaderExt};
-use serial::{SerialPort, BaudRate, SerialPortSettings};
+use serial::{BaudRate, SerialPort, SerialPortSettings};
 use slip_codec::Decoder;
 
 pub struct Connection {
@@ -67,9 +67,8 @@ impl Connection {
     }
 
     pub fn set_baud(&mut self, speed: BaudRate) -> Result<(), Error> {
-        self.serial.reconfigure(&|setup: &mut dyn SerialPortSettings| {
-            setup.set_baud_rate(speed)
-        })?;
+        self.serial
+            .reconfigure(&|setup: &mut dyn SerialPortSettings| setup.set_baud_rate(speed))?;
         Ok(())
     }
 

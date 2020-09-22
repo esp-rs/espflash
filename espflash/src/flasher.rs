@@ -8,7 +8,7 @@ use crate::error::RomError;
 use crate::Error;
 use bytemuck::__core::time::Duration;
 use bytemuck::{bytes_of, Pod, Zeroable};
-use serial::{SerialPort,BaudRate};
+use serial::{BaudRate, SerialPort};
 use std::thread::sleep;
 
 type Encoder<'a> = SlipEncoder<'a, Box<dyn SerialPort>>;
@@ -110,10 +110,13 @@ pub struct Flasher {
 }
 
 impl Flasher {
-    pub fn connect(serial: impl SerialPort + 'static, speed: Option<BaudRate>) -> Result<Self, Error> {
+    pub fn connect(
+        serial: impl SerialPort + 'static,
+        speed: Option<BaudRate>,
+    ) -> Result<Self, Error> {
         let mut flasher = Flasher {
             connection: Connection::new(serial), // default baud is always 115200
-            chip: Chip::Esp8266, // dummy, set properly later
+            chip: Chip::Esp8266,                 // dummy, set properly later
             flash_size: FlashSize::Flash4MB,
         };
         flasher.start_connection()?;
@@ -125,9 +128,11 @@ impl Flasher {
         if let Some(b) = speed {
             match flasher.chip {
                 Chip::Esp8266 => (), /* Not available */
-                Chip::Esp32 => if b.speed() > BaudRate::Baud115200.speed() {
-                    println!("WARN setting baud rate higher than 115200 can cause issues.");
-                    flasher.change_baud(b)?;
+                Chip::Esp32 => {
+                    if b.speed() > BaudRate::Baud115200.speed() {
+                        println!("WARN setting baud rate higher than 115200 can cause issues.");
+                        flasher.change_baud(b)?;
+                    }
                 }
             }
         }
@@ -235,6 +240,12 @@ impl Flasher {
 
         let length = size_of::<BlockParams>() + data.len() + padding;
 
+        let mut check = checksum(&data, CHECKSUM_INIT);
+
+        for _ in 0..padding {
+            check = checksum(&[padding_byte], check);
+        }
+
         self.connection.command(
             command as u8,
             (length as u16, |encoder: &mut Encoder| {
@@ -244,7 +255,7 @@ impl Flasher {
                 encoder.write(padding)?;
                 Ok(())
             }),
-            checksum(&data, CHECKSUM_INIT) as u32,
+            check as u32,
         )?;
         Ok(())
     }
@@ -447,7 +458,11 @@ impl Flasher {
     }
 
     pub fn change_baud(&mut self, speed: BaudRate) -> Result<(), Error> {
-        self.connection.command(Command::ChangeBaud as u8, &(speed.speed()).to_le_bytes()[..], 0)?;
+        self.connection.command(
+            Command::ChangeBaud as u8,
+            &(speed.speed()).to_le_bytes()[..],
+            0,
+        )?;
         self.connection.set_baud(speed)?;
         Ok(())
     }
