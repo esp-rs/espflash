@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "0.1.1"
+version = "0.1.2"
 description = "Cargo subcommand for flashing the ESP8266 and ESP32 over serial"
 license = "GPL-2.0"
 authors = [
@@ -12,7 +12,7 @@ edition = "2018"
 
 [dependencies]
 cargo-project = "0.2.4"
-espflash = { version = "0.1.1", path = "../espflash" }
+espflash = { version = "0.1.2", path = "../espflash" }
 main_error = "0.1.1"
 pico-args = "0.3.4"
 serial = "0.4"
