@@ -5,7 +5,7 @@ use std::mem::size_of;
 
 use super::{ChipType, ESPCommonHeader, SegmentHeader, ESP_MAGIC};
 use crate::chip::{Chip, SPIRegisters};
-use crate::elf::{update_checksum, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
+use crate::elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
 use crate::flasher::FlashSize;
 use crate::Error;
 use bytemuck::bytes_of;
@@ -36,12 +36,9 @@ impl ChipType for ESP8266 {
         image: &'a FirmwareImage,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         // irom goes into a separate plain bin
-        let irom_data = image.rom_segments(Chip::Esp8266).map(|segment| {
-            Ok(RomSegment {
-                addr: segment.addr - IROM_MAP_START,
-                data: Cow::Borrowed(segment.data),
-            })
-        });
+        let irom_data = merge_rom_segments(image.rom_segments(Chip::Esp8266))
+            .into_iter()
+            .map(|segment| Ok(segment));
 
         // my kingdom for a try {} block
         fn common<'a>(image: &'a FirmwareImage) -> Result<RomSegment<'a>, Error> {
@@ -107,6 +104,32 @@ fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
         FlashSize::Flash8MB => 0x80,
         FlashSize::Flash16MB => 0x90,
     })
+}
+
+fn merge_rom_segments<'a>(
+    mut segments: impl Iterator<Item = CodeSegment<'a>>,
+) -> Option<RomSegment<'a>> {
+    let first = segments.next()?;
+    if let Some(second) = segments.next() {
+        let mut data = Vec::with_capacity(first.data.len() + second.data.len());
+        data.extend_from_slice(first.data);
+
+        for segment in once(second).chain(segments) {
+            let padding_size = segment.addr as usize - first.addr as usize - data.len();
+            data.resize(data.len() + padding_size, 0);
+            data.extend_from_slice(segment.data);
+        }
+
+        Some(RomSegment {
+            addr: first.addr - IROM_MAP_START,
+            data: Cow::Owned(data),
+        })
+    } else {
+        Some(RomSegment {
+            addr: first.addr - IROM_MAP_START,
+            data: Cow::Borrowed(first.data),
+        })
+    }
 }
 
 #[test]
