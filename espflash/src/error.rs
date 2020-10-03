@@ -22,8 +22,8 @@ pub enum Error {
     RomError(RomError),
     #[error("chip not recognized")]
     UnrecognizedChip,
-    #[error("flash chip not supported")]
-    UnsupportedFlash,
+    #[error("flash chip not supported, flash id: {0:#x}")]
+    UnsupportedFlash(u8),
 }
 
 impl From<std::io::Error> for Error {

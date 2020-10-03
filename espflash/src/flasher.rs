@@ -64,7 +64,7 @@ impl FlashSize {
             0x16 => Ok(FlashSize::Flash4MB),
             0x17 => Ok(FlashSize::Flash8MB),
             0x18 => Ok(FlashSize::Flash16MB),
-            _ => Err(Error::UnsupportedFlash),
+            _ => Err(Error::UnsupportedFlash(value)),
         }
     }
 }

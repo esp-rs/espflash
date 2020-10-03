@@ -169,8 +169,8 @@ impl ChipType for ESP32 {
 
 fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
     match size {
-        FlashSize::Flash256KB => Err(Error::UnsupportedFlash),
-        FlashSize::Flash512KB => Err(Error::UnsupportedFlash),
+        FlashSize::Flash256KB => Err(Error::UnsupportedFlash(size as u8)),
+        FlashSize::Flash512KB => Err(Error::UnsupportedFlash(size as u8)),
         FlashSize::Flash1MB => Ok(0x00),
         FlashSize::Flash2MB => Ok(0x10),
         FlashSize::Flash4MB => Ok(0x20),
