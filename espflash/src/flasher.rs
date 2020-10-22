@@ -197,7 +197,7 @@ impl Flasher {
         self.connection.reset_to_flash()?;
         for _ in 0..10 {
             self.connection.flush()?;
-            if let Ok(_) = self.sync() {
+            if self.sync().is_ok() {
                 return Ok(());
             }
         }
@@ -312,7 +312,7 @@ impl Flasher {
         if let (Some(mosi_data_length), Some(miso_data_length)) =
             (spi_registers.mosi_length(), spi_registers.miso_length())
         {
-            if data.len() > 0 {
+            if !data.is_empty() {
                 self.write_reg(mosi_data_length, data.len() as u32 * 8 - 1, None)?;
             }
             if read_bits > 0 {
@@ -487,7 +487,7 @@ fn get_erase_size(offset: usize, size: usize) -> usize {
 const CHECKSUM_INIT: u8 = 0xEF;
 
 pub fn checksum(data: &[u8], mut checksum: u8) -> u8 {
-    for byte in data.as_ref() {
+    for byte in data {
         checksum ^= *byte;
     }
 

@@ -109,7 +109,7 @@ pub struct RomSegment<'a> {
 }
 
 pub fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
-    for byte in data.as_ref() {
+    for byte in data {
         checksum ^= *byte;
     }
 

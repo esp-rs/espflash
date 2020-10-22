@@ -19,8 +19,7 @@ fn main() -> Result<(), MainError> {
 
     let tool = args
         .build_tool
-        .as_ref()
-        .map(|build_tool| build_tool.as_str())
+        .as_deref()
         .or(config.build.tool.as_ref().map(|tool| tool.as_str()))
         .or(Some("xbuild"));
 
@@ -37,11 +36,7 @@ fn main() -> Result<(), MainError> {
 
     let speed = args.speed.map(|v| BaudRate::from_speed(v as usize));
 
-    let chip = args
-        .chip
-        .as_ref()
-        .map(|chip| chip.as_str())
-        .or_else(|| chip_detect(&port));
+    let chip = args.chip.as_deref().or_else(|| chip_detect(&port));
 
     let target = match chip {
         Some("esp32") => "xtensa-esp32-none-elf",
@@ -126,10 +121,7 @@ fn board_info(flasher: &Flasher) -> Result<(), MainError> {
 fn parse_args() -> Result<AppArgs, MainError> {
     // Skip the command and subcommand (ie. 'cargo espflash') and convert the
     // remaining arguments to the expected type.
-    let args = std::env::args()
-        .skip(2)
-        .map(|arg| OsString::from(arg))
-        .collect();
+    let args = std::env::args().skip(2).map(OsString::from).collect();
 
     let mut args = Arguments::from_vec(args);
 
@@ -170,7 +162,7 @@ fn get_artifact_path(
     let host = "x86_64-unknown-linux-gnu";
     let path = project.path(artifact, profile, Some(target), host);
 
-    path.map_err(|e| MainError::from(e))
+    path.map_err(MainError::from)
 }
 
 fn build(
@@ -214,12 +206,9 @@ fn build(
         _ => unreachable!(),
     };
 
-    match tool {
-        "cargo" => {
-            args.push("-Z".to_string());
-            args.push("build-std".to_string());
-        }
-        _ => {}
+    if let "cargo" = tool {
+        args.push("-Z".to_string());
+        args.push("build-std".to_string());
     };
 
     args.push("--target".to_string());

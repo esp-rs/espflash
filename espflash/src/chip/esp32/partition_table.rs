@@ -102,15 +102,15 @@ impl PartitionTable {
 
         let (writer, hash) = hasher.compute();
 
-        writer.write(&[
+        writer.write_all(&[
             0xEB, 0xEB, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
             0xFF, 0xFF,
         ])?;
-        writer.write(&hash.0)?;
+        writer.write_all(&hash.0)?;
 
         let written = self.partitions.len() * PARTITION_SIZE + 32;
         for _ in 0..(MAX_PARTITION_LENGTH - written) {
-            writer.write(&[0xFF])?;
+            writer.write_all(&[0xFF])?;
         }
 
         Ok(())
@@ -148,17 +148,17 @@ impl Partition {
     }
 
     pub fn save<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        writer.write(&[0xAA, 0x50])?;
-        writer.write(&[self.ty as u8, self.sub_type.as_u8()])?;
-        writer.write(&self.offset.to_le_bytes())?;
-        writer.write(&self.size.to_le_bytes())?;
+        writer.write_all(&[0xAA, 0x50])?;
+        writer.write_all(&[self.ty as u8, self.sub_type.as_u8()])?;
+        writer.write_all(&self.offset.to_le_bytes())?;
+        writer.write_all(&self.size.to_le_bytes())?;
 
         let mut name_bytes = [0u8; 16];
         for (source, dest) in self.name.bytes().take(16).zip(name_bytes.iter_mut()) {
             *dest = source;
         }
-        writer.write(&name_bytes)?;
-        writer.write(&self.flags.to_le_bytes())?;
+        writer.write_all(&name_bytes)?;
+        writer.write_all(&self.flags.to_le_bytes())?;
 
         Ok(())
     }
@@ -171,7 +171,7 @@ struct HashWriter<W: Write> {
 
 impl<W: Write> Write for HashWriter<W> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.hasher.write(buf)?;
+        self.hasher.write_all(buf)?;
         self.inner.write(buf)
     }
 
