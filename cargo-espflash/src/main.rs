@@ -20,7 +20,7 @@ fn main() -> Result<(), MainError> {
     let tool = args
         .build_tool
         .as_deref()
-        .or(config.build.tool.as_ref().map(|tool| tool.as_str()))
+        .or(config.build.tool.as_deref())
         .or(Some("xbuild"));
 
     let tool = match tool {

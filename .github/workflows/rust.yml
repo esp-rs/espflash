@@ -77,4 +77,5 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: -- -D warnings
+          # `identity_op` and `or_fun_call` leads to false positives
+          args: -- -D warnings -A clippy::identity_op -A clippy::or_fun_call
