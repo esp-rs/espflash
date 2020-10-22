@@ -1,4 +1,5 @@
 # ESPFlash
+[![Actions Status](https://github.com/esp-rs/espflash/workflows/CI/badge.svg)](https://github.com/marcelbuesing/espflash/actions?query=workflow%3A"CI")
 
 _ESP8266_ and _ESP32_ serial flasher based on [esptool.py](https://github.com/espressif/esptool).
 
