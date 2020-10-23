@@ -2,6 +2,8 @@
 
 _ESP8266_ and _ESP32_ serial flasher library and CLI application.
 
+[![asciicast](https://asciinema.org/a/367205.svg)](https://asciinema.org/a/367205)
+
 ## Usage
 
 ```bash

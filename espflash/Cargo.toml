@@ -17,6 +17,7 @@ path = "src/main.rs"
 binread = "1.1.1"
 bytemuck = { version = "1.4.0", features = ["derive"] }
 main_error = "0.1.1"
+indicatif = "0.15"
 md5 = "0.7.0"
 pico-args = "0.3.4"
 serial = "0.4"
