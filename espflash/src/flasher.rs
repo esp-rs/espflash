@@ -8,6 +8,7 @@ use crate::error::RomError;
 use crate::Error;
 use bytemuck::__core::time::Duration;
 use bytemuck::{bytes_of, Pod, Zeroable};
+use indicatif::{ProgressBar, ProgressStyle};
 use serial::{BaudRate, SerialPort};
 use std::thread::sleep;
 
@@ -444,10 +445,24 @@ impl Flasher {
                 addr,
             )?;
 
-            for (i, block) in segment.data.chunks(FLASH_WRITE_SIZE).enumerate() {
+            let chunks = segment.data.chunks(FLASH_WRITE_SIZE);
+
+            let (_, chunk_size) = chunks.size_hint();
+            let chunk_size = chunk_size.unwrap_or(0) as u64;
+            let pb_chunk = ProgressBar::new(chunk_size);
+            pb_chunk.set_style(
+                ProgressStyle::default_bar()
+                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+                    .progress_chars("#>-"),
+            );
+
+            for (i, block) in chunks.enumerate() {
+                pb_chunk.set_message(&format!("segment 0x{:X} writing chunks", addr));
                 let block_padding = FLASH_WRITE_SIZE - block.len();
                 self.block_command(Command::FlashData, &block, block_padding, 0xff, i as u32)?;
+                pb_chunk.inc(1);
             }
+            pb_chunk.finish_with_message(&format!("segment 0x{:X}", addr));
         }
 
         self.flash_finish(false)?;
