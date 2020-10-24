@@ -74,7 +74,7 @@ impl ChipType for ESP32 {
                 flash_config: encode_flash_size(image.flash_size)? + image.flash_frequency as u8,
                 entry: image.entry,
             };
-            data.write(bytes_of(&header))?;
+            data.write_all(bytes_of(&header))?;
 
             let extended_header = ExtendedHeader {
                 wp_pin: WP_PIN_DISABLED,
@@ -86,7 +86,7 @@ impl ChipType for ESP32 {
                 padding: [0; 8],
                 append_digest: 1,
             };
-            data.write(bytes_of(&extended_header))?;
+            data.write_all(bytes_of(&extended_header))?;
 
             let mut checksum = ESP_CHECKSUM_MAGIC;
 
@@ -115,9 +115,9 @@ impl ChipType for ESP32 {
                             addr: 0,
                             length: pad_len as u32,
                         };
-                        data.write(bytes_of(&pad_header))?;
+                        data.write_all(bytes_of(&pad_header))?;
                         for _ in 0..pad_len {
-                            data.write(&[0])?;
+                            data.write_all(&[0])?;
                         }
                         segment_count += 1;
                     } else {
@@ -135,9 +135,9 @@ impl ChipType for ESP32 {
 
             let padding = 15 - (data.len() % 16);
             let padding = &[0u8; 16][0..padding as usize];
-            data.write(padding)?;
+            data.write_all(padding)?;
 
-            data.write(&[checksum])?;
+            data.write_all(&[checksum])?;
 
             // since we added some dummy segments, we need to patch the segment count
             data[1] = segment_count as u8;
@@ -145,7 +145,7 @@ impl ChipType for ESP32 {
             let mut hasher = Sha256::new();
             hasher.update(&data);
             let hash = hasher.finalize();
-            data.write(&hash)?;
+            data.write_all(&hash)?;
 
             Ok(RomSegment {
                 addr: APP_ADDR,
@@ -214,7 +214,7 @@ fn save_flash_segment(
         // Work around a bug in ESP-IDF 2nd stage bootloader, that it didn't map the
         // last MMU page, if an IROM/DROM segment was < 0x24 bytes over the page
         // boundary.
-        data.write(&[0u8; 0x24][0..(0x24 - segment_reminder as usize)])?;
+        data.write_all(&[0u8; 0x24][0..(0x24 - segment_reminder as usize)])?;
     }
     Ok(checksum)
 }
@@ -226,10 +226,10 @@ fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment, checksum: u8) -> Resu
         addr: segment.addr,
         length: (segment.data.len() + padding) as u32,
     };
-    data.write(bytes_of(&header))?;
-    data.write(segment.data)?;
+    data.write_all(bytes_of(&header))?;
+    data.write_all(segment.data)?;
     let padding = &[0u8; 4][0..padding];
-    data.write(padding)?;
+    data.write_all(padding)?;
 
     Ok(update_checksum(segment.data, checksum))
 }

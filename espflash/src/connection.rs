@@ -112,7 +112,7 @@ impl Connection {
         Ok(())
     }
 
-    pub fn command<'a, Data: LazyBytes<Box<dyn SerialPort>>>(
+    pub fn command<Data: LazyBytes<Box<dyn SerialPort>>>(
         &mut self,
         command: u8,
         data: Data,

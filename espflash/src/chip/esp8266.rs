@@ -38,7 +38,7 @@ impl ChipType for ESP8266 {
         // irom goes into a separate plain bin
         let irom_data = merge_rom_segments(image.rom_segments(Chip::Esp8266))
             .into_iter()
-            .map(|segment| Ok(segment));
+            .map(Ok);
 
         // my kingdom for a try {} block
         fn common<'a>(image: &'a FirmwareImage) -> Result<RomSegment<'a>, Error> {
@@ -56,7 +56,7 @@ impl ChipType for ESP8266 {
                 flash_config: encode_flash_size(image.flash_size)? + image.flash_frequency as u8,
                 entry: image.entry,
             };
-            common_data.write(bytes_of(&header))?;
+            common_data.write_all(bytes_of(&header))?;
 
             let mut total_len = 8;
 
@@ -70,19 +70,19 @@ impl ChipType for ESP8266 {
                     length: (data.len() + padding) as u32,
                 };
                 total_len += size_of::<SegmentHeader>() as u32 + segment_header.length;
-                common_data.write(bytes_of(&segment_header))?;
-                common_data.write(data)?;
+                common_data.write_all(bytes_of(&segment_header))?;
+                common_data.write_all(data)?;
 
                 let padding = &[0u8; 4][0..padding];
-                common_data.write(padding)?;
+                common_data.write_all(padding)?;
                 checksum = update_checksum(data, checksum);
             }
 
             let padding = 15 - (total_len % 16);
             let padding = &[0u8; 16][0..padding as usize];
-            common_data.write(padding)?;
+            common_data.write_all(padding)?;
 
-            common_data.write(&[checksum])?;
+            common_data.write_all(&[checksum])?;
 
             Ok(RomSegment {
                 addr: 0,
