@@ -1,9 +1,6 @@
-FROM ubuntu:20.04
+FROM ubuntu:20.04 AS build
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG toolchain=nightly-2020-10-09
-ARG xtensa_esp32_link="https://github.com/espressif/crosstool-NG/releases/download/esp-2020r3/xtensa-esp32-elf-gcc8_4_0-esp-2020r3-linux-amd64.tar.gz"
-ARG xtensa_lx106_link="https://dl.espressif.com/dl/xtensa-lx106-elf-linux64-1.22.0-100-ge567ec7-5.2.0.tar.gz"
 
 RUN apt-get update && apt-get install -y \
     apt-utils \
@@ -28,6 +25,34 @@ RUN git clone --depth 1 https://github.com/MabezDev/rust-xtensa /rust-xtensa
 RUN cd rust-xtensa && \
   ./configure --experimental-targets=Xtensa && \
   ./x.py build --stage 2
+
+RUN rm -r /rust-xtensa/src/llvm-project
+
+FROM ubuntu:20.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG toolchain=nightly-2020-10-09
+ARG xtensa_esp32_link="https://github.com/espressif/crosstool-NG/releases/download/esp-2020r3/xtensa-esp32-elf-gcc8_4_0-esp-2020r3-linux-amd64.tar.gz"
+ARG xtensa_lx106_link="https://dl.espressif.com/dl/xtensa-lx106-elf-linux64-1.22.0-100-ge567ec7-5.2.0.tar.gz"
+
+RUN apt-get update && apt-get install -y \
+    apt-utils \
+    ca-certificates \
+    curl \
+    git \
+    unzip \
+    wget \
+    zip \
+    python \
+    build-essential \
+   && apt-get autoremove -y \
+   && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /rust-xtensa/library /rust-xtensa/library
+COPY --from=build /rust-xtensa/build/x86_64-unknown-linux-gnu/stage2 /rust-xtensa/build/x86_64-unknown-linux-gnu/stage2
+COPY --from=build /rust-xtensa/src /rust-xtensa/build/x86_64-unknown-linux-gnu/stage2/lib/rustlib/src/rust/src
+COPY --from=build /rust-xtensa/Cargo.toml /rust-xtensa/build/x86_64-unknown-linux-gnu/stage2/lib/rustlib/src/rust/
+COPY --from=build /rust-xtensa/Cargo.lock /rust-xtensa/build/x86_64-unknown-linux-gnu/stage2/lib/rustlib/src/rust/
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
 ENV PATH="/root/.cargo/bin:${PATH}"
