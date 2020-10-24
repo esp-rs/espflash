@@ -226,11 +226,13 @@ fn build(
 
 fn chip_detect(port: &str) -> Option<&'static str> {
     let mut serial = serial::open(port).ok()?;
-    serial.reconfigure(&|settings| {
-        settings.set_baud_rate(BaudRate::Baud115200)?;
+    serial
+        .reconfigure(&|settings| {
+            settings.set_baud_rate(BaudRate::Baud115200)?;
 
-        Ok(())
-    }).ok()?;
+            Ok(())
+        })
+        .ok()?;
     let flasher = Flasher::connect(serial, None).ok()?;
 
     let chip = match flasher.chip() {
