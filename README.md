@@ -13,13 +13,13 @@ If you have an ELF file that flashes correctly with `esptool.py` but not with th
 
 ## Quickstart - Docker
 
-The docker image `esp-rs/espflash` contains all necessary toolchains and tooling including espflash to build and flash.
-To clone, build and flash the [xtensa-rust-quickstart](https://github.com/MabezDev/xtensa-rust-quickstart) esp32 example run the following:
+The docker image `esprs/espflash` contains all necessary toolchains and tooling including espflash to build and flash.
+To clone, build and flash the [esp32-hal](https://github.com/esp-rs/esp32-hal) examples run the following:
 
 ```cmd
-git clone --depth 1 https://github.com/MabezDev/xtensa-rust-quickstart.git
-cd xtensa-rust-quickstart
-docker run -v "$(pwd):/espflash" --device=/dev/ttyUSB0 -ti esp-rs/espflash --release --tool=cargo --chip=esp32 --example=esp32 --features="xtensa-lx-rt/lx6 xtensa-lx/lx6 esp32-hal" /dev/ttyUSB0
+git clone https://github.com/esp-rs/esp32-hal
+cd esp32-hal
+docker run -v "$(pwd):/espflash" --device=/dev/ttyUSB0 -ti esprs/espflash --release --tool=cargo --example=blinky /dev/ttyUSB0
 ```
 
 ### Custom Docker Build
@@ -27,5 +27,5 @@ docker run -v "$(pwd):/espflash" --device=/dev/ttyUSB0 -ti esp-rs/espflash --rel
 ```cmd
 git clone --depth 1 https://github.com/esp-rs/espflash.git
 cd espflash
-docker build -t esp-rs/espflash .
+docker build -t esprs/espflash .
 ```
