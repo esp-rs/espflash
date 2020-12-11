@@ -72,6 +72,50 @@ impl FlashSize {
     }
 }
 
+#[derive(Copy, Clone)]
+#[repr(C)]
+struct SpiAttachParams {
+    clk: u8,
+    q: u8,
+    d: u8,
+    hd: u8,
+    cs: u8,
+}
+
+impl SpiAttachParams {
+    pub const fn default() -> Self {
+        SpiAttachParams {
+            clk: 0,
+            q: 0,
+            d: 0,
+            hd: 0,
+            cs: 0,
+        }
+    }
+
+    pub const fn esp32_pico_d4() -> Self {
+        SpiAttachParams {
+            clk: 6,
+            q: 17,
+            d: 8,
+            hd: 11,
+            cs: 16,
+        }
+    }
+
+    pub fn encode(self) -> u32 {
+        ((self.hd as u32) << 24)
+            | ((self.cs as u32) << 18)
+            | ((self.d as u32) << 12)
+            | ((self.q as u32) << 6)
+            | (self.clk as u32)
+    }
+}
+
+/// List of spi params to try while detecting flash size
+const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
+    [SpiAttachParams::default(), SpiAttachParams::esp32_pico_d4()];
+
 #[derive(Zeroable, Pod, Copy, Clone, Debug)]
 #[repr(C)]
 struct BlockParams {
@@ -110,7 +154,7 @@ pub struct Flasher {
     connection: Connection,
     chip: Chip,
     flash_size: FlashSize,
-    use_alt_attach: bool,
+    spi_params: SpiAttachParams,
 }
 
 impl Flasher {
@@ -122,21 +166,12 @@ impl Flasher {
             connection: Connection::new(serial), // default baud is always 115200
             chip: Chip::Esp8266,                 // dummy, set properly later
             flash_size: FlashSize::Flash4MB,
-            use_alt_attach: false,               // may be set when trying to attach to flash
+            spi_params: SpiAttachParams::default(), // may be set when trying to attach to flash
         };
         flasher.start_connection()?;
         flasher.connection.set_timeout(Duration::from_secs(3))?;
         flasher.chip_detect()?;
-        flasher.enable_flash(false)?;
-        let try_alt_attach = flasher.flash_detect()?;
-        if try_alt_attach {
-            // detection failed, but we have one chance at detection using an alternate SPI pin
-            // configuration
-            flasher.enable_flash(true)?;
-            flasher.flash_detect()?;
-            // reaching this point means that alternate attachment succeeded
-            flasher.use_alt_attach = true;
-        }
+        flasher.spi_autodetect()?;
 
         if let Some(b) = speed {
             match flasher.chip {
@@ -153,6 +188,21 @@ impl Flasher {
         Ok(flasher)
     }
 
+    fn spi_autodetect(&mut self) -> Result<(), Error> {
+        // loop over all available spi params until we find one that successfully reads the flash size
+        for spi_params in TRY_SPI_PARAMS.iter().copied() {
+            self.enable_flash(spi_params)?;
+            if self.flash_detect()? {
+                // flash detect successful, save these spi params
+                self.spi_params = spi_params;
+                return Ok(());
+            }
+        }
+
+        // none of the spi parameters were successful
+        Err(Error::UnsupportedFlash(FlashSize::FlashRetry as u8))
+    }
+
     fn chip_detect(&mut self) -> Result<(), Error> {
         let reg1 = self.read_reg(UART_DATE_REG_ADDR)?;
         let reg2 = self.read_reg(UART_DATE_REG2_ADDR)?;
@@ -167,17 +217,7 @@ impl Flasher {
         let size_id = flash_id >> 16;
 
         self.flash_size = FlashSize::from(size_id as u8)?;
-        match self.flash_size {
-            FlashSize::FlashRetry => {
-                if self.use_alt_attach {
-                    // we've already tried alternate flash attachment; give up
-                    return Err(Error::UnsupportedFlash(size_id as u8))
-                }
-                // retry with alternate flash attachment
-                Ok(true)
-            },
-            _ => Ok(false) // flash detected successfully
-        }
+        Ok(self.flash_size != FlashSize::FlashRetry)
     }
 
     fn sync(&mut self) -> Result<(), Error> {
@@ -299,27 +339,18 @@ impl Flasher {
         Ok(())
     }
 
-    fn enable_flash(&mut self, try_alt_attach: bool) -> Result<(), Error> {
+    fn enable_flash(&mut self, spi_attach_params: SpiAttachParams) -> Result<(), Error> {
         match self.chip {
             Chip::Esp8266 => {
                 self.begin_command(Command::FlashBegin, 0, 0, FLASH_WRITE_SIZE as u32, 0)?;
             }
             Chip::Esp32 => {
-                if try_alt_attach {
-                    // these are the flash SPI pins used by PICO-D4 and maybe others
-                    let clk = 6;
-                    let q = 17;
-                    let d = 8;
-                    let hd = 11;
-                    let cs = 16;
-                    // pack the pin numbers into the ESP's special format
-                    let spi_params: u32 = (hd << 24) | (cs << 18) | (d << 12) | (q << 6) | clk;
-                    self.connection
-                        .command(Command::SpiAttach as u8, &spi_params.to_le_bytes()[..], 0)?;
-                } else {
-                    self.connection
-                        .command(Command::SpiAttach as u8, &[0; 5][..], 0)?;
-                }
+                let spi_params: u32 = spi_attach_params.encode();
+                self.connection.command(
+                    Command::SpiAttach as u8,
+                    &spi_params.to_le_bytes()[..],
+                    0,
+                )?;
             }
         }
         Ok(())
@@ -458,7 +489,7 @@ impl Flasher {
 
     /// Load an elf image to flash and execute it
     pub fn load_elf_to_flash(&mut self, elf_data: &[u8]) -> Result<(), Error> {
-        self.enable_flash(self.use_alt_attach)?;
+        self.enable_flash(self.spi_params)?;
         let mut image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
         image.flash_size = self.flash_size();
 
