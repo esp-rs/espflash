@@ -95,15 +95,16 @@ impl ChipType for ESP8266 {
 }
 
 fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
-    Ok(match size {
-        FlashSize::Flash256KB => 0x10,
-        FlashSize::Flash512KB => 0x00,
-        FlashSize::Flash1MB => 0x20,
-        FlashSize::Flash2MB => 0x30,
-        FlashSize::Flash4MB => 0x40,
-        FlashSize::Flash8MB => 0x80,
-        FlashSize::Flash16MB => 0x90,
-    })
+    match size {
+        FlashSize::Flash256KB => Ok(0x10),
+        FlashSize::Flash512KB => Ok(0x00),
+        FlashSize::Flash1MB => Ok(0x20),
+        FlashSize::Flash2MB => Ok(0x30),
+        FlashSize::Flash4MB => Ok(0x40),
+        FlashSize::Flash8MB => Ok(0x80),
+        FlashSize::Flash16MB => Ok(0x90),
+        FlashSize::FlashRetry => Err(Error::UnsupportedFlash(size as u8)),
+    }
 }
 
 fn merge_rom_segments<'a>(
