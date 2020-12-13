@@ -53,6 +53,7 @@ pub enum FlashSize {
     Flash4MB = 0x16,
     Flash8MB = 0x17,
     Flash16MB = 0x18,
+    FlashRetry = 0xFF, // used to hint that alternate detection should be tried
 }
 
 impl FlashSize {
@@ -65,6 +66,7 @@ impl FlashSize {
             0x16 => Ok(FlashSize::Flash4MB),
             0x17 => Ok(FlashSize::Flash8MB),
             0x18 => Ok(FlashSize::Flash16MB),
+            0xFF => Ok(FlashSize::FlashRetry),
             _ => Err(Error::UnsupportedFlash(value)),
         }
     }
@@ -108,6 +110,7 @@ pub struct Flasher {
     connection: Connection,
     chip: Chip,
     flash_size: FlashSize,
+    use_alt_attach: bool,
 }
 
 impl Flasher {
@@ -119,12 +122,21 @@ impl Flasher {
             connection: Connection::new(serial), // default baud is always 115200
             chip: Chip::Esp8266,                 // dummy, set properly later
             flash_size: FlashSize::Flash4MB,
+            use_alt_attach: false,               // may be set when trying to attach to flash
         };
         flasher.start_connection()?;
         flasher.connection.set_timeout(Duration::from_secs(3))?;
         flasher.chip_detect()?;
-        flasher.enable_flash()?;
-        flasher.flash_detect()?;
+        flasher.enable_flash(false)?;
+        let try_alt_attach = flasher.flash_detect()?;
+        if try_alt_attach {
+            // detection failed, but we have one chance at detection using an alternate SPI pin
+            // configuration
+            flasher.enable_flash(true)?;
+            flasher.flash_detect()?;
+            // reaching this point means that alternate attachment succeeded
+            flasher.use_alt_attach = true;
+        }
 
         if let Some(b) = speed {
             match flasher.chip {
@@ -150,12 +162,22 @@ impl Flasher {
         Ok(())
     }
 
-    fn flash_detect(&mut self) -> Result<(), Error> {
+    fn flash_detect(&mut self) -> Result<bool, Error> {
         let flash_id = self.spi_command(0x9f, &[], 24)?;
         let size_id = flash_id >> 16;
 
         self.flash_size = FlashSize::from(size_id as u8)?;
-        Ok(())
+        match self.flash_size {
+            FlashSize::FlashRetry => {
+                if self.use_alt_attach {
+                    // we've already tried alternate flash attachment; give up
+                    return Err(Error::UnsupportedFlash(size_id as u8))
+                }
+                // retry with alternate flash attachment
+                Ok(true)
+            },
+            _ => Ok(false) // flash detected successfully
+        }
     }
 
     fn sync(&mut self) -> Result<(), Error> {
@@ -277,14 +299,27 @@ impl Flasher {
         Ok(())
     }
 
-    fn enable_flash(&mut self) -> Result<(), Error> {
+    fn enable_flash(&mut self, try_alt_attach: bool) -> Result<(), Error> {
         match self.chip {
             Chip::Esp8266 => {
                 self.begin_command(Command::FlashBegin, 0, 0, FLASH_WRITE_SIZE as u32, 0)?;
             }
             Chip::Esp32 => {
-                self.connection
-                    .command(Command::SpiAttach as u8, &[0; 5][..], 0)?;
+                if try_alt_attach {
+                    // these are the flash SPI pins used by PICO-D4 and maybe others
+                    let clk = 6;
+                    let q = 17;
+                    let d = 8;
+                    let hd = 11;
+                    let cs = 16;
+                    // pack the pin numbers into the ESP's special format
+                    let spi_params: u32 = (hd << 24) | (cs << 18) | (d << 12) | (q << 6) | clk;
+                    self.connection
+                        .command(Command::SpiAttach as u8, &spi_params.to_le_bytes()[..], 0)?;
+                } else {
+                    self.connection
+                        .command(Command::SpiAttach as u8, &[0; 5][..], 0)?;
+                }
             }
         }
         Ok(())
@@ -423,7 +458,7 @@ impl Flasher {
 
     /// Load an elf image to flash and execute it
     pub fn load_elf_to_flash(&mut self, elf_data: &[u8]) -> Result<(), Error> {
-        self.enable_flash()?;
+        self.enable_flash(self.use_alt_attach)?;
         let mut image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
         image.flash_size = self.flash_size();
 

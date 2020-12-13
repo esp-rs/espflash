@@ -176,6 +176,7 @@ fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
         FlashSize::Flash4MB => Ok(0x20),
         FlashSize::Flash8MB => Ok(0x30),
         FlashSize::Flash16MB => Ok(0x40),
+        FlashSize::FlashRetry => Err(Error::UnsupportedFlash(size as u8)),
     }
 }
 
