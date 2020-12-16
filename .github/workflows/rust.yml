@@ -13,6 +13,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -27,6 +28,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -42,6 +44,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -57,6 +60,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: Swatinem/rust-cache@v1
       - run: rustup component add rustfmt
       - uses: actions-rs/cargo@v1
         with:
@@ -73,9 +77,33 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: Swatinem/rust-cache@v1
       - run: rustup component add clippy
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
           # `identity_op` and `or_fun_call` leads to false positives
           args: -- -D warnings -A clippy::identity_op -A clippy::or_fun_call
+
+  build:
+    name: Build Static Binaries
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: musl-tools
+        run: |
+          sudo apt-get install musl-tools
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --bin espflash --target x86_64-unknown-linux-musl
+      - uses: actions/upload-artifact@v2
+        with:
+          name: espflash
+          path: target/x86_64-unknown-linux-musl/release/espflash
