@@ -29,7 +29,7 @@ impl ChipType for ESP8266 {
     };
 
     fn addr_is_flash(addr: u32) -> bool {
-        addr >= IROM_MAP_START && addr < IROM_MAP_END
+        (IROM_MAP_START..IROM_MAP_END).contains(&addr)
     }
 
     fn get_flash_segments<'a>(

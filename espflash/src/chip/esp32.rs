@@ -53,8 +53,8 @@ impl ChipType for ESP32 {
     };
 
     fn addr_is_flash(addr: u32) -> bool {
-        addr >= IROM_MAP_START && addr < IROM_MAP_END
-            || addr >= DROM_MAP_START && addr < DROM_MAP_END
+        (IROM_MAP_START..IROM_MAP_END).contains(&addr)
+            || (DROM_MAP_START..DROM_MAP_END).contains(&addr)
     }
 
     fn get_flash_segments<'a>(
