@@ -103,12 +103,17 @@ impl SpiAttachParams {
         }
     }
 
-    pub fn encode(self) -> u32 {
-        ((self.hd as u32) << 24)
+    pub fn encode(self) -> Vec<u8> {
+        let packed = ((self.hd as u32) << 24)
             | ((self.cs as u32) << 18)
             | ((self.d as u32) << 12)
             | ((self.q as u32) << 6)
-            | (self.clk as u32)
+            | (self.clk as u32);
+        if packed == 0 {
+            vec![0; 5]
+        } else {
+            packed.to_le_bytes().to_vec()
+        }
     }
 }
 
@@ -345,12 +350,9 @@ impl Flasher {
                 self.begin_command(Command::FlashBegin, 0, 0, FLASH_WRITE_SIZE as u32, 0)?;
             }
             Chip::Esp32 => {
-                let spi_params: u32 = spi_attach_params.encode();
-                self.connection.command(
-                    Command::SpiAttach as u8,
-                    &spi_params.to_le_bytes()[..],
-                    0,
-                )?;
+                let spi_params = spi_attach_params.encode();
+                self.connection
+                    .command(Command::SpiAttach as u8, spi_params.as_slice(), 0)?;
             }
         }
         Ok(())
