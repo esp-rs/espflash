@@ -16,7 +16,6 @@ path = "src/main.rs"
 [dependencies]
 binread = "1.1.1"
 bytemuck = { version = "1.4.0", features = ["derive"] }
-main_error = "0.1.1"
 indicatif = "0.15"
 md5 = "0.7.0"
 pico-args = "0.3.4"
@@ -28,6 +27,7 @@ xmas-elf = "0.7.0"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.5"
 directories-next = "1.0.1"
+color-eyre = "0.5"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"

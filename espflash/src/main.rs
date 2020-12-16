@@ -1,16 +1,16 @@
 use std::fs::read;
 
+use color_eyre::{eyre::WrapErr, Result};
 use espflash::{Config, Flasher};
-use main_error::MainError;
 use pico_args::Arguments;
 use serial::{BaudRate, SerialPort};
 
-fn help() -> Result<(), MainError> {
+fn help() -> Result<()> {
     println!("Usage: espflash [--board-info] [--ram] <serial> <elf image>");
     Ok(())
 }
 
-fn main() -> Result<(), MainError> {
+fn main() -> Result<()> {
     let mut args = Arguments::from_env();
     let config = Config::load();
 
@@ -34,7 +34,8 @@ fn main() -> Result<(), MainError> {
         _ => return help(),
     };
 
-    let mut serial = serial::open(&serial)?;
+    let mut serial =
+        serial::open(&serial).wrap_err_with(|| format!("Failed to open serial port {}", serial))?;
     serial.reconfigure(&|settings| {
         settings.set_baud_rate(BaudRate::Baud115200)?;
 
@@ -54,7 +55,8 @@ fn main() -> Result<(), MainError> {
         Some(input) => input,
         _ => return help(),
     };
-    let input_bytes = read(&input)?;
+    let input_bytes =
+        read(&input).wrap_err_with(|| format!("Failed to open elf image \"{}\"", input))?;
 
     if ram {
         flasher.load_elf_to_ram(&input_bytes)?;

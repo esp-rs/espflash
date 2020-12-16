@@ -1,6 +1,7 @@
 use crate::elf::{FirmwareImage, RomSegment};
 use crate::Error;
 use bytemuck::{Pod, Zeroable};
+use std::str::FromStr;
 
 pub use esp32::ESP32;
 pub use esp8266::ESP8266;
@@ -99,6 +100,26 @@ impl Chip {
         match self {
             Chip::Esp8266 => ESP8266::SPI_REGISTERS,
             Chip::Esp32 => ESP32::SPI_REGISTERS,
+        }
+    }
+
+    /// Get the target triplet for the chip
+    pub fn target(&self) -> &'static str {
+        match self {
+            Chip::Esp8266 => "xtensa-esp32-none-elf",
+            Chip::Esp32 => "xtensa-esp8266-none-elf",
+        }
+    }
+}
+
+impl FromStr for Chip {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "esp32" => Ok(Chip::Esp32),
+            "esp8266" => Ok(Chip::Esp8266),
+            _ => Err(Error::UnrecognizedChip),
         }
     }
 }

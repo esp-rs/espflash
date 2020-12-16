@@ -4,12 +4,12 @@ use std::path::PathBuf;
 use std::process::{exit, Command, ExitStatus, Stdio};
 
 use cargo_project::{Artifact, Profile, Project};
+use color_eyre::{eyre::WrapErr, Report, Result};
 use espflash::{Chip, Config, Flasher};
-use main_error::MainError;
 use pico_args::Arguments;
 use serial::{BaudRate, SerialPort};
 
-fn main() -> Result<(), MainError> {
+fn main() -> Result<()> {
     let args = parse_args().expect("Unable to parse command-line arguments");
     let config = Config::load();
 
@@ -36,17 +36,12 @@ fn main() -> Result<(), MainError> {
 
     let speed = args.speed.map(|v| BaudRate::from_speed(v as usize));
 
-    let chip = args.chip.as_deref().or_else(|| chip_detect(&port));
-
-    let target = match chip {
-        Some("esp32") => "xtensa-esp32-none-elf",
-        Some("esp8266") => "xtensa-esp8266-none-elf",
-        Some(_) => return usage(),
-        None => {
-            eprintln!("Unable to detect chip type, ensure your device is connected or manually specify the chip");
-            return Ok(());
-        }
+    let chip = match args.chip.as_ref() {
+        Some(chip) => chip.parse()?,
+        None => chip_detect(&port).wrap_err("Unable to detect chip type, ensure your device is connected or manually specify the chip")?
     };
+
+    let target = chip.target();
 
     // Since the application exits without flashing the device when '--board-info'
     // is passed, we will not waste time building if said flag was set.
@@ -57,7 +52,8 @@ fn main() -> Result<(), MainError> {
         }
     }
 
-    let mut serial = serial::open(&port)?;
+    let mut serial =
+        serial::open(&port).wrap_err_with(|| format!("Failed to open serial port {}", port))?;
     serial.reconfigure(&|settings| {
         settings.set_baud_rate(BaudRate::Baud115200)?;
         Ok(())
@@ -95,7 +91,7 @@ struct AppArgs {
     serial: Option<String>,
 }
 
-fn usage() -> Result<(), MainError> {
+fn usage() -> Result<()> {
     let usage = "Usage: cargo espflash \
       [--board-info] \
       [--ram] \
@@ -111,14 +107,14 @@ fn usage() -> Result<(), MainError> {
     Ok(())
 }
 
-fn board_info(flasher: &Flasher) -> Result<(), MainError> {
+fn board_info(flasher: &Flasher) -> Result<()> {
     println!("Chip type:  {:?}", flasher.chip());
     println!("Flash size: {:?}", flasher.flash_size());
 
     Ok(())
 }
 
-fn parse_args() -> Result<AppArgs, MainError> {
+fn parse_args() -> Result<AppArgs> {
     // Skip the command and subcommand (ie. 'cargo espflash') and convert the
     // remaining arguments to the expected type.
     let args = std::env::args().skip(2).map(OsString::from).collect();
@@ -141,11 +137,7 @@ fn parse_args() -> Result<AppArgs, MainError> {
     Ok(app_args)
 }
 
-fn get_artifact_path(
-    target: &str,
-    release: bool,
-    example: &Option<String>,
-) -> Result<PathBuf, MainError> {
+fn get_artifact_path(target: &str, release: bool, example: &Option<String>) -> Result<PathBuf> {
     let project = Project::query(".").unwrap();
 
     let artifact = match example {
@@ -160,9 +152,9 @@ fn get_artifact_path(
     };
 
     let host = "x86_64-unknown-linux-gnu";
-    let path = project.path(artifact, profile, Some(target), host);
-
-    path.map_err(MainError::from)
+    project
+        .path(artifact, profile, Some(target), host)
+        .map_err(Report::msg)
 }
 
 fn build(
@@ -224,23 +216,17 @@ fn build(
         .unwrap()
 }
 
-fn chip_detect(port: &str) -> Option<&'static str> {
-    let mut serial = serial::open(port).ok()?;
-    serial
-        .reconfigure(&|settings| {
-            settings.set_baud_rate(BaudRate::Baud115200)?;
+fn chip_detect(port: &str) -> Result<Chip> {
+    let mut serial =
+        serial::open(port).wrap_err_with(|| format!("Failed to open serial port {}", port))?;
+    serial.reconfigure(&|settings| {
+        settings.set_baud_rate(BaudRate::Baud115200)?;
 
-            Ok(())
-        })
-        .ok()?;
-    let flasher = Flasher::connect(serial, None).ok()?;
+        Ok(())
+    })?;
+    let flasher = Flasher::connect(serial, None)?;
 
-    let chip = match flasher.chip() {
-        Chip::Esp8266 => "esp8266",
-        Chip::Esp32 => "esp32",
-    };
-
-    Some(chip)
+    Ok(flasher.chip())
 }
 
 #[cfg(unix)]
