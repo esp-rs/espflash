@@ -106,8 +106,8 @@ impl Chip {
     /// Get the target triplet for the chip
     pub fn target(&self) -> &'static str {
         match self {
-            Chip::Esp8266 => "xtensa-esp32-none-elf",
-            Chip::Esp32 => "xtensa-esp8266-none-elf",
+            Chip::Esp8266 => "xtensa-esp8266-none-elf",
+            Chip::Esp32 => "xtensa-esp32-none-elf",
         }
     }
 }
