@@ -4,9 +4,11 @@ use bytemuck::{Pod, Zeroable};
 use std::str::FromStr;
 
 pub use esp32::Esp32;
+pub use esp32c3::ESP32C3;
 pub use esp8266::Esp8266;
 
 mod esp32;
+mod esp32c3;
 mod esp8266;
 
 const ESP_MAGIC: u8 = 0xe9;
@@ -68,6 +70,7 @@ impl SpiRegisters {
 pub enum Chip {
     Esp8266,
     Esp32,
+    Esp32c3,
 }
 
 impl Chip {
@@ -75,6 +78,7 @@ impl Chip {
         match (value1, value2) {
             (Esp8266::DATE_REG1_VALUE, _) => Some(Chip::Esp8266),
             (Esp32::DATE_REG1_VALUE, _) => Some(Chip::Esp32),
+            (ESP32C3::DATE_REG1_VALUE, _) => Some(Chip::Esp32c3),
             _ => None,
         }
     }
@@ -86,6 +90,7 @@ impl Chip {
         match self {
             Chip::Esp8266 => Esp8266::get_flash_segments(image),
             Chip::Esp32 => Esp32::get_flash_segments(image),
+            Chip::Esp32c3 => ESP32C3::get_flash_segments(image),
         }
     }
 
@@ -93,6 +98,7 @@ impl Chip {
         match self {
             Chip::Esp8266 => Esp8266::addr_is_flash(addr),
             Chip::Esp32 => Esp32::addr_is_flash(addr),
+            Chip::Esp32c3 => ESP32C3::addr_is_flash(addr),
         }
     }
 
@@ -100,6 +106,7 @@ impl Chip {
         match self {
             Chip::Esp8266 => Esp8266::SPI_REGISTERS,
             Chip::Esp32 => Esp32::SPI_REGISTERS,
+            Chip::Esp32c3 => ESP32C3::SPI_REGISTERS,
         }
     }
 
@@ -108,6 +115,7 @@ impl Chip {
         match self {
             Chip::Esp8266 => "xtensa-esp8266-none-elf",
             Chip::Esp32 => "xtensa-esp32-none-elf",
+            Chip::Esp32c3 => "riscv32imc-unknown-none-elf",
         }
     }
 }
@@ -118,6 +126,7 @@ impl FromStr for Chip {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "esp32" => Ok(Chip::Esp32),
+            "esp32c3" => Ok(Chip::Esp32c3),
             "esp8266" => Ok(Chip::Esp8266),
             _ => Err(Error::UnrecognizedChip),
         }

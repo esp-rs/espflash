@@ -187,6 +187,12 @@ impl Flasher {
                         flasher.change_baud(b)?;
                     }
                 }
+                Chip::Esp32c3 => {
+                    if b.speed() > BaudRate::Baud115200.speed() {
+                        println!("WARN setting baud rate higher than 115200 can cause issues.");
+                        flasher.change_baud(b)?;
+                    }
+                }
             }
         }
 
@@ -354,6 +360,11 @@ impl Flasher {
                 self.connection
                     .command(Command::SpiAttach as u8, spi_params.as_slice(), 0)?;
             }
+            Chip::Esp32c3 => {
+                let spi_params = spi_attach_params.encode();
+                self.connection
+                    .command(Command::SpiAttach as u8, spi_params.as_slice(), 0)?;
+            }
         }
         Ok(())
     }
@@ -502,6 +513,7 @@ impl Flasher {
 
             let erase_size = match self.chip {
                 Chip::Esp32 => segment.data.len() as u32,
+                Chip::Esp32c3 => segment.data.len() as u32,
                 Chip::Esp8266 => get_erase_size(addr as usize, segment.data.len()) as u32,
             };
 
