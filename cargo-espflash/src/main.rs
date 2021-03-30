@@ -131,7 +131,7 @@ fn parse_args() -> Result<AppArgs> {
         chip: args.opt_value_from_str("--chip")?,
         speed: args.opt_value_from_str("--speed")?,
         build_tool: args.opt_value_from_str("--tool")?,
-        serial: args.free_from_str()?,
+        serial: args.opt_free_from_str()?,
     };
 
     Ok(app_args)

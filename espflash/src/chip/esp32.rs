@@ -151,7 +151,7 @@ impl ChipType for ESP32 {
                 addr: APP_ADDR,
                 data: Cow::Owned(data),
             })
-        };
+        }
 
         Box::new(
             once(Ok(RomSegment {

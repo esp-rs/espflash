@@ -21,8 +21,8 @@ fn main() -> Result<()> {
     let ram = args.contains("--ram");
     let board_info = args.contains("--board-info");
 
-    let mut serial: Option<String> = args.free_from_str()?;
-    let mut elf: Option<String> = args.free_from_str()?;
+    let mut serial: Option<String> = args.opt_free_from_str()?;
+    let mut elf: Option<String> = args.opt_free_from_str()?;
 
     if elf.is_none() && config.connection.serial.is_some() {
         elf = serial.take();

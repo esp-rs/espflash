@@ -38,6 +38,7 @@ impl From<SlipError> for Error {
             SlipError::FramingError => Self::FramingError,
             SlipError::OversizedPacket => Self::OverSizedPacket,
             SlipError::ReadError(io) => Self::from(io),
+            SlipError::EndOfStream => Self::FramingError,
         }
     }
 }

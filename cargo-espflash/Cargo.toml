@@ -13,6 +13,6 @@ edition = "2018"
 [dependencies]
 cargo-project = "0.2.4"
 espflash = { version = "0.1.2", path = "../espflash" }
-pico-args = "0.3.4"
+pico-args = "0.4.0"
 serial = "0.4"
 color-eyre = "0.5.10"

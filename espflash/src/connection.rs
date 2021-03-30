@@ -28,7 +28,7 @@ impl Connection {
     pub fn new(serial: impl SerialPort + 'static) -> Self {
         Connection {
             serial: Box::new(serial),
-            decoder: Decoder::new(1024),
+            decoder: Decoder::new(),
         }
     }
 
@@ -133,7 +133,9 @@ impl Connection {
     }
 
     fn read(&mut self) -> Result<Vec<u8>, Error> {
-        Ok(self.decoder.decode(&mut self.serial)?)
+        let mut output = Vec::with_capacity(1024);
+        self.decoder.decode(&mut self.serial, &mut output)?;
+        Ok(output)
     }
 
     pub fn flush(&mut self) -> Result<(), Error> {
