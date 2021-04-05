@@ -3,7 +3,7 @@ use std::io::Write;
 use std::iter::once;
 
 use crate::chip::esp32::partition_table::PartitionTable;
-use crate::chip::{Chip, ChipType, ESPCommonHeader, SPIRegisters, SegmentHeader, ESP_MAGIC};
+use crate::chip::{Chip, ChipType, EspCommonHeader, SegmentHeader, SpiRegisters, ESP_MAGIC};
 use crate::elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
 use crate::flasher::FlashSize;
 use crate::Error;
@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 
 mod partition_table;
 
-pub struct ESP32;
+pub struct Esp32;
 
 const WP_PIN_DISABLED: u8 = 0xEE;
 
@@ -39,10 +39,10 @@ struct ExtendedHeader {
     append_digest: u8,
 }
 
-impl ChipType for ESP32 {
+impl ChipType for Esp32 {
     const DATE_REG1_VALUE: u32 = 0x15122500;
     const DATE_REG2_VALUE: u32 = 0;
-    const SPI_REGISTERS: SPIRegisters = SPIRegisters {
+    const SPI_REGISTERS: SpiRegisters = SpiRegisters {
         base: 0x3ff42000,
         usr_offset: 0x1c,
         usr1_offset: 0x20,
@@ -67,7 +67,7 @@ impl ChipType for ESP32 {
         fn get_data<'a>(image: &'a FirmwareImage) -> Result<RomSegment<'a>, Error> {
             let mut data = Vec::new();
 
-            let header = ESPCommonHeader {
+            let header = EspCommonHeader {
                 magic: ESP_MAGIC,
                 segment_count: 0,
                 flash_mode: image.flash_mode as u8,
@@ -169,13 +169,13 @@ impl ChipType for ESP32 {
 
 fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
     match size {
-        FlashSize::Flash256KB => Err(Error::UnsupportedFlash(size as u8)),
-        FlashSize::Flash512KB => Err(Error::UnsupportedFlash(size as u8)),
-        FlashSize::Flash1MB => Ok(0x00),
-        FlashSize::Flash2MB => Ok(0x10),
-        FlashSize::Flash4MB => Ok(0x20),
-        FlashSize::Flash8MB => Ok(0x30),
-        FlashSize::Flash16MB => Ok(0x40),
+        FlashSize::Flash256Kb => Err(Error::UnsupportedFlash(size as u8)),
+        FlashSize::Flash512Kb => Err(Error::UnsupportedFlash(size as u8)),
+        FlashSize::Flash1Mb => Ok(0x00),
+        FlashSize::Flash2Mb => Ok(0x10),
+        FlashSize::Flash4Mb => Ok(0x20),
+        FlashSize::Flash8Mb => Ok(0x30),
+        FlashSize::Flash16Mb => Ok(0x40),
         FlashSize::FlashRetry => Err(Error::UnsupportedFlash(size as u8)),
     }
 }
@@ -244,7 +244,7 @@ fn test_esp32_rom() {
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
 
-    let segments = ESP32::get_flash_segments(&image)
+    let segments = Esp32::get_flash_segments(&image)
         .collect::<Result<Vec<_>, Error>>()
         .unwrap();
 

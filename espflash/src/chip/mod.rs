@@ -3,8 +3,8 @@ use crate::Error;
 use bytemuck::{Pod, Zeroable};
 use std::str::FromStr;
 
-pub use esp32::ESP32;
-pub use esp8266::ESP8266;
+pub use esp32::Esp32;
+pub use esp8266::Esp8266;
 
 mod esp32;
 mod esp8266;
@@ -14,7 +14,7 @@ const ESP_MAGIC: u8 = 0xe9;
 pub trait ChipType {
     const DATE_REG1_VALUE: u32;
     const DATE_REG2_VALUE: u32;
-    const SPI_REGISTERS: SPIRegisters;
+    const SPI_REGISTERS: SpiRegisters;
 
     /// Get the firmware segments for writing an image to flash
     fn get_flash_segments<'a>(
@@ -24,7 +24,7 @@ pub trait ChipType {
     fn addr_is_flash(addr: u32) -> bool;
 }
 
-pub struct SPIRegisters {
+pub struct SpiRegisters {
     base: u32,
     usr_offset: u32,
     usr1_offset: u32,
@@ -34,7 +34,7 @@ pub struct SPIRegisters {
     miso_length_offset: Option<u32>,
 }
 
-impl SPIRegisters {
+impl SpiRegisters {
     pub fn cmd(&self) -> u32 {
         self.base
     }
@@ -73,8 +73,8 @@ pub enum Chip {
 impl Chip {
     pub fn from_regs(value1: u32, value2: u32) -> Option<Self> {
         match (value1, value2) {
-            (ESP8266::DATE_REG1_VALUE, _) => Some(Chip::Esp8266),
-            (ESP32::DATE_REG1_VALUE, _) => Some(Chip::Esp32),
+            (Esp8266::DATE_REG1_VALUE, _) => Some(Chip::Esp8266),
+            (Esp32::DATE_REG1_VALUE, _) => Some(Chip::Esp32),
             _ => None,
         }
     }
@@ -84,22 +84,22 @@ impl Chip {
         image: &'a FirmwareImage,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         match self {
-            Chip::Esp8266 => ESP8266::get_flash_segments(image),
-            Chip::Esp32 => ESP32::get_flash_segments(image),
+            Chip::Esp8266 => Esp8266::get_flash_segments(image),
+            Chip::Esp32 => Esp32::get_flash_segments(image),
         }
     }
 
     pub fn addr_is_flash(&self, addr: u32) -> bool {
         match self {
-            Chip::Esp8266 => ESP8266::addr_is_flash(addr),
-            Chip::Esp32 => ESP32::addr_is_flash(addr),
+            Chip::Esp8266 => Esp8266::addr_is_flash(addr),
+            Chip::Esp32 => Esp32::addr_is_flash(addr),
         }
     }
 
-    pub fn spi_registers(&self) -> SPIRegisters {
+    pub fn spi_registers(&self) -> SpiRegisters {
         match self {
-            Chip::Esp8266 => ESP8266::SPI_REGISTERS,
-            Chip::Esp32 => ESP32::SPI_REGISTERS,
+            Chip::Esp8266 => Esp8266::SPI_REGISTERS,
+            Chip::Esp32 => Esp32::SPI_REGISTERS,
         }
     }
 
@@ -126,7 +126,7 @@ impl FromStr for Chip {
 
 #[derive(Copy, Clone, Zeroable, Pod, Debug)]
 #[repr(C)]
-struct ESPCommonHeader {
+struct EspCommonHeader {
     magic: u8,
     segment_count: u8,
     flash_mode: u8,

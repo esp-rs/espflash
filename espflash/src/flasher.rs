@@ -46,26 +46,26 @@ enum Command {
 #[allow(dead_code)]
 #[repr(u8)]
 pub enum FlashSize {
-    Flash256KB = 0x12,
-    Flash512KB = 0x13,
-    Flash1MB = 0x14,
-    Flash2MB = 0x15,
-    Flash4MB = 0x16,
-    Flash8MB = 0x17,
-    Flash16MB = 0x18,
+    Flash256Kb = 0x12,
+    Flash512Kb = 0x13,
+    Flash1Mb = 0x14,
+    Flash2Mb = 0x15,
+    Flash4Mb = 0x16,
+    Flash8Mb = 0x17,
+    Flash16Mb = 0x18,
     FlashRetry = 0xFF, // used to hint that alternate detection should be tried
 }
 
 impl FlashSize {
     fn from(value: u8) -> Result<FlashSize, Error> {
         match value {
-            0x12 => Ok(FlashSize::Flash256KB),
-            0x13 => Ok(FlashSize::Flash512KB),
-            0x14 => Ok(FlashSize::Flash1MB),
-            0x15 => Ok(FlashSize::Flash2MB),
-            0x16 => Ok(FlashSize::Flash4MB),
-            0x17 => Ok(FlashSize::Flash8MB),
-            0x18 => Ok(FlashSize::Flash16MB),
+            0x12 => Ok(FlashSize::Flash256Kb),
+            0x13 => Ok(FlashSize::Flash512Kb),
+            0x14 => Ok(FlashSize::Flash1Mb),
+            0x15 => Ok(FlashSize::Flash2Mb),
+            0x16 => Ok(FlashSize::Flash4Mb),
+            0x17 => Ok(FlashSize::Flash8Mb),
+            0x18 => Ok(FlashSize::Flash16Mb),
             0xFF => Ok(FlashSize::FlashRetry),
             _ => Err(Error::UnsupportedFlash(value)),
         }
@@ -170,7 +170,7 @@ impl Flasher {
         let mut flasher = Flasher {
             connection: Connection::new(serial), // default baud is always 115200
             chip: Chip::Esp8266,                 // dummy, set properly later
-            flash_size: FlashSize::Flash4MB,
+            flash_size: FlashSize::Flash4Mb,
             spi_params: SpiAttachParams::default(), // may be set when trying to attach to flash
         };
         flasher.start_connection()?;

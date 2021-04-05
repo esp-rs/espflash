@@ -45,7 +45,7 @@ impl<'a> FirmwareImage<'a> {
             entry: elf.header.pt2.entry_point() as u32,
             elf,
             flash_mode: FlashMode::Dio,
-            flash_size: FlashSize::Flash4MB,
+            flash_size: FlashSize::Flash4Mb,
             flash_frequency: FlashFrequency::Flash40M,
         }
     }

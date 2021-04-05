@@ -3,8 +3,8 @@ use std::io::Write;
 use std::iter::once;
 use std::mem::size_of;
 
-use super::{ChipType, ESPCommonHeader, SegmentHeader, ESP_MAGIC};
-use crate::chip::{Chip, SPIRegisters};
+use super::{ChipType, EspCommonHeader, SegmentHeader, ESP_MAGIC};
+use crate::chip::{Chip, SpiRegisters};
 use crate::elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
 use crate::flasher::FlashSize;
 use crate::Error;
@@ -13,12 +13,12 @@ use bytemuck::bytes_of;
 pub const IROM_MAP_START: u32 = 0x40200000;
 const IROM_MAP_END: u32 = 0x40300000;
 
-pub struct ESP8266;
+pub struct Esp8266;
 
-impl ChipType for ESP8266 {
+impl ChipType for Esp8266 {
     const DATE_REG1_VALUE: u32 = 0x00062000;
     const DATE_REG2_VALUE: u32 = 0;
-    const SPI_REGISTERS: SPIRegisters = SPIRegisters {
+    const SPI_REGISTERS: SpiRegisters = SpiRegisters {
         base: 0x60000200,
         usr_offset: 0x1c,
         usr1_offset: 0x20,
@@ -49,7 +49,7 @@ impl ChipType for ESP8266 {
                     .sum(),
             );
             // common header
-            let header = ESPCommonHeader {
+            let header = EspCommonHeader {
                 magic: ESP_MAGIC,
                 segment_count: image.ram_segments(Chip::Esp8266).count() as u8,
                 flash_mode: image.flash_mode as u8,
@@ -96,13 +96,13 @@ impl ChipType for ESP8266 {
 
 fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
     match size {
-        FlashSize::Flash256KB => Ok(0x10),
-        FlashSize::Flash512KB => Ok(0x00),
-        FlashSize::Flash1MB => Ok(0x20),
-        FlashSize::Flash2MB => Ok(0x30),
-        FlashSize::Flash4MB => Ok(0x40),
-        FlashSize::Flash8MB => Ok(0x80),
-        FlashSize::Flash16MB => Ok(0x90),
+        FlashSize::Flash256Kb => Ok(0x10),
+        FlashSize::Flash512Kb => Ok(0x00),
+        FlashSize::Flash1Mb => Ok(0x20),
+        FlashSize::Flash2Mb => Ok(0x30),
+        FlashSize::Flash4Mb => Ok(0x40),
+        FlashSize::Flash8Mb => Ok(0x80),
+        FlashSize::Flash16Mb => Ok(0x90),
         FlashSize::FlashRetry => Err(Error::UnsupportedFlash(size as u8)),
     }
 }
@@ -143,7 +143,7 @@ fn test_esp8266_rom() {
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
 
-    let segments = ESP8266::get_flash_segments(&image)
+    let segments = Esp8266::get_flash_segments(&image)
         .collect::<Result<Vec<_>, Error>>()
         .unwrap();
 
