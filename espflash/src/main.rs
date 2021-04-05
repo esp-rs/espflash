@@ -5,6 +5,7 @@ use espflash::{Config, Flasher};
 use pico_args::Arguments;
 use serial::{BaudRate, SerialPort};
 
+#[allow(clippy::unnecessary_wraps)]
 fn help() -> Result<()> {
     println!("Usage: espflash [--board-info] [--ram] <serial> <elf image>");
     Ok(())

@@ -17,6 +17,7 @@ fn main() -> Result<()> {
         return usage();
     }
 
+    #[allow(clippy::or_fun_call)]
     let tool = args
         .build_tool
         .as_deref()
@@ -91,6 +92,7 @@ struct AppArgs {
     serial: Option<String>,
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn usage() -> Result<()> {
     let usage = "Usage: cargo espflash \
       [--board-info] \
@@ -107,6 +109,7 @@ fn usage() -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn board_info(flasher: &Flasher) -> Result<()> {
     println!("Chip type:  {:?}", flasher.chip());
     println!("Flash size: {:?}", flasher.flash_size());
