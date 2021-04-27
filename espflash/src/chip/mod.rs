@@ -14,16 +14,15 @@ mod esp8266;
 const ESP_MAGIC: u8 = 0xe9;
 
 pub trait ChipType {
-    const DATE_REG1_VALUE: u32;
-    const DATE_REG2_VALUE: u32;
+    const CHIP_DETECT_MAGIC_VALUE: u32;
     const SPI_REGISTERS: SpiRegisters;
+
+    fn addr_is_flash(addr: u32) -> bool;
 
     /// Get the firmware segments for writing an image to flash
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a>;
-
-    fn addr_is_flash(addr: u32) -> bool;
 }
 
 pub struct SpiRegisters {
@@ -74,11 +73,11 @@ pub enum Chip {
 }
 
 impl Chip {
-    pub fn from_regs(value1: u32, value2: u32) -> Option<Self> {
-        match (value1, value2) {
-            (Esp8266::DATE_REG1_VALUE, _) => Some(Chip::Esp8266),
-            (Esp32::DATE_REG1_VALUE, _) => Some(Chip::Esp32),
-            (ESP32C3::DATE_REG1_VALUE, _) => Some(Chip::Esp32c3),
+    pub fn from_magic_value(value: u32) -> Option<Self> {
+        match value {
+            Esp8266::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp8266),
+            Esp32::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp32),
+            ESP32C3::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp32c3),
             _ => None,
         }
     }

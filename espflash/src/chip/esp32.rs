@@ -40,8 +40,7 @@ struct ExtendedHeader {
 }
 
 impl ChipType for Esp32 {
-    const DATE_REG1_VALUE: u32 = 0x15122500;
-    const DATE_REG2_VALUE: u32 = 0;
+    const CHIP_DETECT_MAGIC_VALUE: u32 = 0x00f01d83;
     const SPI_REGISTERS: SpiRegisters = SpiRegisters {
         base: 0x3ff42000,
         usr_offset: 0x1c,
