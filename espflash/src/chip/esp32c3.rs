@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 
 mod partition_table;
 
-pub struct ESP32C3;
+pub struct Esp32c3;
 
 const WP_PIN_DISABLED: u8 = 0xEE;
 
@@ -39,7 +39,7 @@ struct ExtendedHeader {
     append_digest: u8,
 }
 
-impl ChipType for ESP32C3 {
+impl ChipType for Esp32c3 {
     const CHIP_DETECT_MAGIC_VALUE: u32 = 0x6921506f;
     const SPI_REGISTERS: SPIRegisters = SPIRegisters {
         base: 0x60002000,
@@ -263,7 +263,7 @@ fn test_esp32c3_rom() {
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
 
-    let segments = ESP32C3::get_flash_segments(&image)
+    let segments = Esp32c3::get_flash_segments(&image)
         .collect::<Result<Vec<_>, Error>>()
         .unwrap();
 

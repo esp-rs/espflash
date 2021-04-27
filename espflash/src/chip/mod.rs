@@ -4,7 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use std::str::FromStr;
 
 pub use esp32::Esp32;
-pub use esp32c3::ESP32C3;
+pub use esp32c3::Esp32c3;
 pub use esp8266::Esp8266;
 
 mod esp32;
@@ -77,7 +77,7 @@ impl Chip {
         match value {
             Esp8266::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp8266),
             Esp32::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp32),
-            ESP32C3::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp32c3),
+            Esp32c3::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp32c3),
             _ => None,
         }
     }
@@ -89,7 +89,7 @@ impl Chip {
         match self {
             Chip::Esp8266 => Esp8266::get_flash_segments(image),
             Chip::Esp32 => Esp32::get_flash_segments(image),
-            Chip::Esp32c3 => ESP32C3::get_flash_segments(image),
+            Chip::Esp32c3 => Esp32c3::get_flash_segments(image),
         }
     }
 
@@ -97,7 +97,7 @@ impl Chip {
         match self {
             Chip::Esp8266 => Esp8266::addr_is_flash(addr),
             Chip::Esp32 => Esp32::addr_is_flash(addr),
-            Chip::Esp32c3 => ESP32C3::addr_is_flash(addr),
+            Chip::Esp32c3 => Esp32c3::addr_is_flash(addr),
         }
     }
 
@@ -105,7 +105,7 @@ impl Chip {
         match self {
             Chip::Esp8266 => Esp8266::SPI_REGISTERS,
             Chip::Esp32 => Esp32::SPI_REGISTERS,
-            Chip::Esp32c3 => ESP32C3::SPI_REGISTERS,
+            Chip::Esp32c3 => Esp32c3::SPI_REGISTERS,
         }
     }
 
