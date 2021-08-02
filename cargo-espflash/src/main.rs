@@ -202,8 +202,8 @@ fn build(
     };
 
     if let "cargo" = tool {
-        args.push("-Z".to_string());
-        args.push("build-std".to_string());
+        println!("NOTE: --tool cargo currently requires the unstable build-std, ensure .cargo/config{{.toml}} has the appropriate options.");
+        println!("See: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std")
     };
 
     args.push("--target".to_string());
