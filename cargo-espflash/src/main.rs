@@ -1,8 +1,11 @@
+mod cargo_config;
+
 use std::ffi::OsString;
 use std::fs::read;
 use std::path::PathBuf;
 use std::process::{exit, Command, ExitStatus, Stdio};
 
+use crate::cargo_config::has_build_std;
 use cargo_project::{Artifact, Profile, Project};
 use color_eyre::{eyre::WrapErr, Report, Result};
 use espflash::{Chip, Config, Flasher};
@@ -201,7 +204,7 @@ fn build(
         _ => unreachable!(),
     };
 
-    if let "cargo" = tool {
+    if "cargo" == tool && !has_build_std(".") {
         println!("NOTE: --tool cargo currently requires the unstable build-std, ensure .cargo/config{{.toml}} has the appropriate options.");
         println!("See: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std")
     };

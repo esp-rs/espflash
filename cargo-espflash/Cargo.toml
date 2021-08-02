@@ -16,3 +16,5 @@ espflash = { version = "0.1.2", path = "../espflash" }
 pico-args = "0.4.0"
 serial = "0.4"
 color-eyre = "0.5.10"
+serde = { version = "1", features = ["derive"] }
+toml = "0.5"
