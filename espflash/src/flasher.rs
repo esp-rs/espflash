@@ -308,7 +308,7 @@ impl Flasher {
 
         let length = size_of::<BlockParams>() + data.len() + padding;
 
-        let mut check = checksum(&data, CHECKSUM_INIT);
+        let mut check = checksum(data, CHECKSUM_INIT);
 
         for _ in 0..padding {
             check = checksum(&[padding_byte], check);
@@ -318,7 +318,7 @@ impl Flasher {
             command as u8,
             (length as u16, |encoder: &mut Encoder| {
                 encoder.write(bytes_of(&params))?;
-                encoder.write(&data)?;
+                encoder.write(data)?;
                 let padding = &[padding_byte; FLASH_WRITE_SIZE][0..padding];
                 encoder.write(padding)?;
                 Ok(())
@@ -480,7 +480,7 @@ impl Flasher {
 
             for (i, block) in segment.data.chunks(MAX_RAM_BLOCK_SIZE).enumerate() {
                 let block_padding = if i == block_count - 1 { padding } else { 0 };
-                self.block_command(Command::MemData, &block, block_padding, 0, i as u32)?;
+                self.block_command(Command::MemData, block, block_padding, 0, i as u32)?;
             }
         }
 
@@ -527,7 +527,7 @@ impl Flasher {
             for (i, block) in chunks.enumerate() {
                 pb_chunk.set_message(&format!("segment 0x{:X} writing chunks", addr));
                 let block_padding = FLASH_WRITE_SIZE - block.len();
-                self.block_command(Command::FlashData, &block, block_padding, 0xff, i as u32)?;
+                self.block_command(Command::FlashData, block, block_padding, 0xff, i as u32)?;
                 pb_chunk.inc(1);
             }
             pb_chunk.finish_with_message(&format!("segment 0x{:X}", addr));
