@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "0.1.3"
+version = "0.1.4"
 description = "Cargo subcommand for flashing the ESP8266 and ESP32 over serial"
 license = "GPL-2.0"
 authors = [

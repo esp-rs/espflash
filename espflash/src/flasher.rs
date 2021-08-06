@@ -229,17 +229,18 @@ impl Flasher {
         self.connection
             .with_timeout(Duration::from_millis(100), |connection| {
                 let data = &[
-                    0x07u8, 0x07, 0x012, 0x20, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+                    0x07, 0x07, 0x12, 0x20, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
                     0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
-                    0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+                    0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
                 ][..];
 
                 connection.write_command(Command::Sync as u8, data, 0)?;
 
-                for _ in 0..10 {
+                for _ in 0..100 {
                     match connection.read_response()? {
                         Some(response) if response.return_op == Command::Sync as u8 => {
                             if response.status == 1 {
+                                let _error = connection.flush();
                                 return Err(Error::RomError(RomError::from(response.error)));
                             } else {
                                 break;
@@ -249,16 +250,17 @@ impl Flasher {
                     }
                 }
 
-                for _ in 0..7 {
-                    loop {
-                        match connection.read_response()? {
-                            Some(_) => break,
-                            _ => continue,
-                        }
-                    }
-                }
                 Ok(())
-            })
+            })?;
+        for _ in 0..7 {
+            for _ in 0..100 {
+                match self.connection.read_response()? {
+                    Some(_) => break,
+                    _ => continue,
+                }
+            }
+        }
+        Ok(())
     }
 
     fn start_connection(&mut self) -> Result<(), Error> {
@@ -541,12 +543,17 @@ impl Flasher {
     }
 
     pub fn change_baud(&mut self, speed: BaudRate) -> Result<(), Error> {
+        let new_speed = (speed.speed() as u32).to_le_bytes();
+        let old_speed = 0u32.to_le_bytes();
+
         self.connection.command(
             Command::ChangeBaud as u8,
-            &(speed.speed()).to_le_bytes()[..],
+            &[new_speed, old_speed].concat()[..],
             0,
         )?;
         self.connection.set_baud(speed)?;
+        std::thread::sleep(Duration::from_secs_f32(0.05));
+        self.connection.flush()?;
         Ok(())
     }
 }
