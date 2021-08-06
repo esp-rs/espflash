@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "0.1.3"
+version = "0.1.4"
 description = "Cargo subcommand for flashing the ESP8266 and ESP32 over serial"
 license = "GPL-2.0"
 authors = [
@@ -11,10 +11,10 @@ repository = "https://github.com/icewind1991/espflash"
 edition = "2018"
 
 [dependencies]
-cargo-project = "0.2.4"
-espflash = { version = "0.1.3", path = "../espflash" }
-pico-args = "0.4.0"
+cargo-project = "0.2"
+espflash = { version = "0.1", path = "../espflash" }
+pico-args = "0.4"
 serial = "0.4"
-color-eyre = "0.5.10"
+color-eyre = "0.5"
 serde = { version = "1", features = ["derive"] }
 toml = "0.5"
