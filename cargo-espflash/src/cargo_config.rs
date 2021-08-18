@@ -31,10 +31,8 @@ pub fn has_build_std<P: AsRef<Path>>(project_path: P) -> bool {
         Ok(toml) => toml,
         Err(_) => return false,
     };
-    toml.unstable
-        .build_std
-        .iter()
-        .any(|option| option == "core")
+
+    !toml.unstable.build_std.is_empty()
 }
 
 fn config_path(project_path: &Path) -> Option<PathBuf> {
