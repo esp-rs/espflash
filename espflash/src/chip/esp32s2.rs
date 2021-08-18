@@ -10,31 +10,29 @@ use crate::Error;
 use bytemuck::bytes_of;
 use sha2::{Digest, Sha256};
 
+pub struct Esp32s2;
 
+const IROM_MAP_START: u32 = 0x40080000;
+const IROM_MAP_END: u32 = 0x40b80000;
 
-pub struct Esp32;
-
-const IROM_MAP_START: u32 = 0x400d0000;
-const IROM_MAP_END: u32 = 0x40400000;
-
-const DROM_MAP_START: u32 = 0x3F400000;
-const DROM_MAP_END: u32 = 0x3F800000;
+const DROM_MAP_START: u32 = 0x3F000000;
+const DROM_MAP_END: u32 = 0x3F3F0000;
 
 const BOOT_ADDR: u32 = 0x1000;
 const PARTION_ADDR: u32 = 0x8000;
 const APP_ADDR: u32 = 0x10000;
 
-impl ChipType for Esp32 {
+impl ChipType for Esp32s2 {
     const DATE_REG1_VALUE: u32 = 0x15122500;
     const DATE_REG2_VALUE: u32 = 0;
     const SPI_REGISTERS: SpiRegisters = SpiRegisters {
-        base: 0x3ff42000,
-        usr_offset: 0x1c,
-        usr1_offset: 0x20,
-        usr2_offset: 0x24,
-        w0_offset: 0x80,
-        mosi_length_offset: Some(0x28),
-        miso_length_offset: Some(0x2c),
+        base: 0x3f402000,
+        usr_offset: 0x18,
+        usr1_offset: 0x1c,
+        usr2_offset: 0x20,
+        w0_offset: 0x58,
+        mosi_length_offset: Some(0x24),
+        miso_length_offset: Some(0x28),
     };
 
     fn addr_is_flash(addr: u32) -> bool {

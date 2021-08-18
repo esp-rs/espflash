@@ -7,9 +7,11 @@ pub use esp32::Esp32;
 pub use esp8266::Esp8266;
 
 mod esp32;
+mod esp32s2;
 mod esp8266;
 
 const ESP_MAGIC: u8 = 0xe9;
+const WP_PIN_DISABLED: u8 = 0xEE;
 
 pub trait ChipType {
     const DATE_REG1_VALUE: u32;
@@ -62,6 +64,19 @@ impl SpiRegisters {
     pub fn miso_length(&self) -> Option<u32> {
         self.miso_length_offset.map(|offset| self.base + offset)
     }
+}
+
+#[derive(Copy, Clone, Zeroable, Pod)]
+#[repr(C)]
+struct ExtendedHeader {
+    wp_pin: u8,
+    clk_q_drv: u8,
+    d_cs_drv: u8,
+    gd_wp_drv: u8,
+    chip_id: u16,
+    min_rev: u8,
+    padding: [u8; 8],
+    append_digest: u8,
 }
 
 #[derive(Debug, Copy, Clone)]
