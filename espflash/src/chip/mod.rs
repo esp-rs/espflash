@@ -93,6 +93,7 @@ impl Chip {
         match magic {
             Esp8266::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp8266),
             Esp32::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp32),
+            Esp32s2::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp32s2),
             _ => None,
         }
     }
@@ -131,6 +132,7 @@ impl FromStr for Chip {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "esp32" => Ok(Chip::Esp32),
+            "esp32s2" => Ok(Chip::Esp32s2),
             "esp8266" => Ok(Chip::Esp8266),
             _ => Err(Error::UnrecognizedChip),
         }

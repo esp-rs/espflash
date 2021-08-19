@@ -118,6 +118,7 @@ impl Connection {
         data: Data,
         check: u32,
     ) -> Result<u32, Error> {
+        println!("Command: ({}, DATA, {})", command, check);
         self.write_command(command, data, check)?;
 
         match self.read_response()? {

@@ -20,7 +20,7 @@ pub enum Error {
     ElfNotRamLoadable,
     #[error("bootloader returned an error: {0:?}")]
     RomError(RomError),
-    #[error("chip not recognized, supported chip types are esp8266 and esp32")]
+    #[error("chip not recognized, supported chip types are esp8266, esp32s2 and esp32")]
     UnrecognizedChip,
     #[error("flash chip not supported, flash id: {0:#x}")]
     UnsupportedFlash(u8),

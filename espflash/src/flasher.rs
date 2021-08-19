@@ -210,6 +210,7 @@ impl Flasher {
     fn chip_detect(&mut self) -> Result<(), Error> {
         let magic = self.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
         let chip = Chip::from_magic(magic).ok_or(Error::UnrecognizedChip)?;
+        println!("Detected {:?}", chip);
 
         self.chip = chip;
         Ok(())
@@ -238,6 +239,7 @@ impl Flasher {
                     match connection.read_response()? {
                         Some(response) if response.return_op == Command::Sync as u8 => {
                             if response.status == 1 {
+                                println!("Rom error in sync()");
                                 return Err(Error::RomError(RomError::from(response.error)));
                             } else {
                                 break;

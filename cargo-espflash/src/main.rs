@@ -76,7 +76,7 @@ fn usage() -> Result<()> {
       [--ram] \
       [--release] \
       [--example EXAMPLE] \
-      [--chip {{esp32,esp8266}}] \
+      [--chip {{esp32,esp8266,esp32s2}}] \
       [--speed BAUD] \
       <serial>";
 
