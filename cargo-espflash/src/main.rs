@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use std::process::{exit, Command, ExitStatus, Stdio};
 
 use crate::cargo_config::has_build_std;
-use cargo_project::{Artifact, Profile, Project};
-use color_eyre::{eyre::WrapErr, Report, Result};
-use espflash::{Chip, Config, Flasher};
+use anyhow::{anyhow, bail, Context, Result};
+use cargo_metadata::Message;
+use espflash::{Config, Flasher};
 use pico_args::Arguments;
 use serial::{BaudRate, SerialPort};
 
@@ -20,44 +20,21 @@ fn main() -> Result<()> {
         return usage();
     }
 
-    #[allow(clippy::or_fun_call)]
-    let tool = args
-        .build_tool
-        .as_deref()
-        .or(config.build.tool.as_deref())
-        .or(Some("xbuild"));
-
-    let tool = match tool {
-        Some("xargo") | Some("cargo") | Some("xbuild") => tool.unwrap(),
-        Some(_) => {
-            eprintln!("Only 'xargo', 'cargo' and 'xbuild' are valid build types.");
-            return Ok(());
-        }
-        None => return usage(),
-    };
-
-    let port = args.serial.or(config.connection.serial).unwrap();
+    let port = args
+        .serial
+        .or(config.connection.serial)
+        .context("serial port missing")?;
 
     let speed = args.speed.map(|v| BaudRate::from_speed(v as usize));
 
-    let chip = match args.chip.as_ref() {
-        Some(chip) => chip.parse()?,
-        None => chip_detect(&port).wrap_err("Unable to detect chip type, ensure your device is connected or manually specify the chip")?
+    // Don't build if we are just querying board info
+    let path = if !args.board_info {
+        build(args.release, &args.example, &args.features)?
+    } else {
+        PathBuf::new()
     };
 
-    let target = chip.target();
-
-    // Since the application exits without flashing the device when '--board-info'
-    // is passed, we will not waste time building if said flag was set.
-    if !args.board_info {
-        let status = build(args.release, &args.example, &args.features, tool, target);
-        if !status.success() {
-            exit_with_process_status(status)
-        }
-    }
-
-    let mut serial =
-        serial::open(&port).wrap_err_with(|| format!("Failed to open serial port {}", port))?;
+    let mut serial = serial::open(&port).context(format!("Failed to open serial port {}", port))?;
     serial.reconfigure(&|settings| {
         settings.set_baud_rate(BaudRate::Baud115200)?;
         Ok(())
@@ -68,8 +45,6 @@ fn main() -> Result<()> {
         return board_info(&flasher);
     }
 
-    let path = get_artifact_path(target, args.release, &args.example)
-        .expect("Could not find the build artifact path");
     let elf_data = read(&path)?;
 
     if args.ram {
@@ -90,7 +65,6 @@ struct AppArgs {
     example: Option<String>,
     features: Option<String>,
     chip: Option<String>,
-    build_tool: Option<String>,
     speed: Option<u32>,
     serial: Option<String>,
 }
@@ -102,7 +76,6 @@ fn usage() -> Result<()> {
       [--ram] \
       [--release] \
       [--example EXAMPLE] \
-      [--tool {{cargo,xargo,xbuild}}] \
       [--chip {{esp32,esp8266}}] \
       [--speed BAUD] \
       <serial>";
@@ -136,40 +109,13 @@ fn parse_args() -> Result<AppArgs> {
         features: args.opt_value_from_str("--features")?,
         chip: args.opt_value_from_str("--chip")?,
         speed: args.opt_value_from_str("--speed")?,
-        build_tool: args.opt_value_from_str("--tool")?,
         serial: args.opt_free_from_str()?,
     };
 
     Ok(app_args)
 }
 
-fn get_artifact_path(target: &str, release: bool, example: &Option<String>) -> Result<PathBuf> {
-    let project = Project::query(".").unwrap();
-
-    let artifact = match example {
-        Some(example) => Artifact::Example(example.as_str()),
-        None => Artifact::Bin(project.name()),
-    };
-
-    let profile = if release {
-        Profile::Release
-    } else {
-        Profile::Dev
-    };
-
-    let host = "x86_64-unknown-linux-gnu";
-    project
-        .path(artifact, profile, Some(target), host)
-        .map_err(Report::msg)
-}
-
-fn build(
-    release: bool,
-    example: &Option<String>,
-    features: &Option<String>,
-    tool: &str,
-    target: &str,
-) -> ExitStatus {
+fn build(release: bool, example: &Option<String>, features: &Option<String>) -> Result<PathBuf> {
     let mut args: Vec<String> = vec![];
 
     if release {
@@ -192,47 +138,69 @@ fn build(
         None => {}
     }
 
-    let mut command = match tool {
-        "cargo" | "xbuild" => Command::new("cargo"),
-        "xargo" => Command::new("xargo"),
-        _ => unreachable!(),
+    if !has_build_std(".") {
+        bail!(
+            r#"cargo currently requires the unstable build-std, ensure .cargo/config{{.toml}} has the appropriate options.
+        See: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std"#
+        );
     };
 
-    let command = match tool {
-        "xargo" | "cargo" => command.arg("build"),
-        "xbuild" => command.arg("xbuild"),
-        _ => unreachable!(),
-    };
-
-    if "cargo" == tool && !has_build_std(".") {
-        println!("NOTE: --tool cargo currently requires the unstable build-std, ensure .cargo/config{{.toml}} has the appropriate options.");
-        println!("See: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std")
-    };
-
-    args.push("--target".to_string());
-    args.push(target.to_string());
-
-    command
+    let output = Command::new("cargo")
+        .arg("build")
         .args(args)
-        .stdout(Stdio::inherit())
+        .args(&["--message-format", "json-diagnostic-rendered-ansi"])
+        .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
-        .spawn()
-        .unwrap()
-        .wait()
-        .unwrap()
-}
+        .spawn()?
+        .wait_with_output()?;
 
-fn chip_detect(port: &str) -> Result<Chip> {
-    let mut serial =
-        serial::open(port).wrap_err_with(|| format!("Failed to open serial port {}", port))?;
-    serial.reconfigure(&|settings| {
-        settings.set_baud_rate(BaudRate::Baud115200)?;
+    // Parse build output.
+    let messages = Message::parse_stream(&output.stdout[..]);
 
-        Ok(())
-    })?;
-    let flasher = Flasher::connect(serial, None)?;
+    // Find artifacts.
+    let mut target_artifact = None;
 
-    Ok(flasher.chip())
+    for message in messages {
+        match message? {
+            Message::CompilerArtifact(artifact) => {
+                if artifact.executable.is_some() {
+                    if target_artifact.is_some() {
+                        // We found multiple binary artifacts,
+                        // so we don't know which one to use.
+                        bail!("Multiple artifacts found, please specify one with --bin");
+                    } else {
+                        target_artifact = Some(artifact);
+                    }
+                }
+            }
+            Message::CompilerMessage(message) => {
+                if let Some(rendered) = message.message.rendered {
+                    print!("{}", rendered);
+                }
+            }
+            // Ignore other messages.
+            _ => (),
+        }
+    }
+
+    // Check if the command succeeded, otherwise return an error.
+    // Any error messages occuring during the build are shown above,
+    // when the compiler messages are rendered.
+    if !output.status.success() {
+        exit_with_process_status(output.status);
+    }
+
+    if let Some(artifact) = target_artifact {
+        let artifact_path = PathBuf::from(
+            artifact
+                .executable
+                .ok_or(anyhow!("artifact executable path is missing"))?
+                .as_path(),
+        );
+        Ok(artifact_path)
+    } else {
+        bail!("Artifact not found");
+    }
 }
 
 #[cfg(unix)]
