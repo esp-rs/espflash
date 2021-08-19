@@ -14,9 +14,6 @@ const ESP_MAGIC: u8 = 0xe9;
 const WP_PIN_DISABLED: u8 = 0xEE;
 
 pub trait ChipType {
-    const DATE_REG_ADDR: u32;
-    const DATE_REG_VALUE: u32;
-
     const CHIP_DETECT_MAGIC_VALUE: u32;
     const CHIP_DETECT_MAGIC_VALUE2: u32 = 0x0; // give default value, as most chips don't only have one
 

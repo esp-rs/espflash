@@ -23,8 +23,6 @@ const PARTION_ADDR: u32 = 0x8000;
 const APP_ADDR: u32 = 0x10000;
 
 impl ChipType for Esp32s2 {
-    const DATE_REG_ADDR: u32 = 0x60000078;
-    const DATE_REG_VALUE: u32 = 0x15122500;
     const CHIP_DETECT_MAGIC_VALUE: u32 = 0x000007c6;
 
     const SPI_REGISTERS: SpiRegisters = SpiRegisters {
