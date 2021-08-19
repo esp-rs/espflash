@@ -4,6 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use std::str::FromStr;
 
 pub use esp32::Esp32;
+pub use esp32s2::Esp32s2;
 pub use esp8266::Esp8266;
 
 mod esp32;
@@ -84,6 +85,7 @@ struct ExtendedHeader {
 pub enum Chip {
     Esp8266,
     Esp32,
+    Esp32s2,
 }
 
 impl Chip {
@@ -102,6 +104,7 @@ impl Chip {
         match self {
             Chip::Esp8266 => Esp8266::get_flash_segments(image),
             Chip::Esp32 => Esp32::get_flash_segments(image),
+            Chip::Esp32s2 => Esp32s2::get_flash_segments(image),
         }
     }
 
@@ -109,6 +112,7 @@ impl Chip {
         match self {
             Chip::Esp8266 => Esp8266::addr_is_flash(addr),
             Chip::Esp32 => Esp32::addr_is_flash(addr),
+            Chip::Esp32s2 => Esp32s2::addr_is_flash(addr),
         }
     }
 
@@ -116,6 +120,7 @@ impl Chip {
         match self {
             Chip::Esp8266 => Esp8266::SPI_REGISTERS,
             Chip::Esp32 => Esp32::SPI_REGISTERS,
+            Chip::Esp32s2 => Esp32s2::SPI_REGISTERS,
         }
     }
 
@@ -124,6 +129,7 @@ impl Chip {
         match self {
             Chip::Esp8266 => "xtensa-esp8266-none-elf",
             Chip::Esp32 => "xtensa-esp32-none-elf",
+            Chip::Esp32s2 => "xtensa-esp32s2-none-elf",
         }
     }
 }

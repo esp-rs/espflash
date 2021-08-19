@@ -75,9 +75,9 @@ impl ChipType for Esp32s2 {
 
             let _ = image.segments().collect::<Vec<_>>();
 
-            let mut flash_segments: Vec<_> = image.rom_segments(Chip::Esp32).collect();
+            let mut flash_segments: Vec<_> = image.rom_segments(Chip::Esp32s2).collect();
             flash_segments.sort();
-            let mut ram_segments: Vec<_> = image.ram_segments(Chip::Esp32).collect();
+            let mut ram_segments: Vec<_> = image.ram_segments(Chip::Esp32s2).collect();
             ram_segments.sort();
             let mut ram_segments = ram_segments.into_iter();
 
