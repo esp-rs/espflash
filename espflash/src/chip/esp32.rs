@@ -10,8 +10,6 @@ use crate::Error;
 use bytemuck::bytes_of;
 use sha2::{Digest, Sha256};
 
-
-
 pub struct Esp32;
 
 const IROM_MAP_START: u32 = 0x400d0000;
@@ -25,8 +23,9 @@ const PARTION_ADDR: u32 = 0x8000;
 const APP_ADDR: u32 = 0x10000;
 
 impl ChipType for Esp32 {
-    const DATE_REG1_VALUE: u32 = 0x15122500;
-    const DATE_REG2_VALUE: u32 = 0;
+    const DATE_REG_ADDR: u32 = 0x60000078;
+    const DATE_REG_VALUE: u32 = 0x15122500;
+    const CHIP_DETECT_MAGIC_VALUE: u32 = 0x00f01d83;
     const SPI_REGISTERS: SpiRegisters = SpiRegisters {
         base: 0x3ff42000,
         usr_offset: 0x1c,
@@ -45,7 +44,7 @@ impl ChipType for Esp32 {
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
-        let bootloader = include_bytes!("../../bootloader/bootloader.bin");
+        let bootloader = include_bytes!("../../bootloader/esp32-bootloader.bin");
 
         let partition_table = PartitionTable::basic(0x10000, 0x3f0000).to_bytes();
 

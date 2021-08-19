@@ -20,9 +20,8 @@ const FLASH_BLOCK_SIZE: usize = 0x100;
 const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 const FLASH_WRITE_SIZE: usize = 0x400;
 
-// registers used for chip detect
-const UART_DATE_REG_ADDR: u32 = 0x60000078;
-const UART_DATE_REG2_ADDR: u32 = 0x3f400074;
+// register used for chip detect
+const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
@@ -209,9 +208,8 @@ impl Flasher {
     }
 
     fn chip_detect(&mut self) -> Result<(), Error> {
-        let reg1 = self.read_reg(UART_DATE_REG_ADDR)?;
-        let reg2 = self.read_reg(UART_DATE_REG2_ADDR)?;
-        let chip = Chip::from_regs(reg1, reg2).ok_or(Error::UnrecognizedChip)?;
+        let magic = self.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
+        let chip = Chip::from_magic(magic).ok_or(Error::UnrecognizedChip)?;
 
         self.chip = chip;
         Ok(())

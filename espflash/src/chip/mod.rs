@@ -14,8 +14,12 @@ const ESP_MAGIC: u8 = 0xe9;
 const WP_PIN_DISABLED: u8 = 0xEE;
 
 pub trait ChipType {
-    const DATE_REG1_VALUE: u32;
-    const DATE_REG2_VALUE: u32;
+    const DATE_REG_ADDR: u32;
+    const DATE_REG_VALUE: u32;
+
+    const CHIP_DETECT_MAGIC_VALUE: u32;
+    const CHIP_DETECT_MAGIC_VALUE2: u32 = 0x0; // give default value, as most chips don't only have one
+
     const SPI_REGISTERS: SpiRegisters;
 
     /// Get the firmware segments for writing an image to flash
@@ -86,10 +90,10 @@ pub enum Chip {
 }
 
 impl Chip {
-    pub fn from_regs(value1: u32, value2: u32) -> Option<Self> {
-        match (value1, value2) {
-            (Esp8266::DATE_REG1_VALUE, _) => Some(Chip::Esp8266),
-            (Esp32::DATE_REG1_VALUE, _) => Some(Chip::Esp32),
+    pub fn from_magic(magic: u32) -> Option<Self> {
+        match magic {
+            Esp8266::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp8266),
+            Esp32::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp32),
             _ => None,
         }
     }

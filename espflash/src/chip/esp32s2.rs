@@ -23,8 +23,10 @@ const PARTION_ADDR: u32 = 0x8000;
 const APP_ADDR: u32 = 0x10000;
 
 impl ChipType for Esp32s2 {
-    const DATE_REG1_VALUE: u32 = 0x15122500;
-    const DATE_REG2_VALUE: u32 = 0;
+    const DATE_REG_ADDR: u32 = 0x60000078;
+    const DATE_REG_VALUE: u32 = 0x15122500;
+    const CHIP_DETECT_MAGIC_VALUE: u32 = 0x000007c6;
+
     const SPI_REGISTERS: SpiRegisters = SpiRegisters {
         base: 0x3f402000,
         usr_offset: 0x18,
@@ -43,7 +45,7 @@ impl ChipType for Esp32s2 {
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
-        let bootloader = include_bytes!("../../bootloader/bootloader.bin");
+        let bootloader = include_bytes!("../../bootloader/esp32s2-bootloader.bin");
 
         let partition_table = PartitionTable::basic(0x10000, 0x3f0000).to_bytes();
 
@@ -227,7 +229,7 @@ fn test_esp32_rom() {
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
 
-    let segments = Esp32::get_flash_segments(&image)
+    let segments = Esp32s2::get_flash_segments(&image)
         .collect::<Result<Vec<_>, Error>>()
         .unwrap();
 
