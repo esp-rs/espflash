@@ -18,3 +18,4 @@ serial = "0.4"
 color-eyre = "0.5.10"
 serde = { version = "1", features = ["derive"] }
 toml = "0.5"
+guess_host_triple = "0.1.2"

@@ -6,18 +6,11 @@ use std::fs::read;
 pub struct Config {
     #[serde(default)]
     pub connection: Connection,
-    #[serde(default)]
-    pub build: Build,
 }
 
 #[derive(Debug, Deserialize, Default)]
 pub struct Connection {
     pub serial: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Default)]
-pub struct Build {
-    pub tool: Option<String>,
 }
 
 impl Config {
