@@ -525,12 +525,12 @@ impl Flasher {
             );
 
             for (i, block) in chunks.enumerate() {
-                pb_chunk.set_message(&format!("segment 0x{:X} writing chunks", addr));
+                pb_chunk.set_message(format!("segment 0x{:X} writing chunks", addr));
                 let block_padding = FLASH_WRITE_SIZE - block.len();
                 self.block_command(Command::FlashData, block, block_padding, 0xff, i as u32)?;
                 pb_chunk.inc(1);
             }
-            pb_chunk.finish_with_message(&format!("segment 0x{:X}", addr));
+            pb_chunk.finish_with_message(format!("segment 0x{:X}", addr));
         }
 
         self.flash_finish(false)?;
