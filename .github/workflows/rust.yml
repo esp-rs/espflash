@@ -107,3 +107,24 @@ jobs:
         with:
           name: espflash
           path: target/x86_64-unknown-linux-musl/release/espflash
+
+  build-windows:
+    name: Build Static Windows Binaries
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-gnu
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --bin espflash --target x86_64-pc-windows-gnu
+      - uses: actions/upload-artifact@v2
+        with:
+          name: espflash.exe
+          path: target/x86_64-pc-windows-gnu/release/espflash.exe
