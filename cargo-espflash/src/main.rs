@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use std::process::{exit, Command, ExitStatus, Stdio};
 
 use crate::cargo_config::has_build_std;
-use cargo_project::{Artifact, Profile, Project};
-use color_eyre::{eyre::WrapErr, Report, Result};
+use anyhow::{anyhow, bail, Context, Result};
+use cargo_metadata::Message;
 use espflash::{Config, Flasher};
 use pico_args::Arguments;
 use serial::{BaudRate, SerialPort};
@@ -20,21 +20,21 @@ fn main() -> Result<()> {
         return usage();
     }
 
-    let port = args.serial.or(config.connection.serial).unwrap();
+    let port = args
+        .serial
+        .or(config.connection.serial)
+        .context("serial port missing")?;
 
     let speed = args.speed.map(|v| BaudRate::from_speed(v as usize));
 
-    // Since the application exits without flashing the device when '--board-info'
-    // is passed, we will not waste time building if said flag was set.
-    if !args.board_info {
-        let status = build(args.release, &args.example, &args.features);
-        if !status.success() {
-            exit_with_process_status(status)
-        }
-    }
+    // Don't build if we are just querying board info
+    let path = if !args.board_info {
+        build(args.release, &args.example, &args.features)?
+    } else {
+        PathBuf::new()
+    };
 
-    let mut serial =
-        serial::open(&port).wrap_err_with(|| format!("Failed to open serial port {}", port))?;
+    let mut serial = serial::open(&port).context(format!("Failed to open serial port {}", port))?;
     serial.reconfigure(&|settings| {
         settings.set_baud_rate(BaudRate::Baud115200)?;
         Ok(())
@@ -45,8 +45,6 @@ fn main() -> Result<()> {
         return board_info(&flasher);
     }
 
-    let path = get_artifact_path(args.release, &args.example)
-        .expect("Could not find the build artifact path");
     let elf_data = read(&path)?;
 
     if args.ram {
@@ -117,27 +115,7 @@ fn parse_args() -> Result<AppArgs> {
     Ok(app_args)
 }
 
-fn get_artifact_path(release: bool, example: &Option<String>) -> Result<PathBuf> {
-    let project = Project::query(".").expect("failed to parse project");
-
-    let artifact = match example {
-        Some(example) => Artifact::Example(example.as_str()),
-        None => Artifact::Bin(project.name()),
-    };
-
-    let profile = if release {
-        Profile::Release
-    } else {
-        Profile::Dev
-    };
-
-    let host = guess_host_triple::guess_host_triple().expect("Failed to guess host triple");
-    project
-        .path(artifact, profile, project.target(), host)
-        .map_err(Report::msg)
-}
-
-fn build(release: bool, example: &Option<String>, features: &Option<String>) -> ExitStatus {
+fn build(release: bool, example: &Option<String>, features: &Option<String>) -> Result<PathBuf> {
     let mut args: Vec<String> = vec![];
 
     if release {
@@ -161,20 +139,68 @@ fn build(release: bool, example: &Option<String>, features: &Option<String>) -> 
     }
 
     if !has_build_std(".") {
-        println!("NOTE: --tool cargo currently requires the unstable build-std, ensure .cargo/config{{.toml}} has the appropriate options.");
-        println!("See: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std");
-        // TODO early exit here
+        bail!(
+            r#"cargo currently requires the unstable build-std, ensure .cargo/config{{.toml}} has the appropriate options.
+        See: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std"#
+        );
     };
 
-    Command::new("cargo")
+    let output = Command::new("cargo")
         .arg("build")
         .args(args)
-        .stdout(Stdio::inherit())
+        .args(&["--message-format", "json-diagnostic-rendered-ansi"])
+        .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
-        .spawn()
-        .unwrap()
-        .wait()
-        .unwrap()
+        .spawn()?
+        .wait_with_output()?;
+
+    // Parse build output.
+    let messages = Message::parse_stream(&output.stdout[..]);
+
+    // Find artifacts.
+    let mut target_artifact = None;
+
+    for message in messages {
+        match message? {
+            Message::CompilerArtifact(artifact) => {
+                if artifact.executable.is_some() {
+                    if target_artifact.is_some() {
+                        // We found multiple binary artifacts,
+                        // so we don't know which one to use.
+                        bail!("Multiple artifacts found, please specify one with --bin");
+                    } else {
+                        target_artifact = Some(artifact);
+                    }
+                }
+            }
+            Message::CompilerMessage(message) => {
+                if let Some(rendered) = message.message.rendered {
+                    print!("{}", rendered);
+                }
+            }
+            // Ignore other messages.
+            _ => (),
+        }
+    }
+
+    // Check if the command succeeded, otherwise return an error.
+    // Any error messages occuring during the build are shown above,
+    // when the compiler messages are rendered.
+    if !output.status.success() {
+        exit_with_process_status(output.status);
+    }
+
+    if let Some(artifact) = target_artifact {
+        let artifact_path = PathBuf::from(
+            artifact
+                .executable
+                .ok_or(anyhow!("artifact executable path is missing"))?
+                .as_path(),
+        );
+        Ok(artifact_path)
+    } else {
+        bail!("Artifact not found");
+    }
 }
 
 #[cfg(unix)]
