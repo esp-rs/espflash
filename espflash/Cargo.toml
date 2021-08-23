@@ -5,7 +5,7 @@ authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 license = "GPL-2.0"
 description = "ESP8266 and ESP32 serial flasher"
-repository = "https://github.com/icewind1991/espflash"
+repository = "https://github.com/esp-rs/espflash"
 
 [[bin]]
 name = "espflash"
