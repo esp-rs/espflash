@@ -7,11 +7,10 @@ authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",
 ]
-repository = "https://github.com/icewind1991/espflash"
+repository = "https://github.com/esp-rs/espflash"
 edition = "2018"
 
 [dependencies]
-cargo-project = "0.2.4"
 espflash = { version = "0.1.3", path = "../espflash" }
 pico-args = "0.4.0"
 serial = "0.4"
