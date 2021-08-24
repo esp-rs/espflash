@@ -21,7 +21,8 @@ RUN apt-get update && apt-get install -y \
    && rm -rf /var/lib/apt/lists/*
 
 # Init rust-xtensa
-RUN git clone --depth 1 https://github.com/MabezDev/rust-xtensa /rust-xtensa
+RUN git clone https://github.com/esp-rs/rust /rust-xtensa
+RUN cd rust-xtensa && git submodule init && git submodule update
 RUN cd rust-xtensa && \
   ./configure --experimental-targets=Xtensa && \
   ./x.py build --stage 2
@@ -31,8 +32,8 @@ RUN rm -r /rust-xtensa/src/llvm-project
 FROM ubuntu:20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG toolchain=nightly-2020-10-09
-ARG xtensa_esp32_link="https://github.com/espressif/crosstool-NG/releases/download/esp-2020r3/xtensa-esp32-elf-gcc8_4_0-esp-2020r3-linux-amd64.tar.gz"
+ARG toolchain=nightly-2021-08-03
+ARG xtensa_esp32_link="https://github.com/espressif/crosstool-NG/releases/download/esp-2021r1/xtensa-esp32-elf-gcc8_4_0-esp-2021r1-linux-amd64.tar.gz"
 ARG xtensa_lx106_link="https://dl.espressif.com/dl/xtensa-lx106-elf-linux64-1.22.0-100-ge567ec7-5.2.0.tar.gz"
 
 RUN apt-get update && apt-get install -y \
