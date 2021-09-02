@@ -87,10 +87,8 @@ impl PartitionTable {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let table = PartitionTable::basic(0x10000, 0x3f0000);
-
         let mut result = Vec::with_capacity(PARTITION_TABLE_SIZE);
-        table.save(&mut result).unwrap();
+        self.save(&mut result).unwrap();
         result
     }
 
