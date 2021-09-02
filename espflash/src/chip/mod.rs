@@ -81,7 +81,7 @@ struct ExtendedHeader {
     append_digest: u8,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Chip {
     Esp8266,
     Esp32,

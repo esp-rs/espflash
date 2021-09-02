@@ -140,6 +140,16 @@ struct BeginParams {
 
 #[derive(Zeroable, Pod, Copy, Clone, Debug)]
 #[repr(C)]
+struct BeginParamsS2 {
+    size: u32,
+    blocks: u32,
+    block_size: u32,
+    offset: u32,
+    encrypted: u32,
+}
+
+#[derive(Zeroable, Pod, Copy, Clone, Debug)]
+#[repr(C)]
 struct WriteRegParams {
     addr: u32,
     value: u32,
@@ -280,14 +290,26 @@ impl Flasher {
         block_size: u32,
         offset: u32,
     ) -> Result<(), Error> {
-        let params = BeginParams {
-            size,
-            blocks,
-            block_size,
-            offset,
-        };
-        self.connection
-            .command(command as u8, bytes_of(&params), 0)?;
+        if self.chip == Chip::Esp32s2 {
+            let params = BeginParamsS2 {
+                size,
+                blocks,
+                block_size,
+                offset,
+                encrypted: 0,
+            };
+            self.connection
+                .command(command as u8, bytes_of(&params), 0)?;
+        } else {
+            let params = BeginParams {
+                size,
+                blocks,
+                block_size,
+                offset,
+            };
+            self.connection
+                .command(command as u8, bytes_of(&params), 0)?;
+        }
         Ok(())
     }
 
