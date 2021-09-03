@@ -14,29 +14,30 @@ use crate::{
 
 use std::{borrow::Cow, io::Write, iter::once};
 
-pub struct Esp32;
+pub struct Esp32c3;
 
-const IROM_MAP_START: u32 = 0x400d0000;
-const IROM_MAP_END: u32 = 0x40400000;
+const IROM_MAP_START: u32 = 0x42000000;
+const IROM_MAP_END: u32 = 0x42800000;
 
-const DROM_MAP_START: u32 = 0x3F400000;
-const DROM_MAP_END: u32 = 0x3F800000;
+const DROM_MAP_START: u32 = 0x3c000000;
+const DROM_MAP_END: u32 = 0x3c800000;
 
-const BOOT_ADDR: u32 = 0x1000;
-const PARTION_ADDR: u32 = 0x8000;
+const BOOT_ADDR: u32 = 0x0;
+const PARTITION_ADDR: u32 = 0x8000;
 const APP_ADDR: u32 = 0x10000;
 
-impl ChipType for Esp32 {
-    const CHIP_DETECT_MAGIC_VALUE: u32 = 0x00f01d83;
+impl ChipType for Esp32c3 {
+    const CHIP_DETECT_MAGIC_VALUE: u32 = 0x6921506f;
+    const CHIP_DETECT_MAGIC_VALUE2: u32 = 0x1b31506f;
 
     const SPI_REGISTERS: SpiRegisters = SpiRegisters {
-        base: 0x3ff42000,
-        usr_offset: 0x1c,
-        usr1_offset: 0x20,
-        usr2_offset: 0x24,
-        w0_offset: 0x80,
-        mosi_length_offset: Some(0x28),
-        miso_length_offset: Some(0x2c),
+        base: 0x60002000,
+        usr_offset: 0x18,
+        usr1_offset: 0x1C,
+        usr2_offset: 0x20,
+        w0_offset: 0x58,
+        mosi_length_offset: Some(0x24),
+        miso_length_offset: Some(0x28),
     };
 
     fn addr_is_flash(addr: u32) -> bool {
@@ -47,7 +48,7 @@ impl ChipType for Esp32 {
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
-        let bootloader = include_bytes!("../../bootloader/esp32-bootloader.bin");
+        let bootloader = include_bytes!("../../bootloader/esp32c3-bootloader.bin");
 
         let partition_table = PartitionTable::basic(0x10000, 0x3f0000).to_bytes();
 
@@ -68,7 +69,7 @@ impl ChipType for Esp32 {
                 clk_q_drv: 0,
                 d_cs_drv: 0,
                 gd_wp_drv: 0,
-                chip_id: 0,
+                chip_id: 5,
                 min_rev: 0,
                 padding: [0; 8],
                 append_digest: 1,
@@ -79,9 +80,9 @@ impl ChipType for Esp32 {
 
             let _ = image.segments().collect::<Vec<_>>();
 
-            let mut flash_segments: Vec<_> = image.rom_segments(Chip::Esp32).collect();
+            let mut flash_segments: Vec<_> = image.rom_segments(Chip::Esp32c3).collect();
             flash_segments.sort();
-            let mut ram_segments: Vec<_> = image.ram_segments(Chip::Esp32).collect();
+            let mut ram_segments: Vec<_> = image.ram_segments(Chip::Esp32c3).collect();
             ram_segments.sort();
             let mut ram_segments = ram_segments.into_iter();
 
@@ -146,29 +147,10 @@ impl ChipType for Esp32 {
                 data: Cow::Borrowed(bootloader),
             }))
             .chain(once(Ok(RomSegment {
-                addr: PARTION_ADDR,
+                addr: PARTITION_ADDR,
                 data: Cow::Owned(partition_table),
             })))
             .chain(once(get_data(image))),
         )
     }
-}
-
-#[test]
-fn test_esp32_rom() {
-    use std::fs::read;
-
-    let input_bytes = read("./tests/data/esp32").unwrap();
-    let expected_bin = read("./tests/data/esp32.bin").unwrap();
-
-    let image = FirmwareImage::from_data(&input_bytes).unwrap();
-
-    let segments = Esp32::get_flash_segments(&image)
-        .collect::<Result<Vec<_>, Error>>()
-        .unwrap();
-
-    assert_eq!(3, segments.len());
-    let buff = segments[2].data.as_ref();
-    assert_eq!(expected_bin.len(), buff.len());
-    assert_eq!(&expected_bin.as_slice(), &buff);
 }
