@@ -28,6 +28,8 @@ serde = { version = "1.0", features = ["derive"] }
 toml = "0.5"
 directories-next = "2.0.0"
 color-eyre = "0.5"
+strum = "0.21.0"
+strum_macros = "0.21.1"
 
 [dev-dependencies]
 pretty_assertions = "0.7.1"
