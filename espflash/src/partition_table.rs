@@ -72,16 +72,39 @@ pub struct PartitionTable {
 }
 
 impl PartitionTable {
-    /// Create a basic partition table with a single app entry
-    pub fn basic(app_offset: u32, app_size: u32) -> Self {
+    /// Create a basic partition table with NVS, PHY init data, and the app partition
+    pub fn basic(
+        nvs_offset: u32,
+        nvs_size: u32,
+        phy_init_data_offset: u32,
+        phy_init_data_size: u32,
+        app_offset: u32,
+        app_size: u32,
+    ) -> Self {
         PartitionTable {
-            partitions: vec![Partition::new(
-                String::from("factory"),
-                SubType::App(AppType::Factory),
-                app_offset,
-                app_size,
-                0,
-            )],
+            partitions: vec![
+                Partition::new(
+                    String::from("nvs"),
+                    SubType::Data(DataType::Nvs),
+                    nvs_offset,
+                    nvs_size,
+                    0,
+                ),
+                Partition::new(
+                    String::from("phy_init"),
+                    SubType::Data(DataType::Phy),
+                    phy_init_data_offset,
+                    phy_init_data_size,
+                    0,
+                ),
+                Partition::new(
+                    String::from("factory"),
+                    SubType::App(AppType::Factory),
+                    app_offset,
+                    app_size,
+                    0,
+                ),
+            ],
         }
     }
 
