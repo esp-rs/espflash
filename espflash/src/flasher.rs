@@ -252,12 +252,10 @@ impl Flasher {
 
                 Ok(())
             })?;
-        for _ in 0..7 {
-            for _ in 0..100 {
-                match self.connection.read_response()? {
-                    Some(_) => break,
-                    _ => continue,
-                }
+        for _ in 0..700 {
+            match self.connection.read_response()? {
+                Some(_) => break,
+                _ => continue,
             }
         }
         Ok(())
