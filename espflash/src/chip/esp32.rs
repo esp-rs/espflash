@@ -1,20 +1,20 @@
-use std::borrow::Cow;
-use std::io::Write;
-use std::iter::once;
-
-use crate::chip::esp32::partition_table::PartitionTable;
-use crate::chip::{Chip, ChipType, EspCommonHeader, SegmentHeader, SpiRegisters, ESP_MAGIC};
-use crate::elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
-use crate::flasher::FlashSize;
-use crate::Error;
-use bytemuck::{bytes_of, Pod, Zeroable};
+use bytemuck::bytes_of;
 use sha2::{Digest, Sha256};
 
-mod partition_table;
+use crate::{
+    chip::{
+        encode_flash_size, get_segment_padding, save_flash_segment, save_segment, Chip, ChipType,
+        EspCommonHeader, ExtendedHeader, SegmentHeader, SpiRegisters, ESP_MAGIC, SEG_HEADER_LEN,
+        WP_PIN_DISABLED,
+    },
+    elf::{FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
+    partition_table::PartitionTable,
+    Error,
+};
+
+use std::{borrow::Cow, io::Write, iter::once};
 
 pub struct Esp32;
-
-const WP_PIN_DISABLED: u8 = 0xEE;
 
 const IROM_MAP_START: u32 = 0x400d0000;
 const IROM_MAP_END: u32 = 0x40400000;
@@ -26,22 +26,9 @@ const BOOT_ADDR: u32 = 0x1000;
 const PARTION_ADDR: u32 = 0x8000;
 const APP_ADDR: u32 = 0x10000;
 
-#[derive(Copy, Clone, Zeroable, Pod)]
-#[repr(C)]
-struct ExtendedHeader {
-    wp_pin: u8,
-    clk_q_drv: u8,
-    d_cs_drv: u8,
-    gd_wp_drv: u8,
-    chip_id: u16,
-    min_rev: u8,
-    padding: [u8; 8],
-    append_digest: u8,
-}
-
 impl ChipType for Esp32 {
-    const DATE_REG1_VALUE: u32 = 0x15122500;
-    const DATE_REG2_VALUE: u32 = 0;
+    const CHIP_DETECT_MAGIC_VALUE: u32 = 0x00f01d83;
+
     const SPI_REGISTERS: SpiRegisters = SpiRegisters {
         base: 0x3ff42000,
         usr_offset: 0x1c,
@@ -60,7 +47,7 @@ impl ChipType for Esp32 {
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
-        let bootloader = include_bytes!("../../bootloader/bootloader.bin");
+        let bootloader = include_bytes!("../../bootloader/esp32-bootloader.bin");
 
         let partition_table = PartitionTable::basic(0x10000, 0x3f0000).to_bytes();
 
@@ -165,74 +152,6 @@ impl ChipType for Esp32 {
             .chain(once(get_data(image))),
         )
     }
-}
-
-fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
-    match size {
-        FlashSize::Flash256Kb => Err(Error::UnsupportedFlash(size as u8)),
-        FlashSize::Flash512Kb => Err(Error::UnsupportedFlash(size as u8)),
-        FlashSize::Flash1Mb => Ok(0x00),
-        FlashSize::Flash2Mb => Ok(0x10),
-        FlashSize::Flash4Mb => Ok(0x20),
-        FlashSize::Flash8Mb => Ok(0x30),
-        FlashSize::Flash16Mb => Ok(0x40),
-        FlashSize::FlashRetry => Err(Error::UnsupportedFlash(size as u8)),
-    }
-}
-
-const IROM_ALIGN: u32 = 65536;
-const SEG_HEADER_LEN: u32 = 8;
-
-/// Actual alignment (in data bytes) required for a segment header: positioned
-/// so that after we write the next 8 byte header, file_offs % IROM_ALIGN ==
-/// segment.addr % IROM_ALIGN
-///
-/// (this is because the segment's vaddr may not be IROM_ALIGNed, more likely is
-/// aligned IROM_ALIGN+0x18 to account for the binary file header
-fn get_segment_padding(offset: usize, segment: &CodeSegment) -> u32 {
-    let align_past = (segment.addr % IROM_ALIGN) - SEG_HEADER_LEN;
-    let pad_len = (IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past;
-    if pad_len == 0 || pad_len == IROM_ALIGN {
-        0
-    } else if pad_len > SEG_HEADER_LEN {
-        pad_len - SEG_HEADER_LEN
-    } else {
-        pad_len + IROM_ALIGN - SEG_HEADER_LEN
-    }
-}
-
-fn save_flash_segment(
-    data: &mut Vec<u8>,
-    segment: &CodeSegment,
-    checksum: u8,
-) -> Result<u8, Error> {
-    let end_pos = (data.len() + segment.data.len()) as u32 + SEG_HEADER_LEN;
-    let segment_reminder = end_pos % IROM_ALIGN;
-
-    let checksum = save_segment(data, segment, checksum)?;
-
-    if segment_reminder < 0x24 {
-        // Work around a bug in ESP-IDF 2nd stage bootloader, that it didn't map the
-        // last MMU page, if an IROM/DROM segment was < 0x24 bytes over the page
-        // boundary.
-        data.write_all(&[0u8; 0x24][0..(0x24 - segment_reminder as usize)])?;
-    }
-    Ok(checksum)
-}
-
-fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment, checksum: u8) -> Result<u8, Error> {
-    let padding = (4 - segment.data.len() % 4) % 4;
-
-    let header = SegmentHeader {
-        addr: segment.addr,
-        length: (segment.data.len() + padding) as u32,
-    };
-    data.write_all(bytes_of(&header))?;
-    data.write_all(segment.data)?;
-    let padding = &[0u8; 4][0..padding];
-    data.write_all(padding)?;
-
-    Ok(update_checksum(segment.data, checksum))
 }
 
 #[test]

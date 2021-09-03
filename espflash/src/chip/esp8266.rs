@@ -1,14 +1,14 @@
-use std::borrow::Cow;
-use std::io::Write;
-use std::iter::once;
-use std::mem::size_of;
+use bytemuck::bytes_of;
 
 use super::{ChipType, EspCommonHeader, SegmentHeader, ESP_MAGIC};
-use crate::chip::{Chip, SpiRegisters};
-use crate::elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
-use crate::flasher::FlashSize;
-use crate::Error;
-use bytemuck::bytes_of;
+use crate::{
+    chip::{Chip, SpiRegisters},
+    elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
+    flasher::FlashSize,
+    Error,
+};
+
+use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
 
 pub const IROM_MAP_START: u32 = 0x40200000;
 const IROM_MAP_END: u32 = 0x40300000;
@@ -16,8 +16,8 @@ const IROM_MAP_END: u32 = 0x40300000;
 pub struct Esp8266;
 
 impl ChipType for Esp8266 {
-    const DATE_REG1_VALUE: u32 = 0x00062000;
-    const DATE_REG2_VALUE: u32 = 0;
+    const CHIP_DETECT_MAGIC_VALUE: u32 = 0xfff0c101;
+
     const SPI_REGISTERS: SpiRegisters = SpiRegisters {
         base: 0x60000200,
         usr_offset: 0x1c,
