@@ -178,7 +178,7 @@ impl Flasher {
         if let Some(b) = speed {
             match flasher.chip {
                 Chip::Esp8266 => (), /* Not available */
-                Chip::Esp32 => {
+                _ => {
                     if b.speed() > BaudRate::Baud115200.speed() {
                         println!("WARN setting baud rate higher than 115200 can cause issues.");
                         flasher.change_baud(b)?;
@@ -357,7 +357,7 @@ impl Flasher {
             Chip::Esp8266 => {
                 self.begin_command(Command::FlashBegin, 0, 0, FLASH_WRITE_SIZE as u32, 0)?;
             }
-            Chip::Esp32 => {
+            _ => {
                 let spi_params = spi_attach_params.encode();
                 self.connection
                     .command(Command::SpiAttach as u8, spi_params.as_slice(), 0)?;
@@ -509,8 +509,8 @@ impl Flasher {
             let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;
 
             let erase_size = match self.chip {
-                Chip::Esp32 => segment.data.len() as u32,
                 Chip::Esp8266 => get_erase_size(addr as usize, segment.data.len()) as u32,
+                _ => segment.data.len() as u32,
             };
 
             self.begin_command(
@@ -538,6 +538,7 @@ impl Flasher {
                 self.block_command(Command::FlashData, block, block_padding, 0xff, i as u32)?;
                 pb_chunk.inc(1);
             }
+
             pb_chunk.finish_with_message(format!("segment 0x{:X}", addr));
         }
 

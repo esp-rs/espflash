@@ -9,9 +9,11 @@ use crate::{
 use std::{io::Write, str::FromStr};
 
 pub use esp32::Esp32;
+pub use esp32c3::Esp32c3;
 pub use esp8266::Esp8266;
 
 mod esp32;
+mod esp32c3;
 mod esp8266;
 
 const ESP_MAGIC: u8 = 0xE9;
@@ -87,6 +89,7 @@ struct ExtendedHeader {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Chip {
     Esp32,
+    Esp32c3,
     Esp8266,
 }
 
@@ -94,6 +97,9 @@ impl Chip {
     pub fn from_magic(magic: u32) -> Option<Self> {
         match magic {
             Esp32::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp32),
+            Esp32c3::CHIP_DETECT_MAGIC_VALUE | Esp32c3::CHIP_DETECT_MAGIC_VALUE2 => {
+                Some(Chip::Esp32c3)
+            }
             Esp8266::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp8266),
             _ => None,
         }
@@ -105,6 +111,7 @@ impl Chip {
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         match self {
             Chip::Esp32 => Esp32::get_flash_segments(image),
+            Chip::Esp32c3 => Esp32c3::get_flash_segments(image),
             Chip::Esp8266 => Esp8266::get_flash_segments(image),
         }
     }
@@ -112,6 +119,7 @@ impl Chip {
     pub fn addr_is_flash(&self, addr: u32) -> bool {
         match self {
             Chip::Esp32 => Esp32::addr_is_flash(addr),
+            Chip::Esp32c3 => Esp32c3::addr_is_flash(addr),
             Chip::Esp8266 => Esp8266::addr_is_flash(addr),
         }
     }
@@ -119,6 +127,7 @@ impl Chip {
     pub fn spi_registers(&self) -> SpiRegisters {
         match self {
             Chip::Esp32 => Esp32::SPI_REGISTERS,
+            Chip::Esp32c3 => Esp32c3::SPI_REGISTERS,
             Chip::Esp8266 => Esp8266::SPI_REGISTERS,
         }
     }
@@ -130,6 +139,7 @@ impl FromStr for Chip {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "esp32" => Ok(Chip::Esp32),
+            "esp32c3" => Ok(Chip::Esp32c3),
             "esp8266" => Ok(Chip::Esp8266),
             _ => Err(Error::UnrecognizedChip),
         }
@@ -153,6 +163,8 @@ struct SegmentHeader {
     length: u32,
 }
 
+// Note that this function ONLY applies to the ESP32 and variants; the ESP8266
+// has defined its own version rather than using this implementation.
 fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
     match size {
         FlashSize::Flash256Kb => Err(Error::UnsupportedFlash(size as u8)),
