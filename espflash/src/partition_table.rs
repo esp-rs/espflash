@@ -77,7 +77,6 @@ impl PartitionTable {
         PartitionTable {
             partitions: vec![Partition::new(
                 String::from("factory"),
-                Type::App,
                 SubType::App(AppType::Factory),
                 app_offset,
                 app_size,
@@ -127,17 +126,13 @@ struct Partition {
 }
 
 impl Partition {
-    pub fn new(
-        name: String,
-        ty: Type,
-        sub_type: SubType,
-        offset: u32,
-        size: u32,
-        flags: u32,
-    ) -> Self {
+    pub fn new(name: String, sub_type: SubType, offset: u32, size: u32, flags: u32) -> Self {
         Partition {
             name,
-            ty,
+            ty: match sub_type {
+                SubType::App(_) => Type::App,
+                SubType::Data(_) => Type::Data,
+            },
             sub_type,
             offset,
             size,
