@@ -72,17 +72,39 @@ pub struct PartitionTable {
 }
 
 impl PartitionTable {
-    /// Create a basic partition table with a single app entry
-    pub fn basic(app_offset: u32, app_size: u32) -> Self {
+    /// Create a basic partition table with NVS, PHY init data, and the app partition
+    pub fn basic(
+        nvs_offset: u32,
+        nvs_size: u32,
+        phy_init_data_offset: u32,
+        phy_init_data_size: u32,
+        app_offset: u32,
+        app_size: u32,
+    ) -> Self {
         PartitionTable {
-            partitions: vec![Partition::new(
-                String::from("factory"),
-                Type::App,
-                SubType::App(AppType::Factory),
-                app_offset,
-                app_size,
-                0,
-            )],
+            partitions: vec![
+                Partition::new(
+                    String::from("nvs"),
+                    SubType::Data(DataType::Nvs),
+                    nvs_offset,
+                    nvs_size,
+                    0,
+                ),
+                Partition::new(
+                    String::from("phy_init"),
+                    SubType::Data(DataType::Phy),
+                    phy_init_data_offset,
+                    phy_init_data_size,
+                    0,
+                ),
+                Partition::new(
+                    String::from("factory"),
+                    SubType::App(AppType::Factory),
+                    app_offset,
+                    app_size,
+                    0,
+                ),
+            ],
         }
     }
 
@@ -127,17 +149,13 @@ struct Partition {
 }
 
 impl Partition {
-    pub fn new(
-        name: String,
-        ty: Type,
-        sub_type: SubType,
-        offset: u32,
-        size: u32,
-        flags: u32,
-    ) -> Self {
+    pub fn new(name: String, sub_type: SubType, offset: u32, size: u32, flags: u32) -> Self {
         Partition {
             name,
-            ty,
+            ty: match sub_type {
+                SubType::App(_) => Type::App,
+                SubType::Data(_) => Type::Data,
+            },
             sub_type,
             offset,
             size,
@@ -194,9 +212,23 @@ impl<W: Write> HashWriter<W> {
 #[test]
 fn test_basic() {
     use std::fs::read;
+    const NVS_ADDR: u32 = 0x9000;
+    const PHY_INIT_DATA_ADDR: u32 = 0xf000;
+    const APP_ADDR: u32 = 0x10000;
+
+    const NVS_SIZE: u32 = 0x6000;
+    const PHY_INIT_DATA_SIZE: u32 = 0x1000;
+    const APP_SIZE: u32 = 0x3f0000;
 
     let expected = read("./tests/data/partitions.bin").unwrap();
-    let table = PartitionTable::basic(0x10000, 0x3f0000);
+    let table = PartitionTable::basic(
+        NVS_ADDR,
+        NVS_SIZE,
+        PHY_INIT_DATA_ADDR,
+        PHY_INIT_DATA_SIZE,
+        APP_ADDR,
+        APP_SIZE,
+    );
 
     let result = table.to_bytes();
 

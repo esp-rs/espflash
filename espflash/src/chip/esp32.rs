@@ -24,7 +24,13 @@ const DROM_MAP_END: u32 = 0x3F800000;
 
 const BOOT_ADDR: u32 = 0x1000;
 const PARTION_ADDR: u32 = 0x8000;
+const NVS_ADDR: u32 = 0x9000;
+const PHY_INIT_DATA_ADDR: u32 = 0xf000;
 const APP_ADDR: u32 = 0x10000;
+
+const NVS_SIZE: u32 = 0x6000;
+const PHY_INIT_DATA_SIZE: u32 = 0x1000;
+const APP_SIZE: u32 = 0x3f0000;
 
 impl ChipType for Esp32 {
     const CHIP_DETECT_MAGIC_VALUE: u32 = 0x00f01d83;
@@ -49,7 +55,15 @@ impl ChipType for Esp32 {
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         let bootloader = include_bytes!("../../bootloader/esp32-bootloader.bin");
 
-        let partition_table = PartitionTable::basic(0x10000, 0x3f0000).to_bytes();
+        let partition_table = PartitionTable::basic(
+            NVS_ADDR,
+            NVS_SIZE,
+            PHY_INIT_DATA_ADDR,
+            PHY_INIT_DATA_SIZE,
+            APP_ADDR,
+            APP_SIZE,
+        )
+        .to_bytes();
 
         fn get_data<'a>(image: &'a FirmwareImage) -> Result<RomSegment<'a>, Error> {
             let mut data = Vec::new();
