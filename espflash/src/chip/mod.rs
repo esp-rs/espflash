@@ -1,4 +1,5 @@
 use bytemuck::{bytes_of, Pod, Zeroable};
+use strum_macros::Display;
 
 use crate::{
     elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment},
@@ -86,10 +87,13 @@ struct ExtendedHeader {
     append_digest: u8,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
 pub enum Chip {
+    #[strum(serialize = "ESP32")]
     Esp32,
+    #[strum(serialize = "ESP32-C3")]
     Esp32c3,
+    #[strum(serialize = "ESP8266")]
     Esp8266,
 }
 

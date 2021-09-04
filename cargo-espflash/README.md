@@ -1,13 +1,32 @@
 # `cargo-espflash`
 
-_ESP8266_ and _ESP32_ cross-compiler and serial flasher cargo subcommand.
+Cross-compiler and serial flasher cargo subcommand for Espressif devices. Currently supports __ESP32__, __ESP32-C3__, and __ESP8266__.
 
 Prior to flashing, the project is built using the `build-std` unstable cargo feature. Please refer to the [cargo documentation](https://doc.rust-lang.org/cargo/reference/unstable.html#build-std) for more information.
 
 ## Usage
 
-```bash
-$ cargo espflash [--board-info] [--ram] [--release] [--example EXAMPLE] [--chip {esp32,esp8266}] <serial>
+```text
+cargo-espflash 0.1.4
+Cargo subcommand for flashing Espressif devices over serial
+
+USAGE:
+    cargo espflash [FLAGS] [OPTIONS] [SERIAL]
+
+FLAGS:
+        --board-info    Display the connected board's information
+    -h, --help          Prints help information
+        --ram           Load the application to RAM instead of Flash
+        --release       Build the application using the release profile
+    -V, --version       Prints version information
+
+OPTIONS:
+        --example <EXAMPLE>      Example to build and flash
+        --features <FEATURES>    Comma delimited list of build features
+        --speed <SPEED>          Baud rate at which to flash target device
+
+ARGS:
+    <SERIAL>    Serial port connected to target device
 ```
 
 When the `--ram` option is specified, the provided ELF image will be loaded into ram and executed without touching the flash.

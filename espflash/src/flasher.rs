@@ -1,6 +1,7 @@
 use bytemuck::{__core::time::Duration, bytes_of, Pod, Zeroable};
 use indicatif::{ProgressBar, ProgressStyle};
 use serial::{BaudRate, SerialPort};
+use strum_macros::Display;
 
 use std::{mem::size_of, thread::sleep};
 
@@ -27,8 +28,8 @@ const MEM_END_TIMEOUT: Duration = Duration::from_millis(50);
 const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 
 #[derive(Copy, Clone, Debug)]
-#[repr(u8)]
 #[allow(dead_code)]
+#[repr(u8)]
 enum Command {
     FlashBegin = 0x02,
     FlashData = 0x03,
@@ -69,16 +70,23 @@ impl Command {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Display)]
 #[allow(dead_code)]
 #[repr(u8)]
 pub enum FlashSize {
+    #[strum(serialize = "256KB")]
     Flash256Kb = 0x12,
+    #[strum(serialize = "512KB")]
     Flash512Kb = 0x13,
+    #[strum(serialize = "1MB")]
     Flash1Mb = 0x14,
+    #[strum(serialize = "2MB")]
     Flash2Mb = 0x15,
+    #[strum(serialize = "4MB")]
     Flash4Mb = 0x16,
+    #[strum(serialize = "8MB")]
     Flash8Mb = 0x17,
+    #[strum(serialize = "16MB")]
     Flash16Mb = 0x18,
     FlashRetry = 0xFF, // used to hint that alternate detection should be tried
 }
