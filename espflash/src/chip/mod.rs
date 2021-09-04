@@ -4,7 +4,7 @@ use strum_macros::Display;
 use crate::{
     elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment},
     flasher::FlashSize,
-    Error,
+    Error, PartitionTable,
 };
 
 use std::{io::Write, str::FromStr};
@@ -29,6 +29,7 @@ pub trait ChipType {
     /// Get the firmware segments for writing an image to flash
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
+        partition_table: Option<PartitionTable>,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a>;
 
     fn addr_is_flash(addr: u32) -> bool;
@@ -112,11 +113,12 @@ impl Chip {
     pub fn get_flash_segments<'a>(
         &self,
         image: &'a FirmwareImage,
+        partition_table: Option<PartitionTable>,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         match self {
-            Chip::Esp32 => Esp32::get_flash_segments(image),
-            Chip::Esp32c3 => Esp32c3::get_flash_segments(image),
-            Chip::Esp8266 => Esp8266::get_flash_segments(image),
+            Chip::Esp32 => Esp32::get_flash_segments(image, partition_table),
+            Chip::Esp32c3 => Esp32c3::get_flash_segments(image, partition_table),
+            Chip::Esp8266 => Esp8266::get_flash_segments(image, None),
         }
     }
 
