@@ -62,7 +62,8 @@ impl ChipType for Esp32 {
             PHY_INIT_DATA_SIZE,
             APP_ADDR,
             APP_SIZE,
-        );
+        )
+        .to_bytes();
 
         fn get_data<'a>(image: &'a FirmwareImage) -> Result<RomSegment<'a>, Error> {
             let mut data = Vec::new();
