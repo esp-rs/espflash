@@ -212,9 +212,23 @@ impl<W: Write> HashWriter<W> {
 #[test]
 fn test_basic() {
     use std::fs::read;
+    const NVS_ADDR: u32 = 0x9000;
+    const PHY_INIT_DATA_ADDR: u32 = 0xf000;
+    const APP_ADDR: u32 = 0x10000;
+
+    const NVS_SIZE: u32 = 0x6000;
+    const PHY_INIT_DATA_SIZE: u32 = 0x1000;
+    const APP_SIZE: u32 = 0x3f0000;
 
     let expected = read("./tests/data/partitions.bin").unwrap();
-    let table = PartitionTable::basic(0x10000, 0x3f0000);
+    let table = PartitionTable::basic(
+        NVS_ADDR,
+        NVS_SIZE,
+        PHY_INIT_DATA_ADDR,
+        PHY_INIT_DATA_SIZE,
+        APP_ADDR,
+        APP_SIZE,
+    );
 
     let result = table.to_bytes();
 
