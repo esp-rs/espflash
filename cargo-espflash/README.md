@@ -21,9 +21,11 @@ FLAGS:
     -V, --version       Prints version information
 
 OPTIONS:
-        --example <EXAMPLE>      Example to build and flash
-        --features <FEATURES>    Comma delimited list of build features
-        --speed <SPEED>          Baud rate at which to flash target device
+        --bootloader <PATH>         Path to a binary (.bin) bootloader file
+        --example <EXAMPLE>         Example to build and flash
+        --features <FEATURES>       Comma delimited list of build features
+        --partition-table <PATH>    Path to a CSV file containing partition table
+        --speed <SPEED>             Baud rate at which to flash target device
 
 ARGS:
     <SERIAL>    Serial port connected to target device
