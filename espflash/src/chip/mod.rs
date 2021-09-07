@@ -9,6 +9,8 @@ use crate::{
 
 use std::{io::Write, str::FromStr};
 
+use crate::flasher::SpiAttachParams;
+use crate::flashtarget::{ChipTarget, FlashTarget, RamTarget};
 pub use esp32::Esp32;
 pub use esp32c3::Esp32c3;
 pub use esp8266::Esp8266;
@@ -138,6 +140,14 @@ impl Chip {
             Chip::Esp32c3 => Esp32c3::SPI_REGISTERS,
             Chip::Esp8266 => Esp8266::SPI_REGISTERS,
         }
+    }
+
+    pub fn ram_target(&self) -> Box<dyn FlashTarget> {
+        Box::new(RamTarget::new())
+    }
+
+    pub fn flash_target(&self, spi_params: SpiAttachParams) -> Box<dyn FlashTarget> {
+        Box::new(ChipTarget::new(*self, spi_params))
     }
 }
 

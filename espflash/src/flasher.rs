@@ -5,7 +5,6 @@ use strum_macros::Display;
 use std::thread::sleep;
 
 use crate::elf::RomSegment;
-use crate::flashtarget::{ChipTarget, FlashTarget, RamTarget};
 use crate::{
     chip::Chip, connection::Connection, elf::FirmwareImage, encoder::SlipEncoder, error::RomError,
     Error, PartitionTable,
@@ -465,7 +464,7 @@ impl Flasher {
     pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
         let image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
 
-        let mut target = RamTarget::new();
+        let mut target = self.chip.ram_target();
         target.begin(&mut self.connection, &image)?;
 
         if image.rom_segments(self.chip).next().is_some() {
@@ -495,7 +494,7 @@ impl Flasher {
         let mut image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
         image.flash_size = self.flash_size();
 
-        let mut target = ChipTarget::new(self.chip, self.spi_params);
+        let mut target = self.chip.flash_target(self.spi_params);
         target.begin(&mut self.connection, &image)?;
 
         for segment in self
