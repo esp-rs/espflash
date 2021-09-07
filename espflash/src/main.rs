@@ -62,7 +62,7 @@ fn main() -> Result<()> {
     if ram {
         flasher.load_elf_to_ram(&input_bytes)?;
     } else {
-        flasher.load_elf_to_flash(&input_bytes, None)?;
+        flasher.load_elf_to_flash(&input_bytes, None, None)?;
     }
 
     Ok(())

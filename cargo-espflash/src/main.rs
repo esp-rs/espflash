@@ -37,6 +37,13 @@ fn main() -> anyhow::Result<()> {
                         .help("Build the application using the release profile"),
                 )
                 .arg(
+                    Arg::with_name("bootloader")
+                        .long("bootloader")
+                        .takes_value(true)
+                        .value_name("PATH")
+                        .help("Path to a binary (.bin) bootloader file"),
+                )
+                .arg(
                     Arg::with_name("example")
                         .long("example")
                         .takes_value(true)
@@ -135,6 +142,16 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    // If the '--bootloader' option is provided, load the binary file at the
+    // specified path.
+    let bootloader = if let Some(path) = matches.value_of("bootloader") {
+        let path = fs::canonicalize(path)?;
+        let data = fs::read(path)?;
+        Some(data)
+    } else {
+        None
+    };
+
     // If the '--partition-table' option is provided, load the partition table from
     // the CSV at the specified path.
     let partition_table = if let Some(path) = matches.value_of("partition_table") {
@@ -154,7 +171,7 @@ fn main() -> anyhow::Result<()> {
     if matches.is_present("ram") {
         flasher.load_elf_to_ram(&elf_data)?;
     } else {
-        flasher.load_elf_to_flash(&elf_data, partition_table)?;
+        flasher.load_elf_to_flash(&elf_data, bootloader, partition_table)?;
     }
 
     // We're all done!

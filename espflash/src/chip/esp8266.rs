@@ -34,6 +34,7 @@ impl ChipType for Esp8266 {
 
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
+        _bootloader: Option<Vec<u8>>,
         _partition_table: Option<PartitionTable>,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         // irom goes into a separate plain bin
@@ -144,7 +145,7 @@ fn test_esp8266_rom() {
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
 
-    let segments = Esp8266::get_flash_segments(&image, None)
+    let segments = Esp8266::get_flash_segments(&image, None, None)
         .collect::<Result<Vec<_>, Error>>()
         .unwrap();
 

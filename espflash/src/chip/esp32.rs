@@ -51,9 +51,15 @@ impl ChipType for Esp32 {
 
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
+        bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
-        let bootloader = include_bytes!("../../bootloader/esp32-bootloader.bin");
+        let bootloader = if let Some(bytes) = bootloader {
+            bytes
+        } else {
+            let bytes = include_bytes!("../../bootloader/esp32-bootloader.bin");
+            bytes.to_vec()
+        };
 
         let partition_table = if let Some(table) = partition_table {
             table
@@ -161,7 +167,7 @@ impl ChipType for Esp32 {
         Box::new(
             once(Ok(RomSegment {
                 addr: BOOT_ADDR,
-                data: Cow::Borrowed(bootloader),
+                data: Cow::Owned(bootloader),
             }))
             .chain(once(Ok(RomSegment {
                 addr: PARTION_ADDR,
@@ -181,7 +187,7 @@ fn test_esp32_rom() {
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
 
-    let segments = Esp32::get_flash_segments(&image, None)
+    let segments = Esp32::get_flash_segments(&image, None, None)
         .collect::<Result<Vec<_>, Error>>()
         .unwrap();
 
