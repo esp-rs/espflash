@@ -1,47 +1,29 @@
 use crate::connection::Connection;
 use crate::elf::{FirmwareImage, RomSegment};
 use crate::error::Error;
-use crate::flasher::{get_erase_size, Command, SpiAttachParams, FLASH_WRITE_SIZE};
+use crate::flasher::{get_erase_size, Command, FLASH_WRITE_SIZE};
 use crate::flashtarget::{begin_command, block_command, FlashTarget};
-use crate::Chip;
 use indicatif::{ProgressBar, ProgressStyle};
 
-pub struct ChipTarget {
-    chip: Chip,
-    spi_attach_params: SpiAttachParams,
-}
+pub struct Esp8266Target;
 
-impl ChipTarget {
-    pub fn new(chip: Chip, spi_attach_params: SpiAttachParams) -> Self {
-        ChipTarget {
-            chip,
-            spi_attach_params,
-        }
+impl Esp8266Target {
+    pub fn new() -> Self {
+        Esp8266Target
     }
 }
 
-impl FlashTarget for ChipTarget {
+impl FlashTarget for Esp8266Target {
     fn begin(&mut self, connection: &mut Connection, _image: &FirmwareImage) -> Result<(), Error> {
-        match self.chip {
-            Chip::Esp8266 => {
-                begin_command(
-                    connection,
-                    Command::FlashBegin,
-                    0,
-                    0,
-                    FLASH_WRITE_SIZE as u32,
-                    0,
-                    !(self.chip == Chip::Esp32 || self.chip == Chip::Esp8266),
-                )?;
-            }
-            _ => {
-                let spi_params = self.spi_attach_params.encode();
-                connection.with_timeout(Command::SpiAttach.timeout(), |connection| {
-                    connection.command(Command::SpiAttach as u8, spi_params.as_slice(), 0)
-                })?;
-            }
-        }
-        Ok(())
+        begin_command(
+            connection,
+            Command::FlashBegin,
+            0,
+            0,
+            FLASH_WRITE_SIZE as u32,
+            0,
+            false,
+        )
     }
 
     fn write_segment(
@@ -52,10 +34,7 @@ impl FlashTarget for ChipTarget {
         let addr = segment.addr;
         let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;
 
-        let erase_size = match self.chip {
-            Chip::Esp8266 => get_erase_size(addr as usize, segment.data.len()) as u32,
-            _ => segment.data.len() as u32,
-        };
+        let erase_size = get_erase_size(addr as usize, segment.data.len()) as u32;
 
         begin_command(
             connection,
@@ -64,7 +43,7 @@ impl FlashTarget for ChipTarget {
             block_count as u32,
             FLASH_WRITE_SIZE as u32,
             addr,
-            !(self.chip == Chip::Esp32 || self.chip == Chip::Esp8266),
+            false,
         )?;
 
         let chunks = segment.data.chunks(FLASH_WRITE_SIZE);

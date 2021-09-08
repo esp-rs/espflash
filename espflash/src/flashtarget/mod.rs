@@ -1,4 +1,5 @@
-mod chip;
+mod esp32;
+mod esp8266;
 mod ram;
 
 use crate::connection::Connection;
@@ -6,7 +7,8 @@ use crate::elf::{FirmwareImage, RomSegment};
 use crate::error::Error;
 use crate::flasher::{checksum, Command, Encoder, CHECKSUM_INIT, FLASH_WRITE_SIZE};
 use bytemuck::{bytes_of, Pod, Zeroable};
-pub use chip::ChipTarget;
+pub use esp32::Esp32Target;
+pub use esp8266::Esp8266Target;
 pub use ram::RamTarget;
 use std::mem::size_of;
 
