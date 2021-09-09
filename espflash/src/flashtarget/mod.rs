@@ -11,6 +11,7 @@ pub use esp32::Esp32Target;
 pub use esp8266::Esp8266Target;
 pub use ram::RamTarget;
 use std::mem::size_of;
+use std::time::Duration;
 
 pub trait FlashTarget {
     fn begin(&mut self, connection: &mut Connection, image: &FirmwareImage) -> Result<(), Error>;
@@ -82,6 +83,26 @@ fn block_command(
     padding_byte: u8,
     sequence: u32,
 ) -> Result<(), Error> {
+    block_command_with_timeout(
+        connection,
+        command,
+        data,
+        padding,
+        padding_byte,
+        sequence,
+        command.timeout_for_size(data.len() as u32),
+    )
+}
+
+fn block_command_with_timeout(
+    connection: &mut Connection,
+    command: Command,
+    data: &[u8],
+    padding: usize,
+    padding_byte: u8,
+    sequence: u32,
+    timout: Duration,
+) -> Result<(), Error> {
     let params = BlockParams {
         size: (data.len() + padding) as u32,
         sequence,
@@ -97,7 +118,7 @@ fn block_command(
         check = checksum(&[padding_byte], check);
     }
 
-    connection.with_timeout(command.timeout_for_size(data.len() as u32), |connection| {
+    connection.with_timeout(timout, |connection| {
         connection.command(
             command as u8,
             (length as u16, |encoder: &mut Encoder| {

@@ -12,7 +12,7 @@ use crate::{
 
 pub(crate) type Encoder<'a> = SlipEncoder<'a, Box<dyn SerialPort>>;
 
-const FLASH_SECTOR_SIZE: usize = 0x1000;
+pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 const FLASH_BLOCK_SIZE: usize = 0x100;
 const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
@@ -42,6 +42,10 @@ pub(crate) enum Command {
     SpiSetParams = 0x0B,
     SpiAttach = 0x0D,
     ChangeBaud = 0x0F,
+    FlashDeflateBegin = 0x10,
+    FlashDeflateData = 0x11,
+    FlashDeflateEnd = 0x12,
+    FlashMd5 = 0x13,
 }
 
 impl Command {
@@ -63,7 +67,9 @@ impl Command {
         }
         match self {
             Command::FlashBegin => calc_timeout(ERASE_REGION_TIMEOUT_PER_MB, size),
-            Command::FlashData => calc_timeout(ERASE_WRITE_TIMEOUT_PER_MB, size),
+            Command::FlashData | Command::FlashDeflateData => {
+                calc_timeout(ERASE_WRITE_TIMEOUT_PER_MB, size)
+            }
             _ => self.timeout(),
         }
     }
