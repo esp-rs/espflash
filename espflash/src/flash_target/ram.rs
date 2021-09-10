@@ -1,8 +1,8 @@
 use crate::connection::Connection;
 use crate::elf::{FirmwareImage, RomSegment};
 use crate::error::Error;
+use crate::flash_target::{begin_command, block_command, FlashTarget};
 use crate::flasher::Command;
-use crate::flashtarget::{begin_command, block_command, FlashTarget};
 use bytemuck::{bytes_of, Pod, Zeroable};
 
 #[derive(Zeroable, Pod, Copy, Clone)]

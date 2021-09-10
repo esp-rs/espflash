@@ -9,8 +9,8 @@ use crate::{
 
 use std::{io::Write, str::FromStr};
 
+use crate::flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget};
 use crate::flasher::SpiAttachParams;
-use crate::flashtarget::{Esp32Target, Esp8266Target, FlashTarget, RamTarget};
 pub use esp32::Esp32;
 pub use esp32c3::Esp32c3;
 pub use esp8266::Esp8266;

@@ -1,8 +1,8 @@
 use crate::connection::Connection;
 use crate::elf::{FirmwareImage, RomSegment};
 use crate::error::Error;
+use crate::flash_target::{begin_command, block_command_with_timeout, FlashTarget};
 use crate::flasher::{Command, SpiAttachParams, FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
-use crate::flashtarget::{begin_command, block_command_with_timeout, FlashTarget};
 use crate::Chip;
 use flate2::write::{ZlibDecoder, ZlibEncoder};
 use flate2::Compression;

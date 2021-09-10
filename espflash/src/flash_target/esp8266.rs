@@ -1,8 +1,8 @@
 use crate::connection::Connection;
 use crate::elf::{FirmwareImage, RomSegment};
 use crate::error::Error;
+use crate::flash_target::{begin_command, block_command, FlashTarget};
 use crate::flasher::{get_erase_size, Command, FLASH_WRITE_SIZE};
-use crate::flashtarget::{begin_command, block_command, FlashTarget};
 use indicatif::{ProgressBar, ProgressStyle};
 
 pub struct Esp8266Target;

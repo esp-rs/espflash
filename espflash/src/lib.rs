@@ -4,8 +4,8 @@ mod connection;
 mod elf;
 mod encoder;
 mod error;
+mod flash_target;
 mod flasher;
-mod flashtarget;
 mod partition_table;
 
 pub use chip::Chip;
