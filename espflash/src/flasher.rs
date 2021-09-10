@@ -554,13 +554,18 @@ impl Flasher {
     pub fn load_elf_to_flash(
         &mut self,
         elf_data: &[u8],
+        bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
     ) -> Result<(), Error> {
         self.enable_flash(self.spi_params)?;
+
         let mut image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
         image.flash_size = self.flash_size();
 
-        for segment in self.chip.get_flash_segments(&image, partition_table) {
+        for segment in self
+            .chip
+            .get_flash_segments(&image, bootloader, partition_table)
+        {
             let segment = segment?;
             let addr = segment.addr;
             let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;

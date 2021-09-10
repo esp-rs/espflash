@@ -52,9 +52,15 @@ impl ChipType for Esp32c3 {
 
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
+        bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
-        let bootloader = include_bytes!("../../bootloader/esp32c3-bootloader.bin");
+        let bootloader = if let Some(bytes) = bootloader {
+            bytes
+        } else {
+            let bytes = include_bytes!("../../bootloader/esp32c3-bootloader.bin");
+            bytes.to_vec()
+        };
 
         let partition_table = if let Some(table) = partition_table {
             table
@@ -162,7 +168,7 @@ impl ChipType for Esp32c3 {
         Box::new(
             once(Ok(RomSegment {
                 addr: BOOT_ADDR,
-                data: Cow::Borrowed(bootloader),
+                data: Cow::Owned(bootloader),
             }))
             .chain(once(Ok(RomSegment {
                 addr: PARTITION_ADDR,
