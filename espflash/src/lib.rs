@@ -11,3 +11,4 @@ pub use chip::Chip;
 pub use config::Config;
 pub use error::Error;
 pub use flasher::Flasher;
+pub use partition_table::PartitionTable;

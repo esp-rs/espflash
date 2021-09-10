@@ -5,7 +5,7 @@ use crate::{
     chip::{Chip, SpiRegisters},
     elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
     flasher::FlashSize,
-    Error,
+    Error, PartitionTable,
 };
 
 use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
@@ -34,6 +34,7 @@ impl ChipType for Esp8266 {
 
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
+        _partition_table: Option<PartitionTable>,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         // irom goes into a separate plain bin
         let irom_data = merge_rom_segments(image.rom_segments(Chip::Esp8266))
@@ -143,7 +144,7 @@ fn test_esp8266_rom() {
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
 
-    let segments = Esp8266::get_flash_segments(&image)
+    let segments = Esp8266::get_flash_segments(&image, None)
         .collect::<Result<Vec<_>, Error>>()
         .unwrap();
 

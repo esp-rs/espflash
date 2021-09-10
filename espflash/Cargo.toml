@@ -30,6 +30,8 @@ directories-next = "2.0.0"
 color-eyre = "0.5"
 strum = "0.21.0"
 strum_macros = "0.21.1"
+csv = "1.1.6"
+regex = "1.5.4"
 
 [dev-dependencies]
 pretty_assertions = "0.7.1"

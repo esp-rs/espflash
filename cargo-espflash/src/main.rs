@@ -1,11 +1,11 @@
 use anyhow::{anyhow, bail, Context};
 use cargo_metadata::Message;
 use clap::{App, Arg, SubCommand};
-use espflash::{Config, Flasher};
+use espflash::{Config, Flasher, PartitionTable};
 use serial::{BaudRate, SerialPort};
 
 use std::{
-    fs::read,
+    fs,
     path::PathBuf,
     process::{exit, Command, ExitStatus, Stdio},
     string::ToString,
@@ -50,6 +50,13 @@ fn main() -> anyhow::Result<()> {
                         .takes_value(true)
                         .value_name("FEATURES")
                         .help("Comma delimited list of build features"),
+                )
+                .arg(
+                    Arg::with_name("partition_table")
+                        .long("partition-table")
+                        .takes_value(true)
+                        .value_name("PATH")
+                        .help("Path to a CSV file containing partition table"),
                 )
                 .arg(
                     Arg::with_name("speed")
@@ -128,12 +135,26 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    // If the '--partition-table' option is provided, load the partition table from
+    // the CSV at the specified path.
+    let partition_table = if let Some(path) = matches.value_of("partition_table") {
+        let path = fs::canonicalize(path)?;
+        let data = fs::read_to_string(path)?;
+
+        match PartitionTable::try_from_str(data) {
+            Ok(t) => Some(t),
+            Err(e) => bail!("{}", e),
+        }
+    } else {
+        None
+    };
+
     // Read the ELF data from the build path and load it to the target.
-    let elf_data = read(path.unwrap())?;
+    let elf_data = fs::read(path.unwrap())?;
     if matches.is_present("ram") {
         flasher.load_elf_to_ram(&elf_data)?;
     } else {
-        flasher.load_elf_to_flash(&elf_data)?;
+        flasher.load_elf_to_flash(&elf_data, partition_table)?;
     }
 
     // We're all done!

@@ -8,8 +8,7 @@ use crate::{
         WP_PIN_DISABLED,
     },
     elf::{FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
-    partition_table::PartitionTable,
-    Error,
+    Error, PartitionTable,
 };
 
 use std::{borrow::Cow, io::Write, iter::once};
@@ -52,18 +51,23 @@ impl ChipType for Esp32 {
 
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
+        partition_table: Option<PartitionTable>,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         let bootloader = include_bytes!("../../bootloader/esp32-bootloader.bin");
 
-        let partition_table = PartitionTable::basic(
-            NVS_ADDR,
-            NVS_SIZE,
-            PHY_INIT_DATA_ADDR,
-            PHY_INIT_DATA_SIZE,
-            APP_ADDR,
-            APP_SIZE,
-        )
-        .to_bytes();
+        let partition_table = if let Some(table) = partition_table {
+            table
+        } else {
+            PartitionTable::basic(
+                NVS_ADDR,
+                NVS_SIZE,
+                PHY_INIT_DATA_ADDR,
+                PHY_INIT_DATA_SIZE,
+                APP_ADDR,
+                APP_SIZE,
+            )
+        };
+        let partition_table = partition_table.to_bytes();
 
         fn get_data<'a>(image: &'a FirmwareImage) -> Result<RomSegment<'a>, Error> {
             let mut data = Vec::new();
@@ -177,7 +181,7 @@ fn test_esp32_rom() {
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
 
-    let segments = Esp32::get_flash_segments(&image)
+    let segments = Esp32::get_flash_segments(&image, None)
         .collect::<Result<Vec<_>, Error>>()
         .unwrap();
 

@@ -7,7 +7,7 @@ use std::{mem::size_of, thread::sleep};
 
 use crate::{
     chip::Chip, connection::Connection, elf::FirmwareImage, encoder::SlipEncoder, error::RomError,
-    Error,
+    Error, PartitionTable,
 };
 
 type Encoder<'a> = SlipEncoder<'a, Box<dyn SerialPort>>;
@@ -551,12 +551,16 @@ impl Flasher {
     }
 
     /// Load an elf image to flash and execute it
-    pub fn load_elf_to_flash(&mut self, elf_data: &[u8]) -> Result<(), Error> {
+    pub fn load_elf_to_flash(
+        &mut self,
+        elf_data: &[u8],
+        partition_table: Option<PartitionTable>,
+    ) -> Result<(), Error> {
         self.enable_flash(self.spi_params)?;
         let mut image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
         image.flash_size = self.flash_size();
 
-        for segment in self.chip.get_flash_segments(&image) {
+        for segment in self.chip.get_flash_segments(&image, partition_table) {
             let segment = segment?;
             let addr = segment.addr;
             let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;
