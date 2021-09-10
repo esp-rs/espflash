@@ -32,4 +32,5 @@ guess_host_triple = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serial = "0.4"
 toml = "0.5"
+termion = "1"
 thiserror = "1"
