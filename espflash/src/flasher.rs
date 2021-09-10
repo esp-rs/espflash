@@ -1,22 +1,21 @@
 use bytemuck::{__core::time::Duration, bytes_of, Pod, Zeroable};
-use indicatif::{ProgressBar, ProgressStyle};
 use serial::{BaudRate, SerialPort};
 use strum_macros::Display;
 
-use std::{mem::size_of, thread::sleep};
+use std::thread::sleep;
 
+use crate::elf::RomSegment;
 use crate::{
     chip::Chip, connection::Connection, elf::FirmwareImage, encoder::SlipEncoder, error::RomError,
     Error, PartitionTable,
 };
 
-type Encoder<'a> = SlipEncoder<'a, Box<dyn SerialPort>>;
+pub(crate) type Encoder<'a> = SlipEncoder<'a, Box<dyn SerialPort>>;
 
-const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
-const FLASH_SECTOR_SIZE: usize = 0x1000;
+pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 const FLASH_BLOCK_SIZE: usize = 0x100;
 const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
-const FLASH_WRITE_SIZE: usize = 0x400;
+pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
 
 // register used for chip detect
 const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
@@ -30,7 +29,7 @@ const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 #[derive(Copy, Clone, Debug)]
 #[allow(dead_code)]
 #[repr(u8)]
-enum Command {
+pub(crate) enum Command {
     FlashBegin = 0x02,
     FlashData = 0x03,
     FlashEnd = 0x04,
@@ -43,6 +42,10 @@ enum Command {
     SpiSetParams = 0x0B,
     SpiAttach = 0x0D,
     ChangeBaud = 0x0F,
+    FlashDeflateBegin = 0x10,
+    FlashDeflateData = 0x11,
+    FlashDeflateEnd = 0x12,
+    FlashMd5 = 0x13,
 }
 
 impl Command {
@@ -64,7 +67,9 @@ impl Command {
         }
         match self {
             Command::FlashBegin => calc_timeout(ERASE_REGION_TIMEOUT_PER_MB, size),
-            Command::FlashData => calc_timeout(ERASE_WRITE_TIMEOUT_PER_MB, size),
+            Command::FlashData | Command::FlashDeflateData => {
+                calc_timeout(ERASE_WRITE_TIMEOUT_PER_MB, size)
+            }
             _ => self.timeout(),
         }
     }
@@ -109,7 +114,7 @@ impl FlashSize {
 
 #[derive(Copy, Clone)]
 #[repr(C)]
-struct SpiAttachParams {
+pub struct SpiAttachParams {
     clk: u8,
     q: u8,
     d: u8,
@@ -341,64 +346,6 @@ impl Flasher {
             })
     }
 
-    fn block_command(
-        &mut self,
-        command: Command,
-        data: &[u8],
-        padding: usize,
-        padding_byte: u8,
-        sequence: u32,
-    ) -> Result<(), Error> {
-        let params = BlockParams {
-            size: (data.len() + padding) as u32,
-            sequence,
-            dummy1: 0,
-            dummy2: 0,
-        };
-
-        let length = size_of::<BlockParams>() + data.len() + padding;
-
-        let mut check = checksum(data, CHECKSUM_INIT);
-
-        for _ in 0..padding {
-            check = checksum(&[padding_byte], check);
-        }
-
-        self.connection
-            .with_timeout(command.timeout_for_size(data.len() as u32), |connection| {
-                connection.command(
-                    command as u8,
-                    (length as u16, |encoder: &mut Encoder| {
-                        encoder.write(bytes_of(&params))?;
-                        encoder.write(data)?;
-                        let padding = &[padding_byte; FLASH_WRITE_SIZE][0..padding];
-                        encoder.write(padding)?;
-                        Ok(())
-                    }),
-                    check as u32,
-                )?;
-                Ok(())
-            })
-    }
-
-    fn mem_finish(&mut self, entry: u32) -> Result<(), Error> {
-        let params = EntryParams {
-            no_entry: (entry == 0) as u32,
-            entry,
-        };
-        self.connection
-            .with_timeout(Command::MemEnd.timeout(), |connection| {
-                connection.write_command(Command::MemEnd as u8, bytes_of(&params), 0)
-            })
-    }
-
-    fn flash_finish(&mut self, reboot: bool) -> Result<(), Error> {
-        self.connection
-            .with_timeout(Command::FlashEnd.timeout(), |connection| {
-                connection.write_command(Command::FlashEnd as u8, &[(!reboot) as u8][..], 0)
-            })
-    }
-
     fn enable_flash(&mut self, spi_attach_params: SpiAttachParams) -> Result<(), Error> {
         match self.chip {
             Chip::Esp8266 => {
@@ -523,31 +470,24 @@ impl Flasher {
     pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
         let image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
 
+        let mut target = self.chip.ram_target();
+        target.begin(&mut self.connection, &image)?;
+
         if image.rom_segments(self.chip).next().is_some() {
             return Err(Error::ElfNotRamLoadable);
         }
 
         for segment in image.ram_segments(self.chip) {
-            let padding = 4 - segment.data.len() % 4;
-            let block_count =
-                (segment.data.len() + padding + MAX_RAM_BLOCK_SIZE - 1) / MAX_RAM_BLOCK_SIZE;
-            self.begin_command(
-                Command::MemBegin,
-                segment.data.len() as u32,
-                block_count as u32,
-                MAX_RAM_BLOCK_SIZE as u32,
-                segment.addr,
+            target.write_segment(
+                &mut self.connection,
+                RomSegment {
+                    addr: segment.addr,
+                    data: segment.data.into(),
+                },
             )?;
-
-            for (i, block) in segment.data.chunks(MAX_RAM_BLOCK_SIZE).enumerate() {
-                let block_padding = if i == block_count - 1 { padding } else { 0 };
-                self.block_command(Command::MemData, block, block_padding, 0, i as u32)?;
-            }
         }
 
-        self.mem_finish(image.entry())?;
-
-        Ok(())
+        target.finish(&mut self.connection, true)
     }
 
     /// Load an elf image to flash and execute it
@@ -557,56 +497,20 @@ impl Flasher {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
     ) -> Result<(), Error> {
-        self.enable_flash(self.spi_params)?;
-
         let mut image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
         image.flash_size = self.flash_size();
+
+        let mut target = self.chip.flash_target(self.spi_params);
+        target.begin(&mut self.connection, &image)?;
 
         for segment in self
             .chip
             .get_flash_segments(&image, bootloader, partition_table)
         {
-            let segment = segment?;
-            let addr = segment.addr;
-            let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;
-
-            let erase_size = match self.chip {
-                Chip::Esp8266 => get_erase_size(addr as usize, segment.data.len()) as u32,
-                _ => segment.data.len() as u32,
-            };
-
-            self.begin_command(
-                Command::FlashBegin,
-                erase_size,
-                block_count as u32,
-                FLASH_WRITE_SIZE as u32,
-                addr,
-            )?;
-
-            let chunks = segment.data.chunks(FLASH_WRITE_SIZE);
-
-            let (_, chunk_size) = chunks.size_hint();
-            let chunk_size = chunk_size.unwrap_or(0) as u64;
-            let pb_chunk = ProgressBar::new(chunk_size);
-            pb_chunk.set_style(
-                ProgressStyle::default_bar()
-                    .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-                    .progress_chars("#>-"),
-            );
-
-            for (i, block) in chunks.enumerate() {
-                pb_chunk.set_message(format!("segment 0x{:X} writing chunks", addr));
-                let block_padding = FLASH_WRITE_SIZE - block.len();
-                self.block_command(Command::FlashData, block, block_padding, 0xff, i as u32)?;
-                pb_chunk.inc(1);
-            }
-
-            pb_chunk.finish_with_message(format!("segment 0x{:X}", addr));
+            target.write_segment(&mut self.connection, segment?)?;
         }
 
-        self.flash_finish(false)?;
-
-        self.connection.reset()?;
+        target.finish(&mut self.connection, true)?;
 
         Ok(())
     }
@@ -630,7 +534,7 @@ impl Flasher {
     }
 }
 
-fn get_erase_size(offset: usize, size: usize) -> usize {
+pub(crate) fn get_erase_size(offset: usize, size: usize) -> usize {
     let sector_count = (size + FLASH_SECTOR_SIZE - 1) / FLASH_SECTOR_SIZE;
     let start_sector = offset / FLASH_SECTOR_SIZE;
 
@@ -646,7 +550,7 @@ fn get_erase_size(offset: usize, size: usize) -> usize {
     }
 }
 
-const CHECKSUM_INIT: u8 = 0xEF;
+pub(crate) const CHECKSUM_INIT: u8 = 0xEF;
 
 pub fn checksum(data: &[u8], mut checksum: u8) -> u8 {
     for byte in data {
