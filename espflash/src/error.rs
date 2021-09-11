@@ -1,4 +1,5 @@
-use miette::Diagnostic;
+use csv::Position;
+use miette::{Diagnostic, SourceOffset, SourceSpan};
 use slip_codec::Error as SlipError;
 use std::io;
 use thiserror::Error;
@@ -41,6 +42,9 @@ pub enum Error {
     #[error("Failed to connect to on-device flash")]
     #[diagnostic(code(espflash::flash_connect))]
     FlashConnect,
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    MalformedPartitionTable(PartitionTableError),
 }
 
 #[derive(Error, Debug, Diagnostic)]
@@ -203,4 +207,61 @@ impl<T> ResultExt for Result<T, Error> {
             res => res,
         }
     }
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("Malformed partition table")]
+#[diagnostic(
+    code(espflash::mallformed_partition_table),
+    help("See the espressif documentation for information on the partition table format:
+
+          https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#creating-custom-tables")
+)]
+pub struct PartitionTableError {
+    source: String,
+    #[snippet(source)]
+    snip: SourceSpan,
+    #[highlight(snip, label("{}", self.hint))]
+    err_span: SourceSpan,
+    hint: String,
+    #[source]
+    error: csv::Error,
+}
+
+impl PartitionTableError {
+    pub fn new(error: csv::Error, source: String) -> Self {
+        let err_pos = match error.kind() {
+            csv::ErrorKind::Deserialize { pos: Some(pos), .. } => pos.clone(),
+            csv::ErrorKind::UnequalLengths { pos: Some(pos), .. } => pos.clone(),
+            _ => Position::new(),
+        };
+        let hint = match error.kind() {
+            csv::ErrorKind::Deserialize { err, .. } => err.to_string(),
+            csv::ErrorKind::UnequalLengths {
+                expected_len, len, ..
+            } => format!(
+                "record has {} fields, but the previous record has {} fields",
+                len, expected_len
+            ),
+            _ => String::new(),
+        };
+        let snip_start =
+            SourceOffset::from_location(&source, err_pos.line().saturating_sub(2) as usize, 0);
+        let snip_end =
+            SourceOffset::from_location(&source, err_pos.line().saturating_add(2) as usize, 0);
+        let snip = SourceSpan::new(snip_start, (snip_end.offset() - snip_start.offset()).into());
+        let err_span = SourceSpan::new(pos_to_offset(err_pos), 0.into());
+
+        PartitionTableError {
+            source,
+            err_span,
+            snip,
+            hint,
+            error,
+        }
+    }
+}
+
+fn pos_to_offset(pos: Position) -> SourceOffset {
+    (pos.byte() as usize + 1).into()
 }

@@ -1,7 +1,8 @@
 use cargo_metadata::Message;
 use clap::{App, Arg, SubCommand};
-use espflash::{Config, Error, Flasher, PartitionTable};
-use miette::{bail, miette, IntoDiagnostic, Result, WrapErr};
+use error::Error;
+use espflash::{Config, Flasher, PartitionTable};
+use miette::{IntoDiagnostic, Result, WrapErr};
 use serial::{BaudRate, SerialPort};
 
 use std::{
@@ -12,6 +13,8 @@ use std::{
 };
 
 mod cargo_config;
+mod error;
+
 use cargo_config::has_build_std;
 
 fn main() -> Result<()> {
@@ -121,7 +124,7 @@ fn main() -> Result<()> {
     println!("Serial port: {}", port);
     println!("Connecting...\n");
     let mut serial = serial::open(&port)
-        .map_err(Error::from)
+        .map_err(espflash::Error::from)
         .wrap_err_with(|| format!("Failed to open serial port {}", port))?;
     serial
         .reconfigure(&|settings| {
@@ -161,11 +164,8 @@ fn main() -> Result<()> {
     let partition_table = if let Some(path) = matches.value_of("partition_table") {
         let path = fs::canonicalize(path).into_diagnostic()?;
         let data = fs::read_to_string(path).into_diagnostic()?;
-
-        match PartitionTable::try_from_str(data) {
-            Ok(t) => Some(t),
-            Err(e) => bail!("{}", e),
-        }
+        let table = PartitionTable::try_from_str(data)?;
+        Some(table)
     } else {
         None
     };
@@ -192,11 +192,7 @@ fn build(release: bool, example: Option<&str>, features: Option<&str>) -> Result
     // cross-compilation. If it has not been set then we cannot build the
     // application.
     if !has_build_std(".") {
-        bail!(
-            "cargo currently requires the unstable 'build-std' feature, ensure \
-            that .cargo/config{.toml} has the appropriate options.\n  \
-            See: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std"
-        );
+        return Err(Error::NoBuildStd.into());
     };
 
     // Build the list of arguments to pass to 'cargo build'.
@@ -239,8 +235,7 @@ fn build(release: bool, example: Option<&str>, features: Option<&str>) -> Result
             Message::CompilerArtifact(artifact) => {
                 if artifact.executable.is_some() {
                     if target_artifact.is_some() {
-                        // We found multiple binary artifacts, so we don't know which one to use.
-                        bail!("Multiple artifacts found, please specify one with --bin");
+                        return Err(Error::MultipleArtifacts.into());
                     } else {
                         target_artifact = Some(artifact);
                     }
@@ -264,16 +259,9 @@ fn build(release: bool, example: Option<&str>, features: Option<&str>) -> Result
     }
 
     // If no target artifact was found, we don't have a path to return.
-    if target_artifact.is_none() {
-        bail!("Artifact not found");
-    }
+    let target_artifact = target_artifact.ok_or(Error::NoArtifact)?;
 
-    let artifact_path = PathBuf::from(
-        target_artifact
-            .unwrap()
-            .executable
-            .ok_or_else(|| miette!("artifact executable path is missing"))?,
-    );
+    let artifact_path = target_artifact.executable.unwrap().into();
 
     Ok(artifact_path)
 }

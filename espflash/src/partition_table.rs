@@ -2,7 +2,8 @@ use md5::{Context, Digest};
 use regex::Regex;
 use serde::{Deserialize, Deserializer};
 
-use std::{error::Error, io::Write};
+use crate::error::PartitionTableError;
+use std::io::Write;
 
 const MAX_PARTITION_LENGTH: usize = 0xC00;
 const PARTITION_TABLE_SIZE: usize = 0x1000;
@@ -147,9 +148,9 @@ impl PartitionTable {
     }
 
     /// Attempt to parse a partition table from the given string. For more
-    /// information on the paritition table CSV format see:
+    /// information on the partition table CSV format see:
     /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html
-    pub fn try_from_str<S: Into<String>>(data: S) -> Result<Self, Box<dyn Error>> {
+    pub fn try_from_str<S: Into<String>>(data: S) -> Result<Self, PartitionTableError> {
         let data = data.into();
         let mut reader = csv::ReaderBuilder::new()
             .comment(Some(b'#'))
@@ -159,7 +160,8 @@ impl PartitionTable {
 
         let mut partitions = Vec::with_capacity(MAX_PARTITION_TABLE_ENTRIES);
         for partition in reader.deserialize() {
-            let partition: Partition = partition?;
+            let partition: Partition =
+                partition.map_err(|e| PartitionTableError::new(e, data.clone()))?;
             partitions.push(partition);
         }
 
