@@ -250,7 +250,16 @@ impl PartitionTableError {
         let snip_end =
             SourceOffset::from_location(&source, err_pos.line().saturating_add(2) as usize, 0);
         let snip = SourceSpan::new(snip_start, (snip_end.offset() - snip_start.offset()).into());
-        let err_span = SourceSpan::new(pos_to_offset(err_pos), 0.into());
+
+        // since csv doesn't give us the position in the line the error occurs, we highlight the entire line
+        let line_length = (source
+            .lines()
+            .nth(err_pos.line() as usize - 1)
+            .unwrap()
+            .len()
+            - 1)
+        .into();
+        let err_span = SourceSpan::new(pos_to_offset(err_pos), line_length);
 
         PartitionTableError {
             source,
