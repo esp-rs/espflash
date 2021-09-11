@@ -102,11 +102,15 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --bin espflash --target x86_64-unknown-linux-musl
+          args: --release --all --target x86_64-unknown-linux-musl
       - uses: actions/upload-artifact@v2
         with:
           name: espflash
           path: target/x86_64-unknown-linux-musl/release/espflash
+      - uses: actions/upload-artifact@v2
+        with:
+          name: cargo-espflash
+          path: target/x86_64-unknown-linux-musl/release/cargo-espflash
 
   build-windows:
     name: Build Static Windows Binaries
@@ -123,8 +127,12 @@ jobs:
         with:
           use-cross: true
           command: build
-          args: --release --bin espflash --target x86_64-pc-windows-gnu
+          args: --release --all --target x86_64-pc-windows-gnu
       - uses: actions/upload-artifact@v2
         with:
           name: espflash.exe
           path: target/x86_64-pc-windows-gnu/release/espflash.exe
+      - uses: actions/upload-artifact@v2
+        with:
+          name: cargo-espflash.exe
+          path: target/x86_64-pc-windows-gnu/release/cargo-espflash.exe
