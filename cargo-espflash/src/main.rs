@@ -1,7 +1,7 @@
-use anyhow::{anyhow, bail, Context};
 use cargo_metadata::Message;
 use clap::{App, Arg, SubCommand};
-use espflash::{Config, Flasher, PartitionTable};
+use espflash::{Config, Error, Flasher, PartitionTable};
+use miette::{bail, miette, IntoDiagnostic, Result, WrapErr};
 use serial::{BaudRate, SerialPort};
 
 use std::{
@@ -14,7 +14,7 @@ use std::{
 mod cargo_config;
 use cargo_config::has_build_std;
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<()> {
     let mut app = App::new(env!("CARGO_PKG_NAME"))
         .bin_name("cargo")
         .subcommand(
@@ -84,7 +84,7 @@ fn main() -> anyhow::Result<()> {
     let matches = match matches.subcommand_matches("espflash") {
         Some(matches) => matches,
         None => {
-            app.print_help()?;
+            app.print_help().into_diagnostic()?;
             exit(0);
         }
     };
@@ -99,7 +99,7 @@ fn main() -> anyhow::Result<()> {
     } else if let Some(serial) = config.connection.serial {
         serial
     } else {
-        app.print_help()?;
+        app.print_help().into_diagnostic()?;
         exit(0);
     };
 
@@ -120,15 +120,19 @@ fn main() -> anyhow::Result<()> {
     // Attempt to open the serial port and set its initial baud rate.
     println!("Serial port: {}", port);
     println!("Connecting...\n");
-    let mut serial = serial::open(&port).context(format!("Failed to open serial port {}", port))?;
-    serial.reconfigure(&|settings| {
-        settings.set_baud_rate(BaudRate::Baud115200)?;
-        Ok(())
-    })?;
+    let mut serial = serial::open(&port)
+        .map_err(Error::from)
+        .wrap_err_with(|| format!("Failed to open serial port {}", port))?;
+    serial
+        .reconfigure(&|settings| {
+            settings.set_baud_rate(BaudRate::Baud115200)?;
+            Ok(())
+        })
+        .into_diagnostic()?;
 
     // Parse the baud rate if provided as as a command-line argument.
     let speed = if let Some(speed) = matches.value_of("speed") {
-        let speed = speed.parse::<usize>()?;
+        let speed = speed.parse::<usize>().into_diagnostic()?;
         Some(BaudRate::from_speed(speed))
     } else {
         None
@@ -145,8 +149,8 @@ fn main() -> anyhow::Result<()> {
     // If the '--bootloader' option is provided, load the binary file at the
     // specified path.
     let bootloader = if let Some(path) = matches.value_of("bootloader") {
-        let path = fs::canonicalize(path)?;
-        let data = fs::read(path)?;
+        let path = fs::canonicalize(path).into_diagnostic()?;
+        let data = fs::read(path).into_diagnostic()?;
         Some(data)
     } else {
         None
@@ -155,8 +159,8 @@ fn main() -> anyhow::Result<()> {
     // If the '--partition-table' option is provided, load the partition table from
     // the CSV at the specified path.
     let partition_table = if let Some(path) = matches.value_of("partition_table") {
-        let path = fs::canonicalize(path)?;
-        let data = fs::read_to_string(path)?;
+        let path = fs::canonicalize(path).into_diagnostic()?;
+        let data = fs::read_to_string(path).into_diagnostic()?;
 
         match PartitionTable::try_from_str(data) {
             Ok(t) => Some(t),
@@ -167,7 +171,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     // Read the ELF data from the build path and load it to the target.
-    let elf_data = fs::read(path.unwrap())?;
+    let elf_data = fs::read(path.unwrap()).into_diagnostic()?;
     if matches.is_present("ram") {
         flasher.load_elf_to_ram(&elf_data)?;
     } else {
@@ -183,7 +187,7 @@ fn board_info(flasher: &Flasher) {
     println!("Flash size: {}", flasher.flash_size());
 }
 
-fn build(release: bool, example: Option<&str>, features: Option<&str>) -> anyhow::Result<PathBuf> {
+fn build(release: bool, example: Option<&str>, features: Option<&str>) -> Result<PathBuf> {
     // The 'build-std' unstable cargo feature is required to enable
     // cross-compilation. If it has not been set then we cannot build the
     // application.
@@ -219,8 +223,10 @@ fn build(release: bool, example: Option<&str>, features: Option<&str>) -> anyhow
         .args(&["--message-format", "json-diagnostic-rendered-ansi"])
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
-        .spawn()?
-        .wait_with_output()?;
+        .spawn()
+        .into_diagnostic()?
+        .wait_with_output()
+        .into_diagnostic()?;
 
     // Parse build output.
     let messages = Message::parse_stream(&output.stdout[..]);
@@ -229,7 +235,7 @@ fn build(release: bool, example: Option<&str>, features: Option<&str>) -> anyhow
     let mut target_artifact = None;
 
     for message in messages {
-        match message? {
+        match message.into_diagnostic()? {
             Message::CompilerArtifact(artifact) => {
                 if artifact.executable.is_some() {
                     if target_artifact.is_some() {
@@ -266,7 +272,7 @@ fn build(release: bool, example: Option<&str>, features: Option<&str>) -> anyhow
         target_artifact
             .unwrap()
             .executable
-            .ok_or_else(|| anyhow!("artifact executable path is missing"))?,
+            .ok_or_else(|| miette!("artifact executable path is missing"))?,
     );
 
     Ok(artifact_path)

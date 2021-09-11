@@ -24,7 +24,7 @@ categories = [
 ]
 
 [dependencies]
-anyhow = "1.0"
+miette = "2"
 cargo_metadata = "0.14"
 clap = "2.33"
 espflash = { version = "*", path = "../espflash" }

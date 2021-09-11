@@ -3,7 +3,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use crate::encoder::SlipEncoder;
-use crate::error::{Error, RomError};
+use crate::error::{ConnectionError, Error, RomError};
 use binread::io::Cursor;
 use binread::{BinRead, BinReaderExt};
 use serial::{BaudRate, SerialPort, SerialPortSettings};
@@ -135,7 +135,7 @@ impl Connection {
                 }
             }
         }
-        Err(Error::ConnectionFailed)
+        Err(Error::Connection(ConnectionError::ConnectionFailed))
     }
 
     fn read(&mut self) -> Result<Vec<u8>, Error> {
