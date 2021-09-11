@@ -27,10 +27,10 @@ categories = [
 miette = "2"
 cargo_metadata = "0.14"
 clap = "2.33"
+crossterm = "0.21"
 espflash = { version = "*", path = "../espflash" }
 guess_host_triple = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serial = "0.4"
 toml = "0.5"
-termion = "1"
 thiserror = "1"

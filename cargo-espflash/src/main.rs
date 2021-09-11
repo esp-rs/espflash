@@ -3,8 +3,7 @@ use clap::{App, Arg, SubCommand};
 use error::Error;
 use espflash::{Config, Flasher, PartitionTable};
 use miette::{IntoDiagnostic, Result, WrapErr};
-use serial::{BaudRate, SerialPort, SystemPort};
-
+use serial::{BaudRate, SerialPort};
 use std::{
     fs,
     path::PathBuf,
@@ -12,16 +11,13 @@ use std::{
     string::ToString,
 };
 
+use cargo_config::has_build_std;
+use monitor::monitor;
+
 mod cargo_config;
 mod error;
 mod line_endings;
-
-use crate::line_endings::normalized;
-use cargo_config::has_build_std;
-use std::io::{stdout, ErrorKind, Read, Write};
-use std::thread::sleep;
-use std::time::Duration;
-use termion::{async_stdin, raw::IntoRawMode};
+mod monitor;
 
 fn main() -> Result<()> {
     let mut app = App::new(env!("CARGO_PKG_NAME"))
@@ -190,7 +186,7 @@ fn main() -> Result<()> {
     }
 
     if matches.is_present("monitor") {
-        monitor(flasher.into_serial())?;
+        monitor(flasher.into_serial()).into_diagnostic()?;
     }
 
     // We're all done!
@@ -294,51 +290,4 @@ fn exit_with_process_status(status: ExitStatus) -> ! {
     let code = status.code().unwrap_or(1);
 
     exit(code)
-}
-
-const KEYCODE_CTRL_C: u8 = 3;
-const KEYCODE_CTRL_R: u8 = 18;
-
-fn monitor(mut serial: SystemPort) -> anyhow::Result<()> {
-    println!("Commands:");
-    println!("    CTRL+R    Reset chip");
-    println!("    CTRL+C    Exit");
-    println!();
-
-    let mut buff = [0; 128];
-    serial.set_timeout(Duration::from_millis(5))?;
-
-    let mut stdin = async_stdin().bytes();
-    let stdout = stdout().into_raw_mode()?;
-    let mut stdout = stdout.lock();
-    loop {
-        let read = match serial.read(&mut buff) {
-            Ok(count) => Ok(count),
-            Err(e) if e.kind() == ErrorKind::TimedOut => Ok(0),
-            err => err,
-        }?;
-        if read > 0 {
-            let data: Vec<u8> = normalized(buff[0..read].iter().copied()).collect();
-            stdout.write_all(&data).ok();
-            stdout.flush()?;
-        }
-        if let Some(Ok(byte)) = stdin.next() {
-            match byte {
-                KEYCODE_CTRL_C => break,
-                KEYCODE_CTRL_R => {
-                    serial.set_dtr(false)?;
-                    serial.set_rts(true)?;
-
-                    sleep(Duration::from_millis(100));
-
-                    serial.set_rts(false)?;
-                }
-                _ => {
-                    serial.write_all(&[byte])?;
-                    serial.flush()?;
-                }
-            }
-        }
-    }
-    Ok(())
 }
