@@ -5,7 +5,7 @@ use strum_macros::Display;
 use std::thread::sleep;
 
 use crate::elf::RomSegment;
-use crate::error::{ConnectionError, ResultExt};
+use crate::error::{ConnectionError, ElfError, ResultExt};
 use crate::{
     chip::Chip, connection::Connection, elf::FirmwareImage, encoder::SlipEncoder, error::RomError,
     Error, PartitionTable,
@@ -469,7 +469,7 @@ impl Flasher {
     ///
     /// Note that this will not touch the flash on the device
     pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
-        let image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
+        let image = FirmwareImage::from_data(elf_data).map_err(ElfError::from)?;
 
         let mut target = self.chip.ram_target();
         target.begin(&mut self.connection, &image).flashing()?;
@@ -500,7 +500,7 @@ impl Flasher {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
     ) -> Result<(), Error> {
-        let mut image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
+        let mut image = FirmwareImage::from_data(elf_data).map_err(ElfError::from)?;
         image.flash_size = self.flash_size();
 
         let mut target = self.chip.flash_target(self.spi_params);

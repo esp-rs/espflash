@@ -18,8 +18,8 @@ pub enum Error {
         code(espflash::invalid_elf),
         help("Try running `cargo clean` and rebuilding the image")
     )]
-    InvalidElf,
-    #[error("Supplied elf image can not be ran from ram")]
+    InvalidElf(#[from] ElfError),
+    #[error("Supplied elf image can not be ran from ram as it includes segments mapped to rom addresses")]
     #[diagnostic(
         code(espflash::not_ram_loadable),
         help("Either build the binary to be all in ram or remove the `--ram` option to load the image to flash")
@@ -153,6 +153,7 @@ impl From<binread::Error> for Error {
 #[derive(Copy, Clone, Debug, Error, Diagnostic)]
 #[allow(dead_code)]
 #[repr(u8)]
+#[non_exhaustive]
 pub enum RomError {
     #[error("Invalid message received")]
     #[diagnostic(code(espflash::rom::invalid_message))]
@@ -273,4 +274,14 @@ impl PartitionTableError {
 
 fn pos_to_offset(pos: Position) -> SourceOffset {
     (pos.byte() as usize + 1).into()
+}
+
+#[derive(Debug, Error)]
+#[error("{0}")]
+pub struct ElfError(&'static str);
+
+impl From<&'static str> for ElfError {
+    fn from(err: &'static str) -> Self {
+        ElfError(err)
+    }
 }
