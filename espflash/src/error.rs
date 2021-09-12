@@ -27,24 +27,22 @@ pub enum Error {
     ElfNotRamLoadable,
     #[error("The bootloader returned an error")]
     #[diagnostic(transparent)]
-    RomError(#[source] RomError),
+    RomError(#[from] RomError),
     #[error("Chip not recognized, supported chip types are esp8266, esp32 and esp32-c3")]
     #[diagnostic(
         code(espflash::unrecognized_chip),
         help("If your chip is supported, try hard-resetting the device and try again")
     )]
-    UnrecognizedChip,
-    #[error(
-        "Flash chip not supported, flash id: {0:#x}, flash sizes from 1 to 16MB are supported"
-    )]
+    UnrecognizedChip(#[from] ChipDetectError),
+    #[error("Flash chip not supported, flash sizes from 1 to 16MB are supported")]
     #[diagnostic(code(espflash::unrecognized_flash))]
-    UnsupportedFlash(u8),
+    UnsupportedFlash(#[from] FlashDetectError),
     #[error("Failed to connect to on-device flash")]
     #[diagnostic(code(espflash::flash_connect))]
     FlashConnect,
     #[error(transparent)]
     #[diagnostic(transparent)]
-    MalformedPartitionTable(PartitionTableError),
+    MalformedPartitionTable(#[from] PartitionTableError),
 }
 
 #[derive(Error, Debug, Diagnostic)]
@@ -283,5 +281,25 @@ pub struct ElfError(&'static str);
 impl From<&'static str> for ElfError {
     fn from(err: &'static str) -> Self {
         ElfError(err)
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("Unrecognized magic value {0:#x}")]
+pub struct ChipDetectError(u32);
+
+impl From<u32> for ChipDetectError {
+    fn from(err: u32) -> Self {
+        ChipDetectError(err)
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("Unrecognized flash id {0:#x}")]
+pub struct FlashDetectError(u8);
+
+impl From<u8> for FlashDetectError {
+    fn from(err: u8) -> Self {
+        FlashDetectError(err)
     }
 }

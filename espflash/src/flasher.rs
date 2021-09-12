@@ -5,7 +5,7 @@ use strum_macros::Display;
 use std::thread::sleep;
 
 use crate::elf::RomSegment;
-use crate::error::{ConnectionError, ElfError, ResultExt};
+use crate::error::{ConnectionError, ElfError, FlashDetectError, ResultExt};
 use crate::{
     chip::Chip, connection::Connection, elf::FirmwareImage, encoder::SlipEncoder, error::RomError,
     Error, PartitionTable,
@@ -108,7 +108,7 @@ impl FlashSize {
             0x17 => Ok(FlashSize::Flash8Mb),
             0x18 => Ok(FlashSize::Flash16Mb),
             0xFF => Ok(FlashSize::FlashRetry),
-            _ => Err(Error::UnsupportedFlash(value)),
+            _ => Err(Error::UnsupportedFlash(FlashDetectError::from(value))),
         }
     }
 }
@@ -253,7 +253,7 @@ impl Flasher {
 
     fn chip_detect(&mut self) -> Result<(), Error> {
         let magic = self.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
-        let chip = Chip::from_magic(magic).ok_or(Error::UnrecognizedChip)?;
+        let chip = Chip::from_magic(magic)?;
 
         self.chip = chip;
         Ok(())

@@ -4,6 +4,7 @@ use super::{ChipType, EspCommonHeader, SegmentHeader, ESP_MAGIC};
 use crate::{
     chip::{Chip, SpiRegisters},
     elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
+    error::FlashDetectError,
     flasher::FlashSize,
     Error, PartitionTable,
 };
@@ -96,7 +97,7 @@ impl ChipType for Esp8266 {
     }
 }
 
-fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
+fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
     match size {
         FlashSize::Flash256Kb => Ok(0x10),
         FlashSize::Flash512Kb => Ok(0x00),
@@ -105,7 +106,7 @@ fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
         FlashSize::Flash4Mb => Ok(0x40),
         FlashSize::Flash8Mb => Ok(0x80),
         FlashSize::Flash16Mb => Ok(0x90),
-        FlashSize::FlashRetry => Err(Error::UnsupportedFlash(size as u8)),
+        FlashSize::FlashRetry => Err(FlashDetectError::from(size as u8)),
     }
 }
 
