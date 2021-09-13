@@ -5,6 +5,7 @@ use strum_macros::Display;
 use std::thread::sleep;
 
 use crate::elf::RomSegment;
+use crate::error::{ConnectionError, ElfError, FlashDetectError, ResultExt};
 use crate::{
     chip::Chip, connection::Connection, elf::FirmwareImage, encoder::SlipEncoder, error::RomError,
     Error, PartitionTable,
@@ -107,7 +108,7 @@ impl FlashSize {
             0x17 => Ok(FlashSize::Flash8Mb),
             0x18 => Ok(FlashSize::Flash16Mb),
             0xFF => Ok(FlashSize::FlashRetry),
-            _ => Err(Error::UnsupportedFlash(value)),
+            _ => Err(Error::UnsupportedFlash(FlashDetectError::from(value))),
         }
     }
 }
@@ -247,12 +248,12 @@ impl Flasher {
         }
 
         // none of the spi parameters were successful
-        Err(Error::UnsupportedFlash(FlashSize::FlashRetry as u8))
+        Err(Error::FlashConnect)
     }
 
     fn chip_detect(&mut self) -> Result<(), Error> {
         let magic = self.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
-        let chip = Chip::from_magic(magic).ok_or(Error::UnrecognizedChip)?;
+        let chip = Chip::from_magic(magic)?;
 
         self.chip = chip;
         Ok(())
@@ -310,7 +311,7 @@ impl Flasher {
                 return Ok(());
             }
         }
-        Err(Error::ConnectionFailed)
+        Err(Error::Connection(ConnectionError::ConnectionFailed))
     }
 
     fn begin_command(
@@ -422,7 +423,7 @@ impl Flasher {
             }
             i += 1;
             if i > 10 {
-                return Err(Error::Timeout);
+                return Err(Error::Connection(ConnectionError::Timeout));
             }
         }
 
@@ -468,26 +469,28 @@ impl Flasher {
     ///
     /// Note that this will not touch the flash on the device
     pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
-        let image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
+        let image = FirmwareImage::from_data(elf_data).map_err(ElfError::from)?;
 
         let mut target = self.chip.ram_target();
-        target.begin(&mut self.connection, &image)?;
+        target.begin(&mut self.connection, &image).flashing()?;
 
         if image.rom_segments(self.chip).next().is_some() {
             return Err(Error::ElfNotRamLoadable);
         }
 
         for segment in image.ram_segments(self.chip) {
-            target.write_segment(
-                &mut self.connection,
-                RomSegment {
-                    addr: segment.addr,
-                    data: segment.data.into(),
-                },
-            )?;
+            target
+                .write_segment(
+                    &mut self.connection,
+                    RomSegment {
+                        addr: segment.addr,
+                        data: segment.data.into(),
+                    },
+                )
+                .flashing()?;
         }
 
-        target.finish(&mut self.connection, true)
+        target.finish(&mut self.connection, true).flashing()
     }
 
     /// Load an elf image to flash and execute it
@@ -497,20 +500,22 @@ impl Flasher {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
     ) -> Result<(), Error> {
-        let mut image = FirmwareImage::from_data(elf_data).map_err(|_| Error::InvalidElf)?;
+        let mut image = FirmwareImage::from_data(elf_data).map_err(ElfError::from)?;
         image.flash_size = self.flash_size();
 
         let mut target = self.chip.flash_target(self.spi_params);
-        target.begin(&mut self.connection, &image)?;
+        target.begin(&mut self.connection, &image).flashing()?;
 
         for segment in self
             .chip
             .get_flash_segments(&image, bootloader, partition_table)
         {
-            target.write_segment(&mut self.connection, segment?)?;
+            target
+                .write_segment(&mut self.connection, segment?)
+                .flashing()?;
         }
 
-        target.finish(&mut self.connection, true)?;
+        target.finish(&mut self.connection, true).flashing()?;
 
         Ok(())
     }

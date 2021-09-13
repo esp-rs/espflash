@@ -2,7 +2,8 @@ use md5::{Context, Digest};
 use regex::Regex;
 use serde::{Deserialize, Deserializer};
 
-use std::{error::Error, io::Write};
+use crate::error::PartitionTableError;
+use std::io::Write;
 
 const MAX_PARTITION_LENGTH: usize = 0xC00;
 const PARTITION_TABLE_SIZE: usize = 0x1000;
@@ -11,78 +12,67 @@ const MAX_PARTITION_TABLE_ENTRIES: usize = 95;
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(u8)]
 #[allow(dead_code)]
+#[serde(rename_all = "lowercase")]
 pub enum Type {
-    #[serde(alias = "app")]
     App = 0x00,
-    #[serde(alias = "data")]
     Data = 0x01,
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(u8)]
 #[allow(dead_code)]
+#[serde(rename_all = "lowercase")]
 pub enum AppType {
-    #[serde(alias = "factory")]
     Factory = 0x00,
-    #[serde(alias = "ota_0")]
+    #[serde(rename = "ota_0")]
     Ota0 = 0x10,
-    #[serde(alias = "ota_1")]
+    #[serde(rename = "ota_1")]
     Ota1 = 0x11,
-    #[serde(alias = "ota_2")]
+    #[serde(rename = "ota_2")]
     Ota2 = 0x12,
-    #[serde(alias = "ota_3")]
+    #[serde(rename = "ota_3")]
     Ota3 = 0x13,
-    #[serde(alias = "ota_4")]
+    #[serde(rename = "ota_4")]
     Ota4 = 0x14,
-    #[serde(alias = "ota_5")]
+    #[serde(rename = "ota_5")]
     Ota5 = 0x15,
-    #[serde(alias = "ota_6")]
+    #[serde(rename = "ota_6")]
     Ota6 = 0x16,
-    #[serde(alias = "ota_7")]
+    #[serde(rename = "ota_7")]
     Ota7 = 0x17,
-    #[serde(alias = "ota_8")]
+    #[serde(rename = "ota_8")]
     Ota8 = 0x18,
-    #[serde(alias = "ota_9")]
+    #[serde(rename = "ota_9")]
     Ota9 = 0x19,
-    #[serde(alias = "ota_10")]
+    #[serde(rename = "ota_10")]
     Ota10 = 0x1a,
-    #[serde(alias = "ota_11")]
+    #[serde(rename = "ota_11")]
     Ota11 = 0x1b,
-    #[serde(alias = "ota_12")]
+    #[serde(rename = "ota_12")]
     Ota12 = 0x1c,
-    #[serde(alias = "ota_13")]
+    #[serde(rename = "ota_13")]
     Ota13 = 0x1d,
-    #[serde(alias = "ota_14")]
+    #[serde(rename = "ota_14")]
     Ota14 = 0x1e,
-    #[serde(alias = "ota_15")]
+    #[serde(rename = "ota_15")]
     Ota15 = 0x1f,
-    #[serde(alias = "test")]
     Test = 0x20,
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(u8)]
 #[allow(dead_code)]
+#[serde(rename_all = "lowercase")]
 pub enum DataType {
-    #[serde(alias = "ota")]
     Ota = 0x00,
-    #[serde(alias = "phy")]
     Phy = 0x01,
-    #[serde(alias = "nvs")]
     Nvs = 0x02,
-    #[serde(alias = "coredump")]
     CoreDump = 0x03,
-    #[serde(alias = "nvs_keys")]
     NvsKeys = 0x04,
-    #[serde(alias = "efuse")]
     EFuse = 0x05,
-    #[serde(alias = "undefined")]
     Undefined = 0x06,
-    #[serde(alias = "esphttpd")]
     EspHttpd = 0x80,
-    #[serde(alias = "fat")]
     Fat = 0x81,
-    #[serde(alias = "spiffs")]
     Spiffs = 0x82,
 }
 
@@ -147,9 +137,9 @@ impl PartitionTable {
     }
 
     /// Attempt to parse a partition table from the given string. For more
-    /// information on the paritition table CSV format see:
+    /// information on the partition table CSV format see:
     /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html
-    pub fn try_from_str<S: Into<String>>(data: S) -> Result<Self, Box<dyn Error>> {
+    pub fn try_from_str<S: Into<String>>(data: S) -> Result<Self, PartitionTableError> {
         let data = data.into();
         let mut reader = csv::ReaderBuilder::new()
             .comment(Some(b'#'))
@@ -159,7 +149,8 @@ impl PartitionTable {
 
         let mut partitions = Vec::with_capacity(MAX_PARTITION_TABLE_ENTRIES);
         for partition in reader.deserialize() {
-            let partition: Partition = partition?;
+            let partition: Partition =
+                partition.map_err(|e| PartitionTableError::new(e, data.clone()))?;
             partitions.push(partition);
         }
 

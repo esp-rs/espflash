@@ -7,8 +7,9 @@ use crate::{
     Error, PartitionTable,
 };
 
-use std::{io::Write, str::FromStr};
+use std::io::Write;
 
+use crate::error::{ChipDetectError, FlashDetectError};
 use crate::flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget};
 use crate::flasher::SpiAttachParams;
 pub use esp32::Esp32;
@@ -102,14 +103,14 @@ pub enum Chip {
 }
 
 impl Chip {
-    pub fn from_magic(magic: u32) -> Option<Self> {
+    pub fn from_magic(magic: u32) -> Result<Self, ChipDetectError> {
         match magic {
-            Esp32::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp32),
+            Esp32::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp32),
             Esp32c3::CHIP_DETECT_MAGIC_VALUE | Esp32c3::CHIP_DETECT_MAGIC_VALUE2 => {
-                Some(Chip::Esp32c3)
+                Ok(Chip::Esp32c3)
             }
-            Esp8266::CHIP_DETECT_MAGIC_VALUE => Some(Chip::Esp8266),
-            _ => None,
+            Esp8266::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp8266),
+            _ => Err(ChipDetectError::from(magic)),
         }
     }
 
@@ -154,19 +155,6 @@ impl Chip {
     }
 }
 
-impl FromStr for Chip {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "esp32" => Ok(Chip::Esp32),
-            "esp32c3" => Ok(Chip::Esp32c3),
-            "esp8266" => Ok(Chip::Esp8266),
-            _ => Err(Error::UnrecognizedChip),
-        }
-    }
-}
-
 #[derive(Copy, Clone, Zeroable, Pod, Debug)]
 #[repr(C)]
 struct EspCommonHeader {
@@ -186,16 +174,16 @@ struct SegmentHeader {
 
 // Note that this function ONLY applies to the ESP32 and variants; the ESP8266
 // has defined its own version rather than using this implementation.
-fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
+fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
     match size {
-        FlashSize::Flash256Kb => Err(Error::UnsupportedFlash(size as u8)),
-        FlashSize::Flash512Kb => Err(Error::UnsupportedFlash(size as u8)),
+        FlashSize::Flash256Kb => Err(FlashDetectError::from(size as u8)),
+        FlashSize::Flash512Kb => Err(FlashDetectError::from(size as u8)),
         FlashSize::Flash1Mb => Ok(0x00),
         FlashSize::Flash2Mb => Ok(0x10),
         FlashSize::Flash4Mb => Ok(0x20),
         FlashSize::Flash8Mb => Ok(0x30),
         FlashSize::Flash16Mb => Ok(0x40),
-        FlashSize::FlashRetry => Err(Error::UnsupportedFlash(size as u8)),
+        FlashSize::FlashRetry => Err(FlashDetectError::from(size as u8)),
     }
 }
 
