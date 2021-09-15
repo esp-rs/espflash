@@ -1,5 +1,5 @@
 use bytemuck::{__core::time::Duration, bytes_of, Pod, Zeroable};
-use serial::{BaudRate, SerialPort};
+use serial::{BaudRate, SystemPort};
 use strum_macros::Display;
 
 use std::thread::sleep;
@@ -11,7 +11,7 @@ use crate::{
     Error, PartitionTable,
 };
 
-pub(crate) type Encoder<'a> = SlipEncoder<'a, Box<dyn SerialPort>>;
+pub(crate) type Encoder<'a> = SlipEncoder<'a, SystemPort>;
 
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 const FLASH_BLOCK_SIZE: usize = 0x100;
@@ -205,10 +205,7 @@ pub struct Flasher {
 }
 
 impl Flasher {
-    pub fn connect(
-        serial: impl SerialPort + 'static,
-        speed: Option<BaudRate>,
-    ) -> Result<Self, Error> {
+    pub fn connect(serial: SystemPort, speed: Option<BaudRate>) -> Result<Self, Error> {
         let mut flasher = Flasher {
             connection: Connection::new(serial), // default baud is always 115200
             chip: Chip::Esp8266,                 // dummy, set properly later
@@ -536,6 +533,10 @@ impl Flasher {
         std::thread::sleep(Duration::from_secs_f32(0.05));
         self.connection.flush()?;
         Ok(())
+    }
+
+    pub fn into_serial(self) -> SystemPort {
+        self.connection.into_serial()
     }
 }
 

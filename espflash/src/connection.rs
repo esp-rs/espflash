@@ -6,11 +6,11 @@ use crate::encoder::SlipEncoder;
 use crate::error::{ConnectionError, Error, RomError};
 use binread::io::Cursor;
 use binread::{BinRead, BinReaderExt};
-use serial::{BaudRate, SerialPort, SerialPortSettings};
+use serial::{BaudRate, SerialPort, SerialPortSettings, SystemPort};
 use slip_codec::Decoder;
 
 pub struct Connection {
-    serial: Box<dyn SerialPort>,
+    serial: SystemPort,
     decoder: Decoder,
 }
 
@@ -25,9 +25,9 @@ pub struct CommandResponse {
 }
 
 impl Connection {
-    pub fn new(serial: impl SerialPort + 'static) -> Self {
+    pub fn new(serial: SystemPort) -> Self {
         Connection {
-            serial: Box::new(serial),
+            serial,
             decoder: Decoder::new(),
         }
     }
@@ -99,7 +99,7 @@ impl Connection {
     pub fn write_command(
         &mut self,
         command: u8,
-        data: impl LazyBytes<Box<dyn SerialPort>>,
+        data: impl LazyBytes<SystemPort>,
         check: u32,
     ) -> Result<(), Error> {
         let mut encoder = SlipEncoder::new(&mut self.serial)?;
@@ -112,7 +112,7 @@ impl Connection {
         Ok(())
     }
 
-    pub fn command<Data: LazyBytes<Box<dyn SerialPort>>>(
+    pub fn command<Data: LazyBytes<SystemPort>>(
         &mut self,
         command: u8,
         data: Data,
@@ -147,6 +147,10 @@ impl Connection {
     pub fn flush(&mut self) -> Result<(), Error> {
         self.serial.flush()?;
         Ok(())
+    }
+
+    pub fn into_serial(self) -> SystemPort {
+        self.serial
     }
 }
 

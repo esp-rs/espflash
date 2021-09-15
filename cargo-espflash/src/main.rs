@@ -4,7 +4,6 @@ use error::Error;
 use espflash::{Config, Flasher, PartitionTable};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serial::{BaudRate, SerialPort};
-
 use std::{
     fs,
     path::PathBuf,
@@ -12,10 +11,13 @@ use std::{
     string::ToString,
 };
 
+use cargo_config::has_build_std;
+use monitor::monitor;
+
 mod cargo_config;
 mod error;
-
-use cargo_config::has_build_std;
+mod line_endings;
+mod monitor;
 
 fn main() -> Result<()> {
     let mut app = App::new(env!("CARGO_PKG_NAME"))
@@ -80,6 +82,11 @@ fn main() -> Result<()> {
                         .takes_value(true)
                         .value_name("SERIAL")
                         .help("Serial port connected to target device"),
+                )
+                .arg(
+                    Arg::with_name("monitor")
+                        .long("monitor")
+                        .help("Open a serial monitor after flashing"),
                 ),
         );
 
@@ -176,6 +183,10 @@ fn main() -> Result<()> {
         flasher.load_elf_to_ram(&elf_data)?;
     } else {
         flasher.load_elf_to_flash(&elf_data, bootloader, partition_table)?;
+    }
+
+    if matches.is_present("monitor") {
+        monitor(flasher.into_serial()).into_diagnostic()?;
     }
 
     // We're all done!
