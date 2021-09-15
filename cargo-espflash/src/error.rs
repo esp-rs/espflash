@@ -26,4 +26,10 @@ pub enum Error {
         help("Please specify which artifact to flash using --bin")
     )]
     MultipleArtifacts,
+    #[error("Specified partition table is not a csv file")]
+    #[diagnostic(code(cargo_espflash::partition_table_path))]
+    InvalidPartitionTablePath,
+    #[error("Specified bootloader table is not a bin file")]
+    #[diagnostic(code(cargo_espflash::bootloader_path))]
+    InvalidBootloaderPath,
 }

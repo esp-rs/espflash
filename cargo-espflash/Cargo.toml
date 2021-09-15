@@ -26,6 +26,7 @@ categories = [
 [dependencies]
 miette = "2"
 cargo_metadata = "0.14"
+cargo_toml = "0.10"
 clap = "2.33"
 crossterm = "0.21"
 espflash = { version = "*", path = "../espflash" }

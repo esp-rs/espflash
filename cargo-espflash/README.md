@@ -43,6 +43,16 @@ or `%APPDATA%/esp/espflash/espflash.toml` on Windows.
 serial = "/dev/ttyUSB0"
 ```
 
+### Package metadata
+
+You can also specify the bootloader or partition table for a project in the package metadata in `Cargo.toml`
+
+```toml
+[package.metadata.espflash]                                                                                                                                                                                                                                    
+partition_table = "partitions.csv"
+bootloader = "bootloader.bin"
+```
+
 ### Example
 
 ```bash
