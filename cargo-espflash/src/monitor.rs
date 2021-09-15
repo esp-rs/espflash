@@ -97,7 +97,8 @@ pub fn monitor(mut serial: SystemPort) -> serial::Result<()> {
         }?;
         if read_count > 0 {
             let data: Vec<u8> = normalized(buff[0..read_count].iter().copied()).collect();
-            stdout.write_all(&data).ok();
+            let data = String::from_utf8_lossy(&data);
+            stdout.write_all(data.as_bytes()).ok();
             stdout.flush()?;
         }
         if poll(Duration::from_secs(0))? {
