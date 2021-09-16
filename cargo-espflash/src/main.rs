@@ -1,8 +1,11 @@
+use cargo_config::has_build_std;
 use cargo_metadata::Message;
 use clap::{App, Arg, SubCommand};
 use error::Error;
 use espflash::{Config, Flasher, PartitionTable};
 use miette::{IntoDiagnostic, Result, WrapErr};
+use monitor::monitor;
+use package_metadata::CargoEspFlashMeta;
 use serial::{BaudRate, SerialPort};
 use std::{
     fs,
@@ -11,13 +14,11 @@ use std::{
     string::ToString,
 };
 
-use cargo_config::has_build_std;
-use monitor::monitor;
-
 mod cargo_config;
 mod error;
 mod line_endings;
 mod monitor;
+mod package_metadata;
 
 fn main() -> Result<()> {
     let mut app = App::new(env!("CARGO_PKG_NAME"))
@@ -100,6 +101,7 @@ fn main() -> Result<()> {
     };
 
     let config = Config::load();
+    let metadata = CargoEspFlashMeta::load("Cargo.toml")?;
 
     // The serial port must be specified, either as a command-line argument or in
     // the cargo configuration file. In the case that both have been provided the
@@ -158,7 +160,10 @@ fn main() -> Result<()> {
 
     // If the '--bootloader' option is provided, load the binary file at the
     // specified path.
-    let bootloader = if let Some(path) = matches.value_of("bootloader") {
+    let bootloader = if let Some(path) = matches
+        .value_of("bootloader")
+        .or_else(|| metadata.bootloader.as_deref())
+    {
         let path = fs::canonicalize(path).into_diagnostic()?;
         let data = fs::read(path).into_diagnostic()?;
         Some(data)
@@ -168,7 +173,10 @@ fn main() -> Result<()> {
 
     // If the '--partition-table' option is provided, load the partition table from
     // the CSV at the specified path.
-    let partition_table = if let Some(path) = matches.value_of("partition_table") {
+    let partition_table = if let Some(path) = matches
+        .value_of("partition_table")
+        .or_else(|| metadata.partition_table.as_deref())
+    {
         let path = fs::canonicalize(path).into_diagnostic()?;
         let data = fs::read_to_string(path).into_diagnostic()?;
         let table = PartitionTable::try_from_str(data)?;
