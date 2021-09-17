@@ -3,7 +3,8 @@ use std::cmp::Ordering;
 
 use crate::chip::Chip;
 use crate::flasher::FlashSize;
-use xmas_elf::program::{SegmentData, Type};
+use std::fmt::{Debug, Formatter};
+use xmas_elf::sections::{SectionData, ShType};
 use xmas_elf::ElfFile;
 
 pub const ESP_CHECKSUM_MAGIC: u8 = 0xef;
@@ -56,15 +57,18 @@ impl<'a> FirmwareImage<'a> {
 
     pub fn segments(&'a self) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
         self.elf
-            .program_iter()
+            .section_iter()
             .filter(|header| {
-                header.file_size() > 0 && header.get_type() == Ok(Type::Load) && header.offset() > 0
+                header.size() > 0
+                    && header.get_type() == Ok(ShType::ProgBits)
+                    && header.offset() > 0
+                    && header.address() > 0
             })
             .flat_map(move |header| {
-                let addr = header.virtual_addr() as u32;
-                let size = header.file_size() as u32;
+                let addr = header.address() as u32;
+                let size = header.size() as u32;
                 let data = match header.get_data(&self.elf) {
-                    Ok(SegmentData::Undefined(data)) => data,
+                    Ok(SectionData::Undefined(data)) => data,
                     _ => return None,
                 };
                 Some(CodeSegment { addr, data, size })
@@ -82,12 +86,46 @@ impl<'a> FirmwareImage<'a> {
     }
 }
 
-#[derive(Debug, Ord, Eq)]
+#[derive(Ord, Eq, Clone)]
 /// A segment of code from the source elf
 pub struct CodeSegment<'a> {
     pub addr: u32,
     pub size: u32,
     pub data: &'a [u8],
+}
+
+impl<'a> CodeSegment<'a> {
+    /// Split of the first `count` bytes into a new segment, adjusting the remaining segment as needed
+    pub fn split_off(&mut self, count: usize) -> CodeSegment<'a> {
+        if count < self.data.len() {
+            let data = &self.data[0..count];
+            let new = CodeSegment {
+                addr: self.addr,
+                size: data.len() as u32,
+                data,
+            };
+            self.addr += data.len() as u32;
+            self.size += data.len() as u32;
+            self.data = &self.data[count..];
+            new
+        } else {
+            let new = self.clone();
+            self.addr += self.size;
+            self.size = 0;
+            self.data = &[];
+            new
+        }
+    }
+}
+
+impl Debug for CodeSegment<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CodeSegment")
+            .field("addr", &self.addr)
+            .field("size", &self.size)
+            .field("data", &"...")
+            .finish()
+    }
 }
 
 impl PartialEq for CodeSegment<'_> {
