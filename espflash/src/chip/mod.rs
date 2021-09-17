@@ -204,8 +204,8 @@ const SEG_HEADER_LEN: u32 = 8;
 /// (this is because the segment's vaddr may not be IROM_ALIGNed, more likely is
 /// aligned IROM_ALIGN+0x18 to account for the binary file header
 fn get_segment_padding(offset: usize, segment: &CodeSegment) -> u32 {
-    let align_past = (segment.addr % IROM_ALIGN) - SEG_HEADER_LEN;
-    let pad_len = (IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past;
+    let align_past = (segment.addr - SEG_HEADER_LEN) % IROM_ALIGN;
+    let pad_len = ((IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past) % IROM_ALIGN;
     if pad_len == 0 || pad_len == IROM_ALIGN {
         0
     } else if pad_len > SEG_HEADER_LEN {
@@ -220,7 +220,7 @@ fn save_flash_segment(
     segment: &CodeSegment,
     checksum: u8,
 ) -> Result<u8, Error> {
-    let end_pos = (data.len() + segment.data.len()) as u32 + SEG_HEADER_LEN;
+    let end_pos = (data.len() + segment.data().len()) as u32 + SEG_HEADER_LEN;
     let segment_reminder = end_pos % IROM_ALIGN;
 
     let checksum = save_segment(data, segment, checksum)?;
@@ -235,17 +235,17 @@ fn save_flash_segment(
 }
 
 fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment, checksum: u8) -> Result<u8, Error> {
-    let padding = (4 - segment.data.len() % 4) % 4;
+    let padding = (4 - segment.size() % 4) % 4;
 
     let header = SegmentHeader {
         addr: segment.addr,
-        length: (segment.data.len() + padding) as u32,
+        length: segment.size() + padding,
     };
     data.write_all(bytes_of(&header))?;
-    data.write_all(segment.data)?;
+    data.write_all(segment.data())?;
 
-    let padding = &[0u8; 4][0..padding];
+    let padding = &[0u8; 4][0..padding as usize];
     data.write_all(padding)?;
 
-    Ok(update_checksum(segment.data, checksum))
+    Ok(update_checksum(segment.data(), checksum))
 }

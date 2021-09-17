@@ -55,7 +55,7 @@ impl<'a> FirmwareImage<'a> {
         self.elf.header.pt2.entry_point() as u32
     }
 
-    pub fn segments(&'a self) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
+    pub fn segments(&'a self) -> impl Iterator<Item = CodeSegment> + 'a {
         self.elf
             .section_iter()
             .filter(|header| {
@@ -66,77 +66,99 @@ impl<'a> FirmwareImage<'a> {
             })
             .flat_map(move |header| {
                 let addr = header.address() as u32;
-                let size = header.size() as u32;
                 let data = match header.get_data(&self.elf) {
                     Ok(SectionData::Undefined(data)) => data,
                     _ => return None,
                 };
-                Some(CodeSegment { addr, data, size })
+                Some(CodeSegment::new(addr, data))
             })
     }
 
-    pub fn rom_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
+    pub fn rom_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment> + 'a {
         self.segments()
             .filter(move |segment| chip.addr_is_flash(segment.addr))
     }
 
-    pub fn ram_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
+    pub fn ram_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment> + 'a {
         self.segments()
             .filter(move |segment| !chip.addr_is_flash(segment.addr))
     }
 }
 
-#[derive(Ord, Eq, Clone)]
+#[derive(Eq, Clone)]
 /// A segment of code from the source elf
-pub struct CodeSegment<'a> {
+pub struct CodeSegment {
     pub addr: u32,
-    pub size: u32,
-    pub data: &'a [u8],
+    data: Vec<u8>,
 }
 
-impl<'a> CodeSegment<'a> {
+impl CodeSegment {
+    pub fn new(addr: u32, data: &[u8]) -> Self {
+        let mut data = data.to_vec();
+
+        // pad to 4 byte
+        let padding = (4 - data.len() % 4) % 4;
+        data.extend_from_slice(&[0; 4][0..padding]);
+
+        CodeSegment { addr, data }
+    }
+
     /// Split of the first `count` bytes into a new segment, adjusting the remaining segment as needed
-    pub fn split_off(&mut self, count: usize) -> CodeSegment<'a> {
+    pub fn split_off(&mut self, count: usize) -> Self {
         if count < self.data.len() {
-            let data = &self.data[0..count];
+            let rest = self.data.split_off(count);
             let new = CodeSegment {
                 addr: self.addr,
-                size: data.len() as u32,
-                data,
+                data: self.data.split_off(0),
             };
-            self.addr += data.len() as u32;
-            self.size += data.len() as u32;
-            self.data = &self.data[count..];
+            self.addr += count as u32;
+            self.data = rest;
             new
         } else {
             let new = self.clone();
-            self.addr += self.size;
-            self.size = 0;
-            self.data = &[];
+            self.addr += self.size();
+            self.data = Vec::new();
             new
         }
     }
+
+    pub fn add(&mut self, data: &[u8]) {
+        self.data.extend_from_slice(data);
+    }
+
+    pub fn size(&self) -> u32 {
+        self.data.len() as u32
+    }
+
+    pub fn data(&self) -> &[u8] {
+        self.data.as_ref()
+    }
 }
 
-impl Debug for CodeSegment<'_> {
+impl Debug for CodeSegment {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CodeSegment")
             .field("addr", &self.addr)
-            .field("size", &self.size)
-            .field("data", &"...")
+            .field("size", &self.size())
             .finish()
     }
 }
 
-impl PartialEq for CodeSegment<'_> {
+impl PartialEq for CodeSegment {
     fn eq(&self, other: &Self) -> bool {
         self.addr.eq(&other.addr)
     }
 }
 
-impl PartialOrd for CodeSegment<'_> {
+impl PartialOrd for CodeSegment {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.addr.partial_cmp(&other.addr)
+    }
+}
+
+impl Ord for CodeSegment {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.addr.cmp(&other.addr)
     }
 }
 
@@ -146,10 +168,37 @@ pub struct RomSegment<'a> {
     pub data: Cow<'a, [u8]>,
 }
 
+impl From<CodeSegment> for RomSegment<'static> {
+    fn from(segment: CodeSegment) -> Self {
+        RomSegment {
+            addr: segment.addr,
+            data: Cow::Owned(segment.data),
+        }
+    }
+}
+
 pub fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
     for byte in data {
         checksum ^= *byte;
     }
 
     checksum
+}
+
+pub fn merge_segments(mut segments: Vec<CodeSegment>) -> Vec<CodeSegment> {
+    segments.sort();
+
+    let mut merged: Vec<CodeSegment> = Vec::with_capacity(segments.len());
+    for segment in segments {
+        match merged.last_mut() {
+            Some(last) if last.addr + last.size() == segment.addr => {
+                last.add(segment.data());
+            }
+            _ => {
+                merged.push(segment);
+            }
+        }
+    }
+
+    merged
 }

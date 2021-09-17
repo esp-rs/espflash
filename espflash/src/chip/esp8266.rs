@@ -48,7 +48,7 @@ impl ChipType for Esp8266 {
             let mut common_data = Vec::with_capacity(
                 image
                     .ram_segments(Chip::Esp8266)
-                    .map(|segment| segment.size as usize)
+                    .map(|segment| segment.size() as usize)
                     .sum(),
             );
             // common header
@@ -66,7 +66,7 @@ impl ChipType for Esp8266 {
             let mut checksum = ESP_CHECKSUM_MAGIC;
 
             for segment in image.ram_segments(Chip::Esp8266) {
-                let data = segment.data;
+                let data = segment.data();
                 let padding = 4 - data.len() % 4;
                 let segment_header = SegmentHeader {
                     addr: segment.addr,
@@ -111,17 +111,17 @@ fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
 }
 
 fn merge_rom_segments<'a>(
-    mut segments: impl Iterator<Item = CodeSegment<'a>>,
+    mut segments: impl Iterator<Item = CodeSegment>,
 ) -> Option<RomSegment<'a>> {
     let first = segments.next()?;
     if let Some(second) = segments.next() {
-        let mut data = Vec::with_capacity(first.data.len() + second.data.len());
-        data.extend_from_slice(first.data);
+        let mut data = Vec::with_capacity(first.data().len() + second.data().len());
+        data.extend_from_slice(first.data());
 
         for segment in once(second).chain(segments) {
             let padding_size = segment.addr as usize - first.addr as usize - data.len();
             data.resize(data.len() + padding_size, 0);
-            data.extend_from_slice(segment.data);
+            data.extend_from_slice(segment.data());
         }
 
         Some(RomSegment {
@@ -131,7 +131,7 @@ fn merge_rom_segments<'a>(
     } else {
         Some(RomSegment {
             addr: first.addr - IROM_MAP_START,
-            data: Cow::Borrowed(first.data),
+            data: Cow::Owned(first.data().into()),
         })
     }
 }

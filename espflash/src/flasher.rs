@@ -10,6 +10,7 @@ use crate::{
     chip::Chip, connection::Connection, elf::FirmwareImage, encoder::SlipEncoder, error::RomError,
     Error, PartitionTable,
 };
+use std::borrow::Cow;
 
 pub(crate) type Encoder<'a> = SlipEncoder<'a, SystemPort>;
 
@@ -481,7 +482,7 @@ impl Flasher {
                     &mut self.connection,
                     RomSegment {
                         addr: segment.addr,
-                        data: segment.data.into(),
+                        data: Cow::Borrowed(segment.data()),
                     },
                 )
                 .flashing()?;
