@@ -3,21 +3,22 @@ use strum_macros::Display;
 
 use crate::{
     elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment},
-    flasher::FlashSize,
+    error::{ChipDetectError, FlashDetectError},
+    flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
+    flasher::{FlashSize, SpiAttachParams},
     Error, PartitionTable,
 };
 
 use std::io::Write;
 
-use crate::error::{ChipDetectError, FlashDetectError};
-use crate::flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget};
-use crate::flasher::SpiAttachParams;
 pub use esp32::Esp32;
 pub use esp32c3::Esp32c3;
+pub use esp32s2::Esp32s2;
 pub use esp8266::Esp8266;
 
 mod esp32;
 mod esp32c3;
+mod esp32s2;
 mod esp8266;
 
 const ESP_MAGIC: u8 = 0xE9;
@@ -98,6 +99,8 @@ pub enum Chip {
     Esp32,
     #[strum(serialize = "ESP32-C3")]
     Esp32c3,
+    #[strum(serialize = "ESP32-S2")]
+    Esp32s2,
     #[strum(serialize = "ESP8266")]
     Esp8266,
 }
@@ -109,6 +112,7 @@ impl Chip {
             Esp32c3::CHIP_DETECT_MAGIC_VALUE | Esp32c3::CHIP_DETECT_MAGIC_VALUE2 => {
                 Ok(Chip::Esp32c3)
             }
+            Esp32s2::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp32s2),
             Esp8266::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp8266),
             _ => Err(ChipDetectError::from(magic)),
         }
@@ -123,6 +127,7 @@ impl Chip {
         match self {
             Chip::Esp32 => Esp32::get_flash_segments(image, bootloader, partition_table),
             Chip::Esp32c3 => Esp32c3::get_flash_segments(image, bootloader, partition_table),
+            Chip::Esp32s2 => Esp32s2::get_flash_segments(image, bootloader, partition_table),
             Chip::Esp8266 => Esp8266::get_flash_segments(image, None, None),
         }
     }
@@ -131,6 +136,7 @@ impl Chip {
         match self {
             Chip::Esp32 => Esp32::addr_is_flash(addr),
             Chip::Esp32c3 => Esp32c3::addr_is_flash(addr),
+            Chip::Esp32s2 => Esp32s2::addr_is_flash(addr),
             Chip::Esp8266 => Esp8266::addr_is_flash(addr),
         }
     }
@@ -139,6 +145,7 @@ impl Chip {
         match self {
             Chip::Esp32 => Esp32::SPI_REGISTERS,
             Chip::Esp32c3 => Esp32c3::SPI_REGISTERS,
+            Chip::Esp32s2 => Esp32s2::SPI_REGISTERS,
             Chip::Esp8266 => Esp8266::SPI_REGISTERS,
         }
     }
