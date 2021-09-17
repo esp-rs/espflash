@@ -29,7 +29,7 @@ impl FlashTarget for Esp8266Target {
     fn write_segment(
         &mut self,
         connection: &mut Connection,
-        segment: RomSegment,
+        segment: &RomSegment,
     ) -> Result<(), Error> {
         let addr = segment.addr;
         let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;

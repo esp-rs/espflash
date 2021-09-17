@@ -31,7 +31,7 @@ impl FlashTarget for RamTarget {
     fn write_segment(
         &mut self,
         connection: &mut Connection,
-        segment: RomSegment,
+        segment: &RomSegment,
     ) -> Result<(), Error> {
         const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 

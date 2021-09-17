@@ -479,7 +479,7 @@ impl Flasher {
             target
                 .write_segment(
                     &mut self.connection,
-                    RomSegment {
+                    &RomSegment {
                         addr: segment.addr,
                         data: segment.data.into(),
                     },
@@ -508,7 +508,7 @@ impl Flasher {
             .get_flash_segments(&image, bootloader, partition_table)
         {
             target
-                .write_segment(&mut self.connection, segment?)
+                .write_segment(&mut self.connection, &segment?)
                 .flashing()?;
         }
 

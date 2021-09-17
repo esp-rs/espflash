@@ -4,13 +4,14 @@ use strum_macros::Display;
 use crate::{
     elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment},
     error::{ChipDetectError, FlashDetectError},
-    flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
+    flash_target::{Esp32CompressedTarget, Esp8266Target, FlashTarget, RamTarget},
     flasher::{FlashSize, SpiAttachParams},
     Error, PartitionTable,
 };
 
 use std::io::Write;
 
+use crate::flash_target::{Esp32Target, FailOver};
 pub use esp32::Esp32;
 pub use esp32c3::Esp32c3;
 pub use esp32s2::Esp32s2;
@@ -157,7 +158,10 @@ impl Chip {
     pub fn flash_target(&self, spi_params: SpiAttachParams) -> Box<dyn FlashTarget> {
         match self {
             Chip::Esp8266 => Box::new(Esp8266Target::new()),
-            _ => Box::new(Esp32Target::new(*self, spi_params)),
+            _ => Box::new(FailOver::new(
+                Esp32CompressedTarget::new(*self, spi_params),
+                Esp32Target::new(*self, spi_params),
+            )),
         }
     }
 }

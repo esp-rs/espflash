@@ -1,5 +1,7 @@
 mod esp32;
+mod esp32_compressed;
 mod esp8266;
+mod failover;
 mod ram;
 
 use crate::connection::Connection;
@@ -8,7 +10,9 @@ use crate::error::Error;
 use crate::flasher::{checksum, Command, Encoder, CHECKSUM_INIT, FLASH_WRITE_SIZE};
 use bytemuck::{bytes_of, Pod, Zeroable};
 pub use esp32::Esp32Target;
+pub use esp32_compressed::Esp32CompressedTarget;
 pub use esp8266::Esp8266Target;
+pub use failover::FailOver;
 pub use ram::RamTarget;
 use std::mem::size_of;
 use std::time::Duration;
@@ -18,7 +22,7 @@ pub trait FlashTarget {
     fn write_segment(
         &mut self,
         connection: &mut Connection,
-        segment: RomSegment,
+        segment: &RomSegment,
     ) -> Result<(), Error>;
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error>;
 }
