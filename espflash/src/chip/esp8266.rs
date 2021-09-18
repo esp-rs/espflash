@@ -111,7 +111,7 @@ fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
 }
 
 fn merge_rom_segments<'a>(
-    mut segments: impl Iterator<Item = CodeSegment>,
+    mut segments: impl Iterator<Item = CodeSegment<'a>>,
 ) -> Option<RomSegment<'a>> {
     let first = segments.next()?;
     if let Some(second) = segments.next() {

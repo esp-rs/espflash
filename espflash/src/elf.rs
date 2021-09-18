@@ -4,6 +4,7 @@ use std::cmp::Ordering;
 use crate::chip::Chip;
 use crate::flasher::FlashSize;
 use std::fmt::{Debug, Formatter};
+use std::mem::take;
 use xmas_elf::sections::{SectionData, ShType};
 use xmas_elf::ElfFile;
 
@@ -55,7 +56,7 @@ impl<'a> FirmwareImage<'a> {
         self.elf.header.pt2.entry_point() as u32
     }
 
-    pub fn segments(&'a self) -> impl Iterator<Item = CodeSegment> + 'a {
+    pub fn segments(&'a self) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
         self.elf
             .section_iter()
             .filter(|header| {
@@ -74,12 +75,12 @@ impl<'a> FirmwareImage<'a> {
             })
     }
 
-    pub fn rom_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment> + 'a {
+    pub fn rom_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
         self.segments()
             .filter(move |segment| chip.addr_is_flash(segment.addr))
     }
 
-    pub fn ram_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment> + 'a {
+    pub fn ram_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
         self.segments()
             .filter(move |segment| !chip.addr_is_flash(segment.addr))
     }
@@ -87,43 +88,62 @@ impl<'a> FirmwareImage<'a> {
 
 #[derive(Eq, Clone)]
 /// A segment of code from the source elf
-pub struct CodeSegment {
+pub struct CodeSegment<'a> {
     pub addr: u32,
-    data: Vec<u8>,
+    data: Cow<'a, [u8]>,
 }
 
-impl CodeSegment {
-    pub fn new(addr: u32, data: &[u8]) -> Self {
-        let mut data = data.to_vec();
-
+impl<'a> CodeSegment<'a> {
+    pub fn new(addr: u32, data: &'a [u8]) -> Self {
         // pad to 4 byte
         let padding = (4 - data.len() % 4) % 4;
-        data.extend_from_slice(&[0; 4][0..padding]);
-
-        CodeSegment { addr, data }
+        if padding == 0 {
+            CodeSegment {
+                addr,
+                data: Cow::Borrowed(data),
+            }
+        } else {
+            let mut data = data.to_vec();
+            data.extend_from_slice(&[0; 4][0..padding]);
+            CodeSegment {
+                addr,
+                data: Cow::Owned(data),
+            }
+        }
     }
 
     /// Split of the first `count` bytes into a new segment, adjusting the remaining segment as needed
     pub fn split_off(&mut self, count: usize) -> Self {
         if count < self.data.len() {
-            let rest = self.data.split_off(count);
+            let (head, tail) = match take(&mut self.data) {
+                Cow::Borrowed(data) => {
+                    let (head, tail) = data.split_at(count);
+                    (Cow::Borrowed(head), Cow::Borrowed(tail))
+                }
+                Cow::Owned(mut data) => {
+                    let tail = data.split_off(count);
+                    (Cow::Owned(data), Cow::Owned(tail))
+                }
+            };
             let new = CodeSegment {
                 addr: self.addr,
-                data: self.data.split_off(0),
+                data: head,
             };
             self.addr += count as u32;
-            self.data = rest;
+            self.data = tail;
             new
         } else {
             let new = self.clone();
             self.addr += self.size();
-            self.data = Vec::new();
+            self.data = Cow::Borrowed(&[]);
             new
         }
     }
 
-    pub fn add(&mut self, data: &[u8]) {
-        self.data.extend_from_slice(data);
+    pub fn add(&mut self, extend: &[u8]) {
+        let mut data = take(&mut self.data).into_owned();
+        data.extend_from_slice(extend);
+        self.data = Cow::Owned(data);
     }
 
     pub fn size(&self) -> u32 {
@@ -135,7 +155,7 @@ impl CodeSegment {
     }
 }
 
-impl Debug for CodeSegment {
+impl Debug for CodeSegment<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CodeSegment")
             .field("addr", &self.addr)
@@ -144,19 +164,19 @@ impl Debug for CodeSegment {
     }
 }
 
-impl PartialEq for CodeSegment {
+impl PartialEq for CodeSegment<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.addr.eq(&other.addr)
     }
 }
 
-impl PartialOrd for CodeSegment {
+impl PartialOrd for CodeSegment<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.addr.partial_cmp(&other.addr)
     }
 }
 
-impl Ord for CodeSegment {
+impl Ord for CodeSegment<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.addr.cmp(&other.addr)
     }
@@ -168,11 +188,11 @@ pub struct RomSegment<'a> {
     pub data: Cow<'a, [u8]>,
 }
 
-impl From<CodeSegment> for RomSegment<'static> {
-    fn from(segment: CodeSegment) -> Self {
+impl<'a> From<CodeSegment<'a>> for RomSegment<'a> {
+    fn from(segment: CodeSegment<'a>) -> Self {
         RomSegment {
             addr: segment.addr,
-            data: Cow::Owned(segment.data),
+            data: segment.data,
         }
     }
 }
