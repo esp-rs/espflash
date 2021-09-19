@@ -6,7 +6,7 @@ use espflash::{Config, Flasher, PartitionTable};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use monitor::monitor;
 use package_metadata::CargoEspFlashMeta;
-use serial::{BaudRate, SerialPort};
+use serial::{BaudRate, FlowControl, SerialPort};
 use std::{
     fs,
     path::PathBuf,
@@ -137,6 +137,7 @@ fn main() -> Result<()> {
         .wrap_err_with(|| format!("Failed to open serial port {}", port))?;
     serial
         .reconfigure(&|settings| {
+            settings.set_flow_control(FlowControl::FlowNone);
             settings.set_baud_rate(BaudRate::Baud115200)?;
             Ok(())
         })

@@ -3,7 +3,7 @@ use std::fs::read;
 use espflash::{Config, Error, Flasher};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use pico_args::Arguments;
-use serial::{BaudRate, SerialPort};
+use serial::{BaudRate, FlowControl, SerialPort};
 
 #[allow(clippy::unnecessary_wraps)]
 fn help() -> Result<()> {
@@ -40,6 +40,7 @@ fn main() -> Result<()> {
         .wrap_err_with(|| format!("Failed to open serial port {}", serial))?;
     serial
         .reconfigure(&|settings| {
+            settings.set_flow_control(FlowControl::FlowNone);
             settings.set_baud_rate(BaudRate::Baud115200)?;
 
             Ok(())

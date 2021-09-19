@@ -56,7 +56,7 @@ impl Connection {
 
         sleep(Duration::from_millis(50));
 
-        self.serial.set_dtr(true)?;
+        self.serial.set_dtr(false)?;
 
         Ok(())
     }
