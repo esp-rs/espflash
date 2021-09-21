@@ -1,6 +1,6 @@
 # `espflash`
 
-_ESP8266_ and _ESP32_ serial flasher library and CLI application.
+__ESP32__, __ESP32-S3__, __ESP32-C3__, and __ESP8266__ serial flasher library and CLI application.
 
 [![asciicast](https://asciinema.org/a/367205.svg)](https://asciinema.org/a/367205)
 
@@ -17,7 +17,7 @@ When the `--board-info` is specified, instead of flashing anything, the chip typ
 ### Config
 
 You can also specify the serial port by setting it in the config file located at `~/.config/espflash/espflash.toml` or linux
-or `%APPDATA%/esp/espflash/espflash.toml` on windows.
+or `%APPDATA%/esp/espflash/espflash.toml` on Windows.
 
 ```toml
 [connection]
