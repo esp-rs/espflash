@@ -71,7 +71,9 @@ impl Command {
             )
         }
         match self {
-            Command::FlashBegin => calc_timeout(ERASE_REGION_TIMEOUT_PER_MB, size),
+            Command::FlashBegin | Command::FlashDeflateBegin => {
+                calc_timeout(ERASE_REGION_TIMEOUT_PER_MB, size)
+            }
             Command::FlashData | Command::FlashDeflateData => {
                 calc_timeout(ERASE_WRITE_TIMEOUT_PER_MB, size)
             }
