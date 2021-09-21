@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    name: Build Static Linux Binaries
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: musl-tools
+        run: |
+          sudo apt-get install musl-tools
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all --target x86_64-unknown-linux-musl
+      - uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/x86_64-unknown-linux-musl/release/espflash
+          asset_name: espflash
+          tag: ${{ github.ref }}
+      - uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/x86_64-unknown-linux-musl/release/cargo-espflash
+          asset_name: cargo-espflash
+          tag: ${{ github.ref }}
+
+  build-windows:
+    name: Build Static Windows Binaries
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-gnu
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --all --target x86_64-pc-windows-gnu
+      - uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/x86_64-pc-windows-gnu/release/espflash.exe
+          asset_name: espflash.exe
+          tag: ${{ github.ref }}
+      - uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/x86_64-pc-windows-gnu/release/cargo-espflash.exe
+          asset_name: cargo-espflash.exe
+          tag: ${{ github.ref }}
