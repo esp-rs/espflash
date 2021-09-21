@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "0.1.4"
+version = "1.0.0"
 authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",
@@ -35,3 +35,7 @@ serde = { version = "1.0", features = ["derive"] }
 serial = "0.4"
 toml = "0.5"
 thiserror = "1"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/cargo-espflash{ format }"
+pkg-fmt = "bin"
