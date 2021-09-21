@@ -37,3 +37,7 @@ miette = "2"
 
 [dev-dependencies]
 pretty_assertions = "0.7.1"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }"
+pkg-fmt = "bin"

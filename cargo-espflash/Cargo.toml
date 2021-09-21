@@ -37,5 +37,5 @@ toml = "0.5"
 thiserror = "1"
 
 [package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/v{ version }/cargo-espflash{ format }"
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }"
 pkg-fmt = "bin"
