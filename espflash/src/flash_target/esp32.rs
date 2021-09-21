@@ -27,7 +27,7 @@ impl FlashTarget for Esp32Target {
     fn begin(&mut self, connection: &mut Connection, _image: &FirmwareImage) -> Result<(), Error> {
         let spi_params = self.spi_attach_params.encode();
         connection.with_timeout(Command::SpiAttach.timeout(), |connection| {
-            connection.command(Command::SpiAttach as u8, spi_params.as_slice(), 0)
+            connection.command(Command::SpiAttach, spi_params.as_slice(), 0)
         })?;
         Ok(())
     }

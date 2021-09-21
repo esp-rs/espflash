@@ -1,6 +1,8 @@
+use crate::flasher::Command;
 use csv::Position;
 use miette::{Diagnostic, SourceOffset, SourceSpan};
 use slip_codec::Error as SlipError;
+use std::fmt::{Display, Formatter};
 use std::io;
 use thiserror::Error;
 
@@ -63,9 +65,9 @@ pub enum ConnectionError {
         help("Ensure that the device is connected and your host recognizes the serial adapter")
     )]
     DeviceNotFound,
-    #[error("Timeout while running command")]
+    #[error("Timeout while running {0}command")]
     #[diagnostic(code(espflash::timeout))]
-    Timeout,
+    Timeout(TimedOutCommand),
     #[error("Received packet has invalid SLIP framing")]
     #[diagnostic(
         code(espflash::slip_framing),
@@ -78,6 +80,26 @@ pub enum ConnectionError {
         help("Try hard-resetting the device and try again, if the error persists your rom might be corrupted")
     )]
     OverSizedPacket,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct TimedOutCommand {
+    command: Option<Command>,
+}
+
+impl From<Command> for TimedOutCommand {
+    fn from(c: Command) -> Self {
+        TimedOutCommand { command: Some(c) }
+    }
+}
+
+impl Display for TimedOutCommand {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match &self.command {
+            Some(command) => write!(f, "{} ", command),
+            None => Ok(()),
+        }
+    }
 }
 
 impl From<serial::Error> for ConnectionError {
@@ -110,7 +132,7 @@ impl From<io::Error> for Error {
 
 fn from_error_kind<E: Into<serial::Error>>(kind: io::ErrorKind, err: E) -> ConnectionError {
     match kind {
-        io::ErrorKind::TimedOut => ConnectionError::Timeout,
+        io::ErrorKind::TimedOut => ConnectionError::Timeout(TimedOutCommand::default()),
         io::ErrorKind::NotFound => ConnectionError::DeviceNotFound,
         _ => ConnectionError::Serial(err.into()),
     }
@@ -197,12 +219,26 @@ impl From<u8> for RomError {
 pub(crate) trait ResultExt {
     /// mark an error as having occurred during the flashing stage
     fn flashing(self) -> Self;
+    /// mark the command from which this error originates
+    fn for_command(self, command: Command) -> Self;
 }
 
 impl<T> ResultExt for Result<T, Error> {
     fn flashing(self) -> Self {
         match self {
             Err(Error::Connection(err)) => Err(Error::Flashing(err)),
+            res => res,
+        }
+    }
+
+    fn for_command(self, command: Command) -> Self {
+        match self {
+            Err(Error::Connection(ConnectionError::Timeout(_))) => {
+                Err(Error::Connection(ConnectionError::Timeout(command.into())))
+            }
+            Err(Error::Flashing(ConnectionError::Timeout(_))) => {
+                Err(Error::Flashing(ConnectionError::Timeout(command.into())))
+            }
             res => res,
         }
     }

@@ -61,7 +61,7 @@ fn begin_command(
     };
 
     connection.with_timeout(command.timeout_for_size(size), |connection| {
-        connection.command(command as u8, data, 0)?;
+        connection.command(command, data, 0)?;
         Ok(())
     })
 }
@@ -120,7 +120,7 @@ fn block_command_with_timeout(
 
     connection.with_timeout(timout, |connection| {
         connection.command(
-            command as u8,
+            command,
             (length as u16, |encoder: &mut Encoder| {
                 encoder.write(bytes_of(&params))?;
                 encoder.write(data)?;
