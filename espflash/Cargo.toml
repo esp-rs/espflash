@@ -6,6 +6,7 @@ edition = "2018"
 license = "GPL-2.0"
 description = "ESP8266 and ESP32 serial flasher"
 repository = "https://github.com/esp-rs/espflash"
+exclude = ["tests/data"]
 
 [[bin]]
 name = "espflash"
