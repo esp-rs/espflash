@@ -7,7 +7,7 @@ Prior to flashing, the project is built using the `build-std` unstable cargo fea
 ## Usage
 
 ```text
-cargo-espflash 0.1.4
+cargo-espflash 1.0.0
 Cargo subcommand for flashing Espressif devices over serial
 
 USAGE:
