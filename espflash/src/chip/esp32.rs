@@ -83,7 +83,7 @@ impl ChipType for Esp32 {
                 addr: PARTION_ADDR,
                 data: Cow::Owned(partition_table),
             })))
-            .chain(once(get_data(image, 0))),
+            .chain(once(get_data(image, 0, Chip::Esp32))),
         )
     }
 }
@@ -111,6 +111,7 @@ fn test_esp32_rom() {
 pub(crate) fn get_data<'a>(
     image: &'a FirmwareImage,
     chip_id: u16,
+    chip: Chip,
 ) -> Result<RomSegment<'a>, Error> {
     let mut data = Vec::new();
 
@@ -137,10 +138,8 @@ pub(crate) fn get_data<'a>(
 
     let mut checksum = ESP_CHECKSUM_MAGIC;
 
-    let _ = image.segments().collect::<Vec<_>>();
-
-    let flash_segments: Vec<_> = merge_segments(image.rom_segments(Chip::Esp32s2).collect());
-    let mut ram_segments: Vec<_> = merge_segments(image.ram_segments(Chip::Esp32s2).collect());
+    let flash_segments: Vec<_> = merge_segments(image.rom_segments(chip).collect());
+    let mut ram_segments: Vec<_> = merge_segments(image.ram_segments(chip).collect());
 
     let mut segment_count = 0;
 

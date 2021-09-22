@@ -2,7 +2,7 @@ use crate::chip::esp32::get_data;
 use crate::{
     chip::{ChipType, SpiRegisters},
     elf::{FirmwareImage, RomSegment},
-    Error, PartitionTable,
+    Chip, Error, PartitionTable,
 };
 use std::{borrow::Cow, iter::once};
 
@@ -77,7 +77,7 @@ impl ChipType for Esp32s2 {
                 addr: PARTITION_ADDR,
                 data: Cow::Owned(partition_table),
             })))
-            .chain(once(get_data(image, 2))),
+            .chain(once(get_data(image, 2, Chip::Esp32s2))),
         )
     }
 }
