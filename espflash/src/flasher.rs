@@ -28,10 +28,12 @@ const ERASE_WRITE_TIMEOUT_PER_MB: Duration = Duration::from_secs(40);
 const MEM_END_TIMEOUT: Duration = Duration::from_millis(50);
 const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Display)]
 #[allow(dead_code)]
 #[repr(u8)]
-pub(crate) enum Command {
+#[non_exhaustive]
+pub enum Command {
+    Unknown = 0,
     FlashBegin = 0x02,
     FlashData = 0x03,
     FlashEnd = 0x04,
@@ -48,6 +50,7 @@ pub(crate) enum Command {
     FlashDeflateData = 0x11,
     FlashDeflateEnd = 0x12,
     FlashMd5 = 0x13,
+    FlashDetect = 0x9f,
 }
 
 impl Command {
@@ -68,7 +71,9 @@ impl Command {
             )
         }
         match self {
-            Command::FlashBegin => calc_timeout(ERASE_REGION_TIMEOUT_PER_MB, size),
+            Command::FlashBegin | Command::FlashDeflateBegin => {
+                calc_timeout(ERASE_REGION_TIMEOUT_PER_MB, size)
+            }
             Command::FlashData | Command::FlashDeflateData => {
                 calc_timeout(ERASE_WRITE_TIMEOUT_PER_MB, size)
             }
@@ -258,7 +263,7 @@ impl Flasher {
     }
 
     fn flash_detect(&mut self) -> Result<bool, Error> {
-        let flash_id = self.spi_command(0x9f, &[], 24)?;
+        let flash_id = self.spi_command(Command::FlashDetect, &[], 24)?;
         let size_id = flash_id >> 16;
 
         self.flash_size = FlashSize::from(size_id as u8)?;
@@ -340,7 +345,7 @@ impl Flasher {
 
         self.connection
             .with_timeout(command.timeout_for_size(size), |connection| {
-                connection.command(command as u8, data, 0)?;
+                connection.command(command, data, 0)?;
                 Ok(())
             })
     }
@@ -354,14 +359,14 @@ impl Flasher {
                 let spi_params = spi_attach_params.encode();
                 self.connection
                     .with_timeout(Command::SpiAttach.timeout(), |connection| {
-                        connection.command(Command::SpiAttach as u8, spi_params.as_slice(), 0)
+                        connection.command(Command::SpiAttach, spi_params.as_slice(), 0)
                     })?;
             }
         }
         Ok(())
     }
 
-    fn spi_command(&mut self, command: u8, data: &[u8], read_bits: u32) -> Result<u32, Error> {
+    fn spi_command(&mut self, command: Command, data: &[u8], read_bits: u32) -> Result<u32, Error> {
         assert!(read_bits < 32);
         assert!(data.len() < 64);
 
@@ -421,7 +426,7 @@ impl Flasher {
             }
             i += 1;
             if i > 10 {
-                return Err(Error::Connection(ConnectionError::Timeout));
+                return Err(Error::Connection(ConnectionError::Timeout(command.into())));
             }
         }
 
@@ -435,7 +440,7 @@ impl Flasher {
     fn read_reg(&mut self, reg: u32) -> Result<u32, Error> {
         self.connection
             .with_timeout(Command::ReadReg.timeout(), |connection| {
-                connection.command(Command::ReadReg as u8, &reg.to_le_bytes()[..], 0)
+                connection.command(Command::ReadReg, &reg.to_le_bytes()[..], 0)
             })
     }
 
@@ -448,7 +453,7 @@ impl Flasher {
         };
         self.connection
             .with_timeout(Command::WriteReg.timeout(), |connection| {
-                connection.command(Command::WriteReg as u8, bytes_of(&params), 0)
+                connection.command(Command::WriteReg, bytes_of(&params), 0)
             })?;
         Ok(())
     }
@@ -524,11 +529,7 @@ impl Flasher {
 
         self.connection
             .with_timeout(Command::ChangeBaud.timeout(), |connection| {
-                connection.command(
-                    Command::ChangeBaud as u8,
-                    &[new_speed, old_speed].concat()[..],
-                    0,
-                )
+                connection.command(Command::ChangeBaud, &[new_speed, old_speed].concat()[..], 0)
             })?;
         self.connection.set_baud(speed)?;
         std::thread::sleep(Duration::from_secs_f32(0.05));

@@ -3,7 +3,8 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use crate::encoder::SlipEncoder;
-use crate::error::{ConnectionError, Error, RomError};
+use crate::error::{ConnectionError, Error, ResultExt, RomError};
+use crate::flasher::Command;
 use binread::io::Cursor;
 use binread::{BinRead, BinReaderExt};
 use serial::{BaudRate, SerialPort, SerialPortSettings, SystemPort};
@@ -114,14 +115,15 @@ impl Connection {
 
     pub fn command<Data: LazyBytes<SystemPort>>(
         &mut self,
-        command: u8,
+        command: Command,
         data: Data,
         check: u32,
     ) -> Result<u32, Error> {
-        self.write_command(command, data, check)?;
+        self.write_command(command as u8, data, check)
+            .for_command(command)?;
 
         for _ in 0..100 {
-            match self.read_response()? {
+            match self.read_response().for_command(command)? {
                 Some(response) if response.return_op == command as u8 => {
                     if response.status == 1 {
                         let _error = self.flush();
