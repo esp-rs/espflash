@@ -24,7 +24,7 @@ categories = [
 ]
 
 [dependencies]
-miette = "2"
+miette = { version = "3", features = ["fancy"] }
 cargo_metadata = "0.14"
 cargo_toml = "0.10"
 clap = "2.33"

@@ -250,13 +250,12 @@ impl<T> ResultExt for Result<T, Error> {
     code(espflash::mallformed_partition_table),
     help("See the espressif documentation for information on the partition table format:
 
-          https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#creating-custom-tables")
+https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#creating-custom-tables")
 )]
 pub struct PartitionTableError {
+    #[source_code]
     source: String,
-    #[snippet(source)]
-    snip: SourceSpan,
-    #[highlight(snip, label("{}", self.hint))]
+    #[label("{}", self.hint)]
     err_span: SourceSpan,
     hint: String,
     #[source]
@@ -280,26 +279,19 @@ impl PartitionTableError {
             ),
             _ => String::new(),
         };
-        let snip_start =
-            SourceOffset::from_location(&source, err_pos.line().saturating_sub(2) as usize, 0);
-        let snip_end =
-            SourceOffset::from_location(&source, err_pos.line().saturating_add(2) as usize, 0);
-        let snip = SourceSpan::new(snip_start, (snip_end.offset() - snip_start.offset()).into());
 
         // since csv doesn't give us the position in the line the error occurs, we highlight the entire line
-        let line_length = (source
+        let line_length = source
             .lines()
             .nth(err_pos.line() as usize - 1)
             .unwrap()
             .len()
-            - 1)
-        .into();
+            .into();
         let err_span = SourceSpan::new(pos_to_offset(err_pos), line_length);
 
         PartitionTableError {
             source,
             err_span,
-            snip,
             hint,
             error,
         }
@@ -307,7 +299,7 @@ impl PartitionTableError {
 }
 
 fn pos_to_offset(pos: Position) -> SourceOffset {
-    (pos.byte() as usize + 1).into()
+    (pos.byte() as usize).into()
 }
 
 #[derive(Debug, Error)]

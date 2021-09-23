@@ -21,6 +21,7 @@ mod monitor;
 mod package_metadata;
 
 fn main() -> Result<()> {
+    miette::set_panic_hook();
     let mut app = App::new(env!("CARGO_PKG_NAME"))
         .bin_name("cargo")
         .subcommand(

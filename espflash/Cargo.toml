@@ -34,7 +34,7 @@ strum_macros = "0.21.1"
 csv = "1.1.6"
 regex = "1.5.4"
 flate2 = "1"
-miette = "2"
+miette = { version = "3", features = ["fancy"] }
 
 [dev-dependencies]
 pretty_assertions = "0.7.1"
