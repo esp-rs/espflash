@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "1.0.0"
+version = "1.0.1"
 authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",
