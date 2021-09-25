@@ -1,4 +1,5 @@
-use crate::chip::esp32::get_data;
+use crate::chip::Esp32Params;
+use crate::image_format::{Esp32BootloaderFormat, ImageFormat};
 use crate::{
     chip::{ChipType, SpiRegisters},
     elf::{FirmwareImage, RomSegment},
@@ -14,15 +15,17 @@ const IROM_MAP_END: u32 = 0x40b80000;
 const DROM_MAP_START: u32 = 0x3F000000;
 const DROM_MAP_END: u32 = 0x3F3F0000;
 
-const BOOT_ADDR: u32 = 0x1000;
-const PARTITION_ADDR: u32 = 0x8000;
-const NVS_ADDR: u32 = 0x9000;
-const PHY_INIT_DATA_ADDR: u32 = 0xf000;
-const APP_ADDR: u32 = 0x10000;
-
-const NVS_SIZE: u32 = 0x6000;
-const PHY_INIT_DATA_SIZE: u32 = 0x1000;
-const APP_SIZE: u32 = 0x100000;
+pub const PARAMS: Esp32Params = Esp32Params {
+    boot_addr: 0x1000,
+    partition_addr: 0x8000,
+    nvs_addr: 0x9000,
+    nvs_size: 0x6000,
+    phy_init_data_addr: 0xf000,
+    phy_init_data_size: 0x1000,
+    app_addr: 0x10000,
+    app_size: 0x100000,
+    chip_id: 2,
+};
 
 impl ChipType for Esp32s2 {
     const CHIP_DETECT_MAGIC_VALUE: u32 = 0x000007c6;
@@ -48,36 +51,14 @@ impl ChipType for Esp32s2 {
         partition_table: Option<PartitionTable>,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         let bootloader = if let Some(bytes) = bootloader {
-            bytes
+            Cow::Owned(bytes)
         } else {
-            let bytes = include_bytes!("../../bootloader/esp32s2-bootloader.bin");
-            bytes.to_vec()
+            Cow::Borrowed(&include_bytes!("../../bootloader/esp32s2-bootloader.bin")[..])
         };
 
-        let partition_table = if let Some(table) = partition_table {
-            table
-        } else {
-            PartitionTable::basic(
-                NVS_ADDR,
-                NVS_SIZE,
-                PHY_INIT_DATA_ADDR,
-                PHY_INIT_DATA_SIZE,
-                APP_ADDR,
-                APP_SIZE,
-            )
-        };
-        let partition_table = partition_table.to_bytes();
-
-        Box::new(
-            once(Ok(RomSegment {
-                addr: BOOT_ADDR,
-                data: Cow::Owned(bootloader),
-            }))
-            .chain(once(Ok(RomSegment {
-                addr: PARTITION_ADDR,
-                data: Cow::Owned(partition_table),
-            })))
-            .chain(once(get_data(image, 2, Chip::Esp32s2))),
-        )
+        match Esp32BootloaderFormat::new(image, Chip::Esp32, PARAMS, partition_table, bootloader) {
+            Ok(format) => Box::new(format.segments().map(Ok)),
+            Err(e) => Box::new(once(Err(e))),
+        }
     }
 }

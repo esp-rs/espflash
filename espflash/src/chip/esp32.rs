@@ -1,16 +1,13 @@
-use crate::elf::merge_segments;
+use crate::chip::Esp32Params;
+
+use crate::image_format::{Esp32BootloaderFormat, ImageFormat};
 use crate::{
-    chip::{
-        encode_flash_size, get_segment_padding, save_flash_segment, save_segment, Chip, ChipType,
-        EspCommonHeader, ExtendedHeader, SegmentHeader, SpiRegisters, ESP_MAGIC, SEG_HEADER_LEN,
-        WP_PIN_DISABLED,
-    },
-    elf::{FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
+    chip::{Chip, ChipType, SpiRegisters},
+    elf::{FirmwareImage, RomSegment},
     Error, PartitionTable,
 };
-use bytemuck::bytes_of;
-use sha2::{Digest, Sha256};
-use std::{borrow::Cow, io::Write, iter::once};
+
+use std::{borrow::Cow, iter::once};
 
 pub struct Esp32;
 
@@ -20,15 +17,17 @@ const IROM_MAP_END: u32 = 0x40400000;
 const DROM_MAP_START: u32 = 0x3F400000;
 const DROM_MAP_END: u32 = 0x3F800000;
 
-const BOOT_ADDR: u32 = 0x1000;
-const PARTION_ADDR: u32 = 0x8000;
-const NVS_ADDR: u32 = 0x9000;
-const PHY_INIT_DATA_ADDR: u32 = 0xf000;
-const APP_ADDR: u32 = 0x10000;
-
-const NVS_SIZE: u32 = 0x6000;
-const PHY_INIT_DATA_SIZE: u32 = 0x1000;
-const APP_SIZE: u32 = 0x3f0000;
+pub const PARAMS: Esp32Params = Esp32Params {
+    boot_addr: 0x1000,
+    partition_addr: 0x8000,
+    nvs_addr: 0x9000,
+    nvs_size: 0x6000,
+    phy_init_data_addr: 0xf000,
+    phy_init_data_size: 0x1000,
+    app_addr: 0x10000,
+    app_size: 0x3f0000,
+    chip_id: 0,
+};
 
 impl ChipType for Esp32 {
     const CHIP_DETECT_MAGIC_VALUE: u32 = 0x00f01d83;
@@ -54,37 +53,15 @@ impl ChipType for Esp32 {
         partition_table: Option<PartitionTable>,
     ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
         let bootloader = if let Some(bytes) = bootloader {
-            bytes
+            Cow::Owned(bytes)
         } else {
-            let bytes = include_bytes!("../../bootloader/esp32-bootloader.bin");
-            bytes.to_vec()
+            Cow::Borrowed(&include_bytes!("../../bootloader/esp32-bootloader.bin")[..])
         };
 
-        let partition_table = if let Some(table) = partition_table {
-            table
-        } else {
-            PartitionTable::basic(
-                NVS_ADDR,
-                NVS_SIZE,
-                PHY_INIT_DATA_ADDR,
-                PHY_INIT_DATA_SIZE,
-                APP_ADDR,
-                APP_SIZE,
-            )
-        };
-        let partition_table = partition_table.to_bytes();
-
-        Box::new(
-            once(Ok(RomSegment {
-                addr: BOOT_ADDR,
-                data: Cow::Owned(bootloader),
-            }))
-            .chain(once(Ok(RomSegment {
-                addr: PARTION_ADDR,
-                data: Cow::Owned(partition_table),
-            })))
-            .chain(once(get_data(image, 0, Chip::Esp32))),
-        )
+        match Esp32BootloaderFormat::new(image, Chip::Esp32, PARAMS, partition_table, bootloader) {
+            Ok(format) => Box::new(format.segments().map(Ok)),
+            Err(e) => Box::new(once(Err(e))),
+        }
     }
 }
 
@@ -105,98 +82,4 @@ fn test_esp32_rom() {
     let buff = segments[2].data.as_ref();
     assert_eq!(expected_bin.len(), buff.len());
     assert_eq!(&expected_bin.as_slice(), &buff);
-}
-
-// shared between all esp32 family chips
-pub(crate) fn get_data<'a>(
-    image: &'a FirmwareImage,
-    chip_id: u16,
-    chip: Chip,
-) -> Result<RomSegment<'a>, Error> {
-    let mut data = Vec::new();
-
-    let header = EspCommonHeader {
-        magic: ESP_MAGIC,
-        segment_count: 0,
-        flash_mode: image.flash_mode as u8,
-        flash_config: encode_flash_size(image.flash_size)? + image.flash_frequency as u8,
-        entry: image.entry,
-    };
-    data.write_all(bytes_of(&header))?;
-
-    let extended_header = ExtendedHeader {
-        wp_pin: WP_PIN_DISABLED,
-        clk_q_drv: 0,
-        d_cs_drv: 0,
-        gd_wp_drv: 0,
-        chip_id,
-        min_rev: 0,
-        padding: [0; 8],
-        append_digest: 1,
-    };
-    data.write_all(bytes_of(&extended_header))?;
-
-    let mut checksum = ESP_CHECKSUM_MAGIC;
-
-    let flash_segments: Vec<_> = merge_segments(image.rom_segments(chip).collect());
-    let mut ram_segments: Vec<_> = merge_segments(image.ram_segments(chip).collect());
-
-    let mut segment_count = 0;
-
-    for segment in flash_segments {
-        loop {
-            let pad_len = get_segment_padding(data.len(), &segment);
-            if pad_len > 0 {
-                if pad_len > SEG_HEADER_LEN {
-                    if let Some(ram_segment) = ram_segments.first_mut() {
-                        // save up to `pad_len` from the ram segment, any remaining bits in the ram segments will be saved later
-                        let pad_segment = ram_segment.split_off(pad_len as usize);
-                        checksum = save_segment(&mut data, &pad_segment, checksum)?;
-                        if ram_segment.data().is_empty() {
-                            ram_segments.remove(0);
-                        }
-                        segment_count += 1;
-                        continue;
-                    }
-                }
-                let pad_header = SegmentHeader {
-                    addr: 0,
-                    length: pad_len as u32,
-                };
-                data.write_all(bytes_of(&pad_header))?;
-                for _ in 0..pad_len {
-                    data.write_all(&[0])?;
-                }
-                segment_count += 1;
-            } else {
-                break;
-            }
-        }
-        checksum = save_flash_segment(&mut data, &segment, checksum)?;
-        segment_count += 1;
-    }
-
-    for segment in ram_segments {
-        checksum = save_segment(&mut data, &segment, checksum)?;
-        segment_count += 1;
-    }
-
-    let padding = 15 - (data.len() % 16);
-    let padding = &[0u8; 16][0..padding as usize];
-    data.write_all(padding)?;
-
-    data.write_all(&[checksum])?;
-
-    // since we added some dummy segments, we need to patch the segment count
-    data[1] = segment_count as u8;
-
-    let mut hasher = Sha256::new();
-    hasher.update(&data);
-    let hash = hasher.finalize();
-    data.write_all(&hash)?;
-
-    Ok(RomSegment {
-        addr: APP_ADDR,
-        data: Cow::Owned(data),
-    })
 }
