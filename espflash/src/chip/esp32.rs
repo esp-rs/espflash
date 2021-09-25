@@ -7,6 +7,7 @@ use crate::{
     Error, PartitionTable,
 };
 
+use std::ops::Range;
 use std::{borrow::Cow, iter::once};
 
 pub struct Esp32;
@@ -42,10 +43,8 @@ impl ChipType for Esp32 {
         miso_length_offset: Some(0x2c),
     };
 
-    fn addr_is_flash(addr: u32) -> bool {
-        (IROM_MAP_START..IROM_MAP_END).contains(&addr)
-            || (DROM_MAP_START..DROM_MAP_END).contains(&addr)
-    }
+    const FLASH_RANGES: &'static [Range<u32>] =
+        &[IROM_MAP_START..IROM_MAP_END, DROM_MAP_START..DROM_MAP_END];
 
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,

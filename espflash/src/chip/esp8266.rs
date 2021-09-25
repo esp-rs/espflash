@@ -7,6 +7,7 @@ use crate::{
 
 use crate::image_format::{Esp8266Format, ImageFormat};
 use std::iter::once;
+use std::ops::Range;
 
 pub const IROM_MAP_START: u32 = 0x40200000;
 const IROM_MAP_END: u32 = 0x40300000;
@@ -26,9 +27,7 @@ impl ChipType for Esp8266 {
         miso_length_offset: None,
     };
 
-    fn addr_is_flash(addr: u32) -> bool {
-        (IROM_MAP_START..IROM_MAP_END).contains(&addr)
-    }
+    const FLASH_RANGES: &'static [Range<u32>] = &[IROM_MAP_START..IROM_MAP_END];
 
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,

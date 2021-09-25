@@ -12,6 +12,7 @@ pub use esp32::Esp32;
 pub use esp32c3::Esp32c3;
 pub use esp32s2::Esp32s2;
 pub use esp8266::Esp8266;
+use std::ops::Range;
 
 mod esp32;
 mod esp32c3;
@@ -23,8 +24,7 @@ pub trait ChipType {
     const CHIP_DETECT_MAGIC_VALUE2: u32 = 0x0; // give default value, as most chips don't only have one
 
     const SPI_REGISTERS: SpiRegisters;
-
-    fn addr_is_flash(addr: u32) -> bool;
+    const FLASH_RANGES: &'static [Range<u32>];
 
     /// Get the firmware segments for writing an image to flash
     fn get_flash_segments<'a>(
@@ -114,12 +114,14 @@ impl Chip {
     }
 
     pub fn addr_is_flash(&self, addr: u32) -> bool {
-        match self {
-            Chip::Esp32 => Esp32::addr_is_flash(addr),
-            Chip::Esp32c3 => Esp32c3::addr_is_flash(addr),
-            Chip::Esp32s2 => Esp32s2::addr_is_flash(addr),
-            Chip::Esp8266 => Esp8266::addr_is_flash(addr),
-        }
+        let flash_ranges = match self {
+            Chip::Esp32 => Esp32::FLASH_RANGES,
+            Chip::Esp32c3 => Esp32c3::FLASH_RANGES,
+            Chip::Esp32s2 => Esp32s2::FLASH_RANGES,
+            Chip::Esp8266 => Esp8266::FLASH_RANGES,
+        };
+
+        flash_ranges.iter().any(|range| range.contains(&addr))
     }
 
     pub fn spi_registers(&self) -> SpiRegisters {
