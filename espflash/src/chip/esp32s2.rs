@@ -5,7 +5,7 @@ use crate::{
     elf::FirmwareImage,
     Chip, Error, PartitionTable,
 };
-use std::borrow::Cow;
+
 use std::ops::Range;
 
 pub struct Esp32s2;
@@ -26,6 +26,7 @@ pub const PARAMS: Esp32Params = Esp32Params {
     app_addr: 0x10000,
     app_size: 0x100000,
     chip_id: 2,
+    default_bootloader: include_bytes!("../../bootloader/esp32s2-bootloader.bin"),
 };
 
 impl ChipType for Esp32s2 {
@@ -54,21 +55,13 @@ impl ChipType for Esp32s2 {
         image_format: ImageFormatId,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         match image_format {
-            ImageFormatId::Bootloader => {
-                let bootloader = if let Some(bytes) = bootloader {
-                    Cow::Owned(bytes)
-                } else {
-                    Cow::Borrowed(&include_bytes!("../../bootloader/esp32s2-bootloader.bin")[..])
-                };
-
-                Ok(Box::new(Esp32BootloaderFormat::new(
-                    image,
-                    Chip::Esp32s2,
-                    PARAMS,
-                    partition_table,
-                    bootloader,
-                )?))
-            }
+            ImageFormatId::Bootloader => Ok(Box::new(Esp32BootloaderFormat::new(
+                image,
+                Chip::Esp32s2,
+                PARAMS,
+                partition_table,
+                bootloader,
+            )?)),
             ImageFormatId::DirectBoot => {
                 todo!()
             }

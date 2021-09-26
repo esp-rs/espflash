@@ -188,6 +188,7 @@ pub struct Esp32Params {
     pub app_addr: u32,
     pub app_size: u32,
     pub chip_id: u16,
+    pub default_bootloader: &'static [u8],
 }
 
 impl Esp32Params {

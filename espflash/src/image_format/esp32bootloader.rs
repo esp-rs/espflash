@@ -27,9 +27,14 @@ impl<'a> Esp32BootloaderFormat<'a> {
         chip: Chip,
         params: Esp32Params,
         partition_table: Option<PartitionTable>,
-        bootloader: Cow<'a, [u8]>,
+        bootloader: Option<Vec<u8>>,
     ) -> Result<Self, Error> {
         let partition_table = partition_table.unwrap_or_else(|| params.default_partition_table());
+        let bootloader = if let Some(bytes) = bootloader {
+            Cow::Owned(bytes)
+        } else {
+            Cow::Borrowed(params.default_bootloader)
+        };
 
         let mut data = Vec::new();
 

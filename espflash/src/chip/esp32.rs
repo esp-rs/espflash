@@ -7,7 +7,6 @@ use crate::{
     Error, PartitionTable,
 };
 
-use std::borrow::Cow;
 use std::ops::Range;
 
 pub struct Esp32;
@@ -28,6 +27,7 @@ pub const PARAMS: Esp32Params = Esp32Params {
     app_addr: 0x10000,
     app_size: 0x3f0000,
     chip_id: 0,
+    default_bootloader: include_bytes!("../../bootloader/esp32-bootloader.bin"),
 };
 
 impl ChipType for Esp32 {
@@ -56,21 +56,13 @@ impl ChipType for Esp32 {
         image_format: ImageFormatId,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         match image_format {
-            ImageFormatId::Bootloader => {
-                let bootloader = if let Some(bytes) = bootloader {
-                    Cow::Owned(bytes)
-                } else {
-                    Cow::Borrowed(&include_bytes!("../../bootloader/esp32-bootloader.bin")[..])
-                };
-
-                Ok(Box::new(Esp32BootloaderFormat::new(
-                    image,
-                    Chip::Esp32,
-                    PARAMS,
-                    partition_table,
-                    bootloader,
-                )?))
-            }
+            ImageFormatId::Bootloader => Ok(Box::new(Esp32BootloaderFormat::new(
+                image,
+                Chip::Esp32,
+                PARAMS,
+                partition_table,
+                bootloader,
+            )?)),
             ImageFormatId::DirectBoot => {
                 todo!()
             }
@@ -86,14 +78,7 @@ fn test_esp32_rom() {
     let expected_bin = read("./tests/data/esp32.bin").unwrap();
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
-    let flash_image = Esp32BootloaderFormat::new(
-        &image,
-        Chip::Esp32,
-        PARAMS,
-        None,
-        Cow::Borrowed(&include_bytes!("../../bootloader/esp32-bootloader.bin")[..]),
-    )
-    .unwrap();
+    let flash_image = Esp32BootloaderFormat::new(&image, Chip::Esp32, PARAMS, None, None).unwrap();
 
     let segments = flash_image.segments().collect::<Vec<_>>();
 
