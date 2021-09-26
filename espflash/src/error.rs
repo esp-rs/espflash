@@ -1,9 +1,12 @@
 use crate::flasher::Command;
+use crate::image_format::ImageFormatId;
+use crate::Chip;
 use csv::Position;
 use miette::{Diagnostic, SourceOffset, SourceSpan};
 use slip_codec::Error as SlipError;
 use std::fmt::{Display, Formatter};
 use std::io;
+use strum::AsStaticRef;
 use thiserror::Error;
 
 #[derive(Error, Debug, Diagnostic)]
@@ -45,6 +48,9 @@ pub enum Error {
     #[error(transparent)]
     #[diagnostic(transparent)]
     MalformedPartitionTable(#[from] PartitionTableError),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    UnsupportedImageFormat(#[from] UnsupportedImageFormatError),
 }
 
 #[derive(Error, Debug, Diagnostic)]
@@ -329,5 +335,31 @@ pub struct FlashDetectError(u8);
 impl From<u8> for FlashDetectError {
     fn from(err: u8) -> Self {
         FlashDetectError(err)
+    }
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("Image format {format} is not supported by the {chip}")]
+#[diagnostic(
+    code(espflash::unsupported_image_format),
+    help("The following image formats are supported by the {}: {}", self.chip, self.supported_formats())
+)]
+pub struct UnsupportedImageFormatError {
+    format: ImageFormatId,
+    chip: Chip,
+}
+
+impl UnsupportedImageFormatError {
+    pub fn new(format: ImageFormatId, chip: Chip) -> Self {
+        UnsupportedImageFormatError { format, chip }
+    }
+
+    fn supported_formats(&self) -> String {
+        self.chip
+            .supported_image_formats()
+            .iter()
+            .map(|format| format.as_static())
+            .collect::<Vec<&'static str>>()
+            .join(", ")
     }
 }

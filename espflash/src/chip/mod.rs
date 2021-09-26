@@ -1,13 +1,14 @@
 use strum_macros::Display;
 
 use crate::{
-    elf::{FirmwareImage, RomSegment},
+    elf::FirmwareImage,
     error::ChipDetectError,
     flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
     flasher::SpiAttachParams,
     Error, PartitionTable,
 };
 
+use crate::image_format::{ImageFormat, ImageFormatId};
 pub use esp32::Esp32;
 pub use esp32c3::Esp32c3;
 pub use esp32s2::Esp32s2;
@@ -26,12 +27,16 @@ pub trait ChipType {
     const SPI_REGISTERS: SpiRegisters;
     const FLASH_RANGES: &'static [Range<u32>];
 
+    const DEFAULT_IMAGE_FORMAT: ImageFormatId;
+    const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId];
+
     /// Get the firmware segments for writing an image to flash
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-    ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a>;
+        image_format: ImageFormatId,
+    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
 }
 
 pub struct SpiRegisters {
@@ -99,17 +104,26 @@ impl Chip {
         }
     }
 
-    pub fn get_flash_segments<'a>(
+    pub fn get_flash_image<'a>(
         &self,
         image: &'a FirmwareImage,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-    ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
+        image_format: Option<ImageFormatId>,
+    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
+        let image_format = image_format.unwrap_or_else(|| self.default_image_format());
+
         match self {
-            Chip::Esp32 => Esp32::get_flash_segments(image, bootloader, partition_table),
-            Chip::Esp32c3 => Esp32c3::get_flash_segments(image, bootloader, partition_table),
-            Chip::Esp32s2 => Esp32s2::get_flash_segments(image, bootloader, partition_table),
-            Chip::Esp8266 => Esp8266::get_flash_segments(image, None, None),
+            Chip::Esp32 => {
+                Esp32::get_flash_segments(image, bootloader, partition_table, image_format)
+            }
+            Chip::Esp32c3 => {
+                Esp32c3::get_flash_segments(image, bootloader, partition_table, image_format)
+            }
+            Chip::Esp32s2 => {
+                Esp32s2::get_flash_segments(image, bootloader, partition_table, image_format)
+            }
+            Chip::Esp8266 => Esp8266::get_flash_segments(image, None, None, image_format),
         }
     }
 
@@ -141,6 +155,24 @@ impl Chip {
         match self {
             Chip::Esp8266 => Box::new(Esp8266Target::new()),
             _ => Box::new(Esp32Target::new(*self, spi_params)),
+        }
+    }
+
+    fn default_image_format(&self) -> ImageFormatId {
+        match self {
+            Chip::Esp32 => Esp32::DEFAULT_IMAGE_FORMAT,
+            Chip::Esp32c3 => Esp32c3::DEFAULT_IMAGE_FORMAT,
+            Chip::Esp32s2 => Esp32s2::DEFAULT_IMAGE_FORMAT,
+            Chip::Esp8266 => Esp8266::DEFAULT_IMAGE_FORMAT,
+        }
+    }
+
+    pub fn supported_image_formats(&self) -> &[ImageFormatId] {
+        match self {
+            Chip::Esp32 => Esp32::SUPPORTED_IMAGE_FORMATS,
+            Chip::Esp32c3 => Esp32c3::SUPPORTED_IMAGE_FORMATS,
+            Chip::Esp32s2 => Esp32s2::SUPPORTED_IMAGE_FORMATS,
+            Chip::Esp8266 => Esp8266::SUPPORTED_IMAGE_FORMATS,
         }
     }
 }

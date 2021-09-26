@@ -74,8 +74,16 @@ impl<'a> Esp8266Format<'a> {
 }
 
 impl<'a> ImageFormat<'a> for Esp8266Format<'a> {
-    fn segments(self) -> Box<dyn Iterator<Item = RomSegment<'a>> + 'a> {
-        Box::new(self.irom_data.into_iter().chain(once(self.flash_segment)))
+    fn segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
+    where
+        'a: 'b,
+    {
+        Box::new(
+            self.irom_data
+                .iter()
+                .map(RomSegment::borrow)
+                .chain(once(self.flash_segment.borrow())),
+        )
     }
 }
 

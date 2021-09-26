@@ -1,12 +1,12 @@
 use crate::chip::Esp32Params;
-use crate::image_format::{Esp32BootloaderFormat, ImageFormat};
+use crate::image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId};
 use crate::{
     chip::{ChipType, SpiRegisters},
-    elf::{FirmwareImage, RomSegment},
+    elf::FirmwareImage,
     Chip, Error, PartitionTable,
 };
+use std::borrow::Cow;
 use std::ops::Range;
-use std::{borrow::Cow, iter::once};
 
 pub struct Esp32s2;
 
@@ -44,20 +44,34 @@ impl ChipType for Esp32s2 {
     const FLASH_RANGES: &'static [Range<u32>] =
         &[IROM_MAP_START..IROM_MAP_END, DROM_MAP_START..DROM_MAP_END];
 
+    const DEFAULT_IMAGE_FORMAT: ImageFormatId = ImageFormatId::Bootloader;
+    const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId] = &[ImageFormatId::Bootloader];
+
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-    ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
-        let bootloader = if let Some(bytes) = bootloader {
-            Cow::Owned(bytes)
-        } else {
-            Cow::Borrowed(&include_bytes!("../../bootloader/esp32s2-bootloader.bin")[..])
-        };
+        image_format: ImageFormatId,
+    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
+        match image_format {
+            ImageFormatId::Bootloader => {
+                let bootloader = if let Some(bytes) = bootloader {
+                    Cow::Owned(bytes)
+                } else {
+                    Cow::Borrowed(&include_bytes!("../../bootloader/esp32s2-bootloader.bin")[..])
+                };
 
-        match Esp32BootloaderFormat::new(image, Chip::Esp32, PARAMS, partition_table, bootloader) {
-            Ok(format) => Box::new(format.segments().map(Ok)),
-            Err(e) => Box::new(once(Err(e))),
+                Ok(Box::new(Esp32BootloaderFormat::new(
+                    image,
+                    Chip::Esp32s2,
+                    PARAMS,
+                    partition_table,
+                    bootloader,
+                )?))
+            }
+            ImageFormatId::DirectBoot => {
+                todo!()
+            }
         }
     }
 }

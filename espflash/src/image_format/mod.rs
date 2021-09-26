@@ -2,10 +2,11 @@ mod esp32bootloader;
 mod esp8266;
 
 use crate::elf::RomSegment;
-
 use bytemuck::{Pod, Zeroable};
 pub use esp32bootloader::*;
 pub use esp8266::*;
+
+use strum_macros::{AsStaticStr, Display, EnumString};
 
 const ESP_MAGIC: u8 = 0xE9;
 const WP_PIN_DISABLED: u8 = 0xEE;
@@ -27,6 +28,16 @@ struct SegmentHeader {
     length: u32,
 }
 
-pub trait ImageFormat<'a>: Sized {
-    fn segments(self) -> Box<dyn Iterator<Item = RomSegment<'a>> + 'a>;
+pub trait ImageFormat<'a> {
+    fn segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
+    where
+        'a: 'b;
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Display, EnumString, AsStaticStr)]
+pub enum ImageFormatId {
+    #[strum(serialize = "bootloader")]
+    Bootloader,
+    #[strum(serialize = "direct-boot")]
+    DirectBoot,
 }

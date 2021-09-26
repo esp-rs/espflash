@@ -509,12 +509,13 @@ impl Flasher {
         let mut target = self.chip.flash_target(self.spi_params);
         target.begin(&mut self.connection, &image).flashing()?;
 
-        for segment in self
+        let flash_image = self
             .chip
-            .get_flash_segments(&image, bootloader, partition_table)
-        {
+            .get_flash_image(&image, bootloader, partition_table, None)?;
+
+        for segment in flash_image.segments() {
             target
-                .write_segment(&mut self.connection, segment?)
+                .write_segment(&mut self.connection, segment)
                 .flashing()?;
         }
 

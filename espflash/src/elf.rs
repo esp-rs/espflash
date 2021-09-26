@@ -188,6 +188,18 @@ pub struct RomSegment<'a> {
     pub data: Cow<'a, [u8]>,
 }
 
+impl<'a> RomSegment<'a> {
+    pub fn borrow<'b>(&'b self) -> RomSegment<'b>
+    where
+        'a: 'b,
+    {
+        RomSegment {
+            addr: self.addr,
+            data: Cow::Borrowed(self.data.as_ref()),
+        }
+    }
+}
+
 impl<'a> From<CodeSegment<'a>> for RomSegment<'a> {
     fn from(segment: CodeSegment<'a>) -> Self {
         RomSegment {

@@ -1,12 +1,9 @@
 use super::ChipType;
-use crate::{
-    chip::SpiRegisters,
-    elf::{FirmwareImage, RomSegment},
-    Error, PartitionTable,
-};
+use crate::{chip::SpiRegisters, elf::FirmwareImage, Chip, Error, PartitionTable};
 
-use crate::image_format::{Esp8266Format, ImageFormat};
-use std::iter::once;
+use crate::error::UnsupportedImageFormatError;
+use crate::image_format::{Esp8266Format, ImageFormat, ImageFormatId};
+
 use std::ops::Range;
 
 pub const IROM_MAP_START: u32 = 0x40200000;
@@ -29,14 +26,18 @@ impl ChipType for Esp8266 {
 
     const FLASH_RANGES: &'static [Range<u32>] = &[IROM_MAP_START..IROM_MAP_END];
 
+    const DEFAULT_IMAGE_FORMAT: ImageFormatId = ImageFormatId::Bootloader;
+    const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId] = &[ImageFormatId::Bootloader];
+
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
         _bootloader: Option<Vec<u8>>,
         _partition_table: Option<PartitionTable>,
-    ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
-        match Esp8266Format::new(image) {
-            Ok(format) => Box::new(format.segments().map(Ok)),
-            Err(e) => Box::new(once(Err(e))),
+        image_format: ImageFormatId,
+    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
+        match image_format {
+            ImageFormatId::Bootloader => Ok(Box::new(Esp8266Format::new(image)?)),
+            _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp8266).into()),
         }
     }
 }
@@ -50,10 +51,9 @@ fn test_esp8266_rom() {
     let expected_bin = read("./tests/data/esp8266.bin").unwrap();
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
+    let flash_image = Esp8266Format::new(&image).unwrap();
 
-    let segments = Esp8266::get_flash_segments(&image, None, None)
-        .collect::<Result<Vec<_>, Error>>()
-        .unwrap();
+    let segments = flash_image.segments().collect::<Vec<_>>();
 
     assert_eq!(1, segments.len());
     let buff = segments[0].data.as_ref();

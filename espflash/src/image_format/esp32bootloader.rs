@@ -127,17 +127,20 @@ impl<'a> Esp32BootloaderFormat<'a> {
 }
 
 impl<'a> ImageFormat<'a> for Esp32BootloaderFormat<'a> {
-    fn segments(self) -> Box<dyn Iterator<Item = RomSegment<'a>> + 'a> {
+    fn segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
+    where
+        'a: 'b,
+    {
         Box::new(
             once(RomSegment {
                 addr: self.params.boot_addr,
-                data: self.bootloader,
+                data: Cow::Borrowed(&self.bootloader),
             })
             .chain(once(RomSegment {
                 addr: self.params.partition_addr,
                 data: self.partition_table.to_bytes().into(),
             }))
-            .chain(once(self.flash_segment)),
+            .chain(once(self.flash_segment.borrow())),
         )
     }
 }
