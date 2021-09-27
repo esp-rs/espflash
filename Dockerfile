@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y \
    && apt-get autoremove -y \
    && rm -rf /var/lib/apt/lists/*
 
+# (In)validate docker cache with latest commit information
+ADD https://api.github.com/repos/esp-rs/espflash/commits/master /dev/null
 # Init rust-xtensa
 RUN git clone https://github.com/esp-rs/rust /rust-xtensa
 RUN cd rust-xtensa && git submodule init && git submodule update
