@@ -1,10 +1,12 @@
-use crate::chip::esp32::get_data;
+use crate::chip::Esp32Params;
+use crate::image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId};
 use crate::{
     chip::{ChipType, SpiRegisters},
-    elf::{FirmwareImage, RomSegment},
+    elf::FirmwareImage,
     Chip, Error, PartitionTable,
 };
-use std::{borrow::Cow, iter::once};
+
+use std::ops::Range;
 
 pub struct Esp32c3;
 
@@ -14,15 +16,18 @@ const IROM_MAP_END: u32 = 0x42800000;
 const DROM_MAP_START: u32 = 0x3c000000;
 const DROM_MAP_END: u32 = 0x3c800000;
 
-const BOOT_ADDR: u32 = 0x0;
-const PARTITION_ADDR: u32 = 0x8000;
-const NVS_ADDR: u32 = 0x9000;
-const PHY_INIT_DATA_ADDR: u32 = 0xf000;
-const APP_ADDR: u32 = 0x10000;
-
-const NVS_SIZE: u32 = 0x6000;
-const PHY_INIT_DATA_SIZE: u32 = 0x1000;
-const APP_SIZE: u32 = 0x3f0000;
+pub const PARAMS: Esp32Params = Esp32Params {
+    boot_addr: 0x0,
+    partition_addr: 0x8000,
+    nvs_addr: 0x9000,
+    nvs_size: 0x6000,
+    phy_init_data_addr: 0xf000,
+    phy_init_data_size: 0x1000,
+    app_addr: 0x10000,
+    app_size: 0x3f0000,
+    chip_id: 5,
+    default_bootloader: include_bytes!("../../bootloader/esp32c3-bootloader.bin"),
+};
 
 impl ChipType for Esp32c3 {
     const CHIP_DETECT_MAGIC_VALUE: u32 = 0x6921506f;
@@ -38,47 +43,30 @@ impl ChipType for Esp32c3 {
         miso_length_offset: Some(0x28),
     };
 
-    fn addr_is_flash(addr: u32) -> bool {
-        (IROM_MAP_START..IROM_MAP_END).contains(&addr)
-            || (DROM_MAP_START..DROM_MAP_END).contains(&addr)
-    }
+    const FLASH_RANGES: &'static [Range<u32>] =
+        &[IROM_MAP_START..IROM_MAP_END, DROM_MAP_START..DROM_MAP_END];
+
+    const DEFAULT_IMAGE_FORMAT: ImageFormatId = ImageFormatId::Bootloader;
+    const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId] =
+        &[ImageFormatId::Bootloader, ImageFormatId::DirectBoot];
 
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-    ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
-        let bootloader = if let Some(bytes) = bootloader {
-            bytes
-        } else {
-            let bytes = include_bytes!("../../bootloader/esp32c3-bootloader.bin");
-            bytes.to_vec()
-        };
-
-        let partition_table = if let Some(table) = partition_table {
-            table
-        } else {
-            PartitionTable::basic(
-                NVS_ADDR,
-                NVS_SIZE,
-                PHY_INIT_DATA_ADDR,
-                PHY_INIT_DATA_SIZE,
-                APP_ADDR,
-                APP_SIZE,
-            )
-        };
-        let partition_table = partition_table.to_bytes();
-
-        Box::new(
-            once(Ok(RomSegment {
-                addr: BOOT_ADDR,
-                data: Cow::Owned(bootloader),
-            }))
-            .chain(once(Ok(RomSegment {
-                addr: PARTITION_ADDR,
-                data: Cow::Owned(partition_table),
-            })))
-            .chain(once(get_data(image, 5, Chip::Esp32c3))),
-        )
+        image_format: ImageFormatId,
+    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
+        match image_format {
+            ImageFormatId::Bootloader => Ok(Box::new(Esp32BootloaderFormat::new(
+                image,
+                Chip::Esp32c3,
+                PARAMS,
+                partition_table,
+                bootloader,
+            )?)),
+            ImageFormatId::DirectBoot => {
+                todo!()
+            }
+        }
     }
 }

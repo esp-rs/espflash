@@ -6,6 +6,7 @@ mod encoder;
 mod error;
 mod flash_target;
 mod flasher;
+mod image_format;
 mod partition_table;
 
 pub use chip::Chip;

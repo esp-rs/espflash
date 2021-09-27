@@ -1,15 +1,10 @@
-use bytemuck::bytes_of;
+use super::ChipType;
+use crate::{chip::SpiRegisters, elf::FirmwareImage, Chip, Error, PartitionTable};
 
-use super::{ChipType, EspCommonHeader, SegmentHeader, ESP_MAGIC};
-use crate::{
-    chip::{Chip, SpiRegisters},
-    elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
-    error::FlashDetectError,
-    flasher::FlashSize,
-    Error, PartitionTable,
-};
+use crate::error::UnsupportedImageFormatError;
+use crate::image_format::{Esp8266Format, ImageFormat, ImageFormatId};
 
-use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
+use std::ops::Range;
 
 pub const IROM_MAP_START: u32 = 0x40200000;
 const IROM_MAP_END: u32 = 0x40300000;
@@ -29,110 +24,21 @@ impl ChipType for Esp8266 {
         miso_length_offset: None,
     };
 
-    fn addr_is_flash(addr: u32) -> bool {
-        (IROM_MAP_START..IROM_MAP_END).contains(&addr)
-    }
+    const FLASH_RANGES: &'static [Range<u32>] = &[IROM_MAP_START..IROM_MAP_END];
+
+    const DEFAULT_IMAGE_FORMAT: ImageFormatId = ImageFormatId::Bootloader;
+    const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId] = &[ImageFormatId::Bootloader];
 
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
         _bootloader: Option<Vec<u8>>,
         _partition_table: Option<PartitionTable>,
-    ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
-        // irom goes into a separate plain bin
-        let irom_data = merge_rom_segments(image.rom_segments(Chip::Esp8266))
-            .into_iter()
-            .map(Ok);
-
-        // my kingdom for a try {} block
-        fn common<'a>(image: &'a FirmwareImage) -> Result<RomSegment<'a>, Error> {
-            let mut common_data = Vec::with_capacity(
-                image
-                    .ram_segments(Chip::Esp8266)
-                    .map(|segment| segment.size() as usize)
-                    .sum(),
-            );
-            // common header
-            let header = EspCommonHeader {
-                magic: ESP_MAGIC,
-                segment_count: image.ram_segments(Chip::Esp8266).count() as u8,
-                flash_mode: image.flash_mode as u8,
-                flash_config: encode_flash_size(image.flash_size)? + image.flash_frequency as u8,
-                entry: image.entry,
-            };
-            common_data.write_all(bytes_of(&header))?;
-
-            let mut total_len = 8;
-
-            let mut checksum = ESP_CHECKSUM_MAGIC;
-
-            for segment in image.ram_segments(Chip::Esp8266) {
-                let data = segment.data();
-                let padding = 4 - data.len() % 4;
-                let segment_header = SegmentHeader {
-                    addr: segment.addr,
-                    length: (data.len() + padding) as u32,
-                };
-                total_len += size_of::<SegmentHeader>() as u32 + segment_header.length;
-                common_data.write_all(bytes_of(&segment_header))?;
-                common_data.write_all(data)?;
-
-                let padding = &[0u8; 4][0..padding];
-                common_data.write_all(padding)?;
-                checksum = update_checksum(data, checksum);
-            }
-
-            let padding = 15 - (total_len % 16);
-            let padding = &[0u8; 16][0..padding as usize];
-            common_data.write_all(padding)?;
-
-            common_data.write_all(&[checksum])?;
-
-            Ok(RomSegment {
-                addr: 0,
-                data: Cow::Owned(common_data),
-            })
+        image_format: ImageFormatId,
+    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
+        match image_format {
+            ImageFormatId::Bootloader => Ok(Box::new(Esp8266Format::new(image)?)),
+            _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp8266).into()),
         }
-
-        Box::new(irom_data.chain(once(common(image))))
-    }
-}
-
-fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
-    match size {
-        FlashSize::Flash256Kb => Ok(0x10),
-        FlashSize::Flash512Kb => Ok(0x00),
-        FlashSize::Flash1Mb => Ok(0x20),
-        FlashSize::Flash2Mb => Ok(0x30),
-        FlashSize::Flash4Mb => Ok(0x40),
-        FlashSize::Flash8Mb => Ok(0x80),
-        FlashSize::Flash16Mb => Ok(0x90),
-        FlashSize::FlashRetry => Err(FlashDetectError::from(size as u8)),
-    }
-}
-
-fn merge_rom_segments<'a>(
-    mut segments: impl Iterator<Item = CodeSegment<'a>>,
-) -> Option<RomSegment<'a>> {
-    let first = segments.next()?;
-    if let Some(second) = segments.next() {
-        let mut data = Vec::with_capacity(first.data().len() + second.data().len());
-        data.extend_from_slice(first.data());
-
-        for segment in once(second).chain(segments) {
-            let padding_size = segment.addr as usize - first.addr as usize - data.len();
-            data.resize(data.len() + padding_size, 0);
-            data.extend_from_slice(segment.data());
-        }
-
-        Some(RomSegment {
-            addr: first.addr - IROM_MAP_START,
-            data: Cow::Owned(data),
-        })
-    } else {
-        Some(RomSegment {
-            addr: first.addr - IROM_MAP_START,
-            data: Cow::Owned(first.data().into()),
-        })
     }
 }
 
@@ -145,10 +51,9 @@ fn test_esp8266_rom() {
     let expected_bin = read("./tests/data/esp8266.bin").unwrap();
 
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
+    let flash_image = Esp8266Format::new(&image).unwrap();
 
-    let segments = Esp8266::get_flash_segments(&image, None, None)
-        .collect::<Result<Vec<_>, Error>>()
-        .unwrap();
+    let segments = flash_image.segments().collect::<Vec<_>>();
 
     assert_eq!(1, segments.len());
     let buff = segments[0].data.as_ref();

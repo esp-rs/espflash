@@ -1,43 +1,42 @@
-use bytemuck::{bytes_of, Pod, Zeroable};
 use strum_macros::Display;
 
 use crate::{
-    elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment},
-    error::{ChipDetectError, FlashDetectError},
+    elf::FirmwareImage,
+    error::ChipDetectError,
     flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
-    flasher::{FlashSize, SpiAttachParams},
+    flasher::SpiAttachParams,
     Error, PartitionTable,
 };
 
-use std::io::Write;
-
+use crate::image_format::{ImageFormat, ImageFormatId};
 pub use esp32::Esp32;
 pub use esp32c3::Esp32c3;
 pub use esp32s2::Esp32s2;
 pub use esp8266::Esp8266;
+use std::ops::Range;
 
 mod esp32;
 mod esp32c3;
 mod esp32s2;
 mod esp8266;
 
-const ESP_MAGIC: u8 = 0xE9;
-const WP_PIN_DISABLED: u8 = 0xEE;
-
 pub trait ChipType {
     const CHIP_DETECT_MAGIC_VALUE: u32;
     const CHIP_DETECT_MAGIC_VALUE2: u32 = 0x0; // give default value, as most chips don't only have one
 
     const SPI_REGISTERS: SpiRegisters;
+    const FLASH_RANGES: &'static [Range<u32>];
+
+    const DEFAULT_IMAGE_FORMAT: ImageFormatId;
+    const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId];
 
     /// Get the firmware segments for writing an image to flash
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-    ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a>;
-
-    fn addr_is_flash(addr: u32) -> bool;
+        image_format: ImageFormatId,
+    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
 }
 
 pub struct SpiRegisters {
@@ -80,19 +79,6 @@ impl SpiRegisters {
     }
 }
 
-#[derive(Copy, Clone, Zeroable, Pod)]
-#[repr(C)]
-struct ExtendedHeader {
-    wp_pin: u8,
-    clk_q_drv: u8,
-    d_cs_drv: u8,
-    gd_wp_drv: u8,
-    chip_id: u16,
-    min_rev: u8,
-    padding: [u8; 8],
-    append_digest: u8,
-}
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
 pub enum Chip {
     #[strum(serialize = "ESP32")]
@@ -118,27 +104,38 @@ impl Chip {
         }
     }
 
-    pub fn get_flash_segments<'a>(
+    pub fn get_flash_image<'a>(
         &self,
         image: &'a FirmwareImage,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-    ) -> Box<dyn Iterator<Item = Result<RomSegment<'a>, Error>> + 'a> {
+        image_format: Option<ImageFormatId>,
+    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
+        let image_format = image_format.unwrap_or_else(|| self.default_image_format());
+
         match self {
-            Chip::Esp32 => Esp32::get_flash_segments(image, bootloader, partition_table),
-            Chip::Esp32c3 => Esp32c3::get_flash_segments(image, bootloader, partition_table),
-            Chip::Esp32s2 => Esp32s2::get_flash_segments(image, bootloader, partition_table),
-            Chip::Esp8266 => Esp8266::get_flash_segments(image, None, None),
+            Chip::Esp32 => {
+                Esp32::get_flash_segments(image, bootloader, partition_table, image_format)
+            }
+            Chip::Esp32c3 => {
+                Esp32c3::get_flash_segments(image, bootloader, partition_table, image_format)
+            }
+            Chip::Esp32s2 => {
+                Esp32s2::get_flash_segments(image, bootloader, partition_table, image_format)
+            }
+            Chip::Esp8266 => Esp8266::get_flash_segments(image, None, None, image_format),
         }
     }
 
     pub fn addr_is_flash(&self, addr: u32) -> bool {
-        match self {
-            Chip::Esp32 => Esp32::addr_is_flash(addr),
-            Chip::Esp32c3 => Esp32c3::addr_is_flash(addr),
-            Chip::Esp32s2 => Esp32s2::addr_is_flash(addr),
-            Chip::Esp8266 => Esp8266::addr_is_flash(addr),
-        }
+        let flash_ranges = match self {
+            Chip::Esp32 => Esp32::FLASH_RANGES,
+            Chip::Esp32c3 => Esp32c3::FLASH_RANGES,
+            Chip::Esp32s2 => Esp32s2::FLASH_RANGES,
+            Chip::Esp8266 => Esp8266::FLASH_RANGES,
+        };
+
+        flash_ranges.iter().any(|range| range.contains(&addr))
     }
 
     pub fn spi_registers(&self) -> SpiRegisters {
@@ -160,92 +157,49 @@ impl Chip {
             _ => Box::new(Esp32Target::new(*self, spi_params)),
         }
     }
-}
 
-#[derive(Copy, Clone, Zeroable, Pod, Debug)]
-#[repr(C)]
-struct EspCommonHeader {
-    magic: u8,
-    segment_count: u8,
-    flash_mode: u8,
-    flash_config: u8,
-    entry: u32,
-}
+    fn default_image_format(&self) -> ImageFormatId {
+        match self {
+            Chip::Esp32 => Esp32::DEFAULT_IMAGE_FORMAT,
+            Chip::Esp32c3 => Esp32c3::DEFAULT_IMAGE_FORMAT,
+            Chip::Esp32s2 => Esp32s2::DEFAULT_IMAGE_FORMAT,
+            Chip::Esp8266 => Esp8266::DEFAULT_IMAGE_FORMAT,
+        }
+    }
 
-#[derive(Copy, Clone, Zeroable, Pod, Debug)]
-#[repr(C)]
-struct SegmentHeader {
-    addr: u32,
-    length: u32,
-}
-
-// Note that this function ONLY applies to the ESP32 and variants; the ESP8266
-// has defined its own version rather than using this implementation.
-fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
-    match size {
-        FlashSize::Flash256Kb => Err(FlashDetectError::from(size as u8)),
-        FlashSize::Flash512Kb => Err(FlashDetectError::from(size as u8)),
-        FlashSize::Flash1Mb => Ok(0x00),
-        FlashSize::Flash2Mb => Ok(0x10),
-        FlashSize::Flash4Mb => Ok(0x20),
-        FlashSize::Flash8Mb => Ok(0x30),
-        FlashSize::Flash16Mb => Ok(0x40),
-        FlashSize::FlashRetry => Err(FlashDetectError::from(size as u8)),
+    pub fn supported_image_formats(&self) -> &[ImageFormatId] {
+        match self {
+            Chip::Esp32 => Esp32::SUPPORTED_IMAGE_FORMATS,
+            Chip::Esp32c3 => Esp32c3::SUPPORTED_IMAGE_FORMATS,
+            Chip::Esp32s2 => Esp32s2::SUPPORTED_IMAGE_FORMATS,
+            Chip::Esp8266 => Esp8266::SUPPORTED_IMAGE_FORMATS,
+        }
     }
 }
 
-const IROM_ALIGN: u32 = 65536;
-const SEG_HEADER_LEN: u32 = 8;
-
-/// Actual alignment (in data bytes) required for a segment header: positioned
-/// so that after we write the next 8 byte header, file_offs % IROM_ALIGN ==
-/// segment.addr % IROM_ALIGN
-///
-/// (this is because the segment's vaddr may not be IROM_ALIGNed, more likely is
-/// aligned IROM_ALIGN+0x18 to account for the binary file header
-fn get_segment_padding(offset: usize, segment: &CodeSegment) -> u32 {
-    let align_past = (segment.addr - SEG_HEADER_LEN) % IROM_ALIGN;
-    let pad_len = ((IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past) % IROM_ALIGN;
-    if pad_len == 0 || pad_len == IROM_ALIGN {
-        0
-    } else if pad_len > SEG_HEADER_LEN {
-        pad_len - SEG_HEADER_LEN
-    } else {
-        pad_len + IROM_ALIGN - SEG_HEADER_LEN
-    }
+#[derive(Clone, Copy, Debug)]
+pub struct Esp32Params {
+    pub boot_addr: u32,
+    pub partition_addr: u32,
+    pub nvs_addr: u32,
+    pub nvs_size: u32,
+    pub phy_init_data_addr: u32,
+    pub phy_init_data_size: u32,
+    pub app_addr: u32,
+    pub app_size: u32,
+    pub chip_id: u16,
+    pub default_bootloader: &'static [u8],
 }
 
-fn save_flash_segment(
-    data: &mut Vec<u8>,
-    segment: &CodeSegment,
-    checksum: u8,
-) -> Result<u8, Error> {
-    let end_pos = (data.len() + segment.data().len()) as u32 + SEG_HEADER_LEN;
-    let segment_reminder = end_pos % IROM_ALIGN;
-
-    let checksum = save_segment(data, segment, checksum)?;
-
-    if segment_reminder < 0x24 {
-        // Work around a bug in ESP-IDF 2nd stage bootloader, that it didn't map the
-        // last MMU page, if an IROM/DROM segment was < 0x24 bytes over the page
-        // boundary.
-        data.write_all(&[0u8; 0x24][0..(0x24 - segment_reminder as usize)])?;
+impl Esp32Params {
+    pub fn default_partition_table(&self) -> PartitionTable {
+        PartitionTable::basic(
+            self.nvs_addr,
+            self.nvs_size,
+            self.phy_init_data_addr,
+            self.phy_init_data_size,
+            self.app_addr,
+            self.app_size,
+        )
     }
-    Ok(checksum)
-}
-
-fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment, checksum: u8) -> Result<u8, Error> {
-    let padding = (4 - segment.size() % 4) % 4;
-
-    let header = SegmentHeader {
-        addr: segment.addr,
-        length: segment.size() + padding,
-    };
-    data.write_all(bytes_of(&header))?;
-    data.write_all(segment.data())?;
-
-    let padding = &[0u8; 4][0..padding as usize];
-    data.write_all(padding)?;
-
-    Ok(update_checksum(segment.data(), checksum))
 }
