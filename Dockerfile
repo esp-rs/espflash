@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     xz-utils \
     zip \
-    python \
+    python-is-python3 \
     ninja-build \
     build-essential \
     cmake \
@@ -46,7 +46,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     wget \
     zip \
-    python \
+    python-is-python3 \
     build-essential \
    && apt-get autoremove -y \
    && rm -rf /var/lib/apt/lists/*
