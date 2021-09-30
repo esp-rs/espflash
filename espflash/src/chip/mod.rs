@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use strum_macros::Display;
 
 use crate::{
@@ -5,20 +7,15 @@ use crate::{
     error::ChipDetectError,
     flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
     flasher::SpiAttachParams,
+    image_format::{ImageFormat, ImageFormatId},
     Error, PartitionTable,
 };
 
-use crate::image_format::{ImageFormat, ImageFormatId};
-pub use esp32::Esp32;
-pub use esp32c3::Esp32c3;
-pub use esp32s2::Esp32s2;
-pub use esp8266::Esp8266;
-use std::ops::Range;
-
 mod esp32;
-mod esp32c3;
-mod esp32s2;
 mod esp8266;
+
+pub use esp32::{Esp32, Esp32Params, Esp32c3, Esp32s2};
+pub use esp8266::Esp8266;
 
 pub trait ChipType {
     const CHIP_DETECT_MAGIC_VALUE: u32;
@@ -196,32 +193,5 @@ impl Chip {
             Chip::Esp32s2 => Esp32s2::SUPPORTED_TARGETS,
             Chip::Esp8266 => Esp8266::SUPPORTED_TARGETS,
         }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Esp32Params {
-    pub boot_addr: u32,
-    pub partition_addr: u32,
-    pub nvs_addr: u32,
-    pub nvs_size: u32,
-    pub phy_init_data_addr: u32,
-    pub phy_init_data_size: u32,
-    pub app_addr: u32,
-    pub app_size: u32,
-    pub chip_id: u16,
-    pub default_bootloader: &'static [u8],
-}
-
-impl Esp32Params {
-    pub fn default_partition_table(&self) -> PartitionTable {
-        PartitionTable::basic(
-            self.nvs_addr,
-            self.nvs_size,
-            self.phy_init_data_addr,
-            self.phy_init_data_size,
-            self.app_addr,
-            self.app_size,
-        )
     }
 }

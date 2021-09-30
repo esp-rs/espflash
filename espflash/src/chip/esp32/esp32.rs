@@ -1,13 +1,12 @@
-use crate::chip::Esp32Params;
+use std::ops::Range;
 
-use crate::image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId};
+use super::Esp32Params;
 use crate::{
     chip::{Chip, ChipType, SpiRegisters},
     elf::FirmwareImage,
+    image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
     Error, PartitionTable,
 };
-
-use std::ops::Range;
 
 pub struct Esp32;
 
@@ -27,7 +26,7 @@ pub const PARAMS: Esp32Params = Esp32Params {
     app_addr: 0x10000,
     app_size: 0x3f0000,
     chip_id: 0,
-    default_bootloader: include_bytes!("../../bootloader/esp32-bootloader.bin"),
+    default_bootloader: include_bytes!("../../../bootloader/esp32-bootloader.bin"),
 };
 
 impl ChipType for Esp32 {

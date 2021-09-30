@@ -1,12 +1,15 @@
-use super::ChipType;
-use crate::{chip::SpiRegisters, elf::FirmwareImage, Chip, Error, PartitionTable};
-
-use crate::error::UnsupportedImageFormatError;
-use crate::image_format::{Esp8266Format, ImageFormat, ImageFormatId};
-
 use std::ops::Range;
 
-pub const IROM_MAP_START: u32 = 0x40200000;
+use super::ChipType;
+use crate::{
+    chip::SpiRegisters,
+    elf::FirmwareImage,
+    error::UnsupportedImageFormatError,
+    image_format::{Esp8266Format, ImageFormat, ImageFormatId},
+    Chip, Error, PartitionTable,
+};
+
+const IROM_MAP_START: u32 = 0x40200000;
 const IROM_MAP_END: u32 = 0x40300000;
 
 pub struct Esp8266;
