@@ -151,7 +151,8 @@ fn main() -> Result<()> {
     let example = matches.value_of("example");
     let features = matches.value_of("features");
 
-    let path = build(release, example, features, flasher.chip())?;
+    let path =
+        build(release, example, features, flasher.chip()).wrap_err("Failed to build project")?;
 
     // If the '--bootloader' option is provided, load the binary file at the
     // specified path.
@@ -215,10 +216,9 @@ fn build(
         return Err(Error::NoBuildStd.into());
     };
 
-    if let Some(target) = cargo_config.target() {
-        if !chip.supports_target(target) {
-            return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
-        }
+    let target = cargo_config.target().ok_or(Error::NoTarget { chip })?;
+    if !chip.supports_target(target) {
+        return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
     }
 
     // Build the list of arguments to pass to 'cargo build'.

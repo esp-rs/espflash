@@ -44,6 +44,12 @@ pub enum Error {
     #[error(transparent)]
     #[diagnostic(transparent)]
     UnsupportedTarget(UnsupportedTargetError),
+    #[error("No target specified in cargo configuration")]
+    #[diagnostic(
+        code(cargo_espflash::no_target),
+        help("Specify the target in `.cargo/config.toml`, the {} support the following targets: {}", chip, chip.supported_targets().join(", "))
+    )]
+    NoTarget { chip: Chip },
 }
 
 #[derive(Debug)]
