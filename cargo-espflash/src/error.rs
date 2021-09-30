@@ -63,6 +63,12 @@ impl From<cargo_toml::Error> for MaybeTomlError {
     }
 }
 
+impl From<toml::de::Error> for MaybeTomlError {
+    fn from(e: toml::de::Error) -> Self {
+        MaybeTomlError::Toml(e)
+    }
+}
+
 impl TomlError {
     pub fn new(err: impl Into<MaybeTomlError>, source: String) -> Self {
         TomlError {

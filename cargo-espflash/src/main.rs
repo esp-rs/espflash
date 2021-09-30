@@ -212,7 +212,7 @@ fn build(release: bool, example: Option<&str>, features: Option<&str>) -> Result
     // The 'build-std' unstable cargo feature is required to enable
     // cross-compilation. If it has not been set then we cannot build the
     // application.
-    if !has_build_std(".") {
+    if !has_build_std(".")? {
         return Err(Error::NoBuildStd.into());
     };
 
