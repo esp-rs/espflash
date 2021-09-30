@@ -1,3 +1,4 @@
+use espflash::Chip;
 use miette::{Diagnostic, LabeledSpan, SourceCode, SourceOffset};
 use std::fmt::{Display, Formatter};
 use std::iter::once;
@@ -40,6 +41,9 @@ pub enum Error {
         help("Ensure that you're running the command from within a cargo project")
     )]
     NoProject,
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    UnsupportedTarget(UnsupportedTargetError),
 }
 
 #[derive(Debug)]
@@ -105,5 +109,31 @@ impl Diagnostic for TomlError {
             }
             _ => None,
         }
+    }
+}
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Target {target} is not supported by the {chip}")]
+#[diagnostic(
+    code(cargo_espflash::unsupported_target),
+    help("The following targets are supported by the {}: {}", self.chip, self.supported_targets())
+)]
+pub struct UnsupportedTargetError {
+    target: String,
+    chip: Chip,
+}
+
+impl UnsupportedTargetError {
+    pub fn new(target: &str, chip: Chip) -> UnsupportedTargetError {
+        UnsupportedTargetError {
+            target: target.into(),
+            chip,
+        }
+    }
+}
+
+impl UnsupportedTargetError {
+    fn supported_targets(&self) -> String {
+        self.chip.supported_targets().join(", ")
     }
 }

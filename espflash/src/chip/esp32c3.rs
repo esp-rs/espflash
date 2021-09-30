@@ -50,6 +50,9 @@ impl ChipType for Esp32c3 {
     const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId] =
         &[ImageFormatId::Bootloader, ImageFormatId::DirectBoot];
 
+    const SUPPORTED_TARGETS: &'static [&'static str] =
+        &["riscv32imc-uknown-none-elf", "riscv32imc-esp-espidf"];
+
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
         bootloader: Option<Vec<u8>>,
@@ -68,5 +71,9 @@ impl ChipType for Esp32c3 {
                 todo!()
             }
         }
+    }
+
+    fn supports_target(target: &str) -> bool {
+        target.starts_with("riscv32imc-")
     }
 }

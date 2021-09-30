@@ -30,6 +30,8 @@ pub trait ChipType {
     const DEFAULT_IMAGE_FORMAT: ImageFormatId;
     const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId];
 
+    const SUPPORTED_TARGETS: &'static [&'static str];
+
     /// Get the firmware segments for writing an image to flash
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
@@ -37,6 +39,8 @@ pub trait ChipType {
         partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
+
+    fn supports_target(target: &str) -> bool;
 }
 
 pub struct SpiRegisters {
@@ -173,6 +177,24 @@ impl Chip {
             Chip::Esp32c3 => Esp32c3::SUPPORTED_IMAGE_FORMATS,
             Chip::Esp32s2 => Esp32s2::SUPPORTED_IMAGE_FORMATS,
             Chip::Esp8266 => Esp8266::SUPPORTED_IMAGE_FORMATS,
+        }
+    }
+
+    pub fn supports_target(&self, target: &str) -> bool {
+        match self {
+            Chip::Esp32 => Esp32::supports_target(target),
+            Chip::Esp32c3 => Esp32c3::supports_target(target),
+            Chip::Esp32s2 => Esp32s2::supports_target(target),
+            Chip::Esp8266 => Esp8266::supports_target(target),
+        }
+    }
+
+    pub fn supported_targets(&self) -> &[&str] {
+        match self {
+            Chip::Esp32 => Esp32::SUPPORTED_TARGETS,
+            Chip::Esp32c3 => Esp32c3::SUPPORTED_TARGETS,
+            Chip::Esp32s2 => Esp32s2::SUPPORTED_TARGETS,
+            Chip::Esp8266 => Esp8266::SUPPORTED_TARGETS,
         }
     }
 }

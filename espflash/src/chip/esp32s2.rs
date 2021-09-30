@@ -48,6 +48,9 @@ impl ChipType for Esp32s2 {
     const DEFAULT_IMAGE_FORMAT: ImageFormatId = ImageFormatId::Bootloader;
     const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId] = &[ImageFormatId::Bootloader];
 
+    const SUPPORTED_TARGETS: &'static [&'static str] =
+        &["xtensa-esp32s2-none-elf", "xtensa-esp32s2-espidf"];
+
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
         bootloader: Option<Vec<u8>>,
@@ -66,5 +69,9 @@ impl ChipType for Esp32s2 {
                 todo!()
             }
         }
+    }
+
+    fn supports_target(target: &str) -> bool {
+        target.starts_with("xtensa-esp32s2-")
     }
 }

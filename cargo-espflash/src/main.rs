@@ -1,8 +1,9 @@
-use cargo_config::has_build_std;
+use crate::cargo_config::parse_cargo_config;
+use crate::error::UnsupportedTargetError;
 use cargo_metadata::Message;
 use clap::{App, Arg, SubCommand};
 use error::Error;
-use espflash::{Config, Flasher, PartitionTable};
+use espflash::{Chip, Config, Flasher, PartitionTable};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use monitor::monitor;
 use package_metadata::CargoEspFlashMeta;
@@ -116,20 +117,6 @@ fn main() -> Result<()> {
         exit(0);
     };
 
-    // Only build the application if the '--board-info' flag has not been passed.
-    let show_board_info = matches.is_present("board_info");
-    let path = if !show_board_info {
-        let release = matches.is_present("release");
-        let example = matches.value_of("example");
-        let features = matches.value_of("features");
-
-        let path = build(release, example, features)?;
-
-        Some(path)
-    } else {
-        None
-    };
-
     // Attempt to open the serial port and set its initial baud rate.
     println!("Serial port: {}", port);
     println!("Connecting...\n");
@@ -155,10 +142,16 @@ fn main() -> Result<()> {
     // Connect the Flasher to the target device. If the '--board-info' flag has been
     // provided, display the board info and terminate the application.
     let mut flasher = Flasher::connect(serial, speed)?;
-    if show_board_info {
+    if matches.is_present("board_info") {
         board_info(&flasher);
         return Ok(());
     }
+
+    let release = matches.is_present("release");
+    let example = matches.value_of("example");
+    let features = matches.value_of("features");
+
+    let path = build(release, example, features, flasher.chip())?;
 
     // If the '--bootloader' option is provided, load the binary file at the
     // specified path.
@@ -188,7 +181,7 @@ fn main() -> Result<()> {
     };
 
     // Read the ELF data from the build path and load it to the target.
-    let elf_data = fs::read(path.unwrap()).into_diagnostic()?;
+    let elf_data = fs::read(path).into_diagnostic()?;
     if matches.is_present("ram") {
         flasher.load_elf_to_ram(&elf_data)?;
     } else {
@@ -208,13 +201,25 @@ fn board_info(flasher: &Flasher) {
     println!("Flash size: {}", flasher.flash_size());
 }
 
-fn build(release: bool, example: Option<&str>, features: Option<&str>) -> Result<PathBuf> {
+fn build(
+    release: bool,
+    example: Option<&str>,
+    features: Option<&str>,
+    chip: Chip,
+) -> Result<PathBuf> {
     // The 'build-std' unstable cargo feature is required to enable
     // cross-compilation. If it has not been set then we cannot build the
     // application.
-    if !has_build_std(".")? {
+    let cargo_config = parse_cargo_config(".")?;
+    if !cargo_config.has_build_std() {
         return Err(Error::NoBuildStd.into());
     };
+
+    if let Some(target) = cargo_config.target() {
+        if !chip.supports_target(target) {
+            return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
+        }
+    }
 
     // Build the list of arguments to pass to 'cargo build'.
     let mut args = vec![];
