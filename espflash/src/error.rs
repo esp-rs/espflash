@@ -180,7 +180,7 @@ impl From<binread::Error> for Error {
 #[allow(dead_code)]
 #[repr(u8)]
 #[non_exhaustive]
-pub enum RomError {
+pub enum RomErrorKind {
     #[error("Invalid message received")]
     #[diagnostic(code(espflash::rom::invalid_message))]
     InvalidMessage = 0x05,
@@ -207,18 +207,34 @@ pub enum RomError {
     Other = 0xff,
 }
 
-impl From<u8> for RomError {
+impl From<u8> for RomErrorKind {
     fn from(raw: u8) -> Self {
         match raw {
-            0x05 => RomError::InvalidMessage,
-            0x06 => RomError::FailedToAct,
-            0x07 => RomError::InvalidCrc,
-            0x08 => RomError::FlashWriteError,
-            0x09 => RomError::FlashReadError,
-            0x0a => RomError::FlashReadLengthError,
-            0x0b => RomError::DeflateError,
-            _ => RomError::Other,
+            0x05 => RomErrorKind::InvalidMessage,
+            0x06 => RomErrorKind::FailedToAct,
+            0x07 => RomErrorKind::InvalidCrc,
+            0x08 => RomErrorKind::FlashWriteError,
+            0x09 => RomErrorKind::FlashReadError,
+            0x0a => RomErrorKind::FlashReadLengthError,
+            0x0b => RomErrorKind::DeflateError,
+            _ => RomErrorKind::Other,
         }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Error, Diagnostic)]
+#[allow(dead_code)]
+#[non_exhaustive]
+#[error("Error while running {command} command")]
+pub struct RomError {
+    command: Command,
+    #[source]
+    kind: RomErrorKind,
+}
+
+impl RomError {
+    pub fn new(command: Command, kind: RomErrorKind) -> RomError {
+        RomError { command, kind }
     }
 }
 

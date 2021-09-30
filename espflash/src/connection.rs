@@ -3,7 +3,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use crate::encoder::SlipEncoder;
-use crate::error::{ConnectionError, Error, ResultExt, RomError};
+use crate::error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind};
 use crate::flasher::Command;
 use binread::io::Cursor;
 use binread::{BinRead, BinReaderExt};
@@ -125,11 +125,14 @@ impl Connection {
         for _ in 0..100 {
             match self.read_response().for_command(command)? {
                 Some(response) if response.return_op == command as u8 => {
-                    if response.status == 1 {
+                    return if response.status == 1 {
                         let _error = self.flush();
-                        return Err(Error::RomError(RomError::from(response.error)));
+                        Err(Error::RomError(RomError::new(
+                            command,
+                            RomErrorKind::from(response.error),
+                        )))
                     } else {
-                        return Ok(response.value);
+                        Ok(response.value)
                     }
                 }
                 _ => {

@@ -5,10 +5,10 @@ use strum_macros::Display;
 use std::thread::sleep;
 
 use crate::elf::RomSegment;
-use crate::error::{ConnectionError, ElfError, FlashDetectError, ResultExt};
+use crate::error::{ConnectionError, ElfError, FlashDetectError, ResultExt, RomError};
 use crate::{
-    chip::Chip, connection::Connection, elf::FirmwareImage, encoder::SlipEncoder, error::RomError,
-    Error, PartitionTable,
+    chip::Chip, connection::Connection, elf::FirmwareImage, encoder::SlipEncoder,
+    error::RomErrorKind, Error, PartitionTable,
 };
 use std::borrow::Cow;
 
@@ -286,7 +286,10 @@ impl Flasher {
                         Some(response) if response.return_op == Command::Sync as u8 => {
                             if response.status == 1 {
                                 let _error = connection.flush();
-                                return Err(Error::RomError(RomError::from(response.error)));
+                                return Err(Error::RomError(RomError::new(
+                                    Command::Sync,
+                                    RomErrorKind::from(response.error),
+                                )));
                             } else {
                                 break;
                             }
