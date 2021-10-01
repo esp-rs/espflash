@@ -26,6 +26,7 @@ slip-codec =  "0.2.4"
 thiserror = "1.0.20"
 xmas-elf = "0.8.0"
 serde = { version = "1.0", features = ["derive"] }
+serde_plain = "1"
 toml = "0.5"
 directories-next = "2.0.0"
 color-eyre = "0.5"

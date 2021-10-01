@@ -174,8 +174,11 @@ fn main() -> Result<()> {
         .or_else(|| metadata.partition_table.as_deref())
     {
         let path = fs::canonicalize(path).into_diagnostic()?;
-        let data = fs::read_to_string(path).into_diagnostic()?;
-        let table = PartitionTable::try_from_str(data)?;
+        let data = fs::read_to_string(path)
+            .into_diagnostic()
+            .wrap_err("Failed to open partition table")?;
+        let table =
+            PartitionTable::try_from_str(data).wrap_err("Failed to parse partition table")?;
         Some(table)
     } else {
         None

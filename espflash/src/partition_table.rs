@@ -1,15 +1,20 @@
+use crate::error::{
+    CSVError, DuplicatePartitionsError, InvalidSubTypeError, OverlappingPartitionsError,
+    PartitionTableError, UnalignedPartitionError,
+};
 use md5::{Context, Digest};
 use regex::Regex;
-use serde::{Deserialize, Deserializer};
-
-use crate::error::PartitionTableError;
+use serde::{Deserialize, Deserializer, Serialize};
+use std::cmp::{max, min};
+use std::fmt::Write as _;
+use std::fmt::{Display, Formatter};
 use std::io::Write;
+use std::ops::Rem;
 
 const MAX_PARTITION_LENGTH: usize = 0xC00;
 const PARTITION_TABLE_SIZE: usize = 0x1000;
-const MAX_PARTITION_TABLE_ENTRIES: usize = 95;
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[repr(u8)]
 #[allow(dead_code)]
 #[serde(rename_all = "lowercase")]
@@ -18,7 +23,46 @@ pub enum Type {
     Data = 0x01,
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+impl Type {
+    pub fn subtype_hint(&self) -> String {
+        match self {
+            Type::App => "'factory', 'ota_0' through 'ota_15' and 'test'".into(),
+            Type::Data => {
+                let types = [
+                    DataType::Ota,
+                    DataType::Phy,
+                    DataType::Nvs,
+                    DataType::CoreDump,
+                    DataType::NvsKeys,
+                    DataType::EFuse,
+                    DataType::EspHttpd,
+                    DataType::Fat,
+                    DataType::Spiffs,
+                ];
+
+                let mut out = format!("'{}'", serde_plain::to_string(&types[0]).unwrap());
+                for ty in &types[1..types.len() - 2] {
+                    let ser = serde_plain::to_string(&ty).unwrap();
+                    write!(&mut out, ", '{}'", ser).unwrap();
+                }
+
+                let ser = serde_plain::to_string(&types[types.len() - 1]).unwrap();
+                write!(&mut out, " and '{}'", ser).unwrap();
+
+                out
+            }
+        }
+    }
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let ser = serde_plain::to_string(self).unwrap();
+        write!(f, "{}", ser)
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[repr(u8)]
 #[allow(dead_code)]
 #[serde(rename_all = "lowercase")]
@@ -59,7 +103,7 @@ pub enum AppType {
     Test = 0x20,
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[repr(u8)]
 #[allow(dead_code)]
 #[serde(rename_all = "lowercase")]
@@ -76,12 +120,23 @@ pub enum DataType {
     Spiffs = 0x82,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, Copy, Clone)]
 #[allow(dead_code)]
 #[serde(untagged)]
 pub enum SubType {
     App(AppType),
     Data(DataType),
+}
+
+impl Display for SubType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let ser = match self {
+            SubType::App(sub) => serde_plain::to_string(sub),
+            SubType::Data(sub) => serde_plain::to_string(sub),
+        }
+        .unwrap();
+        write!(f, "{}", ser)
+    }
 }
 
 impl SubType {
@@ -147,14 +202,20 @@ impl PartitionTable {
             .trim(csv::Trim::All)
             .from_reader(data.trim().as_bytes());
 
-        let mut partitions = Vec::with_capacity(MAX_PARTITION_TABLE_ENTRIES);
-        for partition in reader.deserialize() {
-            let partition: Partition =
-                partition.map_err(|e| PartitionTableError::new(e, data.clone()))?;
+        let mut partitions = Vec::with_capacity(data.lines().count());
+        for record in reader.records() {
+            let record = record.map_err(|e| CSVError::new(e, data.clone()))?;
+            let position = record.position();
+            let mut partition: Partition = record
+                .deserialize(None)
+                .map_err(|e| CSVError::new(e, data.clone()))?;
+            partition.line = position.map(|pos| pos.line() as usize);
             partitions.push(partition);
         }
 
-        Ok(Self { partitions })
+        let table = Self { partitions };
+        table.validate(&data)?;
+        Ok(table)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -184,6 +245,57 @@ impl PartitionTable {
 
         Ok(())
     }
+
+    fn validate(&self, source: &str) -> Result<(), PartitionTableError> {
+        for partition in &self.partitions {
+            if let Some(line) = &partition.line {
+                let expected_type = match partition.sub_type {
+                    SubType::App(_) => Type::App,
+                    SubType::Data(_) => Type::Data,
+                };
+                if expected_type != partition.ty {
+                    return Err(InvalidSubTypeError::new(
+                        source,
+                        *line,
+                        partition.ty,
+                        partition.sub_type,
+                    )
+                    .into());
+                }
+                if partition.ty == Type::App && partition.offset.rem(0x10000) != 0 {
+                    return Err(UnalignedPartitionError::new(source, *line).into());
+                }
+            }
+        }
+
+        for partition1 in &self.partitions {
+            for partition2 in &self.partitions {
+                if let (Some(line1), Some(line2)) = (&partition1.line, &partition2.line) {
+                    if line1 != line2 {
+                        if partition1.overlaps(partition2) {
+                            return Err(
+                                OverlappingPartitionsError::new(source, *line1, *line2).into()
+                            );
+                        }
+                        if partition1.name == partition2.name {
+                            return Err(DuplicatePartitionsError::new(
+                                source, *line1, *line2, "name",
+                            )
+                            .into());
+                        }
+                        if partition1.sub_type == partition2.sub_type {
+                            return Err(DuplicatePartitionsError::new(
+                                source, *line1, *line2, "sub-type",
+                            )
+                            .into());
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 const PARTITION_SIZE: usize = 32;
@@ -199,6 +311,8 @@ struct Partition {
     #[serde(deserialize_with = "deserialize_partition_offset_or_size")]
     size: u32,
     flags: Option<u32>,
+    #[serde(skip)]
+    line: Option<usize>,
 }
 
 impl Partition {
@@ -219,6 +333,7 @@ impl Partition {
             offset,
             size,
             flags,
+            line: None,
         }
     }
 
@@ -241,6 +356,10 @@ impl Partition {
         writer.write_all(&flags)?;
 
         Ok(())
+    }
+
+    fn overlaps(&self, other: &Partition) -> bool {
+        max(self.offset, other.offset) < min(self.offset + self.size, other.offset + other.size)
     }
 }
 
