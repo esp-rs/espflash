@@ -459,6 +459,24 @@ impl Flasher {
         self.flash_size
     }
 
+    /// Read and print any information we can about the connected board
+    pub fn board_info(&mut self) -> Result<(), Error> {
+        let chip = self.chip();
+        let maybe_revision = chip.chip_revision(self.connection())?;
+        let freq = chip.crystal_freq(self.connection())?;
+        let size = self.flash_size();
+
+        print!("Chip type:         {}", chip);
+        match maybe_revision {
+            Some(revision) => println!(" (revision {})", revision),
+            None => println!(),
+        }
+        println!("Crystal frequency: {}MHz", freq);
+        println!("Flash size:        {}", size);
+
+        Ok(())
+    }
+
     /// Load an elf image to ram and execute it
     ///
     /// Note that this will not touch the flash on the device

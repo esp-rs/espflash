@@ -141,11 +141,13 @@ fn main() -> Result<()> {
         None
     };
 
-    // Connect the Flasher to the target device. If the '--board-info' flag has been
-    // provided, display the board info and terminate the application.
+    // Connect the Flasher to the target device and print the board information
+    // upon connection. If the '--board-info' flag has been provided, we have
+    // nothing left to do so exit early.
     let mut flasher = Flasher::connect(serial, speed)?;
+    flasher.board_info()?;
+
     if matches.is_present("board_info") {
-        board_info(&mut flasher)?;
         return Ok(());
     }
 
@@ -193,31 +195,13 @@ fn main() -> Result<()> {
     } else {
         flasher.load_elf_to_flash(&elf_data, bootloader, partition_table)?;
     }
+    println!("\nFlashing has completed!");
 
     if matches.is_present("monitor") {
         monitor(flasher.into_serial()).into_diagnostic()?;
     }
 
     // We're all done!
-    Ok(())
-}
-
-fn board_info(flasher: &mut Flasher) -> Result<()> {
-    let chip = flasher.chip();
-    let revision = chip.chip_revision(flasher.connection())?;
-    let freq = chip.crystal_freq(flasher.connection())?;
-
-    // Print the detected chip type, and if available the silicon revision.
-    print!("Chip type:         {}", chip);
-    if let Some(revision) = revision {
-        println!(" (revision {})", revision);
-    } else {
-        println!();
-    }
-
-    println!("Crystal frequency: {}MHz", freq);
-    println!("Flash size:        {}", flasher.flash_size());
-
     Ok(())
 }
 
