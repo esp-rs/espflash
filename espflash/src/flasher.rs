@@ -444,6 +444,11 @@ impl Flasher {
         Ok(result)
     }
 
+    /// The active serial connection being used by the flasher
+    pub fn connection(&mut self) -> &mut Connection {
+        &mut self.connection
+    }
+
     /// The chip type that the flasher is connected to
     pub fn chip(&self) -> Chip {
         self.chip

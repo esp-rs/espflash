@@ -1,5 +1,10 @@
-use crate::cargo_config::parse_cargo_config;
-use crate::error::UnsupportedTargetError;
+use std::{
+    fs,
+    path::PathBuf,
+    process::{exit, Command, ExitStatus, Stdio},
+    string::ToString,
+};
+
 use cargo_metadata::Message;
 use clap::{App, Arg, SubCommand};
 use error::Error;
@@ -8,12 +13,8 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 use monitor::monitor;
 use package_metadata::CargoEspFlashMeta;
 use serial::{BaudRate, FlowControl, SerialPort};
-use std::{
-    fs,
-    path::PathBuf,
-    process::{exit, Command, ExitStatus, Stdio},
-    string::ToString,
-};
+
+use crate::{cargo_config::parse_cargo_config, error::UnsupportedTargetError};
 
 mod cargo_config;
 mod error;
@@ -23,6 +24,7 @@ mod package_metadata;
 
 fn main() -> Result<()> {
     miette::set_panic_hook();
+
     let mut app = App::new(env!("CARGO_PKG_NAME"))
         .bin_name("cargo")
         .subcommand(
@@ -143,7 +145,7 @@ fn main() -> Result<()> {
     // provided, display the board info and terminate the application.
     let mut flasher = Flasher::connect(serial, speed)?;
     if matches.is_present("board_info") {
-        board_info(&flasher);
+        board_info(&mut flasher)?;
         return Ok(());
     }
 
@@ -200,9 +202,23 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn board_info(flasher: &Flasher) {
-    println!("Chip type:  {}", flasher.chip());
-    println!("Flash size: {}", flasher.flash_size());
+fn board_info(flasher: &mut Flasher) -> Result<()> {
+    let chip = flasher.chip();
+    let revision = chip.chip_revision(flasher.connection())?;
+    let freq = chip.crystal_freq(flasher.connection())?;
+
+    // Print the detected chip type, and if available the silicon revision.
+    print!("Chip type:         {}", chip);
+    if let Some(revision) = revision {
+        println!(" (revision {})", revision);
+    } else {
+        println!();
+    }
+
+    println!("Crystal frequency: {}MHz", freq);
+    println!("Flash size:        {}", flasher.flash_size());
+
+    Ok(())
 }
 
 fn build(

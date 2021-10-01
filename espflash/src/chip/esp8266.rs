@@ -17,6 +17,9 @@ pub struct Esp8266;
 impl ChipType for Esp8266 {
     const CHIP_DETECT_MAGIC_VALUE: u32 = 0xfff0c101;
 
+    const UART_CLKDIV_REG: u32 = 0x60000014;
+    const XTAL_CLK_DIVIDER: u32 = 2;
+
     const SPI_REGISTERS: SpiRegisters = SpiRegisters {
         base: 0x60000200,
         usr_offset: 0x1c,

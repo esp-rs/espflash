@@ -22,6 +22,10 @@ pub trait ChipType {
     const CHIP_DETECT_MAGIC_VALUE: u32;
     const CHIP_DETECT_MAGIC_VALUE2: u32 = 0x0; // give default value, as most chips don't only have one
 
+    const UART_CLKDIV_REG: u32;
+    const UART_CLKDIV_MASK: u32 = 0xFFFFF;
+    const XTAL_CLK_DIVIDER: u32 = 1;
+
     const SPI_REGISTERS: SpiRegisters;
     const FLASH_RANGES: &'static [Range<u32>];
 
@@ -29,6 +33,16 @@ pub trait ChipType {
     const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId];
 
     const SUPPORTED_TARGETS: &'static [&'static str];
+
+    /// Determine the frequency of the crytal on the connected chip.
+    fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let uart_div = connection.read_reg(Self::UART_CLKDIV_REG)? & Self::UART_CLKDIV_MASK;
+        let est_xtal =
+            (connection.get_baud().speed() as u32 * uart_div) / 1_000_000 / Self::XTAL_CLK_DIVIDER;
+        let norm_xtal = if est_xtal > 33 { 40 } else { 26 };
+
+        Ok(norm_xtal)
+    }
 
     /// Get the firmware segments for writing an image to flash
     fn get_flash_segments<'a>(
@@ -206,12 +220,22 @@ impl Chip {
         }
     }
 
-    pub fn read_efuse(&self, connection: &mut Connection, n: u32) -> Result<u32, Error> {
+    pub fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
         match self {
-            Chip::Esp32 => Esp32.read_efuse(connection, n),
-            Chip::Esp32c3 => Esp32c3.read_efuse(connection, n),
-            Chip::Esp32s2 => Esp32s2.read_efuse(connection, n),
-            Chip::Esp8266 => Esp8266.read_efuse(connection, n),
+            Chip::Esp32 => Esp32.crystal_freq(connection),
+            Chip::Esp32c3 => Esp32c3.crystal_freq(connection),
+            Chip::Esp32s2 => Esp32s2.crystal_freq(connection),
+            Chip::Esp8266 => Esp8266.crystal_freq(connection),
         }
+    }
+
+    pub fn chip_revision(&self, connection: &mut Connection) -> Result<Option<u32>, Error> {
+        let rev = match self {
+            Chip::Esp32 => Some(Esp32.chip_revision(connection)?),
+            Chip::Esp32c3 => Some(Esp32c3.chip_revision(connection)?),
+            _ => None,
+        };
+
+        Ok(rev)
     }
 }

@@ -3,6 +3,7 @@ use std::ops::Range;
 use super::Esp32Params;
 use crate::{
     chip::{ChipType, ReadEFuse, SpiRegisters},
+    connection::Connection,
     elf::FirmwareImage,
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
     Chip, Error, PartitionTable,
@@ -33,6 +34,8 @@ impl ChipType for Esp32c3 {
     const CHIP_DETECT_MAGIC_VALUE: u32 = 0x6921506f;
     const CHIP_DETECT_MAGIC_VALUE2: u32 = 0x1b31506f;
 
+    const UART_CLKDIV_REG: u32 = 0x3ff40014;
+
     const SPI_REGISTERS: SpiRegisters = SpiRegisters {
         base: 0x60002000,
         usr_offset: 0x18,
@@ -52,6 +55,11 @@ impl ChipType for Esp32c3 {
 
     const SUPPORTED_TARGETS: &'static [&'static str] =
         &["riscv32imc-uknown-none-elf", "riscv32imc-esp-espidf"];
+
+    fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
+        // The ESP32-C3's XTAL has a fixed frequency of 40MHz.
+        Ok(40)
+    }
 
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
@@ -80,4 +88,17 @@ impl ChipType for Esp32c3 {
 
 impl ReadEFuse for Esp32c3 {
     const EFUSE_REG_BASE: u32 = 0x60008830;
+}
+
+impl Esp32c3 {
+    pub fn chip_revision(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let block1_addr = Self::EFUSE_REG_BASE + 0x14;
+        let num_word = 3;
+        let pos = 18;
+
+        let value = connection.read_reg(block1_addr + (num_word * 0x4))?;
+        let value = (value & (0x7 << pos)) >> pos;
+
+        Ok(value)
+    }
 }

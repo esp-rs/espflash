@@ -1,5 +1,6 @@
 use crate::PartitionTable;
 
+#[allow(clippy::module_inception)]
 mod esp32;
 mod esp32c3;
 mod esp32s2;

@@ -11,11 +11,6 @@ use crate::{
     flasher::Command,
 };
 
-pub struct Connection {
-    serial: SystemPort,
-    decoder: Decoder,
-}
-
 #[derive(Debug, Copy, Clone, BinRead)]
 pub struct CommandResponse {
     pub resp: u8,
@@ -24,6 +19,12 @@ pub struct CommandResponse {
     pub value: u32,
     pub status: u8,
     pub error: u8,
+}
+
+pub struct Connection {
+    serial: SystemPort,
+    speed: BaudRate,
+    decoder: Decoder,
 }
 
 #[derive(Zeroable, Pod, Copy, Clone, Debug)]
@@ -39,6 +40,7 @@ impl Connection {
     pub fn new(serial: SystemPort) -> Self {
         Connection {
             serial,
+            speed: BaudRate::Baud115200,
             decoder: Decoder::new(),
         }
     }
@@ -78,9 +80,15 @@ impl Connection {
     }
 
     pub fn set_baud(&mut self, speed: BaudRate) -> Result<(), Error> {
+        self.speed = speed;
         self.serial
             .reconfigure(&|setup: &mut dyn SerialPortSettings| setup.set_baud_rate(speed))?;
+
         Ok(())
+    }
+
+    pub fn get_baud(&self) -> BaudRate {
+        self.speed
     }
 
     pub fn with_timeout<T, F: FnMut(&mut Connection) -> Result<T, Error>>(
