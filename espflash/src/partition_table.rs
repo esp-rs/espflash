@@ -1,6 +1,6 @@
 use crate::error::{
     CSVError, DuplicatePartitionsError, InvalidSubTypeError, OverlappingPartitionsError,
-    PartitionTableError,
+    PartitionTableError, UnalignedPartitionError,
 };
 use md5::{Context, Digest};
 use regex::Regex;
@@ -9,6 +9,7 @@ use std::cmp::{max, min};
 use std::fmt::Write as _;
 use std::fmt::{Display, Formatter};
 use std::io::Write;
+use std::ops::Rem;
 
 const MAX_PARTITION_LENGTH: usize = 0xC00;
 const PARTITION_TABLE_SIZE: usize = 0x1000;
@@ -260,6 +261,9 @@ impl PartitionTable {
                         partition.sub_type,
                     )
                     .into());
+                }
+                if partition.ty == Type::App && partition.offset.rem(0x10000) != 0 {
+                    return Err(UnalignedPartitionError::new(source, *line).into());
                 }
             }
         }

@@ -280,6 +280,9 @@ pub enum PartitionTableError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     InvalidSubType(#[from] InvalidSubTypeError),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    UnalignedPartitionError(#[from] UnalignedPartitionError),
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -426,6 +429,25 @@ impl InvalidSubTypeError {
             span: line_to_span(&source, line),
             ty,
             sub_type,
+        }
+    }
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("Unaligned partition")]
+#[diagnostic(code(espflash::partition_table::unaligned))]
+pub struct UnalignedPartitionError {
+    #[source_code]
+    source_code: String,
+    #[label("App partition is not aligned to 64k (0x10000)")]
+    span: SourceSpan,
+}
+
+impl UnalignedPartitionError {
+    pub fn new(source: &str, line: usize) -> Self {
+        UnalignedPartitionError {
+            source_code: source.into(),
+            span: line_to_span(&source, line),
         }
     }
 }
