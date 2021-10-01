@@ -1,7 +1,8 @@
-use crate::error::Error;
+use crate::error::{Error, TomlError};
 use cargo_toml::Manifest;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::Deserialize;
+use std::fs::read_to_string;
 use std::path::Path;
 
 #[derive(Clone, Debug, Deserialize, Default)]
@@ -17,8 +18,15 @@ pub struct Meta {
 
 impl CargoEspFlashMeta {
     pub fn load<P: AsRef<Path>>(path: P) -> Result<CargoEspFlashMeta> {
-        let manifest = Manifest::<Meta>::from_path_with_metadata(path)
+        let path = path.as_ref();
+        if !path.exists() {
+            return Err(Error::NoProject.into());
+        }
+        let toml = read_to_string(path)
             .into_diagnostic()
+            .wrap_err("Failed to read Cargo.toml")?;
+        let manifest = Manifest::<Meta>::from_slice_with_metadata(toml.as_bytes())
+            .map_err(move |e| TomlError::new(e, toml))
             .wrap_err("Failed to parse Cargo.toml")?;
         let meta = manifest
             .package
