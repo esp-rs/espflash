@@ -1,6 +1,6 @@
 # `cargo-espflash`
 
-Cross-compiler and serial flasher cargo subcommand for Espressif devices. Currently supports __ESP32__, __ESP32-S3__, __ESP32-C3__, and __ESP8266__.
+Cross-compiler and serial flasher cargo subcommand for Espressif devices. Currently supports __ESP32__, __ESP32-S2__, __ESP32-C3__, and __ESP8266__.
 
 Prior to flashing, the project is built using the `build-std` unstable cargo feature. Please refer to the [cargo documentation](https://doc.rust-lang.org/cargo/reference/unstable.html#build-std) for more information.
 
