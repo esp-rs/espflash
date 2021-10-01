@@ -26,7 +26,7 @@ pub enum Type {
 impl Type {
     pub fn subtype_hint(&self) -> String {
         match self {
-            Type::App => "'factory', 'ota_0' trough 'ota_15' and 'test'".into(),
+            Type::App => "'factory', 'ota_0' through 'ota_15' and 'test'".into(),
             Type::Data => {
                 let types = [
                     DataType::Ota,
