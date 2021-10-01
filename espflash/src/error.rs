@@ -1,7 +1,6 @@
 use crate::flasher::Command;
 use crate::image_format::ImageFormatId;
 use crate::Chip;
-use csv::Position;
 use miette::{Diagnostic, SourceOffset, SourceSpan};
 use slip_codec::Error as SlipError;
 use std::fmt::{Display, Formatter};
@@ -267,14 +266,24 @@ impl<T> ResultExt for Result<T, Error> {
 }
 
 #[derive(Debug, Error, Diagnostic)]
+pub enum PartitionTableError {
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    CSV(#[from] CSVError),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Overlapping(#[from] OverlappingPartitionsError),
+}
+
+#[derive(Debug, Error, Diagnostic)]
 #[error("Malformed partition table")]
 #[diagnostic(
-    code(espflash::mallformed_partition_table),
+    code(espflash::partition_table::mallformed),
     help("See the espressif documentation for information on the partition table format:
 
 https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#creating-custom-tables")
 )]
-pub struct PartitionTableError {
+pub struct CSVError {
     #[source_code]
     source: String,
     #[label("{}", self.hint)]
@@ -284,12 +293,12 @@ pub struct PartitionTableError {
     error: csv::Error,
 }
 
-impl PartitionTableError {
+impl CSVError {
     pub fn new(error: csv::Error, source: String) -> Self {
-        let err_pos = match error.kind() {
-            csv::ErrorKind::Deserialize { pos: Some(pos), .. } => pos.clone(),
-            csv::ErrorKind::UnequalLengths { pos: Some(pos), .. } => pos.clone(),
-            _ => Position::new(),
+        let err_line = match error.kind() {
+            csv::ErrorKind::Deserialize { pos: Some(pos), .. } => pos.line(),
+            csv::ErrorKind::UnequalLengths { pos: Some(pos), .. } => pos.line(),
+            _ => 0,
         };
         let hint = match error.kind() {
             csv::ErrorKind::Deserialize { err, .. } => err.to_string(),
@@ -302,16 +311,9 @@ impl PartitionTableError {
             _ => String::new(),
         };
 
-        // since csv doesn't give us the position in the line the error occurs, we highlight the entire line
-        let line_length = source
-            .lines()
-            .nth(err_pos.line() as usize - 1)
-            .unwrap()
-            .len()
-            .into();
-        let err_span = SourceSpan::new(pos_to_offset(err_pos), line_length);
+        let err_span = line_to_span(&source, err_line as usize);
 
-        PartitionTableError {
+        CSVError {
             source,
             err_span,
             hint,
@@ -320,8 +322,34 @@ impl PartitionTableError {
     }
 }
 
-fn pos_to_offset(pos: Position) -> SourceOffset {
-    (pos.byte() as usize).into()
+/// since csv doesn't give us the position in the line the error occurs, we highlight the entire line
+///
+/// line starts at 1
+fn line_to_span(source: &str, line: usize) -> SourceSpan {
+    let line_length = source.lines().nth(line - 1).unwrap().len().into();
+    SourceSpan::new(SourceOffset::from_location(source, line, 2), line_length)
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("Overlapping partitions")]
+#[diagnostic(code(espflash::partition_table::overlapping))]
+pub struct OverlappingPartitionsError {
+    #[source_code]
+    source_code: String,
+    #[label("This partition")]
+    partition1_span: SourceSpan,
+    #[label("Overlaps with this partition")]
+    partition2_span: SourceSpan,
+}
+
+impl OverlappingPartitionsError {
+    pub fn new(source: &str, partition1_line: usize, partition2_line: usize) -> Self {
+        OverlappingPartitionsError {
+            source_code: source.into(),
+            partition1_span: line_to_span(&source, partition1_line),
+            partition2_span: line_to_span(&source, partition2_line),
+        }
+    }
 }
 
 #[derive(Debug, Error)]

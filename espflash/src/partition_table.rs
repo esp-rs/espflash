@@ -2,12 +2,12 @@ use md5::{Context, Digest};
 use regex::Regex;
 use serde::{Deserialize, Deserializer};
 
-use crate::error::PartitionTableError;
+use crate::error::{CSVError, OverlappingPartitionsError, PartitionTableError};
+use std::cmp::{max, min};
 use std::io::Write;
 
 const MAX_PARTITION_LENGTH: usize = 0xC00;
 const PARTITION_TABLE_SIZE: usize = 0x1000;
-const MAX_PARTITION_TABLE_ENTRIES: usize = 95;
 
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[repr(u8)]
@@ -147,14 +147,20 @@ impl PartitionTable {
             .trim(csv::Trim::All)
             .from_reader(data.trim().as_bytes());
 
-        let mut partitions = Vec::with_capacity(MAX_PARTITION_TABLE_ENTRIES);
-        for partition in reader.deserialize() {
-            let partition: Partition =
-                partition.map_err(|e| PartitionTableError::new(e, data.clone()))?;
+        let mut partitions = Vec::with_capacity(data.lines().count());
+        for record in reader.records() {
+            let record = record.map_err(|e| CSVError::new(e, data.clone()))?;
+            let position = record.position();
+            let mut partition: Partition = record
+                .deserialize(None)
+                .map_err(|e| CSVError::new(e, data.clone()))?;
+            partition.line = position.map(|pos| pos.line() as usize);
             partitions.push(partition);
         }
 
-        Ok(Self { partitions })
+        let table = Self { partitions };
+        table.validate(&data)?;
+        Ok(table)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -184,6 +190,20 @@ impl PartitionTable {
 
         Ok(())
     }
+
+    fn validate(&self, source: &str) -> Result<(), PartitionTableError> {
+        for partition1 in &self.partitions {
+            for partition2 in &self.partitions {
+                if let (Some(line1), Some(line2)) = (&partition1.line, &partition2.line) {
+                    if line1 != line2 && partition1.overlaps(partition2) {
+                        return Err(OverlappingPartitionsError::new(source, *line1, *line2).into());
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 const PARTITION_SIZE: usize = 32;
@@ -199,6 +219,8 @@ struct Partition {
     #[serde(deserialize_with = "deserialize_partition_offset_or_size")]
     size: u32,
     flags: Option<u32>,
+    #[serde(skip)]
+    line: Option<usize>,
 }
 
 impl Partition {
@@ -219,6 +241,7 @@ impl Partition {
             offset,
             size,
             flags,
+            line: None,
         }
     }
 
@@ -241,6 +264,10 @@ impl Partition {
         writer.write_all(&flags)?;
 
         Ok(())
+    }
+
+    fn overlaps(&self, other: &Partition) -> bool {
+        max(self.offset, other.offset) < min(self.offset + self.size, other.offset + other.size)
     }
 }
 
