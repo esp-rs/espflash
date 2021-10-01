@@ -286,9 +286,9 @@ pub enum PartitionTableError {
 #[error("Malformed partition table")]
 #[diagnostic(
     code(espflash::partition_table::mallformed),
-    help("See the espressif documentation for information on the partition table format:
+    help("{}See the espressif documentation for information on the partition table format:
 
-https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#creating-custom-tables")
+https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#creating-custom-tables", self.help)
 )]
 pub struct CSVError {
     #[source_code]
@@ -298,6 +298,7 @@ pub struct CSVError {
     hint: String,
     #[source]
     error: csv::Error,
+    help: String,
 }
 
 impl CSVError {
@@ -307,7 +308,7 @@ impl CSVError {
             csv::ErrorKind::UnequalLengths { pos: Some(pos), .. } => pos.line(),
             _ => 0,
         };
-        let hint = match error.kind() {
+        let mut hint = match error.kind() {
             csv::ErrorKind::Deserialize { err, .. } => err.to_string(),
             csv::ErrorKind::UnequalLengths {
                 expected_len, len, ..
@@ -317,6 +318,20 @@ impl CSVError {
             ),
             _ => String::new(),
         };
+        let mut help = String::new();
+
+        // string matching is fragile but afaik there is no better way in this case
+        // and if it does break the error is still not bad
+        if hint == "data did not match any variant of untagged enum SubType" {
+            hint = "Unknown sub-type".into();
+            help = format!(
+                "the following sub-types are supported:
+    {} for data partitions
+    {} for app partitions\n\n",
+                Type::Data.subtype_hint(),
+                Type::App.subtype_hint()
+            )
+        }
 
         let err_span = line_to_span(&source, err_line as usize);
 
@@ -325,6 +340,7 @@ impl CSVError {
             err_span,
             hint,
             error,
+            help,
         }
     }
 }
