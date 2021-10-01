@@ -270,7 +270,7 @@ impl<T> ResultExt for Result<T, Error> {
 pub enum PartitionTableError {
     #[error(transparent)]
     #[diagnostic(transparent)]
-    CSV(#[from] CSVError),
+    Csv(#[from] CSVError),
     #[error(transparent)]
     #[diagnostic(transparent)]
     Overlapping(#[from] OverlappingPartitionsError),
@@ -372,8 +372,8 @@ impl OverlappingPartitionsError {
     pub fn new(source: &str, partition1_line: usize, partition2_line: usize) -> Self {
         OverlappingPartitionsError {
             source_code: source.into(),
-            partition1_span: line_to_span(&source, partition1_line),
-            partition2_span: line_to_span(&source, partition2_line),
+            partition1_span: line_to_span(source, partition1_line),
+            partition2_span: line_to_span(source, partition2_line),
         }
     }
 }
@@ -400,8 +400,8 @@ impl DuplicatePartitionsError {
     ) -> Self {
         DuplicatePartitionsError {
             source_code: source.into(),
-            partition1_span: line_to_span(&source, partition1_line),
-            partition2_span: line_to_span(&source, partition2_line),
+            partition1_span: line_to_span(source, partition1_line),
+            partition2_span: line_to_span(source, partition2_line),
             ty,
         }
     }
@@ -426,7 +426,7 @@ impl InvalidSubTypeError {
     pub fn new(source: &str, line: usize, ty: Type, sub_type: SubType) -> Self {
         InvalidSubTypeError {
             source_code: source.into(),
-            span: line_to_span(&source, line),
+            span: line_to_span(source, line),
             ty,
             sub_type,
         }
@@ -447,7 +447,7 @@ impl UnalignedPartitionError {
     pub fn new(source: &str, line: usize) -> Self {
         UnalignedPartitionError {
             source_code: source.into(),
-            span: line_to_span(&source, line),
+            span: line_to_span(source, line),
         }
     }
 }
