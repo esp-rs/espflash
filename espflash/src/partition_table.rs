@@ -1,17 +1,19 @@
+use crate::error::{
+    CSVError, DuplicatePartitionsError, InvalidSubTypeError, OverlappingPartitionsError,
+    PartitionTableError,
+};
 use md5::{Context, Digest};
 use regex::Regex;
-use serde::{Deserialize, Deserializer};
-
-use crate::error::{
-    CSVError, DuplicatePartitionsError, OverlappingPartitionsError, PartitionTableError,
-};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::cmp::{max, min};
+use std::fmt::Write as _;
+use std::fmt::{Display, Formatter};
 use std::io::Write;
 
 const MAX_PARTITION_LENGTH: usize = 0xC00;
 const PARTITION_TABLE_SIZE: usize = 0x1000;
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[repr(u8)]
 #[allow(dead_code)]
 #[serde(rename_all = "lowercase")]
@@ -20,7 +22,46 @@ pub enum Type {
     Data = 0x01,
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, PartialEq)]
+impl Type {
+    pub fn subtype_hint(&self) -> String {
+        match self {
+            Type::App => "'factory', 'ota_0' trough 'ota_15' and 'test'".into(),
+            Type::Data => {
+                let types = [
+                    DataType::Ota,
+                    DataType::Phy,
+                    DataType::Nvs,
+                    DataType::CoreDump,
+                    DataType::NvsKeys,
+                    DataType::EFuse,
+                    DataType::EspHttpd,
+                    DataType::Fat,
+                    DataType::Spiffs,
+                ];
+
+                let mut out = format!("'{}'", serde_plain::to_string(&types[0]).unwrap());
+                for ty in &types[1..types.len() - 2] {
+                    let ser = serde_plain::to_string(&ty).unwrap();
+                    write!(&mut out, ", '{}'", ser).unwrap();
+                }
+
+                let ser = serde_plain::to_string(&types[types.len() - 1]).unwrap();
+                write!(&mut out, " and '{}'", ser).unwrap();
+
+                out
+            }
+        }
+    }
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let ser = serde_plain::to_string(self).unwrap();
+        write!(f, "{}", ser)
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[repr(u8)]
 #[allow(dead_code)]
 #[serde(rename_all = "lowercase")]
@@ -61,7 +102,7 @@ pub enum AppType {
     Test = 0x20,
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, PartialEq)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[repr(u8)]
 #[allow(dead_code)]
 #[serde(rename_all = "lowercase")]
@@ -78,12 +119,23 @@ pub enum DataType {
     Spiffs = 0x82,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Copy, Clone)]
 #[allow(dead_code)]
 #[serde(untagged)]
 pub enum SubType {
     App(AppType),
     Data(DataType),
+}
+
+impl Display for SubType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let ser = match self {
+            SubType::App(sub) => serde_plain::to_string(sub),
+            SubType::Data(sub) => serde_plain::to_string(sub),
+        }
+        .unwrap();
+        write!(f, "{}", ser)
+    }
 }
 
 impl SubType {
@@ -194,6 +246,24 @@ impl PartitionTable {
     }
 
     fn validate(&self, source: &str) -> Result<(), PartitionTableError> {
+        for partition in &self.partitions {
+            if let Some(line) = &partition.line {
+                let expected_type = match partition.sub_type {
+                    SubType::App(_) => Type::App,
+                    SubType::Data(_) => Type::Data,
+                };
+                if expected_type != partition.ty {
+                    return Err(InvalidSubTypeError::new(
+                        source,
+                        *line,
+                        partition.ty,
+                        partition.sub_type,
+                    )
+                    .into());
+                }
+            }
+        }
+
         for partition1 in &self.partitions {
             for partition2 in &self.partitions {
                 if let (Some(line1), Some(line2)) = (&partition1.line, &partition2.line) {

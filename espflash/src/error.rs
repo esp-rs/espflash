@@ -1,5 +1,6 @@
 use crate::flasher::Command;
 use crate::image_format::ImageFormatId;
+use crate::partition_table::{SubType, Type};
 use crate::Chip;
 use miette::{Diagnostic, SourceOffset, SourceSpan};
 use slip_codec::Error as SlipError;
@@ -276,6 +277,9 @@ pub enum PartitionTableError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     Duplicate(#[from] DuplicatePartitionsError),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    InvalidSubType(#[from] InvalidSubTypeError),
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -380,6 +384,32 @@ impl DuplicatePartitionsError {
             partition1_span: line_to_span(&source, partition1_line),
             partition2_span: line_to_span(&source, partition2_line),
             ty,
+        }
+    }
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("Invalid subtype for type")]
+#[diagnostic(
+    code(espflash::partition_table::invalid_type),
+    help("'{}' supports the following subtypes: {}", self.ty, self.ty.subtype_hint())
+)]
+pub struct InvalidSubTypeError {
+    #[source_code]
+    source_code: String,
+    #[label("'{}' is not a valid subtype for '{}'", self.sub_type, self.ty)]
+    span: SourceSpan,
+    ty: Type,
+    sub_type: SubType,
+}
+
+impl InvalidSubTypeError {
+    pub fn new(source: &str, line: usize, ty: Type, sub_type: SubType) -> Self {
+        InvalidSubTypeError {
+            source_code: source.into(),
+            span: line_to_span(&source, line),
+            ty,
+            sub_type,
         }
     }
 }
