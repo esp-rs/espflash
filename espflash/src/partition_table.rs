@@ -2,7 +2,9 @@ use md5::{Context, Digest};
 use regex::Regex;
 use serde::{Deserialize, Deserializer};
 
-use crate::error::{CSVError, OverlappingPartitionsError, PartitionTableError};
+use crate::error::{
+    CSVError, DuplicatePartitionsError, OverlappingPartitionsError, PartitionTableError,
+};
 use std::cmp::{max, min};
 use std::io::Write;
 
@@ -18,7 +20,7 @@ pub enum Type {
     Data = 0x01,
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize, PartialEq)]
 #[repr(u8)]
 #[allow(dead_code)]
 #[serde(rename_all = "lowercase")]
@@ -59,7 +61,7 @@ pub enum AppType {
     Test = 0x20,
 }
 
-#[derive(Copy, Clone, Debug, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize, PartialEq)]
 #[repr(u8)]
 #[allow(dead_code)]
 #[serde(rename_all = "lowercase")]
@@ -76,7 +78,7 @@ pub enum DataType {
     Spiffs = 0x82,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 #[allow(dead_code)]
 #[serde(untagged)]
 pub enum SubType {
@@ -195,8 +197,24 @@ impl PartitionTable {
         for partition1 in &self.partitions {
             for partition2 in &self.partitions {
                 if let (Some(line1), Some(line2)) = (&partition1.line, &partition2.line) {
-                    if line1 != line2 && partition1.overlaps(partition2) {
-                        return Err(OverlappingPartitionsError::new(source, *line1, *line2).into());
+                    if line1 != line2 {
+                        if partition1.overlaps(partition2) {
+                            return Err(
+                                OverlappingPartitionsError::new(source, *line1, *line2).into()
+                            );
+                        }
+                        if partition1.name == partition2.name {
+                            return Err(DuplicatePartitionsError::new(
+                                source, *line1, *line2, "name",
+                            )
+                            .into());
+                        }
+                        if partition1.sub_type == partition2.sub_type {
+                            return Err(DuplicatePartitionsError::new(
+                                source, *line1, *line2, "sub-type",
+                            )
+                            .into());
+                        }
                     }
                 }
             }

@@ -273,6 +273,9 @@ pub enum PartitionTableError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     Overlapping(#[from] OverlappingPartitionsError),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Duplicate(#[from] DuplicatePartitionsError),
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -338,7 +341,7 @@ pub struct OverlappingPartitionsError {
     source_code: String,
     #[label("This partition")]
     partition1_span: SourceSpan,
-    #[label("Overlaps with this partition")]
+    #[label("overlaps with this partition")]
     partition2_span: SourceSpan,
 }
 
@@ -348,6 +351,35 @@ impl OverlappingPartitionsError {
             source_code: source.into(),
             partition1_span: line_to_span(&source, partition1_line),
             partition2_span: line_to_span(&source, partition2_line),
+        }
+    }
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("Duplicate partitions")]
+#[diagnostic(code(espflash::partition_table::duplicate))]
+pub struct DuplicatePartitionsError {
+    #[source_code]
+    source_code: String,
+    #[label("This partition")]
+    partition1_span: SourceSpan,
+    #[label("has the same {} as this partition", self.ty)]
+    partition2_span: SourceSpan,
+    ty: &'static str,
+}
+
+impl DuplicatePartitionsError {
+    pub fn new(
+        source: &str,
+        partition1_line: usize,
+        partition2_line: usize,
+        ty: &'static str,
+    ) -> Self {
+        DuplicatePartitionsError {
+            source_code: source.into(),
+            partition1_span: line_to_span(&source, partition1_line),
+            partition2_span: line_to_span(&source, partition2_line),
+            ty,
         }
     }
 }
