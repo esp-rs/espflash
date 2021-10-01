@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use super::ChipType;
 use crate::{
-    chip::SpiRegisters,
+    chip::{ReadEFuse, SpiRegisters},
     elf::FirmwareImage,
     error::UnsupportedImageFormatError,
     image_format::{Esp8266Format, ImageFormat, ImageFormatId},
@@ -51,10 +51,15 @@ impl ChipType for Esp8266 {
     }
 }
 
+impl ReadEFuse for Esp8266 {
+    const EFUSE_REG_BASE: u32 = 0x3ff00050;
+}
+
 #[test]
 fn test_esp8266_rom() {
-    use pretty_assertions::assert_eq;
     use std::fs::read;
+
+    use pretty_assertions::assert_eq;
 
     let input_bytes = read("./tests/data/esp8266").unwrap();
     let expected_bin = read("./tests/data/esp8266.bin").unwrap();

@@ -1,14 +1,15 @@
-use std::io::Write;
-use std::thread::sleep;
-use std::time::Duration;
+use std::{io::Write, thread::sleep, time::Duration};
 
-use crate::encoder::SlipEncoder;
-use crate::error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind};
-use crate::flasher::Command;
-use binread::io::Cursor;
-use binread::{BinRead, BinReaderExt};
+use binread::{io::Cursor, BinRead, BinReaderExt};
+use bytemuck::{bytes_of, Pod, Zeroable};
 use serial::{BaudRate, SerialPort, SerialPortSettings, SystemPort};
 use slip_codec::Decoder;
+
+use crate::{
+    encoder::SlipEncoder,
+    error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
+    flasher::Command,
+};
 
 pub struct Connection {
     serial: SystemPort,
@@ -23,6 +24,15 @@ pub struct CommandResponse {
     pub value: u32,
     pub status: u8,
     pub error: u8,
+}
+
+#[derive(Zeroable, Pod, Copy, Clone, Debug)]
+#[repr(C)]
+struct WriteRegParams {
+    addr: u32,
+    value: u32,
+    mask: u32,
+    delay_us: u32,
 }
 
 impl Connection {
@@ -141,6 +151,26 @@ impl Connection {
             }
         }
         Err(Error::Connection(ConnectionError::ConnectionFailed))
+    }
+
+    pub fn read_reg(&mut self, reg: u32) -> Result<u32, Error> {
+        self.with_timeout(Command::ReadReg.timeout(), |connection| {
+            connection.command(Command::ReadReg, &reg.to_le_bytes()[..], 0)
+        })
+    }
+
+    pub fn write_reg(&mut self, addr: u32, value: u32, mask: Option<u32>) -> Result<(), Error> {
+        let params = WriteRegParams {
+            addr,
+            value,
+            mask: mask.unwrap_or(0xFFFFFFFF),
+            delay_us: 0,
+        };
+        self.with_timeout(Command::WriteReg.timeout(), |connection| {
+            connection.command(Command::WriteReg, bytes_of(&params), 0)
+        })?;
+
+        Ok(())
     }
 
     fn read(&mut self) -> Result<Vec<u8>, Error> {

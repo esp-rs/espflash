@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use super::Esp32Params;
 use crate::{
-    chip::{ChipType, SpiRegisters},
+    chip::{ChipType, ReadEFuse, SpiRegisters},
     elf::FirmwareImage,
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
     Chip, Error, PartitionTable,
@@ -76,4 +76,8 @@ impl ChipType for Esp32c3 {
     fn supports_target(target: &str) -> bool {
         target.starts_with("riscv32imc-")
     }
+}
+
+impl ReadEFuse for Esp32c3 {
+    const EFUSE_REG_BASE: u32 = 0x60008830;
 }

@@ -3,6 +3,7 @@ use std::ops::Range;
 use strum_macros::Display;
 
 use crate::{
+    connection::Connection,
     elf::FirmwareImage,
     error::ChipDetectError,
     flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
@@ -38,6 +39,16 @@ pub trait ChipType {
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
 
     fn supports_target(target: &str) -> bool;
+}
+
+pub trait ReadEFuse {
+    const EFUSE_REG_BASE: u32;
+
+    /// Given an active connection, read the nth word of the eFuse region.
+    fn read_efuse(&self, connection: &mut Connection, n: u32) -> Result<u32, Error> {
+        let reg = Self::EFUSE_REG_BASE + (n * 0x4);
+        connection.read_reg(reg)
+    }
 }
 
 pub struct SpiRegisters {
@@ -192,6 +203,15 @@ impl Chip {
             Chip::Esp32c3 => Esp32c3::SUPPORTED_TARGETS,
             Chip::Esp32s2 => Esp32s2::SUPPORTED_TARGETS,
             Chip::Esp8266 => Esp8266::SUPPORTED_TARGETS,
+        }
+    }
+
+    pub fn read_efuse(&self, connection: &mut Connection, n: u32) -> Result<u32, Error> {
+        match self {
+            Chip::Esp32 => Esp32.read_efuse(connection, n),
+            Chip::Esp32c3 => Esp32c3.read_efuse(connection, n),
+            Chip::Esp32s2 => Esp32s2.read_efuse(connection, n),
+            Chip::Esp8266 => Esp8266.read_efuse(connection, n),
         }
     }
 }

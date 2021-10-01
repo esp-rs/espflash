@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use super::Esp32Params;
 use crate::{
-    chip::{Chip, ChipType, SpiRegisters},
+    chip::{Chip, ChipType, ReadEFuse, SpiRegisters},
     elf::FirmwareImage,
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
     Error, PartitionTable,
@@ -74,6 +74,10 @@ impl ChipType for Esp32 {
     fn supports_target(target: &str) -> bool {
         target.starts_with("xtensa-esp32-")
     }
+}
+
+impl ReadEFuse for Esp32 {
+    const EFUSE_REG_BASE: u32 = 0x3ff5a000;
 }
 
 #[test]
