@@ -1,17 +1,18 @@
-use crate::chip::Esp32Params;
-use crate::elf::{
-    merge_segments, update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC,
-};
-use crate::error::{Error, FlashDetectError};
-use crate::flasher::FlashSize;
-use crate::image_format::{
-    EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC, WP_PIN_DISABLED,
-};
-use crate::{Chip, PartitionTable};
-use bytemuck::bytes_of;
-use bytemuck::{Pod, Zeroable};
-use sha2::{Digest, Sha256};
 use std::{borrow::Cow, io::Write, iter::once};
+
+use bytemuck::{bytes_of, Pod, Zeroable};
+use sha2::{Digest, Sha256};
+
+use crate::{
+    chip::Esp32Params,
+    elf::{
+        merge_segments, update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC,
+    },
+    error::{Error, FlashDetectError},
+    flasher::FlashSize,
+    image_format::{EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC, WP_PIN_DISABLED},
+    Chip, PartitionTable,
+};
 
 /// Image format for esp32 family chips using a 2nd stage bootloader
 pub struct Esp32BootloaderFormat<'a> {
@@ -72,7 +73,8 @@ impl<'a> Esp32BootloaderFormat<'a> {
                 if pad_len > 0 {
                     if pad_len > SEG_HEADER_LEN {
                         if let Some(ram_segment) = ram_segments.first_mut() {
-                            // save up to `pad_len` from the ram segment, any remaining bits in the ram segments will be saved later
+                            // save up to `pad_len` from the ram segment, any remaining bits in the
+                            // ram segments will be saved later
                             let pad_segment = ram_segment.split_off(pad_len as usize);
                             checksum = save_segment(&mut data, &pad_segment, checksum)?;
                             if ram_segment.data().is_empty() {
@@ -152,14 +154,12 @@ impl<'a> ImageFormat<'a> for Esp32BootloaderFormat<'a> {
 
 fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
     match size {
-        FlashSize::Flash256Kb => Err(FlashDetectError::from(size as u8)),
-        FlashSize::Flash512Kb => Err(FlashDetectError::from(size as u8)),
         FlashSize::Flash1Mb => Ok(0x00),
         FlashSize::Flash2Mb => Ok(0x10),
         FlashSize::Flash4Mb => Ok(0x20),
         FlashSize::Flash8Mb => Ok(0x30),
         FlashSize::Flash16Mb => Ok(0x40),
-        FlashSize::FlashRetry => Err(FlashDetectError::from(size as u8)),
+        _ => Err(FlashDetectError::from(size as u8)),
     }
 }
 

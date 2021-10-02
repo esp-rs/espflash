@@ -1,10 +1,14 @@
-use crate::elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC};
-use crate::error::{Error, FlashDetectError};
-use crate::flasher::FlashSize;
-use crate::image_format::{EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC};
-use crate::Chip;
-use bytemuck::bytes_of;
 use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
+
+use bytemuck::bytes_of;
+
+use crate::{
+    elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
+    error::{Error, FlashDetectError},
+    flasher::FlashSize,
+    image_format::{EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC},
+    Chip,
+};
 
 const IROM_MAP_START: u32 = 0x40200000;
 
@@ -122,6 +126,6 @@ fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
         FlashSize::Flash4Mb => Ok(0x40),
         FlashSize::Flash8Mb => Ok(0x80),
         FlashSize::Flash16Mb => Ok(0x90),
-        FlashSize::FlashRetry => Err(FlashDetectError::from(size as u8)),
+        _ => Err(FlashDetectError::from(size as u8)),
     }
 }

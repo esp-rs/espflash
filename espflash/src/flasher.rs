@@ -100,6 +100,10 @@ pub enum FlashSize {
     Flash8Mb = 0x17,
     #[strum(serialize = "16MB")]
     Flash16Mb = 0x18,
+    #[strum(serialize = "32MB")]
+    Flash32Mb = 0x19,
+    #[strum(serialize = "64MB")]
+    Flash64Mb = 0x1a,
     FlashRetry = 0xFF, // used to hint that alternate detection should be tried
 }
 
@@ -113,6 +117,8 @@ impl FlashSize {
             0x16 => Ok(FlashSize::Flash4Mb),
             0x17 => Ok(FlashSize::Flash8Mb),
             0x18 => Ok(FlashSize::Flash16Mb),
+            0x19 => Ok(FlashSize::Flash32Mb),
+            0x1a => Ok(FlashSize::Flash64Mb),
             0xFF => Ok(FlashSize::FlashRetry),
             _ => Err(Error::UnsupportedFlash(FlashDetectError::from(value))),
         }
@@ -266,7 +272,18 @@ impl Flasher {
         let flash_id = self.spi_command(Command::FlashDetect, &[], 24)?;
         let size_id = flash_id >> 16;
 
-        self.flash_size = FlashSize::from(size_id as u8)?;
+        self.flash_size = match FlashSize::from(size_id as u8) {
+            Ok(size) => size,
+            Err(_) => {
+                eprintln!(
+                    "Warning: could not detect flash size (FlashID=0x{:02X}, SizeID=0x{:02X}), defaulting to 4MB\n",
+                    flash_id,
+                    size_id
+                );
+                FlashSize::Flash4Mb
+            }
+        };
+
         Ok(self.flash_size != FlashSize::FlashRetry)
     }
 
