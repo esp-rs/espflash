@@ -1,13 +1,13 @@
-use crate::chip::Esp32Params;
+use std::ops::Range;
 
-use crate::image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId};
+use super::Esp32Params;
 use crate::{
-    chip::{Chip, ChipType, SpiRegisters},
+    chip::{Chip, ChipType, ReadEFuse, SpiRegisters},
+    connection::Connection,
     elf::FirmwareImage,
+    image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
     Error, PartitionTable,
 };
-
-use std::ops::Range;
 
 pub struct Esp32;
 
@@ -27,11 +27,13 @@ pub const PARAMS: Esp32Params = Esp32Params {
     app_addr: 0x10000,
     app_size: 0x3f0000,
     chip_id: 0,
-    default_bootloader: include_bytes!("../../bootloader/esp32-bootloader.bin"),
+    default_bootloader: include_bytes!("../../../bootloader/esp32-bootloader.bin"),
 };
 
 impl ChipType for Esp32 {
     const CHIP_DETECT_MAGIC_VALUE: u32 = 0x00f01d83;
+
+    const UART_CLKDIV_REG: u32 = 0x3ff40014;
 
     const SPI_REGISTERS: SpiRegisters = SpiRegisters {
         base: 0x3ff42000,
@@ -74,6 +76,32 @@ impl ChipType for Esp32 {
 
     fn supports_target(target: &str) -> bool {
         target.starts_with("xtensa-esp32-")
+    }
+}
+
+impl ReadEFuse for Esp32 {
+    const EFUSE_REG_BASE: u32 = 0x3ff5a000;
+}
+
+impl Esp32 {
+    pub fn chip_revision(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let word3 = self.read_efuse(connection, 3)?;
+        let word5 = self.read_efuse(connection, 5)?;
+
+        let apb_ctrl_date = connection.read_reg(0x3FF6607C)?;
+
+        let rev_bit0 = (word3 >> 15) & 0x1 != 0;
+        let rev_bit1 = (word5 >> 20) & 0x1 != 0;
+        let rev_bit2 = (apb_ctrl_date >> 31) & 0x1 != 0;
+
+        let revision = match (rev_bit0, rev_bit1, rev_bit2) {
+            (true, true, true) => 3,
+            (true, true, false) => 2,
+            (true, false, _) => 1,
+            (false, _, _) => 0,
+        };
+
+        Ok(revision)
     }
 }
 

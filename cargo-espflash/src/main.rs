@@ -1,5 +1,10 @@
-use crate::cargo_config::parse_cargo_config;
-use crate::error::UnsupportedTargetError;
+use std::{
+    fs,
+    path::PathBuf,
+    process::{exit, Command, ExitStatus, Stdio},
+    string::ToString,
+};
+
 use cargo_metadata::Message;
 use clap::{App, Arg, SubCommand};
 use error::Error;
@@ -8,12 +13,8 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 use monitor::monitor;
 use package_metadata::CargoEspFlashMeta;
 use serial::{BaudRate, FlowControl, SerialPort};
-use std::{
-    fs,
-    path::PathBuf,
-    process::{exit, Command, ExitStatus, Stdio},
-    string::ToString,
-};
+
+use crate::{cargo_config::parse_cargo_config, error::UnsupportedTargetError};
 
 mod cargo_config;
 mod error;
@@ -23,6 +24,7 @@ mod package_metadata;
 
 fn main() -> Result<()> {
     miette::set_panic_hook();
+
     let mut app = App::new(env!("CARGO_PKG_NAME"))
         .bin_name("cargo")
         .subcommand(
@@ -139,11 +141,13 @@ fn main() -> Result<()> {
         None
     };
 
-    // Connect the Flasher to the target device. If the '--board-info' flag has been
-    // provided, display the board info and terminate the application.
+    // Connect the Flasher to the target device and print the board information
+    // upon connection. If the '--board-info' flag has been provided, we have
+    // nothing left to do so exit early.
     let mut flasher = Flasher::connect(serial, speed)?;
+    flasher.board_info()?;
+
     if matches.is_present("board_info") {
-        board_info(&flasher);
         return Ok(());
     }
 
@@ -191,6 +195,7 @@ fn main() -> Result<()> {
     } else {
         flasher.load_elf_to_flash(&elf_data, bootloader, partition_table)?;
     }
+    println!("\nFlashing has completed!");
 
     if matches.is_present("monitor") {
         monitor(flasher.into_serial()).into_diagnostic()?;
@@ -198,11 +203,6 @@ fn main() -> Result<()> {
 
     // We're all done!
     Ok(())
-}
-
-fn board_info(flasher: &Flasher) {
-    println!("Chip type:  {}", flasher.chip());
-    println!("Flash size: {}", flasher.flash_size());
 }
 
 fn build(

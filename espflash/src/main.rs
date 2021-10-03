@@ -56,8 +56,7 @@ fn main() -> Result<()> {
     let mut flasher = Flasher::connect(serial, None)?;
 
     if board_info {
-        println!("Chip type: {}", flasher.chip());
-        println!("Flash size: {}", flasher.flash_size());
+        flasher.board_info()?;
 
         return Ok(());
     }

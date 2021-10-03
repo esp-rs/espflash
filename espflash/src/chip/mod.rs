@@ -1,28 +1,30 @@
+use std::ops::Range;
+
 use strum_macros::Display;
 
 use crate::{
+    connection::Connection,
     elf::FirmwareImage,
     error::ChipDetectError,
     flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
     flasher::SpiAttachParams,
+    image_format::{ImageFormat, ImageFormatId},
     Error, PartitionTable,
 };
 
-use crate::image_format::{ImageFormat, ImageFormatId};
-pub use esp32::Esp32;
-pub use esp32c3::Esp32c3;
-pub use esp32s2::Esp32s2;
-pub use esp8266::Esp8266;
-use std::ops::Range;
-
 mod esp32;
-mod esp32c3;
-mod esp32s2;
 mod esp8266;
+
+pub use esp32::{Esp32, Esp32Params, Esp32c3, Esp32s2};
+pub use esp8266::Esp8266;
 
 pub trait ChipType {
     const CHIP_DETECT_MAGIC_VALUE: u32;
     const CHIP_DETECT_MAGIC_VALUE2: u32 = 0x0; // give default value, as most chips don't only have one
+
+    const UART_CLKDIV_REG: u32;
+    const UART_CLKDIV_MASK: u32 = 0xFFFFF;
+    const XTAL_CLK_DIVIDER: u32 = 1;
 
     const SPI_REGISTERS: SpiRegisters;
     const FLASH_RANGES: &'static [Range<u32>];
@@ -31,6 +33,16 @@ pub trait ChipType {
     const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId];
 
     const SUPPORTED_TARGETS: &'static [&'static str];
+
+    /// Determine the frequency of the crytal on the connected chip.
+    fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let uart_div = connection.read_reg(Self::UART_CLKDIV_REG)? & Self::UART_CLKDIV_MASK;
+        let est_xtal =
+            (connection.get_baud().speed() as u32 * uart_div) / 1_000_000 / Self::XTAL_CLK_DIVIDER;
+        let norm_xtal = if est_xtal > 33 { 40 } else { 26 };
+
+        Ok(norm_xtal)
+    }
 
     /// Get the firmware segments for writing an image to flash
     fn get_flash_segments<'a>(
@@ -41,6 +53,16 @@ pub trait ChipType {
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
 
     fn supports_target(target: &str) -> bool;
+}
+
+pub trait ReadEFuse {
+    const EFUSE_REG_BASE: u32;
+
+    /// Given an active connection, read the nth word of the eFuse region.
+    fn read_efuse(&self, connection: &mut Connection, n: u32) -> Result<u32, Error> {
+        let reg = Self::EFUSE_REG_BASE + (n * 0x4);
+        connection.read_reg(reg)
+    }
 }
 
 pub struct SpiRegisters {
@@ -197,31 +219,23 @@ impl Chip {
             Chip::Esp8266 => Esp8266::SUPPORTED_TARGETS,
         }
     }
-}
 
-#[derive(Clone, Copy, Debug)]
-pub struct Esp32Params {
-    pub boot_addr: u32,
-    pub partition_addr: u32,
-    pub nvs_addr: u32,
-    pub nvs_size: u32,
-    pub phy_init_data_addr: u32,
-    pub phy_init_data_size: u32,
-    pub app_addr: u32,
-    pub app_size: u32,
-    pub chip_id: u16,
-    pub default_bootloader: &'static [u8],
-}
+    pub fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
+        match self {
+            Chip::Esp32 => Esp32.crystal_freq(connection),
+            Chip::Esp32c3 => Esp32c3.crystal_freq(connection),
+            Chip::Esp32s2 => Esp32s2.crystal_freq(connection),
+            Chip::Esp8266 => Esp8266.crystal_freq(connection),
+        }
+    }
 
-impl Esp32Params {
-    pub fn default_partition_table(&self) -> PartitionTable {
-        PartitionTable::basic(
-            self.nvs_addr,
-            self.nvs_size,
-            self.phy_init_data_addr,
-            self.phy_init_data_size,
-            self.app_addr,
-            self.app_size,
-        )
+    pub fn chip_revision(&self, connection: &mut Connection) -> Result<Option<u32>, Error> {
+        let rev = match self {
+            Chip::Esp32 => Some(Esp32.chip_revision(connection)?),
+            Chip::Esp32c3 => Some(Esp32c3.chip_revision(connection)?),
+            _ => None,
+        };
+
+        Ok(rev)
     }
 }

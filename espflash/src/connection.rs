@@ -1,19 +1,15 @@
-use std::io::Write;
-use std::thread::sleep;
-use std::time::Duration;
+use std::{io::Write, thread::sleep, time::Duration};
 
-use crate::encoder::SlipEncoder;
-use crate::error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind};
-use crate::flasher::Command;
-use binread::io::Cursor;
-use binread::{BinRead, BinReaderExt};
+use binread::{io::Cursor, BinRead, BinReaderExt};
+use bytemuck::{bytes_of, Pod, Zeroable};
 use serial::{BaudRate, SerialPort, SerialPortSettings, SystemPort};
 use slip_codec::Decoder;
 
-pub struct Connection {
-    serial: SystemPort,
-    decoder: Decoder,
-}
+use crate::{
+    encoder::SlipEncoder,
+    error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
+    flasher::Command,
+};
 
 #[derive(Debug, Copy, Clone, BinRead)]
 pub struct CommandResponse {
@@ -25,10 +21,26 @@ pub struct CommandResponse {
     pub error: u8,
 }
 
+pub struct Connection {
+    serial: SystemPort,
+    speed: BaudRate,
+    decoder: Decoder,
+}
+
+#[derive(Zeroable, Pod, Copy, Clone, Debug)]
+#[repr(C)]
+struct WriteRegParams {
+    addr: u32,
+    value: u32,
+    mask: u32,
+    delay_us: u32,
+}
+
 impl Connection {
     pub fn new(serial: SystemPort) -> Self {
         Connection {
             serial,
+            speed: BaudRate::Baud115200,
             decoder: Decoder::new(),
         }
     }
@@ -68,9 +80,15 @@ impl Connection {
     }
 
     pub fn set_baud(&mut self, speed: BaudRate) -> Result<(), Error> {
+        self.speed = speed;
         self.serial
             .reconfigure(&|setup: &mut dyn SerialPortSettings| setup.set_baud_rate(speed))?;
+
         Ok(())
+    }
+
+    pub fn get_baud(&self) -> BaudRate {
+        self.speed
     }
 
     pub fn with_timeout<T, F: FnMut(&mut Connection) -> Result<T, Error>>(
@@ -141,6 +159,26 @@ impl Connection {
             }
         }
         Err(Error::Connection(ConnectionError::ConnectionFailed))
+    }
+
+    pub fn read_reg(&mut self, reg: u32) -> Result<u32, Error> {
+        self.with_timeout(Command::ReadReg.timeout(), |connection| {
+            connection.command(Command::ReadReg, &reg.to_le_bytes()[..], 0)
+        })
+    }
+
+    pub fn write_reg(&mut self, addr: u32, value: u32, mask: Option<u32>) -> Result<(), Error> {
+        let params = WriteRegParams {
+            addr,
+            value,
+            mask: mask.unwrap_or(0xFFFFFFFF),
+            delay_us: 0,
+        };
+        self.with_timeout(Command::WriteReg.timeout(), |connection| {
+            connection.command(Command::WriteReg, bytes_of(&params), 0)
+        })?;
+
+        Ok(())
     }
 
     fn read(&mut self) -> Result<Vec<u8>, Error> {

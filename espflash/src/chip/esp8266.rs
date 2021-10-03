@@ -1,18 +1,24 @@
-use super::ChipType;
-use crate::{chip::SpiRegisters, elf::FirmwareImage, Chip, Error, PartitionTable};
-
-use crate::error::UnsupportedImageFormatError;
-use crate::image_format::{Esp8266Format, ImageFormat, ImageFormatId};
-
 use std::ops::Range;
 
-pub const IROM_MAP_START: u32 = 0x40200000;
+use super::ChipType;
+use crate::{
+    chip::{ReadEFuse, SpiRegisters},
+    elf::FirmwareImage,
+    error::UnsupportedImageFormatError,
+    image_format::{Esp8266Format, ImageFormat, ImageFormatId},
+    Chip, Error, PartitionTable,
+};
+
+const IROM_MAP_START: u32 = 0x40200000;
 const IROM_MAP_END: u32 = 0x40300000;
 
 pub struct Esp8266;
 
 impl ChipType for Esp8266 {
     const CHIP_DETECT_MAGIC_VALUE: u32 = 0xfff0c101;
+
+    const UART_CLKDIV_REG: u32 = 0x60000014;
+    const XTAL_CLK_DIVIDER: u32 = 2;
 
     const SPI_REGISTERS: SpiRegisters = SpiRegisters {
         base: 0x60000200,
@@ -48,10 +54,15 @@ impl ChipType for Esp8266 {
     }
 }
 
+impl ReadEFuse for Esp8266 {
+    const EFUSE_REG_BASE: u32 = 0x3ff00050;
+}
+
 #[test]
 fn test_esp8266_rom() {
-    use pretty_assertions::assert_eq;
     use std::fs::read;
+
+    use pretty_assertions::assert_eq;
 
     let input_bytes = read("./tests/data/esp8266").unwrap();
     let expected_bin = read("./tests/data/esp8266.bin").unwrap();
