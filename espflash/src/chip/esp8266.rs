@@ -70,7 +70,7 @@ fn test_esp8266_rom() {
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
     let flash_image = Esp8266Format::new(&image).unwrap();
 
-    let segments = flash_image.segments().collect::<Vec<_>>();
+    let segments = flash_image.flash_segments().collect::<Vec<_>>();
 
     assert_eq!(1, segments.len());
     let buff = segments[0].data.as_ref();

@@ -9,7 +9,7 @@ use crate::{
     connection::Connection,
     elf::{FirmwareImage, RomSegment},
     encoder::SlipEncoder,
-    error::{ConnectionError, ElfError, FlashDetectError, ResultExt, RomError, RomErrorKind},
+    error::{ConnectionError, FlashDetectError, ResultExt, RomError, RomErrorKind},
     Error, PartitionTable,
 };
 
@@ -498,7 +498,7 @@ impl Flasher {
     ///
     /// Note that this will not touch the flash on the device
     pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
-        let image = FirmwareImage::from_data(elf_data).map_err(ElfError::from)?;
+        let image = FirmwareImage::from_data(elf_data)?;
 
         let mut target = self.chip.ram_target();
         target.begin(&mut self.connection, &image).flashing()?;
@@ -529,7 +529,7 @@ impl Flasher {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
     ) -> Result<(), Error> {
-        let mut image = FirmwareImage::from_data(elf_data).map_err(ElfError::from)?;
+        let mut image = FirmwareImage::from_data(elf_data)?;
         image.flash_size = self.flash_size();
 
         let mut target = self.chip.flash_target(self.spi_params);
@@ -539,7 +539,7 @@ impl Flasher {
             .chip
             .get_flash_image(&image, bootloader, partition_table, None)?;
 
-        for segment in flash_image.segments() {
+        for segment in flash_image.flash_segments() {
             target
                 .write_segment(&mut self.connection, segment)
                 .flashing()?;

@@ -130,6 +130,22 @@ impl Chip {
         }
     }
 
+    pub fn from_target(target: &str) -> Option<Self> {
+        if Esp8266::supports_target(target) {
+            return Some(Chip::Esp8266);
+        }
+        if Esp32::supports_target(target) {
+            return Some(Chip::Esp32);
+        }
+        if Esp32s2::supports_target(target) {
+            return Some(Chip::Esp32s2);
+        }
+        if Esp32c3::supports_target(target) {
+            return Some(Chip::Esp32c3);
+        }
+        None
+    }
+
     pub fn get_flash_image<'a>(
         &self,
         image: &'a FirmwareImage,

@@ -134,7 +134,7 @@ impl<'a> Esp32BootloaderFormat<'a> {
 }
 
 impl<'a> ImageFormat<'a> for Esp32BootloaderFormat<'a> {
-    fn segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
+    fn flash_segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
     where
         'a: 'b,
     {
@@ -149,6 +149,13 @@ impl<'a> ImageFormat<'a> for Esp32BootloaderFormat<'a> {
             }))
             .chain(once(self.flash_segment.borrow())),
         )
+    }
+
+    fn ota_segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
+    where
+        'a: 'b,
+    {
+        Box::new(once(self.flash_segment.borrow()))
     }
 }
 

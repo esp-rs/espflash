@@ -6,14 +6,16 @@ use std::{
 };
 
 use cargo_metadata::Message;
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg, ArgMatches, SubCommand};
 use error::Error;
-use espflash::{Chip, Config, Flasher, PartitionTable};
+use espflash::{Chip, Config, FirmwareImage, Flasher, PartitionTable};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use monitor::monitor;
 use package_metadata::CargoEspFlashMeta;
 use serial::{BaudRate, FlowControl, SerialPort};
 
+use crate::cargo_config::CargoConfig;
+use crate::error::NoTargetError;
 use crate::{cargo_config::parse_cargo_config, error::UnsupportedTargetError};
 
 mod cargo_config;
@@ -25,6 +27,27 @@ mod package_metadata;
 fn main() -> Result<()> {
     miette::set_panic_hook();
 
+    let build_args = [
+        Arg::with_name("release")
+            .long("release")
+            .help("Build the application using the release profile"),
+        Arg::with_name("example")
+            .long("example")
+            .takes_value(true)
+            .value_name("EXAMPLE")
+            .help("Example to build and flash"),
+        Arg::with_name("features")
+            .long("features")
+            .use_delimiter(true)
+            .takes_value(true)
+            .value_name("FEATURES")
+            .help("Comma delimited list of build features"),
+    ];
+    let connect_args = [Arg::with_name("serial")
+        .takes_value(true)
+        .value_name("SERIAL")
+        .help("Serial port connected to target device")];
+
     let mut app = App::new(env!("CARGO_PKG_NAME"))
         .bin_name("cargo")
         .subcommand(
@@ -34,17 +57,13 @@ fn main() -> Result<()> {
                 .arg(
                     Arg::with_name("board_info")
                         .long("board-info")
-                        .help("Display the connected board's information"),
+                        .help("Display the connected board's information (deprecated, use the `board-info` subcommand instead)"),
                 )
+                .args(&build_args)
                 .arg(
                     Arg::with_name("ram")
                         .long("ram")
                         .help("Load the application to RAM instead of Flash"),
-                )
-                .arg(
-                    Arg::with_name("release")
-                        .long("release")
-                        .help("Build the application using the release profile"),
                 )
                 .arg(
                     Arg::with_name("bootloader")
@@ -52,21 +71,6 @@ fn main() -> Result<()> {
                         .takes_value(true)
                         .value_name("PATH")
                         .help("Path to a binary (.bin) bootloader file"),
-                )
-                .arg(
-                    Arg::with_name("example")
-                        .long("example")
-                        .takes_value(true)
-                        .value_name("EXAMPLE")
-                        .help("Example to build and flash"),
-                )
-                .arg(
-                    Arg::with_name("features")
-                        .long("features")
-                        .use_delimiter(true)
-                        .takes_value(true)
-                        .value_name("FEATURES")
-                        .help("Comma delimited list of build features"),
                 )
                 .arg(
                     Arg::with_name("partition_table")
@@ -82,16 +86,30 @@ fn main() -> Result<()> {
                         .value_name("SPEED")
                         .help("Baud rate at which to flash target device"),
                 )
-                .arg(
-                    Arg::with_name("serial")
-                        .takes_value(true)
-                        .value_name("SERIAL")
-                        .help("Serial port connected to target device"),
-                )
+                .args(&connect_args)
                 .arg(
                     Arg::with_name("monitor")
                         .long("monitor")
                         .help("Open a serial monitor after flashing"),
+                )
+                .subcommand(
+                    SubCommand::with_name("save-image")
+                        .version(env!("CARGO_PKG_VERSION"))
+                        .about("Save the image to disk instead of flashing to device")
+                        .arg(
+                            Arg::with_name("file")
+                                .takes_value(true)
+                                .required(true)
+                                .value_name("FILE")
+                                .help("File name to save the generated image to"),
+                        )
+                        .args(&build_args),
+                )
+                .subcommand(
+                    SubCommand::with_name("board-info")
+                        .version(env!("CARGO_PKG_VERSION"))
+                        .about("Display the connected board's information")
+                        .args(&connect_args),
                 ),
         );
 
@@ -106,18 +124,30 @@ fn main() -> Result<()> {
 
     let config = Config::load();
     let metadata = CargoEspFlashMeta::load("Cargo.toml")?;
+    let cargo_config = parse_cargo_config(".")?;
 
+    match matches.subcommand() {
+        ("board-info", Some(matches)) => board_info(matches, config, metadata, cargo_config),
+        ("save-image", Some(matches)) => save_image(matches, config, metadata, cargo_config),
+        _ => flash(matches, config, metadata, cargo_config),
+    }
+}
+
+fn get_serial_port(matches: &ArgMatches, config: &Config) -> Result<String, Error> {
     // The serial port must be specified, either as a command-line argument or in
     // the cargo configuration file. In the case that both have been provided the
     // command-line argument will take precedence.
-    let port = if let Some(serial) = matches.value_of("serial") {
-        serial.to_string()
-    } else if let Some(serial) = config.connection.serial {
-        serial
+    if let Some(serial) = matches.value_of("serial") {
+        Ok(serial.to_string())
+    } else if let Some(serial) = &config.connection.serial {
+        Ok(serial.into())
     } else {
-        app.print_help().into_diagnostic()?;
-        exit(0);
-    };
+        Err(Error::NoSerial)
+    }
+}
+
+fn connect(matches: &ArgMatches, config: &Config) -> Result<Flasher> {
+    let port = get_serial_port(matches, config)?;
 
     // Attempt to open the serial port and set its initial baud rate.
     println!("Serial port: {}", port);
@@ -144,19 +174,29 @@ fn main() -> Result<()> {
     // Connect the Flasher to the target device and print the board information
     // upon connection. If the '--board-info' flag has been provided, we have
     // nothing left to do so exit early.
-    let mut flasher = Flasher::connect(serial, speed)?;
+    Ok(Flasher::connect(serial, speed)?)
+}
+
+fn flash(
+    matches: &ArgMatches,
+    config: Config,
+    metadata: CargoEspFlashMeta,
+    cargo_config: CargoConfig,
+) -> Result<()> {
+    // Connect the Flasher to the target device and print the board information
+    // upon connection. If the '--board-info' flag has been provided, we have
+    // nothing left to do so exit early.
+    let mut flasher = connect(matches, &config)?;
     flasher.board_info()?;
 
     if matches.is_present("board_info") {
         return Ok(());
     }
 
-    let release = matches.is_present("release");
-    let example = matches.value_of("example");
-    let features = matches.value_of("features");
+    let build_options = BuildOptions::from_args(matches);
 
-    let path =
-        build(release, example, features, flasher.chip()).wrap_err("Failed to build project")?;
+    let path = build(build_options, &cargo_config, Some(flasher.chip()))
+        .wrap_err("Failed to build project")?;
 
     // If the '--bootloader' option is provided, load the binary file at the
     // specified path.
@@ -205,38 +245,56 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn build(
+struct BuildOptions<'a> {
     release: bool,
-    example: Option<&str>,
-    features: Option<&str>,
-    chip: Chip,
+    example: Option<&'a str>,
+    features: Option<&'a str>,
+}
+
+impl<'a> BuildOptions<'a> {
+    pub fn from_args(args: &'a ArgMatches) -> Self {
+        BuildOptions {
+            release: args.is_present("release"),
+            example: args.value_of("example"),
+            features: args.value_of("features"),
+        }
+    }
+}
+
+fn build(
+    build_options: BuildOptions,
+    cargo_config: &CargoConfig,
+    chip: Option<Chip>,
 ) -> Result<PathBuf> {
     // The 'build-std' unstable cargo feature is required to enable
     // cross-compilation. If it has not been set then we cannot build the
     // application.
-    let cargo_config = parse_cargo_config(".")?;
     if !cargo_config.has_build_std() {
         return Err(Error::NoBuildStd.into());
     };
 
-    let target = cargo_config.target().ok_or(Error::NoTarget { chip })?;
-    if !chip.supports_target(target) {
-        return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
+    let target = cargo_config
+        .target()
+        .ok_or_else(|| NoTargetError::new(chip))?;
+    if let Some(chip) = chip {
+        if !chip.supports_target(target) {
+            return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
+        }
     }
 
     // Build the list of arguments to pass to 'cargo build'.
     let mut args = vec![];
 
-    if release {
+    if build_options.release {
         args.push("--release");
     }
 
-    if let Some(example) = example {
+    if let Some(example) = build_options.example {
         args.push("--example");
         args.push(example);
     }
 
-    if let Some(features) = features {
+    if let Some(features) = build_options.features {
         args.push("--features");
         args.push(features);
     }
@@ -281,7 +339,7 @@ fn build(
     }
 
     // Check if the command succeeded, otherwise return an error. Any error messages
-    // occuring during the build are shown above, when the compiler messages are
+    // occurring during the build are shown above, when the compiler messages are
     // rendered.
     if !output.status.success() {
         exit_with_process_status(output.status);
@@ -293,6 +351,52 @@ fn build(
     let artifact_path = target_artifact.executable.unwrap().into();
 
     Ok(artifact_path)
+}
+
+fn save_image(
+    matches: &ArgMatches,
+    _config: Config,
+    _metadata: CargoEspFlashMeta,
+    cargo_config: CargoConfig,
+) -> Result<()> {
+    let target = cargo_config
+        .target()
+        .ok_or_else(|| NoTargetError::new(None))?;
+    let chip = Chip::from_target(target).ok_or_else(|| Error::UnknownTarget(target.into()))?;
+    let build_options = BuildOptions::from_args(matches);
+
+    let path = build(build_options, &cargo_config, Some(chip))?;
+    let elf_data = fs::read(path).into_diagnostic()?;
+
+    let image = FirmwareImage::from_data(&elf_data)?;
+
+    let flash_image = chip.get_flash_image(&image, None, None, None)?;
+    let parts: Vec<_> = flash_image.ota_segments().collect();
+
+    let out_path = matches.value_of("file").unwrap();
+
+    match parts.as_slice() {
+        [single] => fs::write(out_path, &single.data).into_diagnostic()?,
+        parts => {
+            for part in parts {
+                let part_path = format!("{:#x}_{}", part.addr, out_path);
+                fs::write(part_path, &part.data).into_diagnostic()?
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn board_info(
+    matches: &ArgMatches,
+    config: Config,
+    _metadata: CargoEspFlashMeta,
+    _cargo_config: CargoConfig,
+) -> Result<()> {
+    let mut flasher = connect(matches, &config)?;
+    flasher.board_info()?;
+    Ok(())
 }
 
 #[cfg(unix)]
