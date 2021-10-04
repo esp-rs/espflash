@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use super::Esp32Params;
 use crate::{
-    chip::{ChipType, ReadEFuse, SpiRegisters},
+    chip::{bytes_to_mac_addr, ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
     elf::FirmwareImage,
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
@@ -56,6 +56,10 @@ impl ChipType for Esp32c3 {
     const SUPPORTED_TARGETS: &'static [&'static str] =
         &["riscv32imc-uknown-none-elf", "riscv32imc-esp-espidf"];
 
+    fn chip_features(&self, _connection: &mut Connection) -> Result<Vec<&str>, Error> {
+        Ok(vec!["WiFi"])
+    }
+
     fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
         // The ESP32-C3's XTAL has a fixed frequency of 40MHz.
         Ok(40)
@@ -79,6 +83,17 @@ impl ChipType for Esp32c3 {
                 todo!()
             }
         }
+    }
+
+    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
+        let word5 = self.read_efuse(connection, 5)?;
+        let word6 = self.read_efuse(connection, 6)?;
+
+        let bytes = ((word6 as u64) << 32) | word5 as u64;
+        let bytes = bytes.to_be_bytes();
+        let bytes = &bytes[2..];
+
+        Ok(bytes_to_mac_addr(bytes))
     }
 
     fn supports_target(target: &str) -> bool {

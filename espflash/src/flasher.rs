@@ -479,9 +479,12 @@ impl Flasher {
     /// Read and print any information we can about the connected board
     pub fn board_info(&mut self) -> Result<(), Error> {
         let chip = self.chip();
-        let maybe_revision = chip.chip_revision(self.connection())?;
-        let freq = chip.crystal_freq(self.connection())?;
         let size = self.flash_size();
+
+        let maybe_revision = chip.chip_revision(self.connection())?;
+        let features = chip.chip_features(self.connection())?;
+        let freq = chip.crystal_freq(self.connection())?;
+        let mac = chip.mac_address(self.connection())?;
 
         print!("Chip type:         {}", chip);
         match maybe_revision {
@@ -490,6 +493,8 @@ impl Flasher {
         }
         println!("Crystal frequency: {}MHz", freq);
         println!("Flash size:        {}", size);
+        println!("Features:          {}", features.join(", "));
+        println!("MAC address:       {}", mac);
 
         Ok(())
     }
