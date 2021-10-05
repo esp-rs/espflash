@@ -1,8 +1,9 @@
 use std::ops::Range;
 
-use super::ChipType;
+use super::{bytes_to_mac_addr, ChipType};
 use crate::{
     chip::{ReadEFuse, SpiRegisters},
+    connection::Connection,
     elf::FirmwareImage,
     error::UnsupportedImageFormatError,
     image_format::{Esp8266Format, ImageFormat, ImageFormatId},
@@ -37,6 +38,10 @@ impl ChipType for Esp8266 {
 
     const SUPPORTED_TARGETS: &'static [&'static str] = &["xtensa-esp8266-none-elf"];
 
+    fn chip_features(&self, _connection: &mut Connection) -> Result<Vec<&str>, Error> {
+        Ok(vec!["WiFi"])
+    }
+
     fn get_flash_segments<'a>(
         image: &'a FirmwareImage,
         _bootloader: Option<Vec<u8>>,
@@ -47,6 +52,32 @@ impl ChipType for Esp8266 {
             ImageFormatId::Bootloader => Ok(Box::new(Esp8266Format::new(image)?)),
             _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp8266).into()),
         }
+    }
+
+    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
+        let word0 = self.read_efuse(connection, 0)?;
+        let word1 = self.read_efuse(connection, 1)?;
+        let word3 = self.read_efuse(connection, 3)?;
+
+        // First determine the OUI portion of the MAC address
+        let mut bytes = if word3 != 0 {
+            vec![
+                ((word3 >> 16) & 0xff) as u8,
+                ((word3 >> 8) & 0xff) as u8,
+                (word3 & 0xff) as u8,
+            ]
+        } else if ((word1 >> 16) & 0xff) == 0 {
+            vec![0x18, 0xfe, 0x34]
+        } else {
+            vec![0xac, 0xd0, 0x74]
+        };
+
+        // Add the remaining NIC portion of the MAC address
+        bytes.push(((word1 >> 8) & 0xff) as u8);
+        bytes.push((word1 & 0xff) as u8);
+        bytes.push(((word0 >> 24) & 0xff) as u8);
+
+        Ok(bytes_to_mac_addr(&bytes))
     }
 
     fn supports_target(target: &str) -> bool {

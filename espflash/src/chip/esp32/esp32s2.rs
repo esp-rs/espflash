@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use super::Esp32Params;
 use crate::{
-    chip::{ChipType, ReadEFuse, SpiRegisters},
+    chip::{bytes_to_mac_addr, ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
     elf::FirmwareImage,
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
@@ -54,6 +54,36 @@ impl ChipType for Esp32s2 {
     const SUPPORTED_TARGETS: &'static [&'static str] =
         &["xtensa-esp32s2-none-elf", "xtensa-esp32s2-espidf"];
 
+    fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
+        let mut features = vec!["WiFi"];
+
+        let flash_version = match self.get_flash_version(connection)? {
+            0 => "No Embedded Flash",
+            1 => "Embedded Flash 2MB",
+            2 => "Embedded Flash 4MB",
+            _ => "Unknown Embedded Flash",
+        };
+        features.push(flash_version);
+
+        let psram_version = match self.get_psram_version(connection)? {
+            0 => "No Embedded PSRAM",
+            1 => "Embedded PSRAM 2MB",
+            2 => "Embedded PSRAM 4MB",
+            _ => "Unknown Embedded PSRAM",
+        };
+        features.push(psram_version);
+
+        let block2_version = match self.get_block2_version(connection)? {
+            0 => "No calibration in BLK2 of efuse",
+            1 => "ADC and temperature sensor calibration in BLK2 of efuse V1",
+            2 => "ADC and temperature sensor calibration in BLK2 of efuse V2",
+            _ => "Unknown Calibration in BLK2",
+        };
+        features.push(block2_version);
+
+        Ok(features)
+    }
+
     fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
         // The ESP32-S2's XTAL has a fixed frequency of 40MHz.
         Ok(40)
@@ -79,6 +109,17 @@ impl ChipType for Esp32s2 {
         }
     }
 
+    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
+        let word5 = self.read_efuse(connection, 5)?;
+        let word6 = self.read_efuse(connection, 6)?;
+
+        let bytes = ((word6 as u64) << 32) | word5 as u64;
+        let bytes = bytes.to_be_bytes();
+        let bytes = &bytes[2..];
+
+        Ok(bytes_to_mac_addr(bytes))
+    }
+
     fn supports_target(target: &str) -> bool {
         target.starts_with("xtensa-esp32s2-")
     }
@@ -86,4 +127,27 @@ impl ChipType for Esp32s2 {
 
 impl ReadEFuse for Esp32s2 {
     const EFUSE_REG_BASE: u32 = 0x3F41A030;
+}
+
+impl Esp32s2 {
+    fn get_flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let blk1_word3 = self.read_efuse(connection, 8)?;
+        let flash_version = (blk1_word3 >> 21) & 0xf;
+
+        Ok(flash_version)
+    }
+
+    fn get_psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let blk1_word3 = self.read_efuse(connection, 8)?;
+        let psram_version = (blk1_word3 >> 28) & 0xf;
+
+        Ok(psram_version)
+    }
+
+    fn get_block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let blk2_word4 = self.read_efuse(connection, 15)?;
+        let block2_version = (blk2_word4 >> 4) & 0x7;
+
+        Ok(block2_version)
+    }
 }

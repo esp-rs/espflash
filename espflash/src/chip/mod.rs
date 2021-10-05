@@ -34,6 +34,9 @@ pub trait ChipType {
 
     const SUPPORTED_TARGETS: &'static [&'static str];
 
+    /// List the available features of the connected chip.
+    fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error>;
+
     /// Determine the frequency of the crytal on the connected chip.
     fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
         let uart_div = connection.read_reg(Self::UART_CLKDIV_REG)? & Self::UART_CLKDIV_MASK;
@@ -51,6 +54,9 @@ pub trait ChipType {
         partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
+
+    /// Read the MAC address of the connected chip.
+    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error>;
 
     fn supports_target(target: &str) -> bool;
 }
@@ -238,4 +244,30 @@ impl Chip {
 
         Ok(rev)
     }
+
+    pub fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
+        match self {
+            Chip::Esp32 => Esp32.chip_features(connection),
+            Chip::Esp32c3 => Esp32c3.chip_features(connection),
+            Chip::Esp32s2 => Esp32s2.chip_features(connection),
+            Chip::Esp8266 => Esp8266.chip_features(connection),
+        }
+    }
+
+    pub fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
+        match self {
+            Chip::Esp32 => Esp32.mac_address(connection),
+            Chip::Esp32c3 => Esp32c3.mac_address(connection),
+            Chip::Esp32s2 => Esp32s2.mac_address(connection),
+            Chip::Esp8266 => Esp8266.mac_address(connection),
+        }
+    }
+}
+
+pub(crate) fn bytes_to_mac_addr(bytes: &[u8]) -> String {
+    bytes
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<_>>()
+        .join(":")
 }
