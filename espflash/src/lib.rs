@@ -11,6 +11,7 @@ mod partition_table;
 
 pub use chip::Chip;
 pub use config::Config;
+pub use elf::FirmwareImage;
 pub use error::Error;
 pub use flasher::Flasher;
 pub use partition_table::PartitionTable;

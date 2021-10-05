@@ -193,7 +193,7 @@ fn test_esp32_rom() {
     let image = FirmwareImage::from_data(&input_bytes).unwrap();
     let flash_image = Esp32BootloaderFormat::new(&image, Chip::Esp32, PARAMS, None, None).unwrap();
 
-    let segments = flash_image.segments().collect::<Vec<_>>();
+    let segments = flash_image.flash_segments().collect::<Vec<_>>();
 
     assert_eq!(3, segments.len());
     let buff = segments[2].data.as_ref();

@@ -44,12 +44,31 @@ pub enum Error {
     #[error(transparent)]
     #[diagnostic(transparent)]
     UnsupportedTarget(UnsupportedTargetError),
-    #[error("No target specified in cargo configuration")]
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    NoTarget(#[from] NoTargetError),
+    #[error("No serial port specified in arguments or config")]
     #[diagnostic(
-        code(cargo_espflash::no_target),
-        help("Specify the target in `.cargo/config.toml`, the {} support the following targets: {}", chip, chip.supported_targets().join(", "))
+        code(cargo_espflash::no_serial),
+        help("Add a command line option with the serial port to use")
     )]
-    NoTarget { chip: Chip },
+    NoSerial,
+    #[error("Failed to detect chip for target {0}")]
+    #[diagnostic(
+        code(cargo_espflash::unknown_target),
+        help(
+            "The following targets are recognized:
+    - ESP8266: {}
+    - ESP32: {}
+    - ESP32-S2: {}
+    - ESP32-C3: {}",
+            Chip::Esp8266.supported_targets().join(", "),
+            Chip::Esp32.supported_targets().join(", "),
+            Chip::Esp32s2.supported_targets().join(", "),
+            Chip::Esp32c3.supported_targets().join(", ")
+        )
+    )]
+    UnknownTarget(String),
 }
 
 #[derive(Debug)]
@@ -141,5 +160,31 @@ impl UnsupportedTargetError {
 impl UnsupportedTargetError {
     fn supported_targets(&self) -> String {
         self.chip.supported_targets().join(", ")
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("No target specified in cargo configuration")]
+pub struct NoTargetError {
+    chip: Option<Chip>,
+}
+
+impl NoTargetError {
+    pub fn new(chip: Option<Chip>) -> Self {
+        NoTargetError { chip }
+    }
+}
+
+impl Diagnostic for NoTargetError {
+    fn code<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
+        Some(Box::new("cargo_espflash::no_target"))
+    }
+
+    fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
+        Some(Box::new(match &self.chip {
+            Some(chip) => format!("Specify the target in `.cargo/config.toml`, the {} support the following targets: {}", chip, chip.supported_targets().join(", ")),
+            None => "Specify the target in `.cargo/config.toml`".into(),
+        }
+        ))
     }
 }

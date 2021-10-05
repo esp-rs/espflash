@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 
 use crate::chip::Chip;
+use crate::error::{ElfError, Error};
 use crate::flasher::FlashSize;
 use std::fmt::{Debug, Formatter};
 use std::mem::take;
@@ -38,8 +39,9 @@ pub struct FirmwareImage<'a> {
 }
 
 impl<'a> FirmwareImage<'a> {
-    pub fn from_data(data: &'a [u8]) -> Result<Self, &'static str> {
-        Ok(Self::from_elf(ElfFile::new(data)?))
+    pub fn from_data(data: &'a [u8]) -> Result<Self, Error> {
+        let elf = ElfFile::new(data).map_err(ElfError::from)?;
+        Ok(Self::from_elf(elf))
     }
 
     pub fn from_elf(elf: ElfFile<'a>) -> Self {
