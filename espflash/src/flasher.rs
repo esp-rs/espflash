@@ -1,20 +1,19 @@
 use std::{borrow::Cow, thread::sleep};
 
-use bytemuck::{__core::time::Duration, bytes_of, Pod, Zeroable};
+use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use serial::{BaudRate, SystemPort};
 use strum_macros::Display;
 
 use crate::{
     chip::Chip,
+    command::{Command, CommandType},
     connection::Connection,
     elf::{FirmwareImage, RomSegment},
-    encoder::SlipEncoder,
     error::{ConnectionError, FlashDetectError, ResultExt, RomError, RomErrorKind},
     Error, PartitionTable,
 };
 
-pub(crate) type Encoder<'a> = SlipEncoder<'a, SystemPort>;
-
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 const FLASH_BLOCK_SIZE: usize = 0x100;
 const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
@@ -22,66 +21,6 @@ pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
 
 // register used for chip detect
 const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
-
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
-const ERASE_REGION_TIMEOUT_PER_MB: Duration = Duration::from_secs(30);
-const ERASE_WRITE_TIMEOUT_PER_MB: Duration = Duration::from_secs(40);
-const MEM_END_TIMEOUT: Duration = Duration::from_millis(50);
-const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
-
-#[derive(Copy, Clone, Debug, Display)]
-#[allow(dead_code)]
-#[repr(u8)]
-#[non_exhaustive]
-pub enum Command {
-    Unknown = 0,
-    FlashBegin = 0x02,
-    FlashData = 0x03,
-    FlashEnd = 0x04,
-    MemBegin = 0x05,
-    MemEnd = 0x06,
-    MemData = 0x07,
-    Sync = 0x08,
-    WriteReg = 0x09,
-    ReadReg = 0x0a,
-    SpiSetParams = 0x0B,
-    SpiAttach = 0x0D,
-    ChangeBaud = 0x0F,
-    FlashDeflateBegin = 0x10,
-    FlashDeflateData = 0x11,
-    FlashDeflateEnd = 0x12,
-    FlashMd5 = 0x13,
-    FlashDetect = 0x9f,
-}
-
-impl Command {
-    pub fn timeout(&self) -> Duration {
-        match self {
-            Command::MemEnd => MEM_END_TIMEOUT,
-            Command::Sync => SYNC_TIMEOUT,
-            _ => DEFAULT_TIMEOUT,
-        }
-    }
-
-    pub fn timeout_for_size(&self, size: u32) -> Duration {
-        fn calc_timeout(timeout_per_mb: Duration, size: u32) -> Duration {
-            let mb = size as f64 / 1_000_000.0;
-            std::cmp::max(
-                DEFAULT_TIMEOUT,
-                Duration::from_millis((timeout_per_mb.as_millis() as f64 * mb) as u64),
-            )
-        }
-        match self {
-            Command::FlashBegin | Command::FlashDeflateBegin => {
-                calc_timeout(ERASE_REGION_TIMEOUT_PER_MB, size)
-            }
-            Command::FlashData | Command::FlashDeflateData => {
-                calc_timeout(ERASE_WRITE_TIMEOUT_PER_MB, size)
-            }
-            _ => self.timeout(),
-        }
-    }
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Display)]
 #[allow(dead_code)]
@@ -126,7 +65,7 @@ impl FlashSize {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct SpiAttachParams {
     clk: u8,
@@ -261,7 +200,7 @@ impl Flasher {
     }
 
     fn flash_detect(&mut self) -> Result<bool, Error> {
-        let flash_id = self.spi_command(Command::FlashDetect, &[], 24)?;
+        let flash_id = self.spi_command(CommandType::FlashDetect, &[], 24)?;
         let size_id = flash_id >> 16;
 
         self.flash_size = match FlashSize::from(size_id as u8) {
@@ -281,22 +220,16 @@ impl Flasher {
 
     fn sync(&mut self) -> Result<(), Error> {
         self.connection
-            .with_timeout(Command::Sync.timeout(), |connection| {
-                let data = &[
-                    0x07, 0x07, 0x12, 0x20, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
-                    0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
-                    0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
-                ][..];
-
-                connection.write_command(Command::Sync as u8, data, 0)?;
+            .with_timeout(CommandType::Sync.timeout(), |connection| {
+                connection.write_command(Command::Sync)?;
 
                 for _ in 0..100 {
                     match connection.read_response()? {
-                        Some(response) if response.return_op == Command::Sync as u8 => {
+                        Some(response) if response.return_op == CommandType::Sync as u8 => {
                             if response.status == 1 {
                                 let _error = connection.flush();
                                 return Err(Error::RomError(RomError::new(
-                                    Command::Sync,
+                                    CommandType::Sync,
                                     RomErrorKind::from(response.error),
                                 )));
                             } else {
@@ -329,56 +262,33 @@ impl Flasher {
         Err(Error::Connection(ConnectionError::ConnectionFailed))
     }
 
-    fn begin_command(
-        &mut self,
-        command: Command,
-        size: u32,
-        blocks: u32,
-        block_size: u32,
-        offset: u32,
-    ) -> Result<(), Error> {
-        let params = BeginParams {
-            size,
-            blocks,
-            block_size,
-            offset,
-            encrypted: 0,
-        };
-
-        let bytes = bytes_of(&params);
-        let data = if self.chip == Chip::Esp32 || self.chip == Chip::Esp8266 {
-            // The ESP32 and ESP8266 do not take the `encrypted` field, so truncate the last
-            // 4 bytes of the slice where it resides.
-            let end = bytes.len() - 4;
-            &bytes[0..end]
-        } else {
-            bytes
-        };
-
-        self.connection
-            .with_timeout(command.timeout_for_size(size), |connection| {
-                connection.command(command, data, 0)?;
-                Ok(())
-            })
-    }
-
-    fn enable_flash(&mut self, spi_attach_params: SpiAttachParams) -> Result<(), Error> {
+    fn enable_flash(&mut self, spi_params: SpiAttachParams) -> Result<(), Error> {
         match self.chip {
             Chip::Esp8266 => {
-                self.begin_command(Command::FlashBegin, 0, 0, FLASH_WRITE_SIZE as u32, 0)?;
+                self.connection.command(Command::FlashBegin {
+                    supports_encryption: false,
+                    offset: 0,
+                    block_size: FLASH_WRITE_SIZE as u32,
+                    size: 0,
+                    blocks: 0,
+                })?;
             }
             _ => {
-                let spi_params = spi_attach_params.encode();
                 self.connection
-                    .with_timeout(Command::SpiAttach.timeout(), |connection| {
-                        connection.command(Command::SpiAttach, spi_params.as_slice(), 0)
+                    .with_timeout(CommandType::SpiAttach.timeout(), |connection| {
+                        connection.command(Command::SpiAttach { spi_params })
                     })?;
             }
         }
         Ok(())
     }
 
-    fn spi_command(&mut self, command: Command, data: &[u8], read_bits: u32) -> Result<u32, Error> {
+    fn spi_command(
+        &mut self,
+        command: CommandType,
+        data: &[u8],
+        read_bits: u32,
+    ) -> Result<u32, Error> {
         assert!(read_bits < 32);
         assert!(data.len() < 64);
 
@@ -556,12 +466,11 @@ impl Flasher {
     }
 
     pub fn change_baud(&mut self, speed: BaudRate) -> Result<(), Error> {
-        let new_speed = (speed.speed() as u32).to_le_bytes();
-        let old_speed = 0u32.to_le_bytes();
-
         self.connection
-            .with_timeout(Command::ChangeBaud.timeout(), |connection| {
-                connection.command(Command::ChangeBaud, &[new_speed, old_speed].concat()[..], 0)
+            .with_timeout(CommandType::ChangeBaud.timeout(), |connection| {
+                connection.command(Command::ChangeBaud {
+                    speed: speed.speed() as u32,
+                })
             })?;
         self.connection.set_baud(speed)?;
         std::thread::sleep(Duration::from_secs_f32(0.05));

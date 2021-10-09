@@ -1,8 +1,9 @@
+use crate::command::{Command, CommandType};
 use crate::connection::Connection;
 use crate::elf::{FirmwareImage, RomSegment};
 use crate::error::Error;
-use crate::flash_target::{begin_command, block_command_with_timeout, FlashTarget};
-use crate::flasher::{Command, SpiAttachParams, FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
+use crate::flash_target::FlashTarget;
+use crate::flasher::{SpiAttachParams, FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
 use crate::Chip;
 use flate2::write::{ZlibDecoder, ZlibEncoder};
 use flate2::Compression;
@@ -25,9 +26,10 @@ impl Esp32Target {
 
 impl FlashTarget for Esp32Target {
     fn begin(&mut self, connection: &mut Connection, _image: &FirmwareImage) -> Result<(), Error> {
-        let spi_params = self.spi_attach_params.encode();
-        connection.with_timeout(Command::SpiAttach.timeout(), |connection| {
-            connection.command(Command::SpiAttach, spi_params.as_slice(), 0)
+        connection.with_timeout(CommandType::SpiAttach.timeout(), |connection| {
+            connection.command(Command::SpiAttach {
+                spi_params: self.spi_attach_params,
+            })
         })?;
         Ok(())
     }
@@ -47,14 +49,18 @@ impl FlashTarget for Esp32Target {
         // round up to sector size
         let erase_size = (erase_count * FLASH_SECTOR_SIZE) as u32;
 
-        begin_command(
-            connection,
-            Command::FlashDeflateBegin,
-            erase_size,
-            block_count as u32,
-            FLASH_WRITE_SIZE as u32,
-            addr,
-            self.chip != Chip::Esp32,
+        connection.with_timeout(
+            CommandType::FlashDeflateBegin.timeout_for_size(erase_size),
+            |connection| {
+                connection.command(Command::FlashDeflateBegin {
+                    size: erase_size,
+                    blocks: block_count as u32,
+                    block_size: FLASH_WRITE_SIZE as u32,
+                    offset: addr,
+                    supports_encryption: self.chip != Chip::Esp32,
+                })?;
+                Ok(())
+            },
         )?;
 
         let chunks = compressed.chunks(FLASH_WRITE_SIZE);
@@ -79,14 +85,17 @@ impl FlashTarget for Esp32Target {
             decoded_size = decoder.get_ref().len();
 
             pb_chunk.set_message(format!("segment 0x{:X} writing chunks", addr));
-            block_command_with_timeout(
-                connection,
-                Command::FlashDeflateData,
-                block,
-                0,
-                0xff,
-                i as u32,
-                Command::FlashDeflateData.timeout_for_size(size as u32),
+            connection.with_timeout(
+                CommandType::FlashDeflateData.timeout_for_size(size as u32),
+                |connection| {
+                    connection.command(Command::FlashDeflateData {
+                        sequence: i as u32,
+                        pad_to: 0,
+                        pad_byte: 0xff,
+                        data: block,
+                    })?;
+                    Ok(())
+                },
             )?;
             pb_chunk.inc(1);
         }
@@ -97,8 +106,8 @@ impl FlashTarget for Esp32Target {
     }
 
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error> {
-        connection.with_timeout(Command::FlashDeflateEnd.timeout(), |connection| {
-            connection.write_command(Command::FlashDeflateEnd as u8, &[1][..], 0)
+        connection.with_timeout(CommandType::FlashDeflateEnd.timeout(), |connection| {
+            connection.write_command(Command::FlashDeflateEnd { reboot: false })
         })?;
         if reboot {
             connection.reset()

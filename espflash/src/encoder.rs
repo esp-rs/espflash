@@ -17,7 +17,14 @@ impl<'a, W: Write> SlipEncoder<'a, W> {
         Ok(Self { writer, len })
     }
 
-    pub fn write(&mut self, buf: &[u8]) -> std::io::Result<()> {
+    pub fn finish(mut self) -> std::io::Result<usize> {
+        self.len += self.writer.write(&[END])?;
+        Ok(self.len)
+    }
+}
+
+impl<'a, W: Write> Write for SlipEncoder<'a, W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         for value in buf.iter() {
             match *value {
                 END => {
@@ -32,11 +39,10 @@ impl<'a, W: Write> SlipEncoder<'a, W> {
             }
         }
 
-        Ok(())
+        Ok(buf.len())
     }
 
-    pub fn finish(mut self) -> std::io::Result<usize> {
-        self.len += self.writer.write(&[END])?;
-        Ok(self.len)
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.writer.flush()
     }
 }

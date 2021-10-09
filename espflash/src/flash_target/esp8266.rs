@@ -1,8 +1,9 @@
+use crate::command::{Command, CommandType};
 use crate::connection::Connection;
 use crate::elf::{FirmwareImage, RomSegment};
 use crate::error::Error;
-use crate::flash_target::{begin_command, block_command, FlashTarget};
-use crate::flasher::{get_erase_size, Command, FLASH_WRITE_SIZE};
+use crate::flash_target::FlashTarget;
+use crate::flasher::{get_erase_size, FLASH_WRITE_SIZE};
 use indicatif::{ProgressBar, ProgressStyle};
 
 pub struct Esp8266Target;
@@ -15,15 +16,14 @@ impl Esp8266Target {
 
 impl FlashTarget for Esp8266Target {
     fn begin(&mut self, connection: &mut Connection, _image: &FirmwareImage) -> Result<(), Error> {
-        begin_command(
-            connection,
-            Command::FlashBegin,
-            0,
-            0,
-            FLASH_WRITE_SIZE as u32,
-            0,
-            false,
-        )
+        connection.command(Command::FlashBegin {
+            size: 0,
+            blocks: 0,
+            block_size: FLASH_WRITE_SIZE as u32,
+            offset: 0,
+            supports_encryption: false,
+        })?;
+        Ok(())
     }
 
     fn write_segment(
@@ -36,14 +36,17 @@ impl FlashTarget for Esp8266Target {
 
         let erase_size = get_erase_size(addr as usize, segment.data.len()) as u32;
 
-        begin_command(
-            connection,
-            Command::FlashBegin,
-            erase_size,
-            block_count as u32,
-            FLASH_WRITE_SIZE as u32,
-            addr,
-            false,
+        connection.with_timeout(
+            CommandType::FlashBegin.timeout_for_size(erase_size),
+            |connection| {
+                connection.command(Command::FlashBegin {
+                    size: erase_size,
+                    blocks: block_count as u32,
+                    block_size: FLASH_WRITE_SIZE as u32,
+                    offset: addr,
+                    supports_encryption: false,
+                })
+            },
         )?;
 
         let chunks = segment.data.chunks(FLASH_WRITE_SIZE);
@@ -59,15 +62,12 @@ impl FlashTarget for Esp8266Target {
 
         for (i, block) in chunks.enumerate() {
             pb_chunk.set_message(format!("segment 0x{:X} writing chunks", addr));
-            let block_padding = FLASH_WRITE_SIZE - block.len();
-            block_command(
-                connection,
-                Command::FlashData,
-                block,
-                block_padding,
-                0xff,
-                i as u32,
-            )?;
+            connection.command(Command::FlashData {
+                sequence: i as u32,
+                pad_to: FLASH_WRITE_SIZE,
+                pad_byte: 0xff,
+                data: block,
+            })?;
             pb_chunk.inc(1);
         }
 
@@ -77,8 +77,8 @@ impl FlashTarget for Esp8266Target {
     }
 
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error> {
-        connection.with_timeout(Command::FlashEnd.timeout(), |connection| {
-            connection.write_command(Command::FlashEnd as u8, &[1][..], 0)
+        connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
+            connection.write_command(Command::FlashEnd { reboot: false })
         })?;
         if reboot {
             connection.reset()

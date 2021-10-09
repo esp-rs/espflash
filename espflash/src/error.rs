@@ -1,4 +1,4 @@
-use crate::flasher::Command;
+use crate::command::CommandType;
 use crate::image_format::ImageFormatId;
 use crate::partition_table::{SubType, Type};
 use crate::Chip;
@@ -90,11 +90,11 @@ pub enum ConnectionError {
 
 #[derive(Debug, Default, Clone)]
 pub struct TimedOutCommand {
-    command: Option<Command>,
+    command: Option<CommandType>,
 }
 
-impl From<Command> for TimedOutCommand {
-    fn from(c: Command) -> Self {
+impl From<CommandType> for TimedOutCommand {
+    fn from(c: CommandType) -> Self {
         TimedOutCommand { command: Some(c) }
     }
 }
@@ -227,13 +227,13 @@ impl From<u8> for RomErrorKind {
 #[non_exhaustive]
 #[error("Error while running {command} command")]
 pub struct RomError {
-    command: Command,
+    command: CommandType,
     #[source]
     kind: RomErrorKind,
 }
 
 impl RomError {
-    pub fn new(command: Command, kind: RomErrorKind) -> RomError {
+    pub fn new(command: CommandType, kind: RomErrorKind) -> RomError {
         RomError { command, kind }
     }
 }
@@ -242,7 +242,7 @@ pub(crate) trait ResultExt {
     /// mark an error as having occurred during the flashing stage
     fn flashing(self) -> Self;
     /// mark the command from which this error originates
-    fn for_command(self, command: Command) -> Self;
+    fn for_command(self, command: CommandType) -> Self;
 }
 
 impl<T> ResultExt for Result<T, Error> {
@@ -253,7 +253,7 @@ impl<T> ResultExt for Result<T, Error> {
         }
     }
 
-    fn for_command(self, command: Command) -> Self {
+    fn for_command(self, command: CommandType) -> Self {
         match self {
             Err(Error::Connection(ConnectionError::Timeout(_))) => {
                 Err(Error::Connection(ConnectionError::Timeout(command.into())))

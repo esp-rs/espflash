@@ -1,14 +1,14 @@
 use std::{io::Write, thread::sleep, time::Duration};
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
-use bytemuck::{bytes_of, Pod, Zeroable};
+use bytemuck::{Pod, Zeroable};
 use serial::{BaudRate, SerialPort, SerialPortSettings, SystemPort};
 use slip_codec::Decoder;
 
 use crate::{
+    command::{Command, CommandType},
     encoder::SlipEncoder,
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
-    flasher::Command,
 };
 
 #[derive(Debug, Copy, Clone, BinRead)]
@@ -115,38 +115,24 @@ impl Connection {
         Ok(Some(header))
     }
 
-    pub fn write_command(
-        &mut self,
-        command: u8,
-        data: impl LazyBytes<SystemPort>,
-        check: u32,
-    ) -> Result<(), Error> {
+    pub fn write_command(&mut self, command: Command) -> Result<(), Error> {
         let mut encoder = SlipEncoder::new(&mut self.serial)?;
-        encoder.write(&[0])?;
-        encoder.write(&[command])?;
-        encoder.write(&(data.length().to_le_bytes()))?;
-        encoder.write(&(check.to_le_bytes()))?;
-        data.write(&mut encoder)?;
+        command.write(&mut encoder)?;
         encoder.finish()?;
         Ok(())
     }
 
-    pub fn command<Data: LazyBytes<SystemPort>>(
-        &mut self,
-        command: Command,
-        data: Data,
-        check: u32,
-    ) -> Result<u32, Error> {
-        self.write_command(command as u8, data, check)
-            .for_command(command)?;
+    pub fn command(&mut self, command: Command) -> Result<u32, Error> {
+        let ty = command.command_type();
+        self.write_command(command).for_command(ty)?;
 
         for _ in 0..100 {
-            match self.read_response().for_command(command)? {
-                Some(response) if response.return_op == command as u8 => {
+            match self.read_response().for_command(ty)? {
+                Some(response) if response.return_op == ty as u8 => {
                     return if response.status == 1 {
                         let _error = self.flush();
                         Err(Error::RomError(RomError::new(
-                            command,
+                            command.command_type(),
                             RomErrorKind::from(response.error),
                         )))
                     } else {
@@ -162,20 +148,18 @@ impl Connection {
     }
 
     pub fn read_reg(&mut self, reg: u32) -> Result<u32, Error> {
-        self.with_timeout(Command::ReadReg.timeout(), |connection| {
-            connection.command(Command::ReadReg, &reg.to_le_bytes()[..], 0)
+        self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
+            connection.command(Command::ReadReg { address: reg })
         })
     }
 
     pub fn write_reg(&mut self, addr: u32, value: u32, mask: Option<u32>) -> Result<(), Error> {
-        let params = WriteRegParams {
-            addr,
-            value,
-            mask: mask.unwrap_or(0xFFFFFFFF),
-            delay_us: 0,
-        };
-        self.with_timeout(Command::WriteReg.timeout(), |connection| {
-            connection.command(Command::WriteReg, bytes_of(&params), 0)
+        self.with_timeout(CommandType::WriteReg.timeout(), |connection| {
+            connection.command(Command::WriteReg {
+                address: addr,
+                value,
+                mask,
+            })
         })?;
 
         Ok(())
@@ -194,32 +178,5 @@ impl Connection {
 
     pub fn into_serial(self) -> SystemPort {
         self.serial
-    }
-}
-
-pub trait LazyBytes<W: Write> {
-    fn write(self, encoder: &mut SlipEncoder<W>) -> Result<(), Error>;
-
-    fn length(&self) -> u16;
-}
-
-impl<W: Write> LazyBytes<W> for &[u8] {
-    fn write(self, encoder: &mut SlipEncoder<W>) -> Result<(), Error> {
-        encoder.write(self)?;
-        Ok(())
-    }
-
-    fn length(&self) -> u16 {
-        self.len() as u16
-    }
-}
-
-impl<W: Write, F: Fn(&mut SlipEncoder<W>) -> Result<(), Error>> LazyBytes<W> for (u16, F) {
-    fn write(self, encoder: &mut SlipEncoder<W>) -> Result<(), Error> {
-        self.1(encoder)
-    }
-
-    fn length(&self) -> u16 {
-        self.0
     }
 }
