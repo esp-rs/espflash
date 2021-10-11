@@ -1,9 +1,11 @@
 mod esp32bootloader;
+mod esp32directboot;
 mod esp8266;
 
 use crate::elf::RomSegment;
 use bytemuck::{Pod, Zeroable};
 pub use esp32bootloader::*;
+pub use esp32directboot::*;
 pub use esp8266::*;
 
 use strum_macros::{AsStaticStr, Display, EnumString};

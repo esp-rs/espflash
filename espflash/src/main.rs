@@ -1,13 +1,14 @@
 use std::fs::{read, read_to_string};
 
-use espflash::{Config, Error, Flasher, PartitionTable};
+use espflash::{Config, Error, Flasher, ImageFormatId, PartitionTable};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use pico_args::Arguments;
 use serial::{BaudRate, FlowControl, SerialPort};
+use std::str::FromStr;
 
 #[allow(clippy::unnecessary_wraps)]
 fn help() -> Result<()> {
-    println!("Usage: espflash [--board-info] [--ram] [--partition-table partition.csv] [--bootloader boot.bin] <serial> <elf image>");
+    println!("Usage: espflash [--board-info] [--ram] [--partition-table partition.csv] [--bootloader boot.bin] [--format <bootloader|direct-boot> <serial> <elf image>");
     Ok(())
 }
 
@@ -26,6 +27,9 @@ fn main() -> Result<()> {
         .into_diagnostic()?;
     let partition_table_path = args
         .opt_value_from_str::<_, String>("--partition-table")
+        .into_diagnostic()?;
+    let image_format_string = args
+        .opt_value_from_str::<_, String>("--format")
         .into_diagnostic()?;
 
     let mut serial: Option<String> = args.opt_free_from_str().into_diagnostic()?;
@@ -83,6 +87,14 @@ fn main() -> Result<()> {
                     bootloader_path.unwrap()
                 )
             })?;
+        let image_format = image_format_string
+            .as_deref()
+            .map(ImageFormatId::from_str)
+            .transpose()
+            .into_diagnostic()
+            .wrap_err_with(|| {
+                format!("Unrecognized image format {}", image_format_string.unwrap())
+            })?;
         let partition_table = partition_table_path
             .as_deref()
             .map(|path| {
@@ -97,7 +109,7 @@ fn main() -> Result<()> {
                     partition_table_path.unwrap()
                 )
             })?;
-        flasher.load_elf_to_flash(&input_bytes, bootloader, partition_table)?;
+        flasher.load_elf_to_flash(&input_bytes, bootloader, partition_table, image_format)?;
     }
 
     Ok(())

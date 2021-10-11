@@ -6,6 +6,7 @@ use crate::error::{ElfError, Error};
 use crate::flasher::FlashSize;
 use std::fmt::{Debug, Formatter};
 use std::mem::take;
+use std::ops::AddAssign;
 use xmas_elf::sections::{SectionData, ShType};
 use xmas_elf::ElfFile;
 
@@ -88,7 +89,7 @@ impl<'a> FirmwareImage<'a> {
     }
 }
 
-#[derive(Eq, Clone)]
+#[derive(Eq, Clone, Default)]
 /// A segment of code from the source elf
 pub struct CodeSegment<'a> {
     pub addr: u32,
@@ -97,21 +98,12 @@ pub struct CodeSegment<'a> {
 
 impl<'a> CodeSegment<'a> {
     pub fn new(addr: u32, data: &'a [u8]) -> Self {
-        // pad to 4 byte
-        let padding = (4 - data.len() % 4) % 4;
-        if padding == 0 {
-            CodeSegment {
-                addr,
-                data: Cow::Borrowed(data),
-            }
-        } else {
-            let mut data = data.to_vec();
-            data.extend_from_slice(&[0; 4][0..padding]);
-            CodeSegment {
-                addr,
-                data: Cow::Owned(data),
-            }
-        }
+        let mut segment = CodeSegment {
+            addr,
+            data: Cow::Borrowed(data),
+        };
+        segment.pad_align(4);
+        segment
     }
 
     /// Split of the first `count` bytes into a new segment, adjusting the remaining segment as needed
@@ -142,18 +134,40 @@ impl<'a> CodeSegment<'a> {
         }
     }
 
-    pub fn add(&mut self, extend: &[u8]) {
-        let mut data = take(&mut self.data).into_owned();
-        data.extend_from_slice(extend);
-        self.data = Cow::Owned(data);
-    }
-
     pub fn size(&self) -> u32 {
         self.data.len() as u32
     }
 
     pub fn data(&self) -> &[u8] {
         self.data.as_ref()
+    }
+
+    pub fn pad_align(&mut self, align: usize) {
+        let padding = (align - self.data.len() % align) % align;
+        if padding > 0 {
+            let mut data = take(&mut self.data).into_owned();
+            data.extend_from_slice(&[0; 4][0..padding]);
+            self.data = Cow::Owned(data);
+        }
+    }
+}
+
+impl<'a> AddAssign<&'_ [u8]> for CodeSegment<'a> {
+    fn add_assign(&mut self, rhs: &'_ [u8]) {
+        let mut data = take(&mut self.data).into_owned();
+        data.extend_from_slice(rhs);
+        self.data = Cow::Owned(data);
+    }
+}
+
+impl<'a> AddAssign<&'_ CodeSegment<'_>> for CodeSegment<'a> {
+    fn add_assign(&mut self, rhs: &'_ CodeSegment<'_>) {
+        let mut data = take(&mut self.data).into_owned();
+        // pad or truncate
+        #[allow(clippy::suspicious_op_assign_impl)]
+        data.resize((rhs.addr - self.addr) as usize, 0);
+        data.extend_from_slice(rhs.data());
+        self.data = Cow::Owned(data);
     }
 }
 
@@ -184,6 +198,7 @@ impl Ord for CodeSegment<'_> {
     }
 }
 
+#[derive(Clone)]
 /// A segment of data to write to the flash
 pub struct RomSegment<'a> {
     pub addr: u32,
@@ -219,14 +234,14 @@ pub fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
     checksum
 }
 
-pub fn merge_segments(mut segments: Vec<CodeSegment>) -> Vec<CodeSegment> {
+pub fn merge_adjacent_segments(mut segments: Vec<CodeSegment>) -> Vec<CodeSegment> {
     segments.sort();
 
     let mut merged: Vec<CodeSegment> = Vec::with_capacity(segments.len());
     for segment in segments {
         match merged.last_mut() {
             Some(last) if last.addr + last.size() == segment.addr => {
-                last.add(segment.data());
+                *last += segment.data();
             }
             _ => {
                 merged.push(segment);

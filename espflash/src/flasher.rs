@@ -4,6 +4,7 @@ use bytemuck::{__core::time::Duration, bytes_of, Pod, Zeroable};
 use serial::{BaudRate, SystemPort};
 use strum_macros::Display;
 
+use crate::image_format::ImageFormatId;
 use crate::{
     chip::Chip,
     connection::Connection,
@@ -533,6 +534,7 @@ impl Flasher {
         elf_data: &[u8],
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
+        image_format: Option<ImageFormatId>,
     ) -> Result<(), Error> {
         let mut image = FirmwareImage::from_data(elf_data)?;
         image.flash_size = self.flash_size();
@@ -540,9 +542,9 @@ impl Flasher {
         let mut target = self.chip.flash_target(self.spi_params);
         target.begin(&mut self.connection, &image).flashing()?;
 
-        let flash_image = self
-            .chip
-            .get_flash_image(&image, bootloader, partition_table, None)?;
+        let flash_image =
+            self.chip
+                .get_flash_image(&image, bootloader, partition_table, image_format)?;
 
         for segment in flash_image.flash_segments() {
             target

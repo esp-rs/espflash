@@ -14,4 +14,5 @@ pub use config::Config;
 pub use elf::FirmwareImage;
 pub use error::Error;
 pub use flasher::Flasher;
+pub use image_format::ImageFormatId;
 pub use partition_table::PartitionTable;

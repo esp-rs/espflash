@@ -1,6 +1,7 @@
 use std::ops::Range;
 
 use super::Esp32Params;
+use crate::image_format::Esp32DirectBootFormat;
 use crate::{
     chip::{bytes_to_mac_addr, ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
@@ -79,9 +80,7 @@ impl ChipType for Esp32c3 {
                 partition_table,
                 bootloader,
             )?)),
-            ImageFormatId::DirectBoot => {
-                todo!()
-            }
+            ImageFormatId::DirectBoot => Ok(Box::new(Esp32DirectBootFormat::new(image)?)),
         }
     }
 
