@@ -1,4 +1,5 @@
 mod chip;
+mod command;
 mod config;
 mod connection;
 mod elf;

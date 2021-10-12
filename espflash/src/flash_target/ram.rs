@@ -1,9 +1,9 @@
+use crate::command::{Command, CommandType};
 use crate::connection::Connection;
 use crate::elf::{FirmwareImage, RomSegment};
 use crate::error::Error;
-use crate::flash_target::{begin_command, block_command, FlashTarget};
-use crate::flasher::Command;
-use bytemuck::{bytes_of, Pod, Zeroable};
+use crate::flash_target::FlashTarget;
+use bytemuck::{Pod, Zeroable};
 
 #[derive(Zeroable, Pod, Copy, Clone)]
 #[repr(C)]
@@ -39,41 +39,33 @@ impl FlashTarget for RamTarget {
         let block_count =
             (segment.data.len() + padding + MAX_RAM_BLOCK_SIZE - 1) / MAX_RAM_BLOCK_SIZE;
 
-        begin_command(
-            connection,
-            Command::MemBegin,
-            segment.data.len() as u32,
-            block_count as u32,
-            MAX_RAM_BLOCK_SIZE as u32,
-            segment.addr,
-            false,
-        )?;
+        connection.command(Command::MemBegin {
+            size: segment.data.len() as u32,
+            blocks: block_count as u32,
+            block_size: MAX_RAM_BLOCK_SIZE as u32,
+            offset: segment.addr,
+            supports_encryption: false,
+        })?;
 
         for (i, block) in segment.data.chunks(MAX_RAM_BLOCK_SIZE).enumerate() {
-            let block_padding = if i == block_count - 1 { padding } else { 0 };
-            block_command(
-                connection,
-                Command::MemData,
-                block,
-                block_padding,
-                0,
-                i as u32,
-            )?;
+            connection.command(Command::MemData {
+                sequence: i as u32,
+                pad_to: 4,
+                pad_byte: 0,
+                data: block,
+            })?;
         }
         Ok(())
     }
 
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error> {
         if reboot {
-            let params = match self.entry {
-                Some(entry) if entry > 0 => EntryParams { no_entry: 0, entry },
-                _ => EntryParams {
-                    no_entry: 1,
-                    entry: 0,
-                },
-            };
-            connection.with_timeout(Command::MemEnd.timeout(), |connection| {
-                connection.write_command(Command::MemEnd as u8, bytes_of(&params), 0)
+            let entry = self.entry.unwrap_or_default();
+            connection.with_timeout(CommandType::MemEnd.timeout(), |connection| {
+                connection.write_command(Command::MemEnd {
+                    no_entry: entry == 0,
+                    entry,
+                })
             })
         } else {
             Ok(())
