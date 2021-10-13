@@ -6,7 +6,7 @@ use miette::{Diagnostic, SourceOffset, SourceSpan};
 use slip_codec::Error as SlipError;
 use std::fmt::{Display, Formatter};
 use std::io;
-use strum::AsStaticRef;
+use strum::{AsStaticRef, VariantNames};
 use thiserror::Error;
 
 #[derive(Error, Debug, Diagnostic)]
@@ -51,6 +51,12 @@ pub enum Error {
     #[error(transparent)]
     #[diagnostic(transparent)]
     UnsupportedImageFormat(#[from] UnsupportedImageFormatError),
+    #[error("Unrecognized image format {0}")]
+    #[diagnostic(
+        code(espflash::unknown_format),
+        help("The following image formats are {}", ImageFormatId::VARIANTS.join(", "))
+    )]
+    UnknownImageFormat(String),
 }
 
 #[derive(Error, Debug, Diagnostic)]

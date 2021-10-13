@@ -90,11 +90,7 @@ fn main() -> Result<()> {
         let image_format = image_format_string
             .as_deref()
             .map(ImageFormatId::from_str)
-            .transpose()
-            .into_diagnostic()
-            .wrap_err_with(|| {
-                format!("Unrecognized image format {}", image_format_string.unwrap())
-            })?;
+            .transpose()?;
         let partition_table = partition_table_path
             .as_deref()
             .map(|path| {
