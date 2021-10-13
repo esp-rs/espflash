@@ -9,6 +9,7 @@ pub use esp32directboot::*;
 pub use esp8266::*;
 
 use crate::error::Error;
+use serde::Deserialize;
 use std::str::FromStr;
 use strum_macros::{AsStaticStr, Display, EnumVariantNames};
 
@@ -46,8 +47,11 @@ pub trait ImageFormat<'a> {
         'a: 'b;
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display, AsStaticStr, EnumVariantNames)]
+#[derive(
+    Debug, Copy, Clone, Eq, PartialEq, Display, AsStaticStr, EnumVariantNames, Deserialize,
+)]
 #[strum(serialize_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub enum ImageFormatId {
     Bootloader,
     DirectBoot,

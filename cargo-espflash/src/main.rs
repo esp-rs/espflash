@@ -237,8 +237,8 @@ fn flash(
     let image_format = matches
         .value_of("format")
         .map(ImageFormatId::from_str)
-        .transpose()
-        .into_diagnostic()?;
+        .transpose()?
+        .or(metadata.format);
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(path).into_diagnostic()?;
@@ -368,7 +368,7 @@ fn build(
 fn save_image(
     matches: &ArgMatches,
     _config: Config,
-    _metadata: CargoEspFlashMeta,
+    metadata: CargoEspFlashMeta,
     cargo_config: CargoConfig,
 ) -> Result<()> {
     let target = cargo_config
@@ -385,8 +385,8 @@ fn save_image(
     let image_format = matches
         .value_of("format")
         .map(ImageFormatId::from_str)
-        .transpose()
-        .into_diagnostic()?;
+        .transpose()?
+        .or(metadata.format);
 
     let flash_image = chip.get_flash_image(&image, None, None, image_format)?;
     let parts: Vec<_> = flash_image.ota_segments().collect();
