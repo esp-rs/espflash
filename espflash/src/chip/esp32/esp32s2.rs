@@ -1,6 +1,7 @@
 use std::ops::Range;
 
 use super::Esp32Params;
+use crate::error::UnsupportedImageFormatError;
 use crate::{
     chip::{bytes_to_mac_addr, ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
@@ -103,9 +104,7 @@ impl ChipType for Esp32s2 {
                 partition_table,
                 bootloader,
             )?)),
-            ImageFormatId::DirectBoot => {
-                todo!()
-            }
+            _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp8266).into()),
         }
     }
 

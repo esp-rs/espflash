@@ -26,6 +26,12 @@ impl<'a> Esp32DirectBootFormat<'a> {
             });
         segment.pad_align(4);
 
+        if segment.addr != 0
+            || segment.data()[0..8] != [0x1d, 0x04, 0xdb, 0xae, 0x1d, 0x04, 0xdb, 0xae]
+        {
+            return Err(Error::InvalidDirectBootBinary);
+        }
+
         Ok(Self {
             segment: segment.into(),
         })

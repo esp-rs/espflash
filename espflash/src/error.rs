@@ -57,6 +57,15 @@ pub enum Error {
         help("The following image formats are {}", ImageFormatId::VARIANTS.join(", "))
     )]
     UnknownImageFormat(String),
+    #[error("binary is not setup correct to support direct boot")]
+    #[diagnostic(
+        code(espflash::invalid_direct_boot),
+        help(
+            "See the following page for documentation on how to setup your binary for direct boot:
+https://github.com/espressif/esp32c3-direct-boot-example"
+        )
+    )]
+    InvalidDirectBootBinary,
 }
 
 #[derive(Error, Debug, Diagnostic)]
