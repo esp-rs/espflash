@@ -47,10 +47,11 @@ impl ChipType for Esp8266 {
         _bootloader: Option<Vec<u8>>,
         _partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
+        _chip_revision: Option<u32>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         match image_format {
             ImageFormatId::Bootloader => Ok(Box::new(Esp8266Format::new(image)?)),
-            _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp8266).into()),
+            _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp8266, None).into()),
         }
     }
 

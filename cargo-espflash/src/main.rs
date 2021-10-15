@@ -388,7 +388,7 @@ fn save_image(
         .transpose()?
         .or(metadata.format);
 
-    let flash_image = chip.get_flash_image(&image, None, None, image_format)?;
+    let flash_image = chip.get_flash_image(&image, None, None, image_format, None)?;
     let parts: Vec<_> = flash_image.ota_segments().collect();
 
     let out_path = matches.value_of("file").unwrap();

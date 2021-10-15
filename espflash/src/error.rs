@@ -497,20 +497,58 @@ impl From<u8> for FlashDetectError {
     }
 }
 
-#[derive(Debug, Error, Diagnostic)]
-#[error("Image format {format} is not supported by the {chip}")]
-#[diagnostic(
-    code(espflash::unsupported_image_format),
-    help("The following image formats are supported by the {}: {}", self.chip, self.supported_formats())
-)]
+#[derive(Debug)]
 pub struct UnsupportedImageFormatError {
     format: ImageFormatId,
     chip: Chip,
+    revision: Option<u32>,
+}
+
+impl Display for UnsupportedImageFormatError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Image format {} is not supported by the {}",
+            self.format, self.chip
+        )?;
+        if let Some(revision) = self.revision {
+            write!(f, " revision {}", revision)?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for UnsupportedImageFormatError {}
+
+impl Diagnostic for UnsupportedImageFormatError {
+    fn code<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
+        Some(Box::new("espflash::unsupported_image_format"))
+    }
+
+    fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
+        let str = if self.chip == Chip::Esp32c3 && self.format == ImageFormatId::DirectBoot {
+            format!(
+                "The {}: only supports direct-boot starting with revision 3",
+                self.chip,
+            )
+        } else {
+            format!(
+                "The following image formats are supported by the {}: {}",
+                self.chip,
+                self.supported_formats()
+            )
+        };
+        Some(Box::new(str))
+    }
 }
 
 impl UnsupportedImageFormatError {
-    pub fn new(format: ImageFormatId, chip: Chip) -> Self {
-        UnsupportedImageFormatError { format, chip }
+    pub fn new(format: ImageFormatId, chip: Chip, revision: Option<u32>) -> Self {
+        UnsupportedImageFormatError {
+            format,
+            chip,
+            revision,
+        }
     }
 
     fn supported_formats(&self) -> String {

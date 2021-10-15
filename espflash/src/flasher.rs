@@ -542,9 +542,13 @@ impl Flasher {
         let mut target = self.chip.flash_target(self.spi_params);
         target.begin(&mut self.connection, &image).flashing()?;
 
-        let flash_image =
-            self.chip
-                .get_flash_image(&image, bootloader, partition_table, image_format)?;
+        let flash_image = self.chip.get_flash_image(
+            &image,
+            bootloader,
+            partition_table,
+            image_format,
+            self.chip.chip_revision(&mut self.connection)?,
+        )?;
 
         for segment in flash_image.flash_segments() {
             target

@@ -53,6 +53,7 @@ pub trait ChipType {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
+        chip_revision: Option<u32>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
 
     /// Read the MAC address of the connected chip.
@@ -158,20 +159,35 @@ impl Chip {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: Option<ImageFormatId>,
+        chip_revision: Option<u32>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         let image_format = image_format.unwrap_or_else(|| self.default_image_format());
 
         match self {
-            Chip::Esp32 => {
-                Esp32::get_flash_segments(image, bootloader, partition_table, image_format)
+            Chip::Esp32 => Esp32::get_flash_segments(
+                image,
+                bootloader,
+                partition_table,
+                image_format,
+                chip_revision,
+            ),
+            Chip::Esp32c3 => Esp32c3::get_flash_segments(
+                image,
+                bootloader,
+                partition_table,
+                image_format,
+                chip_revision,
+            ),
+            Chip::Esp32s2 => Esp32s2::get_flash_segments(
+                image,
+                bootloader,
+                partition_table,
+                image_format,
+                chip_revision,
+            ),
+            Chip::Esp8266 => {
+                Esp8266::get_flash_segments(image, None, None, image_format, chip_revision)
             }
-            Chip::Esp32c3 => {
-                Esp32c3::get_flash_segments(image, bootloader, partition_table, image_format)
-            }
-            Chip::Esp32s2 => {
-                Esp32s2::get_flash_segments(image, bootloader, partition_table, image_format)
-            }
-            Chip::Esp8266 => Esp8266::get_flash_segments(image, None, None, image_format),
         }
     }
 
