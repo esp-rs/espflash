@@ -245,7 +245,12 @@ fn flash(
     if matches.is_present("ram") {
         flasher.load_elf_to_ram(&elf_data)?;
     } else {
-        flasher.load_elf_to_flash(&elf_data, bootloader, partition_table, image_format)?;
+        flasher.load_elf_to_flash_with_format(
+            &elf_data,
+            bootloader,
+            partition_table,
+            image_format,
+        )?;
     }
     println!("\nFlashing has completed!");
 

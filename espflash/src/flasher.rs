@@ -439,7 +439,7 @@ impl Flasher {
     }
 
     /// Load an elf image to flash and execute it
-    pub fn load_elf_to_flash(
+    pub fn load_elf_to_flash_with_format(
         &mut self,
         elf_data: &[u8],
         bootloader: Option<Vec<u8>>,
@@ -469,6 +469,16 @@ impl Flasher {
         target.finish(&mut self.connection, true).flashing()?;
 
         Ok(())
+    }
+
+    /// Load an elf image to flash and execute it
+    pub fn load_elf_to_flash(
+        &mut self,
+        elf_data: &[u8],
+        bootloader: Option<Vec<u8>>,
+        partition_table: Option<PartitionTable>,
+    ) -> Result<(), Error> {
+        self.load_elf_to_flash_with_format(elf_data, bootloader, partition_table, None)
     }
 
     pub fn change_baud(&mut self, speed: BaudRate) -> Result<(), Error> {

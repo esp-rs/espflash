@@ -105,7 +105,12 @@ fn main() -> Result<()> {
                     partition_table_path.unwrap()
                 )
             })?;
-        flasher.load_elf_to_flash(&input_bytes, bootloader, partition_table, image_format)?;
+        flasher.load_elf_to_flash_with_format(
+            &input_bytes,
+            bootloader,
+            partition_table,
+            image_format,
+        )?;
     }
 
     Ok(())
