@@ -94,8 +94,6 @@ impl ReadEFuse for Esp8266 {
 fn test_esp8266_rom() {
     use std::fs::read;
 
-    use pretty_assertions::assert_eq;
-
     let input_bytes = read("./tests/data/esp8266").unwrap();
     let expected_bin = read("./tests/data/esp8266.bin").unwrap();
 

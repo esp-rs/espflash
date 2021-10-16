@@ -6,7 +6,7 @@ use miette::{Diagnostic, SourceOffset, SourceSpan};
 use slip_codec::Error as SlipError;
 use std::fmt::{Display, Formatter};
 use std::io;
-use strum::{AsStaticRef, VariantNames};
+use strum::VariantNames;
 use thiserror::Error;
 
 #[derive(Error, Debug, Diagnostic)]
@@ -555,7 +555,7 @@ impl UnsupportedImageFormatError {
         self.chip
             .supported_image_formats()
             .iter()
-            .map(|format| format.as_static())
+            .map(|format| format.into())
             .collect::<Vec<&'static str>>()
             .join(", ")
     }

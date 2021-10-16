@@ -11,7 +11,7 @@ pub use esp8266::*;
 use crate::error::Error;
 use serde::Deserialize;
 use std::str::FromStr;
-use strum_macros::{AsStaticStr, Display, EnumVariantNames};
+use strum_macros::{Display, EnumVariantNames, IntoStaticStr};
 
 const ESP_MAGIC: u8 = 0xE9;
 const WP_PIN_DISABLED: u8 = 0xEE;
@@ -48,7 +48,7 @@ pub trait ImageFormat<'a> {
 }
 
 #[derive(
-    Debug, Copy, Clone, Eq, PartialEq, Display, AsStaticStr, EnumVariantNames, Deserialize,
+    Debug, Copy, Clone, Eq, PartialEq, Display, IntoStaticStr, EnumVariantNames, Deserialize,
 )]
 #[strum(serialize_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
