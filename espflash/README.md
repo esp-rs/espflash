@@ -4,6 +4,12 @@ __ESP32__, __ESP32-S2__, __ESP32-C3__, and __ESP8266__ serial flasher library an
 
 [![asciicast](https://asciinema.org/a/367205.svg)](https://asciinema.org/a/367205)
 
+## Installation
+
+```shell
+cargo install espflash
+```
+
 ## Usage
 
 ```bash

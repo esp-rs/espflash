@@ -7,6 +7,12 @@ _ESP8266_ and _ESP32_ family serial flasher based on [esptool.py](https://github
 * [espflash library & binary](https://github.com/esp-rs/espflash/tree/master/espflash)
 * [espflash cargo subcommand](https://github.com/esp-rs/espflash/tree/master/cargo-espflash)
 
+## Installation
+
+```shell
+cargo install cargo-espflash
+```
+
 ## Usage
 
 Note: the documentation below is for the `cargo espflash` sub-command, which is probably what you are looking for.

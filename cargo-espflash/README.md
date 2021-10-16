@@ -4,6 +4,12 @@ Cross-compiler and serial flasher cargo subcommand for Espressif devices. Suppor
 
 Prior to flashing, the project is built using the `build-std` unstable cargo feature. Please refer to the [cargo documentation](https://doc.rust-lang.org/cargo/reference/unstable.html#build-std) for more information.
 
+## Installation
+
+```shell
+cargo install cargo-espflash
+```
+
 ## Usage
 
 ```text
