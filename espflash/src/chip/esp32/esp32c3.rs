@@ -1,6 +1,8 @@
 use std::ops::Range;
 
 use super::Esp32Params;
+use crate::error::UnsupportedImageFormatError;
+use crate::image_format::Esp32DirectBootFormat;
 use crate::{
     chip::{bytes_to_mac_addr, ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
@@ -70,18 +72,22 @@ impl ChipType for Esp32c3 {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
+        chip_revision: Option<u32>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        match image_format {
-            ImageFormatId::Bootloader => Ok(Box::new(Esp32BootloaderFormat::new(
+        match (image_format, chip_revision) {
+            (ImageFormatId::Bootloader, _) => Ok(Box::new(Esp32BootloaderFormat::new(
                 image,
                 Chip::Esp32c3,
                 PARAMS,
                 partition_table,
                 bootloader,
             )?)),
-            ImageFormatId::DirectBoot => {
-                todo!()
+            (ImageFormatId::DirectBoot, None | Some(3..)) => {
+                Ok(Box::new(Esp32DirectBootFormat::new(image)?))
             }
+            _ => Err(
+                UnsupportedImageFormatError::new(image_format, Chip::Esp32c3, chip_revision).into(),
+            ),
         }
     }
 

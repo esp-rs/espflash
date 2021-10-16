@@ -6,7 +6,8 @@ use sha2::{Digest, Sha256};
 use crate::{
     chip::Esp32Params,
     elf::{
-        merge_segments, update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC,
+        merge_adjacent_segments, update_checksum, CodeSegment, FirmwareImage, RomSegment,
+        ESP_CHECKSUM_MAGIC,
     },
     error::{Error, FlashDetectError},
     flasher::FlashSize,
@@ -62,8 +63,8 @@ impl<'a> Esp32BootloaderFormat<'a> {
 
         let mut checksum = ESP_CHECKSUM_MAGIC;
 
-        let flash_segments: Vec<_> = merge_segments(image.rom_segments(chip).collect());
-        let mut ram_segments: Vec<_> = merge_segments(image.ram_segments(chip).collect());
+        let flash_segments: Vec<_> = merge_adjacent_segments(image.rom_segments(chip).collect());
+        let mut ram_segments: Vec<_> = merge_adjacent_segments(image.ram_segments(chip).collect());
 
         let mut segment_count = 0;
 

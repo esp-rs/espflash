@@ -8,7 +8,7 @@ use std::{
 use cargo_metadata::Message;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use error::Error;
-use espflash::{Chip, Config, FirmwareImage, Flasher, PartitionTable};
+use espflash::{Chip, Config, FirmwareImage, Flasher, ImageFormatId, PartitionTable};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use monitor::monitor;
 use package_metadata::CargoEspFlashMeta;
@@ -17,6 +17,7 @@ use serial::{BaudRate, FlowControl, SerialPort};
 use crate::cargo_config::CargoConfig;
 use crate::error::NoTargetError;
 use crate::{cargo_config::parse_cargo_config, error::UnsupportedTargetError};
+use std::str::FromStr;
 
 mod cargo_config;
 mod error;
@@ -42,6 +43,11 @@ fn main() -> Result<()> {
             .takes_value(true)
             .value_name("FEATURES")
             .help("Comma delimited list of build features"),
+        Arg::with_name("format")
+            .long("format")
+            .takes_value(true)
+            .value_name("image format")
+            .help("Image format to flash"),
     ];
     let connect_args = [Arg::with_name("serial")
         .takes_value(true)
@@ -228,12 +234,18 @@ fn flash(
         None
     };
 
+    let image_format = matches
+        .value_of("format")
+        .map(ImageFormatId::from_str)
+        .transpose()?
+        .or(metadata.format);
+
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(path).into_diagnostic()?;
     if matches.is_present("ram") {
         flasher.load_elf_to_ram(&elf_data)?;
     } else {
-        flasher.load_elf_to_flash(&elf_data, bootloader, partition_table)?;
+        flasher.load_elf_to_flash(&elf_data, bootloader, partition_table, image_format)?;
     }
     println!("\nFlashing has completed!");
 
@@ -266,13 +278,6 @@ fn build(
     cargo_config: &CargoConfig,
     chip: Option<Chip>,
 ) -> Result<PathBuf> {
-    // The 'build-std' unstable cargo feature is required to enable
-    // cross-compilation. If it has not been set then we cannot build the
-    // application.
-    if !cargo_config.has_build_std() {
-        return Err(Error::NoBuildStd.into());
-    };
-
     let target = cargo_config
         .target()
         .ok_or_else(|| NoTargetError::new(chip))?;
@@ -281,6 +286,13 @@ fn build(
             return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
         }
     }
+    // The 'build-std' unstable cargo feature is required to enable
+    // cross-compilation for xtensa targets.
+    // If it has not been set then we cannot build the
+    // application.
+    if !cargo_config.has_build_std() && target.starts_with("xtensa-") {
+        return Err(Error::NoBuildStd.into());
+    };
 
     // Build the list of arguments to pass to 'cargo build'.
     let mut args = vec![];
@@ -356,7 +368,7 @@ fn build(
 fn save_image(
     matches: &ArgMatches,
     _config: Config,
-    _metadata: CargoEspFlashMeta,
+    metadata: CargoEspFlashMeta,
     cargo_config: CargoConfig,
 ) -> Result<()> {
     let target = cargo_config
@@ -370,7 +382,13 @@ fn save_image(
 
     let image = FirmwareImage::from_data(&elf_data)?;
 
-    let flash_image = chip.get_flash_image(&image, None, None, None)?;
+    let image_format = matches
+        .value_of("format")
+        .map(ImageFormatId::from_str)
+        .transpose()?
+        .or(metadata.format);
+
+    let flash_image = chip.get_flash_image(&image, None, None, image_format, None)?;
     let parts: Vec<_> = flash_image.ota_segments().collect();
 
     let out_path = matches.value_of("file").unwrap();

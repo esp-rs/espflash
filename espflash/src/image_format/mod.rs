@@ -1,12 +1,17 @@
 mod esp32bootloader;
+mod esp32directboot;
 mod esp8266;
 
 use crate::elf::RomSegment;
 use bytemuck::{Pod, Zeroable};
 pub use esp32bootloader::*;
+pub use esp32directboot::*;
 pub use esp8266::*;
 
-use strum_macros::{AsStaticStr, Display, EnumString};
+use crate::error::Error;
+use serde::Deserialize;
+use std::str::FromStr;
+use strum_macros::{AsStaticStr, Display, EnumVariantNames};
 
 const ESP_MAGIC: u8 = 0xE9;
 const WP_PIN_DISABLED: u8 = 0xEE;
@@ -42,10 +47,24 @@ pub trait ImageFormat<'a> {
         'a: 'b;
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display, EnumString, AsStaticStr)]
+#[derive(
+    Debug, Copy, Clone, Eq, PartialEq, Display, AsStaticStr, EnumVariantNames, Deserialize,
+)]
+#[strum(serialize_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub enum ImageFormatId {
-    #[strum(serialize = "bootloader")]
     Bootloader,
-    #[strum(serialize = "direct-boot")]
     DirectBoot,
+}
+
+impl FromStr for ImageFormatId {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "bootloader" => Ok(Self::Bootloader),
+            "direct-boot" => Ok(Self::DirectBoot),
+            _ => Err(Error::UnknownImageFormat(s.into())),
+        }
+    }
 }
