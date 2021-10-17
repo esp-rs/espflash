@@ -47,12 +47,6 @@ pub enum Error {
     #[error(transparent)]
     #[diagnostic(transparent)]
     NoTarget(#[from] NoTargetError),
-    #[error("No serial port specified in arguments or config")]
-    #[diagnostic(
-        code(cargo_espflash::no_serial),
-        help("Add a command line option with the serial port to use")
-    )]
-    NoSerial,
     #[error("Failed to detect chip for target {0}")]
     #[diagnostic(
         code(cargo_espflash::unknown_target),

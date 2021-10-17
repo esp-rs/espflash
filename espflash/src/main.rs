@@ -1,77 +1,122 @@
 use std::fs::{read, read_to_string};
 
+use clap::{AppSettings, Clap, IntoApp};
 use espflash::{Config, Error, Flasher, ImageFormatId, PartitionTable};
+use espflash_common::clap::*;
+use espflash_common::get_serial_port;
 use miette::{IntoDiagnostic, Result, WrapErr};
-use pico_args::Arguments;
 use serial::{BaudRate, FlowControl, SerialPort};
+use std::mem::swap;
 use std::str::FromStr;
 
-#[allow(clippy::unnecessary_wraps)]
-fn help() -> Result<()> {
-    println!("Usage: espflash [--board-info] [--ram] [--partition-table partition.csv] [--bootloader boot.bin] [--format <bootloader|direct-boot> <serial> <elf image>");
-    Ok(())
+#[derive(Clap)]
+#[clap(global_setting = AppSettings::ColoredHelp)]
+#[clap(global_setting = AppSettings::PropagateVersion)]
+#[clap(version = env!("CARGO_PKG_VERSION"))]
+struct Opts {
+    /// Image format to flash
+    #[clap(long)]
+    pub format: Option<String>,
+    #[clap(flatten)]
+    flash_args: FlashArgs,
+    #[clap(flatten)]
+    connect_args: ConnectArgs,
+    /// ELF image to flash
+    image: Option<String>,
+    #[clap(subcommand)]
+    sub_cmd: Option<SubCommand>,
+}
+
+#[derive(Clap)]
+pub enum SubCommand {
+    BoardInfo(BoardInfoOpts),
+}
+
+/// Save the image to disk instead of flashing to device
+#[derive(Clap)]
+pub struct SaveImageOpts {
+    /// Image format to flash
+    #[clap(long)]
+    pub format: Option<String>,
+    /// ELF image to flash
+    image: String,
+    /// File name to save the generated image to
+    pub file: String,
 }
 
 fn main() -> Result<()> {
-    let mut args = Arguments::from_env();
+    miette::set_panic_hook();
+    let mut opts = Opts::parse();
     let config = Config::load();
 
-    if args.contains(["-h", "--help"]) {
-        return help();
+    // if only a single argument is passed, it's always the elf
+    if opts.image.is_none() && config.connection.serial.is_some() {
+        swap(&mut opts.image, &mut opts.connect_args.serial);
     }
 
-    let ram = args.contains("--ram");
-    let board_info = args.contains("--board-info");
-    let bootloader_path = args
-        .opt_value_from_str::<_, String>("--bootloader")
-        .into_diagnostic()?;
-    let partition_table_path = args
-        .opt_value_from_str::<_, String>("--partition-table")
-        .into_diagnostic()?;
-    let image_format_string = args
-        .opt_value_from_str::<_, String>("--format")
-        .into_diagnostic()?;
-
-    let mut serial: Option<String> = args.opt_free_from_str().into_diagnostic()?;
-    let mut elf: Option<String> = args.opt_free_from_str().into_diagnostic()?;
-
-    if elf.is_none() && config.connection.serial.is_some() {
-        elf = serial.take();
-        serial = config.connection.serial;
+    match opts.sub_cmd {
+        Some(SubCommand::BoardInfo(opts)) => board_info(opts, config),
+        None => flash(opts, config),
     }
+}
 
-    let serial: String = match serial {
-        Some(serial) => serial,
-        _ => return help(),
-    };
+fn connect(matches: &ConnectArgs, config: &Config) -> Result<Flasher> {
+    let port = get_serial_port(matches, config).ok_or(espflash::Error::NoSerial)?;
 
-    let mut serial = serial::open(&serial)
-        .map_err(Error::from)
-        .wrap_err_with(|| format!("Failed to open serial port {}", serial))?;
+    // Attempt to open the serial port and set its initial baud rate.
+    println!("Serial port: {}", port);
+    println!("Connecting...\n");
+    let mut serial = serial::open(&port)
+        .map_err(espflash::Error::from)
+        .wrap_err_with(|| format!("Failed to open serial port {}", port))?;
     serial
         .reconfigure(&|settings| {
             settings.set_flow_control(FlowControl::FlowNone);
             settings.set_baud_rate(BaudRate::Baud115200)?;
-
             Ok(())
         })
         .into_diagnostic()?;
 
-    let mut flasher = Flasher::connect(serial, None)?;
-
-    if board_info {
-        flasher.board_info()?;
-
-        return Ok(());
-    }
-
-    let input: String = match elf {
-        Some(input) => input,
-        _ => return help(),
+    // Parse the baud rate if provided as as a command-line argument.
+    let speed = if let Some(speed) = matches.speed {
+        Some(BaudRate::from_speed(speed))
+    } else {
+        None
     };
-    let input_bytes = read(&input)
+
+    // Connect the Flasher to the target device and print the board information
+    // upon connection. If the '--board-info' flag has been provided, we have
+    // nothing left to do so exit early.
+    Ok(Flasher::connect(serial, speed)?)
+}
+
+fn flash(opts: Opts, config: Config) -> Result<()> {
+    if opts.flash_args.board_info {
+        return board_info(
+            BoardInfoOpts {
+                connect_args: opts.connect_args,
+            },
+            config,
+        );
+    }
+    let ram = opts.flash_args.ram;
+    let bootloader_path = opts.flash_args.bootloader;
+    let partition_table_path = opts.flash_args.partition_table;
+    let image_format_string = opts.format;
+
+    let elf = match opts.image {
+        Some(elf) => elf,
+        _ => {
+            Opts::into_app().print_help().ok();
+            return Ok(());
+        }
+    };
+
+    let mut flasher = connect(&opts.connect_args, &config)?;
+
+    let input_bytes = read(&elf)
         .into_diagnostic()
-        .wrap_err_with(|| format!("Failed to open elf image \"{}\"", input))?;
+        .wrap_err_with(|| format!("Failed to open elf image \"{}\"", &elf))?;
 
     if ram {
         flasher.load_elf_to_ram(&input_bytes)?;
@@ -113,5 +158,11 @@ fn main() -> Result<()> {
         )?;
     }
 
+    Ok(())
+}
+
+fn board_info(opts: BoardInfoOpts, config: Config) -> Result<()> {
+    let mut flasher = connect(&opts.connect_args, &config)?;
+    flasher.board_info()?;
     Ok(())
 }

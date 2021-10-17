@@ -1,0 +1,17 @@
+[package]
+name = "espflash-common"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+miette = { version = "3", features = ["fancy"] }
+cargo_metadata = "0.14"
+cargo_toml = "0.10"
+crossterm = "0.21"
+guess_host_triple = "0.1"
+serde = { version = "1", features = ["derive"] }
+serial = "0.4"
+toml = "0.5"
+thiserror = "1"
+clap = "3.0.0-beta.4"
+directories-next = "2"

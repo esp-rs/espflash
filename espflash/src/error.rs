@@ -66,6 +66,12 @@ https://github.com/espressif/esp32c3-direct-boot-example"
         )
     )]
     InvalidDirectBootBinary,
+    #[error("No serial port specified in arguments or config")]
+    #[diagnostic(
+        code(cargo_espflash::no_serial),
+        help("Add a command line option with the serial port to use")
+    )]
+    NoSerial,
 }
 
 #[derive(Error, Debug, Diagnostic)]

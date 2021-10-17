@@ -2,158 +2,79 @@ use std::{
     fs,
     path::PathBuf,
     process::{exit, Command, ExitStatus, Stdio},
-    string::ToString,
 };
 
 use cargo_metadata::Message;
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{AppSettings, Clap};
 use error::Error;
 use espflash::{Chip, Config, FirmwareImage, Flasher, ImageFormatId, PartitionTable};
+use espflash_common::clap::*;
+use espflash_common::monitor::monitor;
 use miette::{IntoDiagnostic, Result, WrapErr};
-use monitor::monitor;
 use package_metadata::CargoEspFlashMeta;
 use serial::{BaudRate, FlowControl, SerialPort};
 
 use crate::cargo_config::CargoConfig;
 use crate::error::NoTargetError;
 use crate::{cargo_config::parse_cargo_config, error::UnsupportedTargetError};
+use espflash_common::get_serial_port;
 use std::str::FromStr;
 
 mod cargo_config;
 mod error;
-mod line_endings;
-mod monitor;
 mod package_metadata;
+
+#[derive(Clap)]
+#[clap(global_setting = AppSettings::ColoredHelp)]
+#[clap(global_setting = AppSettings::PropagateVersion)]
+#[clap(bin_name = "cargo")]
+#[clap(version = env!("CARGO_PKG_VERSION"))]
+struct Opts {
+    #[clap(subcommand)]
+    sub_cmd: CargoSubCommand,
+}
+
+#[derive(Clap)]
+enum CargoSubCommand {
+    Espflash(EspFlashOpts),
+}
+
+#[derive(Clap)]
+struct EspFlashOpts {
+    #[clap(flatten)]
+    flash_args: FlashArgs,
+    #[clap(flatten)]
+    build_args: BuildArgs,
+    #[clap(flatten)]
+    connect_args: ConnectArgs,
+    #[clap(subcommand)]
+    sub_cmd: Option<SubCommand>,
+}
+
+#[derive(Clap)]
+pub enum SubCommand {
+    SaveImage(SaveImageOpts),
+    BoardInfo(BoardInfoOpts),
+}
 
 fn main() -> Result<()> {
     miette::set_panic_hook();
 
-    let build_args = [
-        Arg::with_name("release")
-            .long("release")
-            .help("Build the application using the release profile"),
-        Arg::with_name("example")
-            .long("example")
-            .takes_value(true)
-            .value_name("EXAMPLE")
-            .help("Example to build and flash"),
-        Arg::with_name("features")
-            .long("features")
-            .use_delimiter(true)
-            .takes_value(true)
-            .value_name("FEATURES")
-            .help("Comma delimited list of build features"),
-        Arg::with_name("format")
-            .long("format")
-            .takes_value(true)
-            .value_name("image format")
-            .help("Image format to flash (bootloader/direct-boot)"),
-    ];
-    let connect_args = [Arg::with_name("serial")
-        .takes_value(true)
-        .value_name("SERIAL")
-        .help("Serial port connected to target device")];
-
-    let mut app = App::new(env!("CARGO_PKG_NAME"))
-        .bin_name("cargo")
-        .subcommand(
-            SubCommand::with_name("espflash")
-                .version(env!("CARGO_PKG_VERSION"))
-                .about(env!("CARGO_PKG_DESCRIPTION"))
-                .arg(
-                    Arg::with_name("board_info")
-                        .long("board-info")
-                        .help("Display the connected board's information (deprecated, use the `board-info` subcommand instead)"),
-                )
-                .args(&build_args)
-                .arg(
-                    Arg::with_name("ram")
-                        .long("ram")
-                        .help("Load the application to RAM instead of Flash"),
-                )
-                .arg(
-                    Arg::with_name("bootloader")
-                        .long("bootloader")
-                        .takes_value(true)
-                        .value_name("PATH")
-                        .help("Path to a binary (.bin) bootloader file"),
-                )
-                .arg(
-                    Arg::with_name("partition_table")
-                        .long("partition-table")
-                        .takes_value(true)
-                        .value_name("PATH")
-                        .help("Path to a CSV file containing partition table"),
-                )
-                .arg(
-                    Arg::with_name("speed")
-                        .long("speed")
-                        .takes_value(true)
-                        .value_name("SPEED")
-                        .help("Baud rate at which to flash target device"),
-                )
-                .args(&connect_args)
-                .arg(
-                    Arg::with_name("monitor")
-                        .long("monitor")
-                        .help("Open a serial monitor after flashing"),
-                )
-                .subcommand(
-                    SubCommand::with_name("save-image")
-                        .version(env!("CARGO_PKG_VERSION"))
-                        .about("Save the image to disk instead of flashing to device")
-                        .arg(
-                            Arg::with_name("file")
-                                .takes_value(true)
-                                .required(true)
-                                .value_name("FILE")
-                                .help("File name to save the generated image to"),
-                        )
-                        .args(&build_args),
-                )
-                .subcommand(
-                    SubCommand::with_name("board-info")
-                        .version(env!("CARGO_PKG_VERSION"))
-                        .about("Display the connected board's information")
-                        .args(&connect_args),
-                ),
-        );
-
-    let matches = app.clone().get_matches();
-    let matches = match matches.subcommand_matches("espflash") {
-        Some(matches) => matches,
-        None => {
-            app.print_help().into_diagnostic()?;
-            exit(0);
-        }
-    };
+    let CargoSubCommand::Espflash(opts) = Opts::parse().sub_cmd;
 
     let config = Config::load();
     let metadata = CargoEspFlashMeta::load("Cargo.toml")?;
     let cargo_config = parse_cargo_config(".")?;
 
-    match matches.subcommand() {
-        ("board-info", Some(matches)) => board_info(matches, config, metadata, cargo_config),
-        ("save-image", Some(matches)) => save_image(matches, config, metadata, cargo_config),
-        _ => flash(matches, config, metadata, cargo_config),
+    match opts.sub_cmd {
+        Some(SubCommand::BoardInfo(matches)) => board_info(matches, config, metadata, cargo_config),
+        Some(SubCommand::SaveImage(matches)) => save_image(matches, config, metadata, cargo_config),
+        None => flash(opts, config, metadata, cargo_config),
     }
 }
 
-fn get_serial_port(matches: &ArgMatches, config: &Config) -> Result<String, Error> {
-    // The serial port must be specified, either as a command-line argument or in
-    // the cargo configuration file. In the case that both have been provided the
-    // command-line argument will take precedence.
-    if let Some(serial) = matches.value_of("serial") {
-        Ok(serial.to_string())
-    } else if let Some(serial) = &config.connection.serial {
-        Ok(serial.into())
-    } else {
-        Err(Error::NoSerial)
-    }
-}
-
-fn connect(matches: &ArgMatches, config: &Config) -> Result<Flasher> {
-    let port = get_serial_port(matches, config)?;
+fn connect(matches: &ConnectArgs, config: &Config) -> Result<Flasher> {
+    let port = get_serial_port(matches, config).ok_or(espflash::Error::NoSerial)?;
 
     // Attempt to open the serial port and set its initial baud rate.
     println!("Serial port: {}", port);
@@ -170,8 +91,7 @@ fn connect(matches: &ArgMatches, config: &Config) -> Result<Flasher> {
         .into_diagnostic()?;
 
     // Parse the baud rate if provided as as a command-line argument.
-    let speed = if let Some(speed) = matches.value_of("speed") {
-        let speed = speed.parse::<usize>().into_diagnostic()?;
+    let speed = if let Some(speed) = matches.speed {
         Some(BaudRate::from_speed(speed))
     } else {
         None
@@ -184,7 +104,7 @@ fn connect(matches: &ArgMatches, config: &Config) -> Result<Flasher> {
 }
 
 fn flash(
-    matches: &ArgMatches,
+    matches: EspFlashOpts,
     config: Config,
     metadata: CargoEspFlashMeta,
     cargo_config: CargoConfig,
@@ -192,22 +112,22 @@ fn flash(
     // Connect the Flasher to the target device and print the board information
     // upon connection. If the '--board-info' flag has been provided, we have
     // nothing left to do so exit early.
-    let mut flasher = connect(matches, &config)?;
+    let mut flasher = connect(&matches.connect_args, &config)?;
     flasher.board_info()?;
 
-    if matches.is_present("board_info") {
+    if matches.flash_args.board_info {
         return Ok(());
     }
 
-    let build_options = BuildOptions::from_args(matches);
-
-    let path = build(build_options, &cargo_config, Some(flasher.chip()))
+    let path = build(&matches.build_args, &cargo_config, Some(flasher.chip()))
         .wrap_err("Failed to build project")?;
 
     // If the '--bootloader' option is provided, load the binary file at the
     // specified path.
     let bootloader = if let Some(path) = matches
-        .value_of("bootloader")
+        .flash_args
+        .bootloader
+        .as_deref()
         .or_else(|| metadata.bootloader.as_deref())
     {
         let path = fs::canonicalize(path).into_diagnostic()?;
@@ -220,7 +140,9 @@ fn flash(
     // If the '--partition-table' option is provided, load the partition table from
     // the CSV at the specified path.
     let partition_table = if let Some(path) = matches
-        .value_of("partition_table")
+        .flash_args
+        .partition_table
+        .as_deref()
         .or_else(|| metadata.partition_table.as_deref())
     {
         let path = fs::canonicalize(path).into_diagnostic()?;
@@ -235,14 +157,16 @@ fn flash(
     };
 
     let image_format = matches
-        .value_of("format")
+        .build_args
+        .format
+        .as_deref()
         .map(ImageFormatId::from_str)
         .transpose()?
         .or(metadata.format);
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(path).into_diagnostic()?;
-    if matches.is_present("ram") {
+    if matches.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data)?;
     } else {
         flasher.load_elf_to_flash_with_format(
@@ -254,7 +178,7 @@ fn flash(
     }
     println!("\nFlashing has completed!");
 
-    if matches.is_present("monitor") {
+    if matches.flash_args.monitor {
         monitor(flasher.into_serial()).into_diagnostic()?;
     }
 
@@ -262,24 +186,8 @@ fn flash(
     Ok(())
 }
 
-struct BuildOptions<'a> {
-    release: bool,
-    example: Option<&'a str>,
-    features: Option<&'a str>,
-}
-
-impl<'a> BuildOptions<'a> {
-    pub fn from_args(args: &'a ArgMatches) -> Self {
-        BuildOptions {
-            release: args.is_present("release"),
-            example: args.value_of("example"),
-            features: args.value_of("features"),
-        }
-    }
-}
-
 fn build(
-    build_options: BuildOptions,
+    build_options: &BuildArgs,
     cargo_config: &CargoConfig,
     chip: Option<Chip>,
 ) -> Result<PathBuf> {
@@ -306,14 +214,14 @@ fn build(
         args.push("--release");
     }
 
-    if let Some(example) = build_options.example {
+    if let Some(example) = build_options.example.as_deref() {
         args.push("--example");
         args.push(example);
     }
 
-    if let Some(features) = build_options.features {
+    if let Some(features) = build_options.features.as_deref() {
         args.push("--features");
-        args.push(features);
+        args.extend(features.iter().map(|f| f.as_str()));
     }
 
     // Invoke the 'cargo build' command, passing our list of arguments.
@@ -371,7 +279,7 @@ fn build(
 }
 
 fn save_image(
-    matches: &ArgMatches,
+    matches: SaveImageOpts,
     _config: Config,
     metadata: CargoEspFlashMeta,
     cargo_config: CargoConfig,
@@ -380,15 +288,16 @@ fn save_image(
         .target()
         .ok_or_else(|| NoTargetError::new(None))?;
     let chip = Chip::from_target(target).ok_or_else(|| Error::UnknownTarget(target.into()))?;
-    let build_options = BuildOptions::from_args(matches);
 
-    let path = build(build_options, &cargo_config, Some(chip))?;
+    let path = build(&matches.build_args, &cargo_config, Some(chip))?;
     let elf_data = fs::read(path).into_diagnostic()?;
 
     let image = FirmwareImage::from_data(&elf_data)?;
 
     let image_format = matches
-        .value_of("format")
+        .build_args
+        .format
+        .as_deref()
         .map(ImageFormatId::from_str)
         .transpose()?
         .or(metadata.format);
@@ -396,7 +305,7 @@ fn save_image(
     let flash_image = chip.get_flash_image(&image, None, None, image_format, None)?;
     let parts: Vec<_> = flash_image.ota_segments().collect();
 
-    let out_path = matches.value_of("file").unwrap();
+    let out_path = matches.file;
 
     match parts.as_slice() {
         [single] => fs::write(out_path, &single.data).into_diagnostic()?,
@@ -412,12 +321,12 @@ fn save_image(
 }
 
 fn board_info(
-    matches: &ArgMatches,
+    matches: BoardInfoOpts,
     config: Config,
     _metadata: CargoEspFlashMeta,
     _cargo_config: CargoConfig,
 ) -> Result<()> {
-    let mut flasher = connect(matches, &config)?;
+    let mut flasher = connect(&matches.connect_args, &config)?;
     flasher.board_info()?;
     Ok(())
 }

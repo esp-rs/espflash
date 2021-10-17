@@ -20,7 +20,7 @@ binread = "2"
 bytemuck = { version = "1", features = ["derive"] }
 indicatif = "0.16"
 md5 = "0.7"
-pico-args = "0.4"
+clap = "3.0.0-beta.4"
 serial = "0.4"
 sha2 = "0.9"
 slip-codec =  "0.2"
@@ -29,7 +29,6 @@ xmas-elf = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_plain = "1"
 toml = "0.5"
-directories-next = "2"
 color-eyre = "0.5"
 strum = "0.22"
 strum_macros = "0.22"
@@ -37,6 +36,7 @@ csv = "1"
 regex = "1"
 flate2 = "1"
 miette = { version = "3", features = ["fancy"] }
+espflash-common = { version = "0.1", path = "../espflash-common" }
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }"
