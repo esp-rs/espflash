@@ -1,11 +1,12 @@
 use std::fs::{read, read_to_string};
 
 use clap::{AppSettings, Clap, IntoApp};
-use espflash::{Config, Error, Flasher, ImageFormatId, PartitionTable};
+use espflash::{Chip, Config, Error, FirmwareImage, Flasher, ImageFormatId, PartitionTable};
 use espflash_common::clap::*;
 use espflash_common::get_serial_port;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serial::{BaudRate, FlowControl, SerialPort};
+use std::fs;
 use std::mem::swap;
 use std::str::FromStr;
 
@@ -29,6 +30,7 @@ struct Opts {
 
 #[derive(Clap)]
 pub enum SubCommand {
+    SaveImage(SaveImageOpts),
     BoardInfo(BoardInfoOpts),
 }
 
@@ -37,11 +39,13 @@ pub enum SubCommand {
 pub struct SaveImageOpts {
     /// Image format to flash
     #[clap(long)]
-    pub format: Option<String>,
+    format: Option<String>,
+    /// the chip to create an image for
+    chip: Chip,
     /// ELF image to flash
     image: String,
     /// File name to save the generated image to
-    pub file: String,
+    file: String,
 }
 
 fn main() -> Result<()> {
@@ -56,6 +60,7 @@ fn main() -> Result<()> {
 
     match opts.sub_cmd {
         Some(SubCommand::BoardInfo(opts)) => board_info(opts, config),
+        Some(SubCommand::SaveImage(opts)) => save_image(opts, config),
         None => flash(opts, config),
     }
 }
@@ -156,6 +161,39 @@ fn flash(opts: Opts, config: Config) -> Result<()> {
             partition_table,
             image_format,
         )?;
+    }
+
+    Ok(())
+}
+
+fn save_image(opts: SaveImageOpts, _config: Config) -> Result<()> {
+    let chip = opts.chip;
+    let elf = opts.image;
+    let elf_data = fs::read(&elf)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("Failed to open image {}", elf))?;
+
+    let image = FirmwareImage::from_data(&elf_data)?;
+
+    let image_format = opts
+        .format
+        .as_deref()
+        .map(ImageFormatId::from_str)
+        .transpose()?;
+
+    let flash_image = chip.get_flash_image(&image, None, None, image_format, None)?;
+    let parts: Vec<_> = flash_image.ota_segments().collect();
+
+    let out_path = opts.file;
+
+    match parts.as_slice() {
+        [single] => fs::write(out_path, &single.data).into_diagnostic()?,
+        parts => {
+            for part in parts {
+                let part_path = format!("{:#x}_{}", part.addr, out_path);
+                fs::write(part_path, &part.data).into_diagnostic()?
+            }
+        }
     }
 
     Ok(())

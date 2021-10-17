@@ -33,6 +33,9 @@ pub enum Error {
     #[error("The bootloader returned an error")]
     #[diagnostic(transparent)]
     RomError(#[from] RomError),
+    #[error("Chip not recognized, supported chip types are esp8266, esp32, esp32-s3 and esp32-c3")]
+    #[diagnostic(code(espflash::unrecognized_chip))]
+    UnrecognizedChipName,
     #[error("Chip not recognized, supported chip types are esp8266, esp32 and esp32-c3")]
     #[diagnostic(
         code(espflash::unrecognized_chip),
