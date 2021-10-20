@@ -56,7 +56,7 @@ impl ChipType for Esp32c3 {
         &[ImageFormatId::Bootloader, ImageFormatId::DirectBoot];
 
     const SUPPORTED_TARGETS: &'static [&'static str] =
-        &["riscv32imc-uknown-none-elf", "riscv32imc-esp-espidf"];
+        &["riscv32imc-unknown-none-elf", "riscv32imc-esp-espidf"];
 
     fn chip_features(&self, _connection: &mut Connection) -> Result<Vec<&str>, Error> {
         Ok(vec!["WiFi"])
