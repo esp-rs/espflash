@@ -52,14 +52,16 @@ pub enum Error {
         code(cargo_espflash::unknown_target),
         help(
             "The following targets are recognized:
-    - ESP8266: {}
     - ESP32: {}
+    - ESP32-C3: {}
     - ESP32-S2: {}
-    - ESP32-C3: {}",
-            Chip::Esp8266.supported_targets().join(", "),
+    - ESP32-S3: {}
+    - ESP8266: {}",
             Chip::Esp32.supported_targets().join(", "),
+            Chip::Esp32c3.supported_targets().join(", "),
             Chip::Esp32s2.supported_targets().join(", "),
-            Chip::Esp32c3.supported_targets().join(", ")
+            Chip::Esp32s3.supported_targets().join(", "),
+            Chip::Esp8266.supported_targets().join(", "),
         )
     )]
     UnknownTarget(String),

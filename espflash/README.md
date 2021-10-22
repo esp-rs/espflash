@@ -1,6 +1,6 @@
 # `espflash`
 
-__ESP32__, __ESP32-S2__, __ESP32-C3__, and __ESP8266__ serial flasher library and CLI application.
+__ESP32__, __ESP32-C3__, __ESP32-S2__, __ESP32-S3__, and __ESP8266__ serial flasher library and CLI application.
 
 [![asciicast](https://asciinema.org/a/367205.svg)](https://asciinema.org/a/367205)
 
