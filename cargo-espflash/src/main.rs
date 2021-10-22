@@ -47,7 +47,7 @@ fn main() -> Result<()> {
             .long("format")
             .takes_value(true)
             .value_name("image format")
-            .help("Image format to flash"),
+            .help("Image format to flash (bootloader/direct-boot)"),
     ];
     let connect_args = [Arg::with_name("serial")
         .takes_value(true)
