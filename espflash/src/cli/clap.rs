@@ -20,7 +20,7 @@ pub struct BuildArgs {
     /// Comma delimited list of build features
     #[clap(long, use_delimiter(true))]
     pub features: Option<Vec<String>>,
-    /// Image format to flash
+    /// Image format to flash (bootloader/direct-boot)
     #[clap(long)]
     pub format: Option<String>,
 }
