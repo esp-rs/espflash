@@ -18,10 +18,12 @@ pub fn get_serial_port(matches: &ConnectArgs, config: &Config) -> Option<String>
     // command-line argument will take precedence.
     if let Some(serial) = &matches.serial {
         Some(serial.to_string())
-    } else if let Some(serial) = &config.connection.serial {
-        Some(serial.into())
     } else {
-        None
+        config
+            .connection
+            .serial
+            .as_ref()
+            .map(|serial| serial.into())
     }
 }
 
@@ -43,11 +45,7 @@ pub fn connect(matches: &ConnectArgs, config: &Config) -> Result<Flasher> {
         .into_diagnostic()?;
 
     // Parse the baud rate if provided as as a command-line argument.
-    let speed = if let Some(speed) = matches.speed {
-        Some(BaudRate::from_speed(speed))
-    } else {
-        None
-    };
+    let speed = matches.speed.map(BaudRate::from_speed);
 
     Ok(Flasher::connect(serial, speed)?)
 }
