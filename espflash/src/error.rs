@@ -3,7 +3,7 @@ use crate::image_format::ImageFormatId;
 use crate::partition_table::{SubType, Type};
 use crate::Chip;
 use miette::{Diagnostic, SourceOffset, SourceSpan};
-use slip_codec::Error as SlipError;
+use slip_codec::SlipError;
 use std::fmt::{Display, Formatter};
 use std::io;
 use strum::VariantNames;

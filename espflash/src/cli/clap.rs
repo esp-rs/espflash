@@ -1,6 +1,6 @@
-use clap::Clap;
+use clap::Parser;
 
-#[derive(Clap)]
+#[derive(Parser)]
 pub struct ConnectArgs {
     /// Serial port connected to target device
     pub serial: Option<String>,
@@ -9,7 +9,7 @@ pub struct ConnectArgs {
     pub speed: Option<usize>,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 pub struct BuildArgs {
     /// Build the application using the release profile
     #[clap(long)]
@@ -25,7 +25,7 @@ pub struct BuildArgs {
     pub format: Option<String>,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 pub struct FlashArgs {
     /// Load the application to RAM instead of Flash
     #[clap(long)]
@@ -45,7 +45,7 @@ pub struct FlashArgs {
 }
 
 /// Save the image to disk instead of flashing to device
-#[derive(Clap)]
+#[derive(Parser)]
 pub struct SaveImageOpts {
     #[clap(flatten)]
     pub build_args: BuildArgs,
@@ -54,7 +54,7 @@ pub struct SaveImageOpts {
 }
 
 /// Display the connected board's information
-#[derive(Clap)]
+#[derive(Parser)]
 pub struct BoardInfoOpts {
     #[clap(flatten)]
     pub connect_args: ConnectArgs,

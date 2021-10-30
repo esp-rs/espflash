@@ -2,7 +2,7 @@ use crate::cargo_config::CargoConfig;
 use crate::error::NoTargetError;
 use crate::{cargo_config::parse_cargo_config, error::UnsupportedTargetError};
 use cargo_metadata::Message;
-use clap::{AppSettings, Clap};
+use clap::{AppSettings, Parser};
 use error::Error;
 use espflash::{
     cli::{clap::*, connect, monitor::monitor},
@@ -20,8 +20,7 @@ mod cargo_config;
 mod error;
 mod package_metadata;
 
-#[derive(Clap)]
-#[clap(global_setting = AppSettings::ColoredHelp)]
+#[derive(Parser)]
 #[clap(global_setting = AppSettings::PropagateVersion)]
 #[clap(bin_name = "cargo")]
 #[clap(version = env!("CARGO_PKG_VERSION"))]
@@ -30,12 +29,12 @@ struct Opts {
     sub_cmd: CargoSubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 enum CargoSubCommand {
     Espflash(EspFlashOpts),
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 struct EspFlashOpts {
     #[clap(flatten)]
     flash_args: FlashArgs,
@@ -47,7 +46,7 @@ struct EspFlashOpts {
     sub_cmd: Option<SubCommand>,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 pub enum SubCommand {
     SaveImage(SaveImageOpts),
     BoardInfo(BoardInfoOpts),

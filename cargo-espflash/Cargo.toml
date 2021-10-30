@@ -28,7 +28,7 @@ categories = [
 miette = { version = "3", features = ["fancy"] }
 cargo_metadata = "0.14"
 cargo_toml = "0.10"
-clap = "3.0.0-beta.4"
+clap = "3.0.0-beta.5"
 crossterm = "0.21"
 espflash = { version = "1", path = "../espflash" }
 serde = { version = "1", features = ["derive"] }

@@ -3,7 +3,7 @@ use std::{io::Write, thread::sleep, time::Duration};
 use binread::{io::Cursor, BinRead, BinReaderExt};
 use bytemuck::{Pod, Zeroable};
 use serial::{BaudRate, SerialPort, SerialPortSettings, SystemPort};
-use slip_codec::Decoder;
+use slip_codec::SlipDecoder;
 
 use crate::{
     command::{Command, CommandType},
@@ -24,7 +24,7 @@ pub struct CommandResponse {
 pub struct Connection {
     serial: SystemPort,
     speed: BaudRate,
-    decoder: Decoder,
+    decoder: SlipDecoder,
 }
 
 #[derive(Zeroable, Pod, Copy, Clone, Debug)]
@@ -41,7 +41,7 @@ impl Connection {
         Connection {
             serial,
             speed: BaudRate::Baud115200,
-            decoder: Decoder::new(),
+            decoder: SlipDecoder::new(),
         }
     }
 

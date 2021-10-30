@@ -1,4 +1,4 @@
-use clap::{AppSettings, Clap, IntoApp};
+use clap::{AppSettings, IntoApp, Parser};
 use espflash::cli::monitor::monitor;
 use espflash::{
     cli::{clap::*, connect},
@@ -11,8 +11,7 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Clap)]
-#[clap(global_setting = AppSettings::ColoredHelp)]
+#[derive(Parser)]
 #[clap(global_setting = AppSettings::PropagateVersion)]
 #[clap(version = env!("CARGO_PKG_VERSION"))]
 struct Opts {
@@ -29,14 +28,14 @@ struct Opts {
     sub_cmd: Option<SubCommand>,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 pub enum SubCommand {
     SaveImage(SaveImageOpts),
     BoardInfo(BoardInfoOpts),
 }
 
 /// Save the image to disk instead of flashing to device
-#[derive(Clap)]
+#[derive(Parser)]
 pub struct SaveImageOpts {
     /// Image format to flash
     #[clap(long)]
