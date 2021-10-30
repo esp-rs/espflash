@@ -6,7 +6,11 @@ pub mod config;
 mod line_endings;
 pub mod monitor;
 use self::clap::ConnectArgs;
+use crate::error::Error;
+use crate::Flasher;
 use config::Config;
+use miette::{IntoDiagnostic, Result, WrapErr};
+use serial::{BaudRate, FlowControl, SerialPort};
 
 pub fn get_serial_port(matches: &ConnectArgs, config: &Config) -> Option<String> {
     // The serial port must be specified, either as a command-line argument or in
@@ -19,4 +23,31 @@ pub fn get_serial_port(matches: &ConnectArgs, config: &Config) -> Option<String>
     } else {
         None
     }
+}
+
+pub fn connect(matches: &ConnectArgs, config: &Config) -> Result<Flasher> {
+    let port = get_serial_port(matches, config).ok_or(Error::NoSerial)?;
+
+    // Attempt to open the serial port and set its initial baud rate.
+    println!("Serial port: {}", port);
+    println!("Connecting...\n");
+    let mut serial = serial::open(&port)
+        .map_err(Error::from)
+        .wrap_err_with(|| format!("Failed to open serial port {}", port))?;
+    serial
+        .reconfigure(&|settings| {
+            settings.set_flow_control(FlowControl::FlowNone);
+            settings.set_baud_rate(BaudRate::Baud115200)?;
+            Ok(())
+        })
+        .into_diagnostic()?;
+
+    // Parse the baud rate if provided as as a command-line argument.
+    let speed = if let Some(speed) = matches.speed {
+        Some(BaudRate::from_speed(speed))
+    } else {
+        None
+    };
+
+    Ok(Flasher::connect(serial, speed)?)
 }

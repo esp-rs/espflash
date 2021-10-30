@@ -1,25 +1,21 @@
+use crate::cargo_config::CargoConfig;
+use crate::error::NoTargetError;
+use crate::{cargo_config::parse_cargo_config, error::UnsupportedTargetError};
+use cargo_metadata::Message;
+use clap::{AppSettings, Clap};
+use error::Error;
+use espflash::{
+    cli::{clap::*, connect, monitor::monitor},
+    Chip, Config, FirmwareImage, ImageFormatId, PartitionTable,
+};
+use miette::{IntoDiagnostic, Result, WrapErr};
+use package_metadata::CargoEspFlashMeta;
 use std::{
     fs,
     path::PathBuf,
     process::{exit, Command, ExitStatus, Stdio},
+    str::FromStr,
 };
-
-use cargo_metadata::Message;
-use clap::{AppSettings, Clap};
-use error::Error;
-use espflash::cli::clap::*;
-use espflash::cli::monitor::monitor;
-use espflash::{Chip, Config, FirmwareImage, Flasher, ImageFormatId, PartitionTable};
-use miette::{IntoDiagnostic, Result, WrapErr};
-use package_metadata::CargoEspFlashMeta;
-use serial::{BaudRate, FlowControl, SerialPort};
-
-use crate::cargo_config::CargoConfig;
-use crate::error::NoTargetError;
-use crate::{cargo_config::parse_cargo_config, error::UnsupportedTargetError};
-use espflash::cli::get_serial_port;
-use std::str::FromStr;
-
 mod cargo_config;
 mod error;
 mod package_metadata;
@@ -71,36 +67,6 @@ fn main() -> Result<()> {
         Some(SubCommand::SaveImage(matches)) => save_image(matches, config, metadata, cargo_config),
         None => flash(opts, config, metadata, cargo_config),
     }
-}
-
-fn connect(matches: &ConnectArgs, config: &Config) -> Result<Flasher> {
-    let port = get_serial_port(matches, config).ok_or(espflash::Error::NoSerial)?;
-
-    // Attempt to open the serial port and set its initial baud rate.
-    println!("Serial port: {}", port);
-    println!("Connecting...\n");
-    let mut serial = serial::open(&port)
-        .map_err(espflash::Error::from)
-        .wrap_err_with(|| format!("Failed to open serial port {}", port))?;
-    serial
-        .reconfigure(&|settings| {
-            settings.set_flow_control(FlowControl::FlowNone);
-            settings.set_baud_rate(BaudRate::Baud115200)?;
-            Ok(())
-        })
-        .into_diagnostic()?;
-
-    // Parse the baud rate if provided as as a command-line argument.
-    let speed = if let Some(speed) = matches.speed {
-        Some(BaudRate::from_speed(speed))
-    } else {
-        None
-    };
-
-    // Connect the Flasher to the target device and print the board information
-    // upon connection. If the '--board-info' flag has been provided, we have
-    // nothing left to do so exit early.
-    Ok(Flasher::connect(serial, speed)?)
 }
 
 fn flash(

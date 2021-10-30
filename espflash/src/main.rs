@@ -1,13 +1,14 @@
-use std::fs::{read, read_to_string};
-
 use clap::{AppSettings, Clap, IntoApp};
-use espflash::cli::{clap::*, get_serial_port};
-use espflash::{Chip, Config, Error, FirmwareImage, Flasher, ImageFormatId, PartitionTable};
+use espflash::{
+    cli::{clap::*, connect},
+    Chip, Config, Error, FirmwareImage, ImageFormatId, PartitionTable,
+};
 use miette::{IntoDiagnostic, Result, WrapErr};
-use serial::{BaudRate, FlowControl, SerialPort};
-use std::fs;
-use std::mem::swap;
-use std::str::FromStr;
+use std::{
+    fs::{self, read, read_to_string},
+    mem::swap,
+    str::FromStr,
+};
 
 #[derive(Clap)]
 #[clap(global_setting = AppSettings::ColoredHelp)]
@@ -62,33 +63,6 @@ fn main() -> Result<()> {
         Some(SubCommand::SaveImage(opts)) => save_image(opts, config),
         None => flash(opts, config),
     }
-}
-
-fn connect(matches: &ConnectArgs, config: &Config) -> Result<Flasher> {
-    let port = get_serial_port(matches, config).ok_or(espflash::Error::NoSerial)?;
-
-    // Attempt to open the serial port and set its initial baud rate.
-    println!("Serial port: {}", port);
-    println!("Connecting...\n");
-    let mut serial = serial::open(&port)
-        .map_err(espflash::Error::from)
-        .wrap_err_with(|| format!("Failed to open serial port {}", port))?;
-    serial
-        .reconfigure(&|settings| {
-            settings.set_flow_control(FlowControl::FlowNone);
-            settings.set_baud_rate(BaudRate::Baud115200)?;
-            Ok(())
-        })
-        .into_diagnostic()?;
-
-    // Parse the baud rate if provided as as a command-line argument.
-    let speed = if let Some(speed) = matches.speed {
-        Some(BaudRate::from_speed(speed))
-    } else {
-        None
-    };
-
-    Ok(Flasher::connect(serial, speed)?)
 }
 
 fn flash(opts: Opts, config: Config) -> Result<()> {
