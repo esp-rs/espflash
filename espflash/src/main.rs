@@ -1,4 +1,5 @@
 use clap::{AppSettings, Clap, IntoApp};
+use espflash::cli::monitor::monitor;
 use espflash::{
     cli::{clap::*, connect},
     Chip, Config, Error, FirmwareImage, ImageFormatId, PartitionTable,
@@ -131,6 +132,10 @@ fn flash(opts: Opts, config: Config) -> Result<()> {
             partition_table,
             image_format,
         )?;
+    }
+
+    if opts.flash_args.monitor {
+        monitor(flasher.into_serial()).into_diagnostic()?;
     }
 
     Ok(())
