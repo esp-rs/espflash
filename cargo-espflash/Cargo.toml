@@ -31,8 +31,6 @@ cargo_toml = "0.10"
 clap = "3.0.0-beta.4"
 crossterm = "0.21"
 espflash = { version = "1", path = "../espflash" }
-espflash-common = { version = "0.1", path = "../espflash-common" }
-guess_host_triple = "0.1"
 serde = { version = "1", features = ["derive"] }
 serial = "0.4"
 toml = "0.5"

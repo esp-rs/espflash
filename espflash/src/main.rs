@@ -1,9 +1,8 @@
 use std::fs::{read, read_to_string};
 
 use clap::{AppSettings, Clap, IntoApp};
+use espflash::cli::{clap::*, get_serial_port};
 use espflash::{Chip, Config, Error, FirmwareImage, Flasher, ImageFormatId, PartitionTable};
-use espflash_common::clap::*;
-use espflash_common::get_serial_port;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serial::{BaudRate, FlowControl, SerialPort};
 use std::fs;
@@ -89,9 +88,6 @@ fn connect(matches: &ConnectArgs, config: &Config) -> Result<Flasher> {
         None
     };
 
-    // Connect the Flasher to the target device and print the board information
-    // upon connection. If the '--board-info' flag has been provided, we have
-    // nothing left to do so exit early.
     Ok(Flasher::connect(serial, speed)?)
 }
 

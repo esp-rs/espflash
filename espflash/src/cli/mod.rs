@@ -1,13 +1,12 @@
-use crate::clap::ConnectArgs;
-use crate::config::Config;
-
-
-
-
+/// CLI utilities shared between espflash and cargo-espflash
+///
+/// No stability guaranties applies
 pub mod clap;
 pub mod config;
 mod line_endings;
 pub mod monitor;
+use self::clap::ConnectArgs;
+use config::Config;
 
 pub fn get_serial_port(matches: &ConnectArgs, config: &Config) -> Option<String> {
     // The serial port must be specified, either as a command-line argument or in

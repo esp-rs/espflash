@@ -7,9 +7,9 @@ use std::{
 use cargo_metadata::Message;
 use clap::{AppSettings, Clap};
 use error::Error;
+use espflash::cli::clap::*;
+use espflash::cli::monitor::monitor;
 use espflash::{Chip, Config, FirmwareImage, Flasher, ImageFormatId, PartitionTable};
-use espflash_common::clap::*;
-use espflash_common::monitor::monitor;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use package_metadata::CargoEspFlashMeta;
 use serial::{BaudRate, FlowControl, SerialPort};
@@ -17,7 +17,7 @@ use serial::{BaudRate, FlowControl, SerialPort};
 use crate::cargo_config::CargoConfig;
 use crate::error::NoTargetError;
 use crate::{cargo_config::parse_cargo_config, error::UnsupportedTargetError};
-use espflash_common::get_serial_port;
+use espflash::cli::get_serial_port;
 use std::str::FromStr;
 
 mod cargo_config;

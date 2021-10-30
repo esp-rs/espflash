@@ -1,7 +1,7 @@
 pub use chip::Chip;
+pub use cli::config::Config;
 pub use elf::FirmwareImage;
 pub use error::Error;
-pub use espflash_common::config::Config;
 pub use flasher::Flasher;
 pub use image_format::ImageFormatId;
 pub use partition_table::PartitionTable;
@@ -16,3 +16,6 @@ mod flash_target;
 mod flasher;
 mod image_format;
 mod partition_table;
+
+#[doc(hidden)]
+pub mod cli;
