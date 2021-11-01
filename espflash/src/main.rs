@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 #[allow(clippy::unnecessary_wraps)]
 fn help() -> Result<()> {
-    println!("Usage: espflash [--board-info] [--ram] [--partition-table partition.csv] [--bootloader boot.bin] [--format <bootloader|direct-boot> <serial> <elf image>");
+    println!("Usage: espflash [--board-info] [--ram] [--partition-table partition.csv] [--bootloader boot.bin] [--format <bootloader|direct-boot>] <serial> <elf image>");
     Ok(())
 }
 
