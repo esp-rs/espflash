@@ -17,6 +17,7 @@ mod esp8266;
 
 pub use esp32::{Esp32, Esp32Params, Esp32c3, Esp32s2};
 pub use esp8266::Esp8266;
+use std::str::FromStr;
 
 pub trait ChipType {
     const CHIP_DETECT_MAGIC_VALUE: u32;
@@ -122,6 +123,20 @@ pub enum Chip {
     Esp32s2,
     #[strum(serialize = "ESP8266")]
     Esp8266,
+}
+
+impl FromStr for Chip {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "esp32" => Ok(Chip::Esp32),
+            "esp32-c3" => Ok(Chip::Esp32c3),
+            "esp32-s2" => Ok(Chip::Esp32s2),
+            "esp8266" => Ok(Chip::Esp8266),
+            _ => Err(Error::UnrecognizedChipName),
+        }
+    }
 }
 
 impl Chip {

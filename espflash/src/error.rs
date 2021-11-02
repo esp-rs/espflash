@@ -3,7 +3,7 @@ use crate::image_format::ImageFormatId;
 use crate::partition_table::{SubType, Type};
 use crate::Chip;
 use miette::{Diagnostic, SourceOffset, SourceSpan};
-use slip_codec::Error as SlipError;
+use slip_codec::SlipError;
 use std::fmt::{Display, Formatter};
 use std::io;
 use strum::VariantNames;
@@ -33,6 +33,9 @@ pub enum Error {
     #[error("The bootloader returned an error")]
     #[diagnostic(transparent)]
     RomError(#[from] RomError),
+    #[error("Chip not recognized, supported chip types are esp8266, esp32, esp32-s3 and esp32-c3")]
+    #[diagnostic(code(espflash::unrecognized_chip))]
+    UnrecognizedChipName,
     #[error("Chip not recognized, supported chip types are esp8266, esp32 and esp32-c3")]
     #[diagnostic(
         code(espflash::unrecognized_chip),
@@ -66,6 +69,12 @@ https://github.com/espressif/esp32c3-direct-boot-example"
         )
     )]
     InvalidDirectBootBinary,
+    #[error("No serial port specified in arguments or config")]
+    #[diagnostic(
+        code(cargo_espflash::no_serial),
+        help("Add a command line option with the serial port to use")
+    )]
+    NoSerial,
 }
 
 #[derive(Error, Debug, Diagnostic)]

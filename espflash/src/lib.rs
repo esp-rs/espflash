@@ -1,6 +1,13 @@
+pub use chip::Chip;
+pub use cli::config::Config;
+pub use elf::FirmwareImage;
+pub use error::Error;
+pub use flasher::Flasher;
+pub use image_format::ImageFormatId;
+pub use partition_table::PartitionTable;
+
 mod chip;
 mod command;
-mod config;
 mod connection;
 mod elf;
 mod encoder;
@@ -10,10 +17,5 @@ mod flasher;
 mod image_format;
 mod partition_table;
 
-pub use chip::Chip;
-pub use config::Config;
-pub use elf::FirmwareImage;
-pub use error::Error;
-pub use flasher::Flasher;
-pub use image_format::ImageFormatId;
-pub use partition_table::PartitionTable;
+#[doc(hidden)]
+pub mod cli;

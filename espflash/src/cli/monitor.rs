@@ -1,4 +1,4 @@
-use crate::line_endings::normalized;
+use super::line_endings::normalized;
 use crossterm::event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use miette::{IntoDiagnostic, Result};
