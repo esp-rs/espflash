@@ -23,6 +23,9 @@ pub struct BuildArgs {
     /// Image format to flash (bootloader/direct-boot)
     #[clap(long)]
     pub format: Option<String>,
+    /// Target to build for
+    #[clap(long)]
+    pub target: Option<String>,
 }
 
 #[derive(Parser)]

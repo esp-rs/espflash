@@ -156,9 +156,12 @@ fn build(
     cargo_config: &CargoConfig,
     chip: Option<Chip>,
 ) -> Result<PathBuf> {
-    let target = cargo_config
-        .target()
+    let target = build_options
+        .target
+        .as_deref()
+        .or(cargo_config.target())
         .ok_or_else(|| NoTargetError::new(chip))?;
+
     if let Some(chip) = chip {
         if !chip.supports_target(target) {
             return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
