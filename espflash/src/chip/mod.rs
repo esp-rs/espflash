@@ -69,7 +69,9 @@ pub trait ChipType: ReadEFuse {
         Ok(bytes_to_mac_addr(bytes))
     }
 
-    fn supports_target(target: &str) -> bool;
+    fn supports_target(target: &str) -> bool {
+        Self::SUPPORTED_TARGETS.contains(&target)
+    }
 }
 
 pub trait ReadEFuse {

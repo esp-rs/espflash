@@ -142,10 +142,6 @@ impl ChipType for Esp32 {
 
         Ok(bytes_to_mac_addr(bytes))
     }
-
-    fn supports_target(target: &str) -> bool {
-        target.starts_with("xtensa-esp32-")
-    }
 }
 
 impl ReadEFuse for Esp32 {

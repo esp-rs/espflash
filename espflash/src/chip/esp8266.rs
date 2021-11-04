@@ -80,10 +80,6 @@ impl ChipType for Esp8266 {
 
         Ok(bytes_to_mac_addr(&bytes))
     }
-
-    fn supports_target(target: &str) -> bool {
-        target.starts_with("xtensa-esp8266-")
-    }
 }
 
 impl ReadEFuse for Esp8266 {
