@@ -159,14 +159,23 @@ fn build(
     let target = build_options
         .target
         .as_deref()
-        .or(cargo_config.target())
+        .or_else(|| cargo_config.target())
         .ok_or_else(|| NoTargetError::new(chip))?;
+
+    let chip = if chip.is_some() {
+        chip
+    } else {
+        Chip::from_target(target)
+    };
 
     if let Some(chip) = chip {
         if !chip.supports_target(target) {
             return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
         }
+    } else {
+        return Err(Error::UnknownTarget(target.to_string()).into());
     }
+
     // The 'build-std' unstable cargo feature is required to enable
     // cross-compilation for xtensa targets.
     // If it has not been set then we cannot build the
@@ -175,8 +184,10 @@ fn build(
         return Err(Error::NoBuildStd.into());
     };
 
-    // Build the list of arguments to pass to 'cargo build'.
-    let mut args = vec![];
+    // Build the list of arguments to pass to 'cargo build'. We will always
+    // explicitly state the target, as it must be provided as either a command-line
+    // argument or in the cargo config file.
+    let mut args = vec!["--target", target];
 
     if build_options.release {
         args.push("--release");
@@ -252,9 +263,17 @@ fn save_image(
     metadata: CargoEspFlashMeta,
     cargo_config: CargoConfig,
 ) -> Result<()> {
-    let target = cargo_config
-        .target()
-        .ok_or_else(|| NoTargetError::new(None))?;
+    let target = matches
+        .build_args
+        .target
+        .as_deref()
+        .or_else(|| cargo_config.target());
+
+    if target.is_none() {
+        return Err(NoTargetError::new(None)).into_diagnostic();
+    }
+
+    let target = target.unwrap();
     let chip = Chip::from_target(target).ok_or_else(|| Error::UnknownTarget(target.into()))?;
 
     let path = build(&matches.build_args, &cargo_config, Some(chip))?;
