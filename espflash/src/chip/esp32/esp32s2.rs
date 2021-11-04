@@ -1,11 +1,11 @@
 use std::ops::Range;
 
 use super::Esp32Params;
-use crate::error::UnsupportedImageFormatError;
 use crate::{
-    chip::{bytes_to_mac_addr, ChipType, ReadEFuse, SpiRegisters},
+    chip::{ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
     elf::FirmwareImage,
+    error::UnsupportedImageFormatError,
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
     Chip, Error, PartitionTable,
 };
@@ -107,17 +107,6 @@ impl ChipType for Esp32s2 {
             )?)),
             _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp32s2, None).into()),
         }
-    }
-
-    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let word5 = self.read_efuse(connection, 5)?;
-        let word6 = self.read_efuse(connection, 6)?;
-
-        let bytes = ((word6 as u64) << 32) | word5 as u64;
-        let bytes = bytes.to_be_bytes();
-        let bytes = &bytes[2..];
-
-        Ok(bytes_to_mac_addr(bytes))
     }
 
     fn supports_target(target: &str) -> bool {
