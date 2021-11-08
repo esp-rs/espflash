@@ -267,13 +267,10 @@ fn save_image(
         .build_args
         .target
         .as_deref()
-        .or_else(|| cargo_config.target());
+        .or_else(|| cargo_config.target())
+        .ok_or_else(|| NoTargetError::new(None))
+        .into_diagnostic()?;
 
-    if target.is_none() {
-        return Err(NoTargetError::new(None)).into_diagnostic();
-    }
-
-    let target = target.unwrap();
     let chip = Chip::from_target(target).ok_or_else(|| Error::UnknownTarget(target.into()))?;
 
     let path = build(&matches.build_args, &cargo_config, Some(chip))?;
