@@ -6,7 +6,7 @@ pub struct ConnectArgs {
     pub serial: Option<String>,
     /// Baud rate at which to flash target device
     #[clap(long)]
-    pub speed: Option<usize>,
+    pub speed: Option<u32>,
 }
 
 #[derive(Parser)]

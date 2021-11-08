@@ -41,8 +41,7 @@ pub trait ChipType: ReadEFuse {
     /// Determine the frequency of the crytal on the connected chip.
     fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
         let uart_div = connection.read_reg(Self::UART_CLKDIV_REG)? & Self::UART_CLKDIV_MASK;
-        let est_xtal =
-            (connection.get_baud().speed() as u32 * uart_div) / 1_000_000 / Self::XTAL_CLK_DIVIDER;
+        let est_xtal = (connection.get_baud()? * uart_div) / 1_000_000 / Self::XTAL_CLK_DIVIDER;
         let norm_xtal = if est_xtal > 33 { 40 } else { 26 };
 
         Ok(norm_xtal)
