@@ -89,10 +89,6 @@ impl ChipType for Esp32c3 {
             ),
         }
     }
-
-    fn supports_target(target: &str) -> bool {
-        target.starts_with("riscv32imc-")
-    }
 }
 
 impl ReadEFuse for Esp32c3 {

@@ -82,10 +82,6 @@ impl ChipType for Esp32s3 {
             ImageFormatId::DirectBoot => Ok(Box::new(Esp32DirectBootFormat::new(image)?)),
         }
     }
-
-    fn supports_target(target: &str) -> bool {
-        target.starts_with("xtensa-esp32s3-")
-    }
 }
 
 impl ReadEFuse for Esp32s3 {

@@ -108,10 +108,6 @@ impl ChipType for Esp32s2 {
             _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp32s2, None).into()),
         }
     }
-
-    fn supports_target(target: &str) -> bool {
-        target.starts_with("xtensa-esp32s2-")
-    }
 }
 
 impl ReadEFuse for Esp32s2 {
