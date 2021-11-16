@@ -1,75 +1,105 @@
 /// CLI utilities shared between espflash and cargo-espflash
 ///
 /// No stability guaranties applies
+use config::Config;
+use crossterm::style::Stylize;
+use dialoguer::{theme::ColorfulTheme, Confirm, Select};
+use miette::{IntoDiagnostic, Result, WrapErr};
+use serialport::{available_ports, FlowControl, SerialPortInfo, SerialPortType};
+
+use self::clap::ConnectArgs;
+use crate::{error::Error, Flasher};
+
 pub mod clap;
 pub mod config;
 mod line_endings;
 pub mod monitor;
-use self::clap::ConnectArgs;
-use crate::error::Error;
-use crate::Flasher;
-use config::Config;
-use dialoguer::{theme::ColorfulTheme, Select};
-use miette::{IntoDiagnostic, Result, WrapErr};
-use serialport::{available_ports, FlowControl, SerialPortType};
 
 fn get_serial_port(matches: &ConnectArgs, config: &Config) -> Result<String, Error> {
-    // The serial port should be specified, either as a command-line argument or in
-    // the cargo configuration file. In the case that both have been provided the
-    // command-line argument will take precedence.
+    // A serial port should be specified either as a command-line argument or in a
+    // configuration file. In the case that both have been provided the command-line
+    // argument takes precedence.
     //
-    // If neither have been provided:
-    //   a) if there is only one serial port detected, it will be used
-    //   b) if there is more than one serial port detected, the user will be
-    //      prompted to select one or exit
+    // Users may optionally specify the device's VID and PID in the configuration
+    // file. If no VID/PID have been provided, the user will always be prompted to
+    // select a serial device. If some VID/PID have been provided the user will be
+    // prompted to select a serial device, unless there is only one found and its
+    // VID/PID matches the configured values.
     if let Some(serial) = &matches.serial {
-        Ok(serial.into())
+        Ok(serial.to_owned())
     } else if let Some(serial) = &config.connection.serial {
-        Ok(serial.into())
-    } else if let Ok(ports) = detect_serial_ports() {
-        let maybe_serial = if ports.len() > 1 {
-            println!(
-                "{} serial ports detected, please select one or press Ctrl+c to exit\n",
-                ports.len()
-            );
-            let index = Select::with_theme(&ColorfulTheme::default())
-                .items(&ports)
-                .default(0)
-                .interact()
-                .unwrap();
-
-            ports.get(index)
-        } else {
-            ports.get(0)
-        };
-
-        match maybe_serial {
-            Some(serial) => Ok(serial.into()),
-            None => Err(Error::NoSerial),
-        }
+        Ok(serial.to_owned())
+    } else if let Ok(ports) = detect_usb_serial_ports() {
+        select_serial_port(ports, config.usb_device.vid, config.usb_device.pid)
     } else {
         Err(Error::NoSerial)
     }
 }
 
-fn detect_serial_ports() -> Result<Vec<String>> {
-    // Find all available serial ports on the host and filter them down to only
-    // those which are likely candidates for ESP devices. At this time we are only
-    // interested in USB devices and no further filtering is being done, however
-    // this may change.
+fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
     let ports = available_ports().into_diagnostic()?;
     let ports = ports
         .iter()
-        .filter(|&port| matches!(&port.port_type, SerialPortType::UsbPort(..)));
-
-    // Now that we have a vector of candidate serial ports, the only information we
-    // need from them are the ports' names.
-    let port_names = ports
-        .cloned()
-        .map(|port| port.port_name)
+        .filter_map(|port_info| match port_info.port_type {
+            SerialPortType::UsbPort(..) => Some(port_info.to_owned()),
+            _ => None,
+        })
         .collect::<Vec<_>>();
 
-    Ok(port_names)
+    Ok(ports)
+}
+
+fn select_serial_port(
+    ports: Vec<SerialPortInfo>,
+    vid: Option<u16>,
+    pid: Option<u16>,
+) -> Result<String, Error> {
+    if ports.len() > 1 {
+        // Multiple serial ports detected
+        println!(
+            "Detected {} serial ports. Ports with VID/PID matching configured values are bolded.\n",
+            ports.len()
+        );
+
+        let port_names = ports
+            .iter()
+            .map(|port_info| match &port_info.port_type {
+                SerialPortType::UsbPort(info) if Some(info.vid) == vid && Some(info.pid) == pid => {
+                    format!("{}", port_info.port_name.clone().bold())
+                }
+                _ => port_info.port_name.clone(),
+            })
+            .collect::<Vec<_>>();
+        let index = Select::with_theme(&ColorfulTheme::default())
+            .items(&port_names)
+            .default(0)
+            .interact()?;
+
+        match ports.get(index) {
+            Some(port_info) => Ok(port_info.port_name.to_owned()),
+            None => Err(Error::NoSerial),
+        }
+    } else if let [port] = ports.as_slice() {
+        // Single serial port detected
+        let port_name = port.port_name.clone();
+        let port_info = match &port.port_type {
+            SerialPortType::UsbPort(info) => info,
+            _ => unreachable!(),
+        };
+
+        if (Some(port_info.vid) == vid && Some(port_info.pid) == pid)
+            || Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt(format!("Use serial port '{}'?", port_name))
+                .interact()?
+        {
+            Ok(port_name)
+        } else {
+            Err(Error::NoSerial)
+        }
+    } else {
+        // No serial ports detected
+        Err(Error::NoSerial)
+    }
 }
 
 pub fn connect(matches: &ConnectArgs, config: &Config) -> Result<Flasher> {
