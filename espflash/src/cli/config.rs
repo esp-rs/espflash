@@ -2,13 +2,14 @@ use std::fs::read;
 
 use directories_next::ProjectDirs;
 use serde::Deserialize;
+use serialport::UsbPortInfo;
 
 #[derive(Debug, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub connection: Connection,
     #[serde(default)]
-    pub usb_device: UsbDevice,
+    pub usb_device: Vec<UsbDevice>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -18,8 +19,14 @@ pub struct Connection {
 
 #[derive(Debug, Deserialize, Default)]
 pub struct UsbDevice {
-    pub vid: Option<u16>,
-    pub pid: Option<u16>,
+    pub vid: u16,
+    pub pid: u16,
+}
+
+impl UsbDevice {
+    pub fn matches(&self, port: &UsbPortInfo) -> bool {
+        self.vid == port.vid && self.pid == port.pid
+    }
 }
 
 impl Config {

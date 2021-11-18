@@ -8,6 +8,7 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{available_ports, FlowControl, SerialPortInfo, SerialPortType};
 
 use self::clap::ConnectArgs;
+use crate::cli::config::UsbDevice;
 use crate::{error::Error, Flasher};
 
 pub mod clap;
@@ -30,7 +31,7 @@ fn get_serial_port(matches: &ConnectArgs, config: &Config) -> Result<String, Err
     } else if let Some(serial) = &config.connection.serial {
         Ok(serial.to_owned())
     } else if let Ok(ports) = detect_usb_serial_ports() {
-        select_serial_port(ports, config.usb_device.vid, config.usb_device.pid)
+        select_serial_port(ports, &config.usb_device)
     } else {
         Err(Error::NoSerial)
     }
@@ -49,11 +50,9 @@ fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
     Ok(ports)
 }
 
-fn select_serial_port(
-    ports: Vec<SerialPortInfo>,
-    vid: Option<u16>,
-    pid: Option<u16>,
-) -> Result<String, Error> {
+fn select_serial_port(ports: Vec<SerialPortInfo>, devices: &[UsbDevice]) -> Result<String, Error> {
+    let device_matches = |info| devices.iter().any(|dev| dev.matches(info));
+
     if ports.len() > 1 {
         // Multiple serial ports detected
         println!(
@@ -64,8 +63,12 @@ fn select_serial_port(
         let port_names = ports
             .iter()
             .map(|port_info| match &port_info.port_type {
-                SerialPortType::UsbPort(info) if Some(info.vid) == vid && Some(info.pid) == pid => {
-                    format!("{}", port_info.port_name.clone().bold())
+                SerialPortType::UsbPort(info) => {
+                    if device_matches(info) {
+                        format!("{}", port_info.port_name.as_str().bold())
+                    } else {
+                        port_info.port_name.clone()
+                    }
                 }
                 _ => port_info.port_name.clone(),
             })
@@ -87,7 +90,7 @@ fn select_serial_port(
             _ => unreachable!(),
         };
 
-        if (Some(port_info.vid) == vid && Some(port_info.pid) == pid)
+        if device_matches(port_info)
             || Confirm::with_theme(&ColorfulTheme::default())
                 .with_prompt(format!("Use serial port '{}'?", port_name))
                 .interact()?
