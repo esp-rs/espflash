@@ -98,7 +98,13 @@ fn select_serial_port(ports: Vec<SerialPortInfo>, devices: &[UsbDevice]) -> Resu
 
         if device_matches(port_info)
             || Confirm::with_theme(&ColorfulTheme::default())
-                .with_prompt(format!("Use serial port '{}'?", port_name))
+                .with_prompt({
+                    if let Some(product) = &port_info.product {
+                        format!("Use serial port '{}' - {}?", port_name, product)
+                    } else {
+                        format!("Use serial port '{}'?", port_name)
+                    }
+                })
                 .interact_opt()?
                 .ok_or(Error::Canceled)?
         {
