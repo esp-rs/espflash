@@ -64,10 +64,15 @@ fn select_serial_port(ports: Vec<SerialPortInfo>, devices: &[UsbDevice]) -> Resu
             .iter()
             .map(|port_info| match &port_info.port_type {
                 SerialPortType::UsbPort(info) => {
-                    if device_matches(info) {
-                        format!("{}", port_info.port_name.as_str().bold())
+                    let formatted = if device_matches(info) {
+                        port_info.port_name.as_str().bold()
                     } else {
-                        port_info.port_name.clone()
+                        port_info.port_name.as_str().reset()
+                    };
+                    if let Some(product) = &info.product {
+                        format!("{} - {}", formatted, product)
+                    } else {
+                        format!("{}", formatted)
                     }
                 }
                 _ => port_info.port_name.clone(),
