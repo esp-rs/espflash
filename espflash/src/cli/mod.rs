@@ -81,7 +81,8 @@ fn select_serial_port(ports: Vec<SerialPortInfo>, devices: &[UsbDevice]) -> Resu
         let index = Select::with_theme(&ColorfulTheme::default())
             .items(&port_names)
             .default(0)
-            .interact()?;
+            .interact_opt()?
+            .ok_or(Error::Canceled)?;
 
         match ports.get(index) {
             Some(port_info) => Ok(port_info.port_name.to_owned()),
@@ -98,7 +99,8 @@ fn select_serial_port(ports: Vec<SerialPortInfo>, devices: &[UsbDevice]) -> Resu
         if device_matches(port_info)
             || Confirm::with_theme(&ColorfulTheme::default())
                 .with_prompt(format!("Use serial port '{}'?", port_name))
-                .interact()?
+                .interact_opt()?
+                .ok_or(Error::Canceled)?
         {
             Ok(port_name)
         } else {

@@ -75,6 +75,8 @@ https://github.com/espressif/esp32c3-direct-boot-example"
         help("Add a command line option with the serial port to use")
     )]
     NoSerial,
+    #[error("Canceled by user")]
+    Canceled,
 }
 
 #[derive(Error, Debug, Diagnostic)]
