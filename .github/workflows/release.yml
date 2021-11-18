@@ -10,9 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: musl-tools
+      - name: build dependencies
         run: |
-          sudo apt-get install musl-tools
+          sudo apt-get install musl-tools libudev-dev
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
