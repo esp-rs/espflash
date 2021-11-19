@@ -1,105 +1,79 @@
-# ESPFlash
+# espflash
 
 [![Actions Status](https://github.com/esp-rs/espflash/workflows/CI/badge.svg)](https://github.com/esp-rs/espflash/actions?query=workflow%3A"CI")
+![Crates.io](https://img.shields.io/crates/l/espflash)
 
-_ESP8266_ and _ESP32_ family serial flasher based on [esptool.py](https://github.com/espressif/esptool).
+Serial flasher utility for Espressif SoCs and modules based on [esptool.py].
 
-Requires `rustc 1.55.0` or greater.
+Currently supports the **ESP32**, **ESP32-C3**, **ESP32-S2**, **ESP32-S3**, and **ESP8266**.
 
-- [espflash library & binary](https://github.com/esp-rs/espflash/tree/master/espflash)
-- [espflash cargo subcommand](https://github.com/esp-rs/espflash/tree/master/cargo-espflash)
+This repository contains two applications:
+
+| Application      | Description                                                 |
+| :--------------- | :---------------------------------------------------------- |
+| [cargo-espflash] | Cargo subcommand for espflash                               |
+| [espflash]       | Library and `espflash` binary (_without_ Cargo integration) |
+
+> **NOTE:** requires `rustc >= 1.55.0` in order to build either application
 
 ## Installation
 
 ```shell
-cargo install cargo-espflash
+$ cargo install cargo-espflash
+$ cargo install espflash
 ```
 
-## Usage
+## cargo-espflash
 
-Note: the documentation below is for the `cargo espflash` sub-command, which is probably what you are looking for.
-For the standalone espflash binary, follow the link above
+[cargo-espflash] is a subcommand for Cargo which utilizes the [espflash] library. This tool integrates with your Cargo projects and handles compilation, flashing, and monitoring for target devices.
 
-```text
-cargo-espflash 1.1.0
-Cargo subcommand for flashing Espressif devices over serial
-
-USAGE:
-    cargo espflash [FLAGS] [OPTIONS] [SERIAL] [SUBCOMMAND]
-
-FLAGS:
-        --board-info    Display the connected board's information (deprecated, use the `board-info` subcommand instead)
-    -h, --help          Prints help information
-        --monitor       Open a serial monitor after flashing
-        --ram           Load the application to RAM instead of Flash
-        --release       Build the application using the release profile
-    -V, --version       Prints version information
-
-OPTIONS:
-        --bootloader <PATH>         Path to a binary (.bin) bootloader file
-        --example <EXAMPLE>         Example to build and flash
-        --features <FEATURES>       Comma delimited list of build features
-        --format <image format>     Image format to flash
-        --partition-table <PATH>    Path to a CSV file containing partition table
-        --speed <SPEED>             Baud rate at which to flash target device
-
-ARGS:
-    <SERIAL>    Serial port connected to target device
-
-SUBCOMMANDS:
-    board-info    Display the connected board's information
-    help          Prints this message or the help of the given subcommand(s)
-    save-image    Save the image to disk instead of flashing to device
-```
-
-When the `--ram` option is specified, the provided ELF image will be loaded into ram and executed without touching the flash.
-
-### Config
-
-You can also specify the serial port by setting it in the config file located at `~/.config/espflash/espflash.toml` or Linux
-or `%APPDATA%/esp/espflash/espflash.toml` on Windows.
-
-```toml
-[connection]
-serial = "/dev/ttyUSB0"
-```
-
-### Package metadata
-
-You can also specify the bootloader, partition table or image format for a project in the package metadata in `Cargo.toml`
-
-```toml
-[package.metadata.espflash]
-partition_table = "partitions.csv"
-bootloader = "bootloader.bin"
-format = "direct-boot"
-```
+Please see the [cargo-espflash README] for more information.
 
 ### Example
 
-```bash
-$ cargo espflash --release --example blinky /dev/ttyUSB0
+```shell
+$ cargo espflash --release --example=blinky /dev/ttyUSB0
 ```
 
-## License
+## espflash
 
-Licensed under the GNU General Public License Version 2. See [LICENSE](LICENSE) for more details.
+[espflash] is a standalone binary and library contained within the same crate. This tool does not integrate with Cargo, but supports all of the same features as [cargo-espflash] which are not related to compilation.
+
+Please see the [espflash README] for more information.
+
+### Example
+
+```shell
+$ espflash /dev/ttyUSB0 target/xtensa-esp32-none-elf/release/examples/blinky
+```
 
 ## Quickstart - Docker
 
-The docker image `esprs/espflash` contains all necessary toolchains and tooling including espflash to build and flash.
-To clone, build and flash the [esp32-hal](https://github.com/esp-rs/esp32-hal) examples run the following:
+The `esprs/espflash` Docker image contains all necessary toolchains and tooling (including espflash) to build an application and flash it to a target device.
 
-```cmd
-git clone https://github.com/esp-rs/esp32-hal
-cd esp32-hal
-docker run -v "$(pwd):/espflash" --device=/dev/ttyUSB0 -ti esprs/espflash --release --tool=cargo --example=blinky /dev/ttyUSB0
+To clone, build and flash the [esp32-hal] examples run the following:
+
+```shell
+$ git clone https://github.com/esp-rs/esp32-hal
+$ cd esp32-hal
+$ docker run -v "$(pwd):/espflash" --device=/dev/ttyUSB0 -ti esprs/espflash --release --example=blinky /dev/ttyUSB0
 ```
 
 ### Custom Docker Build
 
-```cmd
-git clone --depth 1 https://github.com/esp-rs/espflash.git
-cd espflash
-docker build -t esprs/espflash .
+```shell
+$ git clone --depth 1 https://github.com/esp-rs/espflash.git
+$ cd espflash
+$ docker build -t esprs/espflash .
 ```
+
+## License
+
+Licensed under the GNU General Public License Version 2. See [LICENSE](./espflash/LICENSE) for more details.
+
+[esptool.py]: https://github.com/espressif/esptool
+[cargo-espflash]: https://github.com/esp-rs/espflash/tree/master/cargo-espflash
+[espflash]: https://github.com/esp-rs/espflash/tree/master/espflash
+[cargo-espflash readme]: https://github.com/esp-rs/espflash/blob/master/cargo-espflash/README.md
+[espflash readme]: https://github.com/esp-rs/espflash/blob/master/espflash/README.md
+[esp32-hal]: https://github.com/esp-rs/esp32-hal

@@ -1,76 +1,105 @@
-# `cargo-espflash`
+# cargo-espflash
 
-Cross-compiler and serial flasher cargo subcommand for Espressif devices. Supports __ESP32__, __ESP32-C3__, __ESP32-S2__, __ESP32-S3__, and __ESP8266__.
+Cross-compiler and serial flasher cargo subcommand for Espressif SoCs and modules.
 
-Prior to flashing, the project is built using the `build-std` unstable cargo feature. Please refer to the [cargo documentation](https://doc.rust-lang.org/cargo/reference/unstable.html#build-std) for more information.
+Currently supports the **ESP32**, **ESP32-C3**, **ESP32-S2**, **ESP32-S3**, and **ESP8266**.
+
+Prior to flashing, the project is built using the `build-std` unstable Cargo feature. Please refer to the [cargo documentation](https://doc.rust-lang.org/cargo/reference/unstable.html#build-std) for more information.
 
 ## Installation
 
 ```shell
-cargo install cargo-espflash
+$ cargo install cargo-espflash
 ```
 
 ## Usage
 
 ```text
-cargo-espflash 1.1.0                                                                                                                                                                                                                                           
-Cargo subcommand for flashing Espressif devices over serial                                                                                                                                                                                                    
-                                                                                                                                                                                                                                                               
-USAGE:                                                                                                                                                                                                                                                         
-    cargo espflash [FLAGS] [OPTIONS] [SERIAL] [SUBCOMMAND]                                                                                                                                                                                                     
-                                                                                                                                                                                                                                                               
-FLAGS:                                                                                                                                                                                                                                                         
-        --board-info    Display the connected board's information (deprecated, use the `board-info` subcommand instead)                                                                                                                                        
-    -h, --help          Prints help information                                                                                                                                                                                                                
-        --monitor       Open a serial monitor after flashing                                                                                                                                                                                                   
-        --ram           Load the application to RAM instead of Flash                                                                                                                                                                                           
-        --release       Build the application using the release profile                                                                                                                                                                                        
-    -V, --version       Prints version information                                                                                                                                                                                                             
-                                                                                                                                                                                                                                                               
-OPTIONS:                                                                                                                                                                                                                                                       
-        --bootloader <PATH>         Path to a binary (.bin) bootloader file                                                                                                                                                                                    
-        --example <EXAMPLE>         Example to build and flash                                                                                                                                                                                                 
-        --features <FEATURES>       Comma delimited list of build features                                                                                                                                                                                     
-        --format <image format>     Image format to flash                                                                                                                                                                                                      
-        --partition-table <PATH>    Path to a CSV file containing partition table                                                                                                                                                                              
-        --speed <SPEED>             Baud rate at which to flash target device                                                                                                                                                                                  
-                                                                                                                                                                                                                                                               
-ARGS:                                                                                                                                                                                                                                                          
-    <SERIAL>    Serial port connected to target device                                                                                                                                                                                                         
-                                                                                                                                                                                                                                                               
-SUBCOMMANDS:                                                                                                                                                                                                                                                   
-    board-info    Display the connected board's information                                                                                                                                                                                                    
-    help          Prints this message or the help of the given subcommand(s)                                                                                                                                                                                   
+cargo-espflash 1.1.0
+
+USAGE:
+    cargo espflash [OPTIONS] [SERIAL] [SUBCOMMAND]
+
+ARGS:
+    <SERIAL>    Serial port connected to target device
+
+OPTIONS:
+        --board-info
+            Display the connected board's information (deprecated, use the `board-info` subcommand
+            instead)
+
+        --bootloader <BOOTLOADER>
+            Path to a binary (.bin) bootloader file
+
+        --example <EXAMPLE>
+            Example to build and flash
+
+        --features <FEATURES>...
+            Comma delimited list of build features
+
+        --format <FORMAT>
+            Image format to flash (bootloader/direct-boot)
+
+    -h, --help
+            Print help information
+
+        --monitor
+            Open a serial monitor after flashing
+
+        --partition-table <PARTITION_TABLE>
+            Path to a CSV file containing partition table
+
+        --ram
+            Load the application to RAM instead of Flash
+
+        --release
+            Build the application using the release profile
+
+        --speed <SPEED>
+            Baud rate at which to flash target device
+
+        --target <TARGET>
+            Target to build for
+
+    -V, --version
+            Print version information
+
+SUBCOMMANDS:
+    board-info    Display the connected board's information
+    help          Print this message or the help of the given subcommand(s)
     save-image    Save the image to disk instead of flashing to device
 ```
 
-When the `--ram` option is specified, the provided ELF image will be loaded into ram and executed without touching the flash.
+## Configuration
 
-### Config
+You can also specify the serial port and/or expected VID/PID values by setting them in the configuration file. This file is in different locations depending on your operating system:
 
-You can also specify the serial port by setting it in the config file located at `~/.config/espflash/espflash.toml` or Linux
-or `%APPDATA%/esp/espflash/espflash.toml` on Windows.
+| Operating System | Configuration Path                                                       |
+| :--------------- | :----------------------------------------------------------------------- |
+| **Linux:**       | `/home/alice/.config/espflash/espflash.toml`                             |
+| **Windows:**     | `C:\Users\Alice\AppData\Roaming\esp\espflash\espflash.toml`              |
+| **macOS:**       | `/Users/Alice/Library/Application Support/rs.esp.espflash/espflash.toml` |
+
+An example configuration file may look as follows (note that TOML does _not_ support hexadecimal literals):
 
 ```toml
 [connection]
 serial = "/dev/ttyUSB0"
+
+[usb_device]
+vid = 12346 # 0x303A
+pid = 32768 # 0x8000
 ```
 
-### Package metadata
+## Package Metadata
 
-You can also specify the bootloader, partition table or image format for a project in the package metadata in `Cargo.toml`
+You can specify the bootloader, partition table, or image format for a project in the package metadata in `Cargo.toml`:
 
 ```toml
-[package.metadata.espflash]                                                                                                                                                                                                                                    
+[package.metadata.espflash]
 partition_table = "partitions.csv"
 bootloader = "bootloader.bin"
 format = "direct-boot"
-```
-
-### Example
-
-```bash
-$ cargo espflash --release --example blinky /dev/ttyUSB0
 ```
 
 ## License
