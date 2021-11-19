@@ -2,7 +2,7 @@ use super::line_endings::normalized;
 use crossterm::event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use miette::{IntoDiagnostic, Result};
-use serial::{SerialPort, SystemPort};
+use serialport::SerialPort;
 use std::io::{stdout, ErrorKind, Read, Write};
 use std::thread::sleep;
 use std::time::Duration;
@@ -77,7 +77,7 @@ impl Drop for RawModeGuard {
     }
 }
 
-pub fn monitor(mut serial: SystemPort) -> serial::Result<()> {
+pub fn monitor(mut serial: Box<dyn SerialPort>) -> serialport::Result<()> {
     println!("Commands:");
     println!("    CTRL+R    Reset chip");
     println!("    CTRL+C    Exit");
@@ -107,12 +107,12 @@ pub fn monitor(mut serial: SystemPort) -> serial::Result<()> {
                     match key.code {
                         KeyCode::Char('c') => break,
                         KeyCode::Char('r') => {
-                            serial.set_dtr(false)?;
-                            serial.set_rts(true)?;
+                            serial.write_data_terminal_ready(false)?;
+                            serial.write_request_to_send(true)?;
 
                             sleep(Duration::from_millis(100));
 
-                            serial.set_rts(false)?;
+                            serial.write_request_to_send(false)?;
                             continue;
                         }
                         _ => {}

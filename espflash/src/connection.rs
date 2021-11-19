@@ -2,7 +2,7 @@ use std::{io::Write, thread::sleep, time::Duration};
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
 use bytemuck::{Pod, Zeroable};
-use serial::{BaudRate, SerialPort, SerialPortSettings, SystemPort};
+use serialport::SerialPort;
 use slip_codec::SlipDecoder;
 
 use crate::{
@@ -22,8 +22,7 @@ pub struct CommandResponse {
 }
 
 pub struct Connection {
-    serial: SystemPort,
-    speed: BaudRate,
+    serial: Box<dyn SerialPort>,
     decoder: SlipDecoder,
 }
 
@@ -37,10 +36,9 @@ struct WriteRegParams {
 }
 
 impl Connection {
-    pub fn new(serial: SystemPort) -> Self {
+    pub fn new(serial: Box<dyn SerialPort>) -> Self {
         Connection {
             serial,
-            speed: BaudRate::Baud115200,
             decoder: SlipDecoder::new(),
         }
     }
@@ -48,28 +46,28 @@ impl Connection {
     pub fn reset(&mut self) -> Result<(), Error> {
         sleep(Duration::from_millis(100));
 
-        self.serial.set_dtr(false)?;
-        self.serial.set_rts(true)?;
+        self.serial.write_data_terminal_ready(false)?;
+        self.serial.write_request_to_send(true)?;
 
         sleep(Duration::from_millis(100));
 
-        self.serial.set_rts(false)?;
+        self.serial.write_request_to_send(false)?;
 
         Ok(())
     }
 
     pub fn reset_to_flash(&mut self) -> Result<(), Error> {
-        self.serial.set_dtr(false)?;
-        self.serial.set_rts(true)?;
+        self.serial.write_data_terminal_ready(false)?;
+        self.serial.write_request_to_send(true)?;
 
         sleep(Duration::from_millis(100));
 
-        self.serial.set_dtr(true)?;
-        self.serial.set_rts(false)?;
+        self.serial.write_data_terminal_ready(true)?;
+        self.serial.write_request_to_send(false)?;
 
         sleep(Duration::from_millis(50));
 
-        self.serial.set_dtr(false)?;
+        self.serial.write_data_terminal_ready(false)?;
 
         Ok(())
     }
@@ -79,16 +77,14 @@ impl Connection {
         Ok(())
     }
 
-    pub fn set_baud(&mut self, speed: BaudRate) -> Result<(), Error> {
-        self.speed = speed;
-        self.serial
-            .reconfigure(&|setup: &mut dyn SerialPortSettings| setup.set_baud_rate(speed))?;
+    pub fn set_baud(&mut self, speed: u32) -> Result<(), Error> {
+        self.serial.set_baud_rate(speed)?;
 
         Ok(())
     }
 
-    pub fn get_baud(&self) -> BaudRate {
-        self.speed
+    pub fn get_baud(&self) -> Result<u32, Error> {
+        Ok(self.serial.baud_rate()?)
     }
 
     pub fn with_timeout<T, F: FnMut(&mut Connection) -> Result<T, Error>>(
@@ -176,7 +172,7 @@ impl Connection {
         Ok(())
     }
 
-    pub fn into_serial(self) -> SystemPort {
+    pub fn into_serial(self) -> Box<dyn SerialPort> {
         self.serial
     }
 }

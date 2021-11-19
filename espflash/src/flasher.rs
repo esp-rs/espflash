@@ -1,16 +1,16 @@
 use std::{borrow::Cow, thread::sleep};
 
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
-use serial::{BaudRate, SystemPort};
+use serialport::SerialPort;
 use strum_macros::Display;
 
-use crate::image_format::ImageFormatId;
 use crate::{
     chip::Chip,
     command::{Command, CommandType},
     connection::Connection,
     elf::{FirmwareImage, RomSegment},
     error::{ConnectionError, FlashDetectError, ResultExt, RomError, RomErrorKind},
+    image_format::ImageFormatId,
     Error, PartitionTable,
 };
 
@@ -149,7 +149,7 @@ pub struct Flasher {
 }
 
 impl Flasher {
-    pub fn connect(serial: SystemPort, speed: Option<BaudRate>) -> Result<Self, Error> {
+    pub fn connect(serial: Box<dyn SerialPort>, speed: Option<u32>) -> Result<Self, Error> {
         let mut flasher = Flasher {
             connection: Connection::new(serial), // default baud is always 115200
             chip: Chip::Esp8266,                 // dummy, set properly later
@@ -165,7 +165,7 @@ impl Flasher {
             match flasher.chip {
                 Chip::Esp8266 => (), /* Not available */
                 _ => {
-                    if b.speed() > BaudRate::Baud115200.speed() {
+                    if b > 115_200 {
                         println!("WARN setting baud rate higher than 115200 can cause issues.");
                         flasher.change_baud(b)?;
                     }
@@ -481,12 +481,10 @@ impl Flasher {
         self.load_elf_to_flash_with_format(elf_data, bootloader, partition_table, None)
     }
 
-    pub fn change_baud(&mut self, speed: BaudRate) -> Result<(), Error> {
+    pub fn change_baud(&mut self, speed: u32) -> Result<(), Error> {
         self.connection
             .with_timeout(CommandType::ChangeBaud.timeout(), |connection| {
-                connection.command(Command::ChangeBaud {
-                    speed: speed.speed() as u32,
-                })
+                connection.command(Command::ChangeBaud { speed })
             })?;
         self.connection.set_baud(speed)?;
         std::thread::sleep(Duration::from_secs_f32(0.05));
@@ -494,7 +492,7 @@ impl Flasher {
         Ok(())
     }
 
-    pub fn into_serial(self) -> SystemPort {
+    pub fn into_serial(self) -> Box<dyn SerialPort> {
         self.connection.into_serial()
     }
 }

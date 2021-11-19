@@ -7,6 +7,9 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
+      - name: build dependencies
+        run: |
+          sudo apt-get install musl-tools libudev-dev
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
@@ -22,6 +25,9 @@ jobs:
     name: Doc Test
     runs-on: ubuntu-latest
     steps:
+      - name: build dependencies
+        run: |
+          sudo apt-get install musl-tools libudev-dev
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
@@ -38,6 +44,9 @@ jobs:
     name: Unit Test
     runs-on: ubuntu-latest
     steps:
+      - name: build dependencies
+        run: |
+          sudo apt-get install musl-tools libudev-dev
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
@@ -71,6 +80,9 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
+      - name: build dependencies
+        run: |
+          sudo apt-get install musl-tools libudev-dev
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:

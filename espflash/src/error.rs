@@ -75,6 +75,8 @@ https://github.com/espressif/esp32c3-direct-boot-example"
         help("Add a command line option with the serial port to use")
     )]
     NoSerial,
+    #[error("Canceled by user")]
+    Canceled,
 }
 
 #[derive(Error, Debug, Diagnostic)]
@@ -82,7 +84,7 @@ https://github.com/espressif/esp32c3-direct-boot-example"
 pub enum ConnectionError {
     #[error("IO error while using serial port: {0}")]
     #[diagnostic(code(espflash::serial_error))]
-    Serial(#[source] serial::core::Error),
+    Serial(#[source] serialport::Error),
     #[error("Failed to connect to the device")]
     #[diagnostic(
         code(espflash::connection_failed),
@@ -132,18 +134,18 @@ impl Display for TimedOutCommand {
     }
 }
 
-impl From<serial::Error> for ConnectionError {
-    fn from(err: serial::Error) -> Self {
+impl From<serialport::Error> for ConnectionError {
+    fn from(err: serialport::Error) -> Self {
         match err.kind() {
-            serial::ErrorKind::Io(kind) => from_error_kind(kind, err),
-            serial::ErrorKind::NoDevice => ConnectionError::DeviceNotFound,
+            serialport::ErrorKind::Io(kind) => from_error_kind(kind, err),
+            serialport::ErrorKind::NoDevice => ConnectionError::DeviceNotFound,
             _ => ConnectionError::Serial(err),
         }
     }
 }
 
-impl From<serial::Error> for Error {
-    fn from(err: serial::Error) -> Self {
+impl From<serialport::Error> for Error {
+    fn from(err: serialport::Error) -> Self {
         Self::Connection(err.into())
     }
 }
@@ -160,7 +162,7 @@ impl From<io::Error> for Error {
     }
 }
 
-fn from_error_kind<E: Into<serial::Error>>(kind: io::ErrorKind, err: E) -> ConnectionError {
+fn from_error_kind<E: Into<serialport::Error>>(kind: io::ErrorKind, err: E) -> ConnectionError {
     match kind {
         io::ErrorKind::TimedOut => ConnectionError::Timeout(TimedOutCommand::default()),
         io::ErrorKind::NotFound => ConnectionError::DeviceNotFound,
