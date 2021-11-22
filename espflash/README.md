@@ -1,46 +1,95 @@
-# `espflash`
+# espflash
 
-__ESP32__, __ESP32-C3__, __ESP32-S2__, __ESP32-S3__, and __ESP8266__ serial flasher library and CLI application.
+Serial flasher utility for Espressif SoCs and modules.
 
-[![asciicast](https://asciinema.org/a/367205.svg)](https://asciinema.org/a/367205)
+Currently supports the **ESP32**, **ESP32-C3**, **ESP32-S2**, **ESP32-S3**, and **ESP8266**.
+
+[![asciicast](https://asciinema.org/a/UxRaCy4pretvGkghrRO0Qvypm.svg)](https://asciinema.org/a/UxRaCy4pretvGkghrRO0Qvypm)
 
 ## Installation
 
 ```shell
-cargo install espflash
+$ cargo install espflash
 ```
 
 ## Usage
 
-```bash
-$ espflash [--board-info] [--ram] <path to serial> <path to elf image>
+```text
+espflash 1.1.0
+
+USAGE:
+    espflash [OPTIONS] [ARGS] [SUBCOMMAND]
+
+ARGS:
+    <SERIAL>    Serial port connected to target device
+    <IMAGE>     ELF image to flash
+
+OPTIONS:
+        --board-info
+            Display the connected board's information (deprecated, use the `board-info` subcommand
+            instead)
+
+        --bootloader <BOOTLOADER>
+            Path to a binary (.bin) bootloader file
+
+        --format <FORMAT>
+            Image format to flash
+
+    -h, --help
+            Print help information
+
+        --monitor
+            Open a serial monitor after flashing
+
+        --partition-table <PARTITION_TABLE>
+            Path to a CSV file containing partition table
+
+        --ram
+            Load the application to RAM instead of Flash
+
+        --speed <SPEED>
+            Baud rate at which to flash target device
+
+    -V, --version
+            Print version information
+
+SUBCOMMANDS:
+    board-info    Display the connected board's information
+    help          Print this message or the help of the given subcommand(s)
+    save-image    Save the image to disk instead of flashing to device
 ```
 
-When the `--ram` option is specified, the provided ELF image will be loaded into ram and executed without touching the flash.
+## Configuration
 
-When the `--board-info` is specified, instead of flashing anything, the chip type and flash size will be printed.
+You can also specify the serial port and/or expected VID/PID values by setting them in the configuration file. This file is in different locations depending on your operating system:
 
-### Config
+| Operating System | Configuration Path                                                       |
+| :--------------- | :----------------------------------------------------------------------- |
+| **Linux:**       | `/home/alice/.config/espflash/espflash.toml`                             |
+| **Windows:**     | `C:\Users\Alice\AppData\Roaming\esp\espflash\espflash.toml`              |
+| **macOS:**       | `/Users/Alice/Library/Application Support/rs.esp.espflash/espflash.toml` |
 
-You can also specify the serial port by setting it in the config file located at `~/.config/espflash/espflash.toml` or linux
-or `%APPDATA%/esp/espflash/espflash.toml` on Windows.
+An example configuration file may look as follows (note that TOML does _not_ support hexadecimal literals):
 
 ```toml
 [connection]
 serial = "/dev/ttyUSB0"
+
+[usb_device]
+vid = 12346 # 0x303A
+pid = 32768 # 0x8000
 ```
 
+## Use as a Cargo Runner
 
-### As cargo runner
-
-You can also use `espflash` as a cargo runner by setting
+You can also use `espflash` as a Cargo runner by adding the followin to your project's `.cargo/config` file:
 
 ```
 [target.'cfg(all(target_arch = "xtensa", target_os = "none"))']
 runner = "espflash --ram /dev/ttyUSB0"
 ```
 
-in your `.cargo/config`, which then allows you to run your project using `xargo run`.
+This then allows you to run your project using `cargo run`.
 
 ## License
 
