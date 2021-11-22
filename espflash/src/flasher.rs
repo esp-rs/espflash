@@ -14,11 +14,13 @@ use crate::{
     Error, PartitionTable,
 };
 
+const DEFAULT_CONNECT_ATTEMPTS: usize = 7;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
+
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
+pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
 const FLASH_BLOCK_SIZE: usize = 0x100;
 const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
-pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
 
 // register used for chip detect
 const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
@@ -253,13 +255,36 @@ impl Flasher {
     }
 
     fn start_connection(&mut self) -> Result<(), Error> {
-        self.connection.reset_to_flash()?;
-        for _ in 0..10 {
+        let mut extra_delay = false;
+        for i in 0..DEFAULT_CONNECT_ATTEMPTS {
+            if self.connect_attempt(extra_delay).is_err() {
+                extra_delay = !extra_delay;
+
+                let delay_text = if extra_delay { "extra" } else { "default" };
+                println!("Unable to connect, retrying with {} delay...", delay_text);
+            } else {
+                // Print a blank line if more than one connection attempt was made to visually
+                // separate the status text and whatever comes next.
+                if i > 0 {
+                    println!();
+                }
+                return Ok(());
+            }
+        }
+
+        Err(Error::Connection(ConnectionError::ConnectionFailed))
+    }
+
+    fn connect_attempt(&mut self, extra_delay: bool) -> Result<(), Error> {
+        self.connection.reset_to_flash(extra_delay)?;
+
+        for _ in 0..5 {
             self.connection.flush()?;
             if self.sync().is_ok() {
                 return Ok(());
             }
         }
+
         Err(Error::Connection(ConnectionError::ConnectionFailed))
     }
 

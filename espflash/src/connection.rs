@@ -56,7 +56,7 @@ impl Connection {
         Ok(())
     }
 
-    pub fn reset_to_flash(&mut self) -> Result<(), Error> {
+    pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
         self.serial.write_data_terminal_ready(false)?;
         self.serial.write_request_to_send(true)?;
 
@@ -65,7 +65,8 @@ impl Connection {
         self.serial.write_data_terminal_ready(true)?;
         self.serial.write_request_to_send(false)?;
 
-        sleep(Duration::from_millis(50));
+        let millis = if extra_delay { 500 } else { 50 };
+        sleep(Duration::from_millis(millis));
 
         self.serial.write_data_terminal_ready(false)?;
 
