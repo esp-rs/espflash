@@ -46,6 +46,9 @@ OPTIONS:
         --monitor
             Open a serial monitor after flashing
 
+        --package <PACKAGE>
+            Specify a (binary) package within a workspace to be built
+
         --partition-table <PARTITION_TABLE>
             Path to a CSV file containing partition table
 

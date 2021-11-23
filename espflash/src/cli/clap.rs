@@ -17,6 +17,9 @@ pub struct BuildArgs {
     /// Example to build and flash
     #[clap(long)]
     pub example: Option<String>,
+    /// Specify a (binary) package within a workspace to be built
+    #[clap(long)]
+    pub package: Option<String>,
     /// Comma delimited list of build features
     #[clap(long, use_delimiter(true))]
     pub features: Option<Vec<String>>,

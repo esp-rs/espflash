@@ -10,7 +10,8 @@ pub enum Error {
     #[error("No executable artifact found")]
     #[diagnostic(
         code(cargo_espflash::no_artifact),
-        help("If you're trying to run an example you need to specify it using the `--example` argument")
+        help("If you're trying to run an example you need to specify it using the `--example` argument\n\
+              or if you're in a cargo workspace, specify the binary package with `--package`.")
     )]
     NoArtifact,
     #[error("'build-std' not configured")]

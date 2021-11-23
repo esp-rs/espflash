@@ -198,6 +198,11 @@ fn build(
         args.push(example);
     }
 
+    if let Some(package) = build_options.package.as_deref() {
+        args.push("--package");
+        args.push(package);
+    }
+
     if let Some(features) = build_options.features.as_deref() {
         args.push("--features");
         args.extend(features.iter().map(|f| f.as_str()));
