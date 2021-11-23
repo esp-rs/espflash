@@ -367,6 +367,10 @@ impl Partition {
         Ok(())
     }
 
+    pub fn offset(&self) -> u32 {
+        self.offset
+    }
+
     fn overlaps(&self, other: &Partition) -> bool {
         max(self.offset, other.offset) < min(self.offset + self.size, other.offset + other.size)
     }

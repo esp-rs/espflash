@@ -121,10 +121,16 @@ impl<'a> Esp32BootloaderFormat<'a> {
         let hash = hasher.finalize();
         data.write_all(&hash)?;
 
+        // The default partition table contains the "factory" partition, and if a user
+        // provides a partition table via command-line then the validation step confirms
+        // this is present, so it's safe to unwrap.
+        let factory_partition = partition_table.find("factory").unwrap();
+
         let flash_segment = RomSegment {
-            addr: params.app_addr,
+            addr: factory_partition.offset(),
             data: Cow::Owned(data),
         };
+
         Ok(Self {
             params,
             bootloader,
