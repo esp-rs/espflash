@@ -50,11 +50,15 @@ pub struct SaveImageOpts {
 
 fn main() -> Result<()> {
     miette::set_panic_hook();
+
     let mut opts = Opts::parse();
     let config = Config::load();
 
-    // if only a single argument is passed, it's always the elf
-    if opts.image.is_none() && config.connection.serial.is_some() {
+    // If only a single argument is passed, it's always going to be the ELF file. In
+    // the case that the serial port was not provided as a command-line argument,
+    // we will either load the value specified in the configuration file or do port
+    // auto-detection instead.
+    if opts.image.is_none() && opts.connect_args.serial.is_some() {
         swap(&mut opts.image, &mut opts.connect_args.serial);
     }
 
