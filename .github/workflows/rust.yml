@@ -148,3 +148,20 @@ jobs:
         with:
           name: cargo-espflash.exe
           path: target/x86_64-pc-windows-gnu/release/cargo-espflash.exe
+  msrv:
+    name: Check MSRV
+    runs-on: ubuntu-latest
+    steps:
+      - name: build dependencies
+        run: |
+          sudo apt-get install musl-tools libudev-dev
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.55
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
