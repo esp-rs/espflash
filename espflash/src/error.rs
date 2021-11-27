@@ -1,13 +1,19 @@
-use crate::command::CommandType;
-use crate::image_format::ImageFormatId;
-use crate::partition_table::{SubType, Type};
-use crate::Chip;
+use std::{
+    fmt::{Display, Formatter},
+    io,
+};
+
 use miette::{Diagnostic, SourceOffset, SourceSpan};
 use slip_codec::SlipError;
-use std::fmt::{Display, Formatter};
-use std::io;
 use strum::VariantNames;
 use thiserror::Error;
+
+use crate::{
+    command::CommandType,
+    image_format::ImageFormatId,
+    partition_table::{SubType, Type},
+    Chip,
+};
 
 #[derive(Error, Debug, Diagnostic)]
 #[non_exhaustive]
@@ -308,6 +314,9 @@ pub enum PartitionTableError {
     InvalidSubType(#[from] InvalidSubTypeError),
     #[error(transparent)]
     #[diagnostic(transparent)]
+    NoFactoryApp(#[from] NoFactoryAppError),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     UnalignedPartitionError(#[from] UnalignedPartitionError),
 }
 
@@ -455,6 +464,25 @@ impl InvalidSubTypeError {
             span: line_to_span(source, line),
             ty,
             sub_type,
+        }
+    }
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("No factory app partition was found")]
+#[diagnostic(
+    code(espflash::partition_table::no_factory_app),
+    help("Partition table must contain a factory app partition")
+)]
+pub struct NoFactoryAppError {
+    #[source_code]
+    source_code: String,
+}
+
+impl NoFactoryAppError {
+    pub fn new(source: &str) -> Self {
+        NoFactoryAppError {
+            source_code: source.into(),
         }
     }
 }

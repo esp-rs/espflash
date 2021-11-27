@@ -1,15 +1,18 @@
-use crate::error::{
-    CSVError, DuplicatePartitionsError, InvalidSubTypeError, OverlappingPartitionsError,
-    PartitionTableError, UnalignedPartitionError,
+use std::{
+    cmp::{max, min},
+    fmt::{Display, Formatter, Write as _},
+    io::Write,
+    ops::Rem,
 };
+
 use md5::{Context, Digest};
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize};
-use std::cmp::{max, min};
-use std::fmt::Write as _;
-use std::fmt::{Display, Formatter};
-use std::io::Write;
-use std::ops::Rem;
+
+use crate::error::{
+    CSVError, DuplicatePartitionsError, InvalidSubTypeError, NoFactoryAppError,
+    OverlappingPartitionsError, PartitionTableError, UnalignedPartitionError,
+};
 
 const MAX_PARTITION_LENGTH: usize = 0xC00;
 const PARTITION_TABLE_SIZE: usize = 0x1000;
@@ -28,16 +31,9 @@ impl Type {
         match self {
             Type::App => "'factory', 'ota_0' through 'ota_15' and 'test'".into(),
             Type::Data => {
+                use DataType::*;
                 let types = [
-                    DataType::Ota,
-                    DataType::Phy,
-                    DataType::Nvs,
-                    DataType::CoreDump,
-                    DataType::NvsKeys,
-                    DataType::EFuse,
-                    DataType::EspHttpd,
-                    DataType::Fat,
-                    DataType::Spiffs,
+                    Ota, Phy, Nvs, CoreDump, NvsKeys, EFuse, EspHttpd, Fat, Spiffs,
                 ];
 
                 let mut out = format!("'{}'", serde_plain::to_string(&types[0]).unwrap());
@@ -57,8 +53,7 @@ impl Type {
 
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let ser = serde_plain::to_string(self).unwrap();
-        write!(f, "{}", ser)
+        write!(f, "{}", serde_plain::to_string(self).unwrap())
     }
 }
 
@@ -246,6 +241,10 @@ impl PartitionTable {
         Ok(())
     }
 
+    pub fn find(&self, name: &str) -> Option<&Partition> {
+        self.partitions.iter().find(|&p| p.name == name)
+    }
+
     fn validate(&self, source: &str) -> Result<(), PartitionTableError> {
         for partition in &self.partitions {
             if let Some(line) = &partition.line {
@@ -253,6 +252,7 @@ impl PartitionTable {
                     SubType::App(_) => Type::App,
                     SubType::Data(_) => Type::Data,
                 };
+
                 if expected_type != partition.ty {
                     return Err(InvalidSubTypeError::new(
                         source,
@@ -262,6 +262,7 @@ impl PartitionTable {
                     )
                     .into());
                 }
+
                 if partition.ty == Type::App && partition.offset.rem(0x10000) != 0 {
                     return Err(UnalignedPartitionError::new(source, *line).into());
                 }
@@ -277,12 +278,14 @@ impl PartitionTable {
                                 OverlappingPartitionsError::new(source, *line1, *line2).into()
                             );
                         }
+
                         if partition1.name == partition2.name {
                             return Err(DuplicatePartitionsError::new(
                                 source, *line1, *line2, "name",
                             )
                             .into());
                         }
+
                         if partition1.sub_type == partition2.sub_type {
                             return Err(DuplicatePartitionsError::new(
                                 source, *line1, *line2, "sub-type",
@@ -294,6 +297,12 @@ impl PartitionTable {
             }
         }
 
+        if self.find("factory").is_none() {
+            return Err(PartitionTableError::NoFactoryApp(NoFactoryAppError::new(
+                source,
+            )));
+        }
+
         Ok(())
     }
 }
@@ -301,7 +310,7 @@ impl PartitionTable {
 const PARTITION_SIZE: usize = 32;
 
 #[derive(Debug, Deserialize)]
-struct Partition {
+pub struct Partition {
     #[serde(deserialize_with = "deserialize_partition_name")]
     name: String,
     ty: Type,
@@ -356,6 +365,10 @@ impl Partition {
         writer.write_all(&flags)?;
 
         Ok(())
+    }
+
+    pub fn offset(&self) -> u32 {
+        self.offset
     }
 
     fn overlaps(&self, other: &Partition) -> bool {
