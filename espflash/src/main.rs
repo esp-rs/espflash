@@ -52,7 +52,7 @@ fn main() -> Result<()> {
     miette::set_panic_hook();
 
     let mut opts = Opts::parse();
-    let config = Config::load();
+    let config = Config::load()?;
 
     // If only a single argument is passed, it's always going to be the ELF file. In
     // the case that the serial port was not provided as a command-line argument,

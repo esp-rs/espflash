@@ -38,6 +38,7 @@ miette = { version = "3", features = ["fancy"] }
 crossterm = "0.22"
 directories-next = "2"
 dialoguer = "0.9"
+serde-hex = "0.1"
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }"

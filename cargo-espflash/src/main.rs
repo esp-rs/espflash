@@ -61,7 +61,7 @@ fn main() -> Result<()> {
 
     let CargoSubCommand::Espflash(opts) = Opts::parse().sub_cmd;
 
-    let config = Config::load();
+    let config = Config::load()?;
     let metadata = CargoEspFlashMeta::load("Cargo.toml")?;
     let cargo_config = parse_cargo_config(".")?;
 

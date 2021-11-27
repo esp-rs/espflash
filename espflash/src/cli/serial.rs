@@ -23,7 +23,27 @@ pub fn get_serial_port(matches: &ConnectArgs, config: &Config) -> Result<String,
     } else if let Some(serial) = &config.connection.serial {
         Ok(serial.to_owned())
     } else if let Ok(ports) = detect_usb_serial_ports() {
-        select_serial_port(ports, &config.usb_device)
+        let (port, matches) = select_serial_port(ports, config)?;
+        match port.port_type {
+            SerialPortType::UsbPort(usb_info) if !matches => {
+                if Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Remember this serial port for future use?")
+                    .interact_opt()?
+                    .unwrap_or_default()
+                {
+                    if let Err(e) = config.save_with(|config| {
+                        config.usb_device.push(UsbDevice {
+                            vid: usb_info.vid,
+                            pid: usb_info.pid,
+                        })
+                    }) {
+                        eprintln!("Failed to save config {:#}", e);
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(port.port_name)
     } else {
         Err(Error::NoSerial)
     }
@@ -56,10 +76,11 @@ const KNOWN_DEVICES: &[UsbDevice] = &[
 
 fn select_serial_port(
     ports: Vec<SerialPortInfo>,
-    configured_devices: &[UsbDevice],
-) -> Result<String, Error> {
+    config: &Config,
+) -> Result<(SerialPortInfo, bool), Error> {
     let device_matches = |info| {
-        configured_devices
+        config
+            .usb_device
             .iter()
             .chain(KNOWN_DEVICES.iter())
             .any(|dev| dev.matches(info))
@@ -97,7 +118,15 @@ fn select_serial_port(
             .ok_or(Error::Canceled)?;
 
         match ports.get(index) {
-            Some(port_info) => Ok(port_info.port_name.to_owned()),
+            Some(
+                port_info
+                @
+                SerialPortInfo {
+                    port_type: SerialPortType::UsbPort(usb_info),
+                    ..
+                },
+            ) => Ok((port_info.clone(), device_matches(usb_info))),
+            Some(port_info) => Ok((port_info.clone(), false)),
             None => Err(Error::NoSerial),
         }
     } else if let [port] = ports.as_slice() {
@@ -108,19 +137,20 @@ fn select_serial_port(
             _ => unreachable!(),
         };
 
-        if device_matches(port_info)
-            || Confirm::with_theme(&ColorfulTheme::default())
-                .with_prompt({
-                    if let Some(product) = &port_info.product {
-                        format!("Use serial port '{}' - {}?", port_name, product)
-                    } else {
-                        format!("Use serial port '{}'?", port_name)
-                    }
-                })
-                .interact_opt()?
-                .ok_or(Error::Canceled)?
+        if device_matches(port_info) {
+            Ok((port.clone(), true))
+        } else if Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt({
+                if let Some(product) = &port_info.product {
+                    format!("Use serial port '{}' - {}?", port_name, product)
+                } else {
+                    format!("Use serial port '{}'?", port_name)
+                }
+            })
+            .interact_opt()?
+            .ok_or(Error::Canceled)?
         {
-            Ok(port_name)
+            Ok((port.clone(), false))
         } else {
             Err(Error::NoSerial)
         }
