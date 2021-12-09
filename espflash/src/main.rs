@@ -1,15 +1,16 @@
-use clap::{AppSettings, IntoApp, Parser};
-use espflash::cli::monitor::monitor;
-use espflash::{
-    cli::{clap::*, connect},
-    Chip, Config, Error, FirmwareImage, ImageFormatId, PartitionTable,
-};
-use miette::{IntoDiagnostic, Result, WrapErr};
 use std::{
     fs::{self, read, read_to_string},
     mem::swap,
     str::FromStr,
 };
+
+use clap::{AppSettings, IntoApp, Parser as _};
+use clap_derive::Parser;
+use espflash::{
+    cli::{clap::*, connect, monitor::monitor},
+    Chip, Config, Error, FirmwareImage, ImageFormatId, PartitionTable,
+};
+use miette::{IntoDiagnostic, Result, WrapErr};
 
 #[derive(Parser)]
 #[clap(global_setting = AppSettings::PropagateVersion)]

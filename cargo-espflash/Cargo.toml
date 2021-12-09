@@ -27,7 +27,8 @@ categories = [
 [dependencies]
 cargo_metadata = "0.14"
 cargo_toml = "0.10"
-clap = "3.0.0-beta.5"
+clap = "3.0.0-rc.1"
+clap_derive = "3.0.0-rc.1"
 crossterm = "0.22"
 espflash = { version = "1", path = "../espflash" }
 miette = { version = "3", features = ["fancy"] }
