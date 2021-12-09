@@ -6,7 +6,7 @@ use std::{
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
 use bytemuck::{Pod, Zeroable};
-use serialport::SerialPort;
+use serialport::{available_ports, SerialPort, SerialPortType};
 use slip_codec::SlipDecoder;
 
 use crate::{
@@ -14,6 +14,8 @@ use crate::{
     encoder::SlipEncoder,
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
 };
+
+const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
 #[derive(Debug, Copy, Clone, BinRead)]
 pub struct CommandResponse {
@@ -60,19 +62,65 @@ impl Connection {
         Ok(())
     }
 
+    // This function is probably redundant there should be another way how to get
+    // PID in src/cli/mod.rs
+    pub fn get_pid(&self) -> u16 {
+        match available_ports() {
+            Ok(ports) => {
+                for p in ports {
+                    match p.port_type {
+                        SerialPortType::UsbPort(info) => {
+                            if self.serial.name().unwrap() == p.port_name {
+                                return info.pid;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("{:?}", e);
+                eprintln!("Error listing serial ports");
+            }
+        }
+
+        0
+    }
+
     pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
-        self.serial.write_data_terminal_ready(false)?;
-        self.serial.write_request_to_send(true)?;
+        if Connection::get_pid(&self) == USB_SERIAL_JTAG_PID {
+            self.serial.write_data_terminal_ready(false)?;
+            self.serial.write_request_to_send(false)?;
 
-        sleep(Duration::from_millis(100));
+            sleep(Duration::from_millis(100));
 
-        self.serial.write_data_terminal_ready(true)?;
-        self.serial.write_request_to_send(false)?;
+            self.serial.write_data_terminal_ready(true)?;
+            self.serial.write_request_to_send(false)?;
 
-        let millis = if extra_delay { 500 } else { 50 };
-        sleep(Duration::from_millis(millis));
+            sleep(Duration::from_millis(100));
 
-        self.serial.write_data_terminal_ready(false)?;
+            self.serial.write_request_to_send(true)?;
+            self.serial.write_data_terminal_ready(false)?;
+            self.serial.write_request_to_send(true)?;
+
+            sleep(Duration::from_millis(100));
+
+            self.serial.write_data_terminal_ready(false)?;
+            self.serial.write_request_to_send(false)?;
+        } else {
+            self.serial.write_data_terminal_ready(false)?;
+            self.serial.write_request_to_send(true)?;
+
+            sleep(Duration::from_millis(100));
+
+            self.serial.write_data_terminal_ready(true)?;
+            self.serial.write_request_to_send(false)?;
+
+            let millis = if extra_delay { 500 } else { 50 };
+            sleep(Duration::from_millis(millis));
+
+            self.serial.write_data_terminal_ready(false)?;
+        }
 
         Ok(())
     }
