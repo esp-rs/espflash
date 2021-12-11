@@ -1,21 +1,25 @@
-use crate::cargo_config::CargoConfig;
-use crate::error::NoTargetError;
-use crate::{cargo_config::parse_cargo_config, error::UnsupportedTargetError};
-use cargo_metadata::Message;
-use clap::{AppSettings, Parser};
-use error::Error;
-use espflash::{
-    cli::{clap::*, connect, monitor::monitor},
-    Chip, Config, FirmwareImage, ImageFormatId, PartitionTable,
-};
-use miette::{IntoDiagnostic, Result, WrapErr};
-use package_metadata::CargoEspFlashMeta;
 use std::{
     fs,
     path::PathBuf,
     process::{exit, Command, ExitStatus, Stdio},
     str::FromStr,
 };
+
+use cargo_metadata::Message;
+use clap::{AppSettings, Parser as _};
+use clap_derive::Parser;
+use espflash::{
+    cli::{clap::*, connect, monitor::monitor},
+    Chip, Config, FirmwareImage, ImageFormatId, PartitionTable,
+};
+use miette::{IntoDiagnostic, Result, WrapErr};
+
+use crate::{
+    cargo_config::{parse_cargo_config, CargoConfig},
+    error::{Error, NoTargetError, UnsupportedTargetError},
+    package_metadata::CargoEspFlashMeta,
+};
+
 mod cargo_config;
 mod error;
 mod package_metadata;
