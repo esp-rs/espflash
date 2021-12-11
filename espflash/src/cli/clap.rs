@@ -1,4 +1,4 @@
-use clap_derive::Parser;
+use clap::Parser;
 
 #[derive(Parser)]
 pub struct ConnectArgs {

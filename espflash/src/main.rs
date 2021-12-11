@@ -4,8 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use clap::{AppSettings, IntoApp, Parser as _};
-use clap_derive::Parser;
+use clap::{AppSettings, IntoApp, Parser};
 use espflash::{
     cli::{clap::*, connect, monitor::monitor},
     Chip, Config, Error, FirmwareImage, ImageFormatId, PartitionTable,
