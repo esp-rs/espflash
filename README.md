@@ -14,7 +14,7 @@ This repository contains two applications:
 | [cargo-espflash] | Cargo subcommand for espflash                               |
 | [espflash]       | Library and `espflash` binary (_without_ Cargo integration) |
 
-> **NOTE:** requires `rustc >= 1.55.0` in order to build either application
+> **NOTE:** requires `rustc >= 1.56.0` in order to build either application
 
 ## Installation
 

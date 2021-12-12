@@ -6,7 +6,7 @@ authors = [
     "Jesse Braham <jesse@beta7.io>",
 ]
 edition = "2018"
-rust-version = "1.55"
+rust-version = "1.56"
 description = "Cargo subcommand for flashing Espressif devices over serial"
 repository = "https://github.com/esp-rs/espflash"
 license = "GPL-2.0"
