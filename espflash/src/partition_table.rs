@@ -115,6 +115,12 @@ pub enum DataType {
     Spiffs = 0x82,
 }
 
+impl DataType {
+    fn is_multiple_allowed(self) -> bool {
+        matches!(self, Self::Fat | Self::Spiffs)
+    }
+}
+
 #[derive(Debug, Deserialize, PartialEq, Copy, Clone)]
 #[allow(dead_code)]
 #[serde(untagged)]
@@ -139,6 +145,13 @@ impl SubType {
         match self {
             SubType::App(ty) => *ty as u8,
             SubType::Data(ty) => *ty as u8,
+        }
+    }
+
+    fn is_multiple_allowed(self) -> bool {
+        match self {
+            SubType::App(_) => false,
+            SubType::Data(ty) => ty.is_multiple_allowed(),
         }
     }
 }
@@ -198,7 +211,7 @@ impl PartitionTable {
             .from_reader(data.trim().as_bytes());
 
         // Default offset is 0x8000 in esp-idf, partition table size is 0x1000
-        let mut offset = 0x9000; 
+        let mut offset = 0x9000;
         let mut partitions = Vec::with_capacity(data.lines().count());
         for record in reader.records() {
             let record = record.map_err(|e| CSVError::new(e, data.clone()))?;
@@ -292,7 +305,9 @@ impl PartitionTable {
                             .into());
                         }
 
-                        if partition1.sub_type == partition2.sub_type {
+                        if partition1.sub_type == partition2.sub_type
+                            && !SubType::is_multiple_allowed(partition1.sub_type)
+                        {
                             return Err(DuplicatePartitionsError::new(
                                 source, *line1, *line2, "sub-type",
                             )
@@ -550,7 +565,7 @@ ota_0,    app,  ota_0,   0x110000, 1M,
 ota_1,    app,  ota_1,   0x210000, 1M,
 ";
 
-const PTABLE_2: &str = "
+    const PTABLE_2: &str = "
 # ESP-IDF Partition Table
 # Name,   Type, SubType, Offset,  Size, Flags
 nvs,      data, nvs,           ,  0x4000,
@@ -558,12 +573,23 @@ phy_init, data, phy,           ,  0x1000,
 factory,  app,  factory,       ,  1M,
 ";
 
-const PTABLE_3: &str = "
+    const PTABLE_3: &str = "
 # ESP-IDF Partition Table
 # Name,   Type, SubType, Offset,  Size, Flags
 nvs,      data, nvs,    0x10000,  0x4000,
 phy_init, data, phy,           ,  0x1000,
 factory,  app,  factory,       ,  1M,
+";
+
+    const PTABLE_SPIFFS: &str = "
+# ESP-IDF Partition Table
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,     0x9000,  0x4000,
+otadata,  data, ota,     0xd000,  0x2000,
+phy_init, data, phy,     0xf000,  0x1000,
+factory,  app,  factory, 0x10000,  1M,
+a,        data,  spiffs, 0x110000, 1M,
+b,        data,  spiffs, 0x210000, 1M,
 ";
 
     #[test]
@@ -600,12 +626,16 @@ factory,  app,  factory,       ,  1M,
 
         let pt1 = PartitionTable::try_from_str(PTABLE_1);
         assert!(pt1.is_ok());
+
+        let pt_spiffs = PartitionTable::try_from_str(PTABLE_SPIFFS);
+        assert!(pt_spiffs.is_ok());
     }
 
     #[test]
     fn blank_offsets_are_filled_in() {
-        let pt2 = PartitionTable::try_from_str(PTABLE_2).expect("Failed to parse partition table with blank offsets");
-        
+        let pt2 = PartitionTable::try_from_str(PTABLE_2)
+            .expect("Failed to parse partition table with blank offsets");
+
         assert_eq!(3, pt2.partitions.len());
         assert_eq!(0x4000, pt2.partitions[0].size);
         assert_eq!(0x1000, pt2.partitions[1].size);
@@ -618,8 +648,9 @@ factory,  app,  factory,       ,  1M,
 
     #[test]
     fn first_offsets_are_respected() {
-        let pt3 = PartitionTable::try_from_str(PTABLE_3).expect("Failed to parse partition table with blank offsets");
-        
+        let pt3 = PartitionTable::try_from_str(PTABLE_3)
+            .expect("Failed to parse partition table with blank offsets");
+
         assert_eq!(3, pt3.partitions.len());
         assert_eq!(0x4000, pt3.partitions[0].size);
         assert_eq!(0x1000, pt3.partitions[1].size);
