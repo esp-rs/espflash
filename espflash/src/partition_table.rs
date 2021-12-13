@@ -197,13 +197,19 @@ impl PartitionTable {
             .trim(csv::Trim::All)
             .from_reader(data.trim().as_bytes());
 
+        // Default offset is 0x8000 in esp-idf, partition table size is 0x1000
+        let mut offset = 0x9000; 
         let mut partitions = Vec::with_capacity(data.lines().count());
         for record in reader.records() {
             let record = record.map_err(|e| CSVError::new(e, data.clone()))?;
             let position = record.position();
-            let mut partition: Partition = record
+            let mut partition: DeserializedPartition = record
                 .deserialize(None)
                 .map_err(|e| CSVError::new(e, data.clone()))?;
+
+            partition.fixup_offset(&mut offset);
+
+            let mut partition = Partition::from(partition);
             partition.line = position.map(|pos| pos.line() as usize);
             partitions.push(partition);
         }
@@ -310,17 +316,63 @@ impl PartitionTable {
 const PARTITION_SIZE: usize = 32;
 
 #[derive(Debug, Deserialize)]
-pub struct Partition {
+pub struct DeserializedPartition {
     #[serde(deserialize_with = "deserialize_partition_name")]
     name: String,
     ty: Type,
     sub_type: SubType,
-    #[serde(deserialize_with = "deserialize_partition_offset_or_size")]
-    offset: u32,
-    #[serde(deserialize_with = "deserialize_partition_offset_or_size")]
+    #[serde(deserialize_with = "deserialize_partition_offset")]
+    offset: Option<u32>,
+    #[serde(deserialize_with = "deserialize_partition_size")]
     size: u32,
     flags: Option<u32>,
-    #[serde(skip)]
+}
+
+impl DeserializedPartition {
+    fn align(offset: u32, ty: Type) -> u32 {
+        let pad = match ty {
+            Type::App => 0x10000,
+            Type::Data => 4,
+        };
+
+        if offset % pad != 0 {
+            offset + pad - (offset % pad)
+        } else {
+            offset
+        }
+    }
+
+    fn fixup_offset(&mut self, offset: &mut u32) {
+        if self.offset.is_none() {
+            self.offset = Some(Self::align(*offset, self.ty));
+        }
+
+        *offset = self.offset.unwrap() + self.size;
+    }
+}
+
+impl From<DeserializedPartition> for Partition {
+    fn from(part: DeserializedPartition) -> Self {
+        Partition {
+            name: part.name,
+            ty: part.ty,
+            sub_type: part.sub_type,
+            offset: part.offset.unwrap(),
+            size: part.size,
+            flags: part.flags,
+            line: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Partition {
+    name: String,
+    ty: Type,
+    sub_type: SubType,
+    offset: u32,
+    size: u32,
+    flags: Option<u32>,
     line: Option<usize>,
 }
 
@@ -393,7 +445,7 @@ where
     Ok(maybe_truncated)
 }
 
-fn deserialize_partition_offset_or_size<'de, D>(deserializer: D) -> Result<u32, D::Error>
+fn deserialize_partition_offset_or_size<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -404,17 +456,17 @@ where
 
     // NOTE: Partitions of type 'app' must be placed at offsets aligned to 0x10000
     //       (64K).
-    // TODO: The specification states that offsets may be left blank, however that
-    //       is not presently supported in this implementation.
-    if buf.starts_with("0x") {
+    if buf.trim().is_empty() {
+        Ok(None)
+    } else if buf.starts_with("0x") {
         // Hexadecimal format
         let src = buf.trim_start_matches("0x");
         let size = u32::from_str_radix(src, 16).unwrap();
 
-        Ok(size)
+        Ok(Some(size))
     } else if let Ok(size) = buf.parse::<u32>() {
         // Decimal format
-        Ok(size)
+        Ok(Some(size))
     } else if let Some(captures) = re.captures(&buf) {
         // Size multiplier format (1k, 2M, etc.)
         let digits = captures.get(1).unwrap().as_str().parse::<u32>().unwrap();
@@ -424,10 +476,26 @@ where
             _ => unreachable!(),
         };
 
-        Ok(digits * multiplier)
+        Ok(Some(digits * multiplier))
     } else {
         Err(Error::custom("invalid partition size/offset format"))
     }
+}
+
+fn deserialize_partition_offset<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_partition_offset_or_size(deserializer)
+}
+
+fn deserialize_partition_size<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+    let deserialized = deserialize_partition_offset_or_size(deserializer)?;
+    deserialized.ok_or_else(|| Error::custom("invalid partition size/offset format"))
 }
 
 struct HashWriter<W: Write> {
@@ -482,6 +550,22 @@ ota_0,    app,  ota_0,   0x110000, 1M,
 ota_1,    app,  ota_1,   0x210000, 1M,
 ";
 
+const PTABLE_2: &str = "
+# ESP-IDF Partition Table
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,           ,  0x4000,
+phy_init, data, phy,           ,  0x1000,
+factory,  app,  factory,       ,  1M,
+";
+
+const PTABLE_3: &str = "
+# ESP-IDF Partition Table
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,    0x10000,  0x4000,
+phy_init, data, phy,           ,  0x1000,
+factory,  app,  factory,       ,  1M,
+";
+
     #[test]
     fn test_basic() {
         use std::fs::read;
@@ -516,5 +600,33 @@ ota_1,    app,  ota_1,   0x210000, 1M,
 
         let pt1 = PartitionTable::try_from_str(PTABLE_1);
         assert!(pt1.is_ok());
+    }
+
+    #[test]
+    fn blank_offsets_are_filled_in() {
+        let pt2 = PartitionTable::try_from_str(PTABLE_2).expect("Failed to parse partition table with blank offsets");
+        
+        assert_eq!(3, pt2.partitions.len());
+        assert_eq!(0x4000, pt2.partitions[0].size);
+        assert_eq!(0x1000, pt2.partitions[1].size);
+        assert_eq!(0x100000, pt2.partitions[2].size);
+
+        assert_eq!(0x9000, pt2.partitions[0].offset);
+        assert_eq!(0xd000, pt2.partitions[1].offset);
+        assert_eq!(0x10000, pt2.partitions[2].offset);
+    }
+
+    #[test]
+    fn first_offsets_are_respected() {
+        let pt3 = PartitionTable::try_from_str(PTABLE_3).expect("Failed to parse partition table with blank offsets");
+        
+        assert_eq!(3, pt3.partitions.len());
+        assert_eq!(0x4000, pt3.partitions[0].size);
+        assert_eq!(0x1000, pt3.partitions[1].size);
+        assert_eq!(0x100000, pt3.partitions[2].size);
+
+        assert_eq!(0x10000, pt3.partitions[0].offset);
+        assert_eq!(0x14000, pt3.partitions[1].offset);
+        assert_eq!(0x20000, pt3.partitions[2].offset);
     }
 }
