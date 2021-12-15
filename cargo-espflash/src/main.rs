@@ -6,8 +6,7 @@ use std::{
 };
 
 use cargo_metadata::Message;
-use clap::{AppSettings, Parser as _};
-use clap_derive::Parser;
+use clap::{AppSettings, Parser};
 use espflash::{
     cli::{clap::*, connect, monitor::monitor},
     Chip, Config, FirmwareImage, ImageFormatId, PartitionTable,

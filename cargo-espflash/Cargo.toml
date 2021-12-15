@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "1.1.0"
+version = "1.2.0"
 authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",
@@ -27,8 +27,7 @@ categories = [
 [dependencies]
 cargo_metadata = "0.14"
 cargo_toml = "0.10"
-clap = "3.0.0-rc.1"
-clap_derive = "3.0.0-rc.1"
+clap = { version = "3.0.0-rc.1", features = ["derive"] }
 crossterm = "0.22"
 espflash = { version = "1", path = "../espflash" }
 miette = { version = "3", features = ["fancy"] }

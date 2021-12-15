@@ -1,6 +1,6 @@
 [package]
 name = "espflash"
-version = "1.1.0"
+version = "1.2.0"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 rust-version = "1.56"
@@ -22,7 +22,7 @@ indicatif = "0.16"
 md5 = "0.7"
 clap = { version = "3.0.0-rc.1", features = ["derive"] }
 serialport = "4"
-sha2 = "0.9"
+sha2 = "0.10"
 slip-codec = "0.3"
 thiserror = "1"
 xmas-elf = "0.8"
