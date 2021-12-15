@@ -15,7 +15,7 @@ $ cargo install espflash
 ## Usage
 
 ```text
-espflash 1.1.0
+espflash 1.2.0
 
 USAGE:
     espflash [OPTIONS] [ARGS] [SUBCOMMAND]
