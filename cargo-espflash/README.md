@@ -90,8 +90,8 @@ An example configuration file may look as follows (note that TOML does _not_ sup
 serial = "/dev/ttyUSB0"
 
 [usb_device]
-vid = 12346 # 0x303A
-pid = 32768 # 0x8000
+vid = "303A"
+pid = "8000"
 ```
 
 ## Package Metadata
