@@ -1,4 +1,8 @@
-use std::{io::Write, thread::sleep, time::Duration};
+use std::{
+    io::{BufWriter, Write},
+    thread::sleep,
+    time::Duration,
+};
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
 use bytemuck::{Pod, Zeroable};
@@ -113,7 +117,8 @@ impl Connection {
     }
 
     pub fn write_command(&mut self, command: Command) -> Result<(), Error> {
-        let mut encoder = SlipEncoder::new(&mut self.serial)?;
+        let mut writer = BufWriter::new(&mut self.serial);
+        let mut encoder = SlipEncoder::new(&mut writer)?;
         command.write(&mut encoder)?;
         encoder.finish()?;
         Ok(())
