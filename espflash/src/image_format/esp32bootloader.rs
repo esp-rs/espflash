@@ -12,6 +12,7 @@ use crate::{
     error::{Error, FlashDetectError},
     flasher::FlashSize,
     image_format::{EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC, WP_PIN_DISABLED},
+    partition_table::Type,
     Chip, PartitionTable,
 };
 
@@ -123,8 +124,12 @@ impl<'a> Esp32BootloaderFormat<'a> {
 
         // The default partition table contains the "factory" partition, and if a user
         // provides a partition table via command-line then the validation step confirms
-        // this is present, so it's safe to unwrap.
-        let factory_partition = partition_table.find("factory").unwrap();
+        // that at least one "app" partition is present. We prefer the "factory" partition,
+        // and use any available "app" partitions if not present.
+        let factory_partition = partition_table
+            .find("factory")
+            .or_else(|| partition_table.find_by_type(Type::App))
+            .unwrap();
 
         let flash_segment = RomSegment {
             addr: factory_partition.offset(),
