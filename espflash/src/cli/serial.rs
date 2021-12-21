@@ -49,14 +49,67 @@ pub fn get_serial_port(matches: &ConnectArgs, config: &Config) -> Result<String,
     }
 }
 
+/// serialport's autodetect doesn't provide any port information when using musl linux
+/// we can do some manual parsing of sysfs to get the relevant bits without udev
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
+    use serialport::UsbPortInfo;
+    use std::fs::read_link;
+    use std::fs::read_to_string;
+    use std::path::PathBuf;
+
+    let ports = available_ports().into_diagnostic()?;
+    let ports = ports
+        .into_iter()
+        .filter_map(|port_info| {
+            // with musl, the paths we get are `/sys/class/tty/*`
+            let path = PathBuf::from(&port_info.port_name);
+
+            // this will give something like `/sys/devices/pci0000:00/0000:00:07.1/0000:0c:00.3/usb5/5-3/5-3.1/5-3.1:1.0/ttyUSB0/tty/ttyUSB0`
+            let mut parent_dev = path.canonicalize().ok()?;
+
+            // walk up 3 dirs to get to the device hosting the tty `/sys/devices/pci0000:00/0000:00:07.1/0000:0c:00.3/usb5/5-3/5-3.1/5-3.1:1.0`
+            parent_dev.pop();
+            parent_dev.pop();
+            parent_dev.pop();
+
+            // check that the device is using the usb subsystem
+            read_link(parent_dev.join("subsystem"))
+                .ok()
+                .filter(|subsystem| subsystem.ends_with("usb"))?;
+
+            let interface = read_to_string(parent_dev.join("interface"))
+                .ok()
+                .map(|s| s.trim().to_string());
+
+            // /sys/devices/pci0000:00/0000:00:07.1/0000:0c:00.3/usb5/5-3/5-3.1
+            parent_dev.pop();
+
+            let vid = read_to_string(parent_dev.join("idVendor")).ok()?;
+            let pid = read_to_string(parent_dev.join("idProduct")).ok()?;
+
+            Some(SerialPortInfo {
+                port_type: SerialPortType::UsbPort(UsbPortInfo {
+                    vid: u16::from_str_radix(vid.trim(), 16).ok()?,
+                    pid: u16::from_str_radix(pid.trim(), 16).ok()?,
+                    product: interface,
+                    serial_number: None,
+                    manufacturer: None,
+                }),
+                port_name: format!("/dev/{}", path.file_name()?.to_str()?),
+            })
+        })
+        .collect::<Vec<_>>();
+
+    Ok(ports)
+}
+
+#[cfg(not(all(target_os = "linux", target_env = "musl")))]
 fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
     let ports = available_ports().into_diagnostic()?;
     let ports = ports
-        .iter()
-        .filter_map(|port_info| match port_info.port_type {
-            SerialPortType::UsbPort(..) => Some(port_info.to_owned()),
-            _ => None,
-        })
+        .into_iter()
+        .filter(|port_info| matches!(&port_info.port_type, SerialPortType::UsbPort(..)))
         .collect::<Vec<_>>();
 
     Ok(ports)
