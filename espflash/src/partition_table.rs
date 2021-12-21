@@ -10,7 +10,7 @@ use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::{
-    CSVError, DuplicatePartitionsError, InvalidSubTypeError, NoFactoryAppError,
+    CSVError, DuplicatePartitionsError, InvalidSubTypeError, NoAppError,
     OverlappingPartitionsError, PartitionTableError, UnalignedPartitionError,
 };
 
@@ -264,6 +264,10 @@ impl PartitionTable {
         self.partitions.iter().find(|&p| p.name == name)
     }
 
+    pub fn find_by_type(&self, ty: Type) -> Option<&Partition> {
+        self.partitions.iter().find(|&p| p.ty == ty)
+    }
+
     fn validate(&self, source: &str) -> Result<(), PartitionTableError> {
         for partition in &self.partitions {
             if let Some(line) = &partition.line {
@@ -318,10 +322,8 @@ impl PartitionTable {
             }
         }
 
-        if self.find("factory").is_none() {
-            return Err(PartitionTableError::NoFactoryApp(NoFactoryAppError::new(
-                source,
-            )));
+        if self.find_by_type(Type::App).is_none() {
+            return Err(PartitionTableError::NoApp(NoAppError::new(source)));
         }
 
         Ok(())
@@ -592,6 +594,24 @@ a,        data,  spiffs, 0x110000, 1M,
 b,        data,  spiffs, 0x210000, 1M,
 ";
 
+    const PTABLE_NO_FACTORY: &str = "
+# ESP-IDF Partition Table
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,     0x9000,  0x4000,
+otadata,  data, ota,     0xd000,  0x2000,
+phy_init, data, phy,     0xf000,  0x1000,
+ota_0,    app,  ota_0,   , 1M,
+ota_1,    app,  ota_1,   , 1M,
+";
+
+    const PTABLE_NO_APP: &str = "
+# ESP-IDF Partition Table
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,     0x9000,  0x4000,
+otadata,  data, ota,     0xd000,  0x2000,
+phy_init, data, phy,     0xf000,  0x1000,
+";
+
     #[test]
     fn test_basic() {
         use std::fs::read;
@@ -629,6 +649,11 @@ b,        data,  spiffs, 0x210000, 1M,
 
         let pt_spiffs = PartitionTable::try_from_str(PTABLE_SPIFFS);
         assert!(pt_spiffs.is_ok());
+
+        PartitionTable::try_from_str(PTABLE_NO_FACTORY)
+            .expect("Failed to parse partition table without factory partition");
+        PartitionTable::try_from_str(PTABLE_NO_APP)
+            .expect_err("Failed to reject partition table without factory or ota partition");
     }
 
     #[test]
