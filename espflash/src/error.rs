@@ -314,7 +314,7 @@ pub enum PartitionTableError {
     InvalidSubType(#[from] InvalidSubTypeError),
     #[error(transparent)]
     #[diagnostic(transparent)]
-    NoFactoryApp(#[from] NoFactoryAppError),
+    NoApp(#[from] NoAppError),
     #[error(transparent)]
     #[diagnostic(transparent)]
     UnalignedPartitionError(#[from] UnalignedPartitionError),
@@ -469,19 +469,19 @@ impl InvalidSubTypeError {
 }
 
 #[derive(Debug, Error, Diagnostic)]
-#[error("No factory app partition was found")]
+#[error("No app partition was found")]
 #[diagnostic(
-    code(espflash::partition_table::no_factory_app),
-    help("Partition table must contain a factory app partition")
+    code(espflash::partition_table::no_app),
+    help("Partition table must contain a factory or ota app partition")
 )]
-pub struct NoFactoryAppError {
+pub struct NoAppError {
     #[source_code]
     source_code: String,
 }
 
-impl NoFactoryAppError {
+impl NoAppError {
     pub fn new(source: &str) -> Self {
-        NoFactoryAppError {
+        NoAppError {
             source_code: source.into(),
         }
     }
