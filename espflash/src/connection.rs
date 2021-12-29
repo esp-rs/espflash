@@ -108,25 +108,19 @@ impl Connection {
     }
 
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
-        const RESPONSE_LEN: usize = std::mem::size_of::<CommandResponse>();
-
-        let mut response = self.read()?;
-        self.buffer.extend(&response);
-        if self.buffer.len() < RESPONSE_LEN {
-            return Ok(None);
+        match self.read(10)? {
+            None => return Ok(None),
+            Some(response) => {
+                let mut cursor = Cursor::new(response);
+                let header = cursor.read_le()?;
+                Ok(Some(header))
+            }
         }
-
-        // reuse response alloc
-        response.clear();
-        response.extend(self.buffer.drain(0..RESPONSE_LEN));
-
-        let mut cursor = Cursor::new(response);
-        let header = cursor.read_le()?;
-
-        Ok(Some(header))
     }
 
     pub fn write_command(&mut self, command: Command) -> Result<(), Error> {
+        self.buffer.clear();
+        self.serial.clear(serialport::ClearBuffer::Input)?;
         let mut writer = BufWriter::new(&mut self.serial);
         let mut encoder = SlipEncoder::new(&mut writer)?;
         command.write(&mut encoder)?;
@@ -177,13 +171,24 @@ impl Connection {
         Ok(())
     }
 
-    fn read(&mut self) -> Result<Vec<u8>, Error> {
+    fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
         let mut output = Vec::with_capacity(1024);
         self.decoder.decode(&mut self.serial, &mut output)?;
-        Ok(output)
+
+        self.buffer.extend(&output);
+        if self.buffer.len() < len {
+            return Ok(None);
+        }
+
+        // reuse allocation
+        output.clear();
+        output.extend(self.buffer.drain(..));
+
+        Ok(Some(output))
     }
 
     pub fn flush(&mut self) -> Result<(), Error> {
+        self.buffer.clear();
         self.serial.flush()?;
         Ok(())
     }
