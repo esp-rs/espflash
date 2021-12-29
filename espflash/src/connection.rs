@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     io::{BufWriter, Write},
     thread::sleep,
     time::Duration,
@@ -28,6 +29,7 @@ pub struct CommandResponse {
 pub struct Connection {
     serial: Box<dyn SerialPort>,
     decoder: SlipDecoder,
+    buffer: VecDeque<u8>,
 }
 
 #[derive(Zeroable, Pod, Copy, Clone, Debug)]
@@ -44,6 +46,7 @@ impl Connection {
         Connection {
             serial,
             decoder: SlipDecoder::new(),
+            buffer: VecDeque::with_capacity(128),
         }
     }
 
@@ -105,10 +108,17 @@ impl Connection {
     }
 
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
-        let response = self.read()?;
-        if response.len() < 10 {
+        const RESPONSE_LEN: usize = std::mem::size_of::<CommandResponse>();
+
+        let mut response = self.read()?;
+        self.buffer.extend(&response);
+        if self.buffer.len() < RESPONSE_LEN {
             return Ok(None);
         }
+
+        // reuse response alloc
+        response.clear();
+        response.extend(self.buffer.drain(0..RESPONSE_LEN));
 
         let mut cursor = Cursor::new(response);
         let header = cursor.read_le()?;
