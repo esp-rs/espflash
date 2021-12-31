@@ -14,7 +14,7 @@ pub struct Esp32DirectBootFormat<'a> {
 impl<'a> Esp32DirectBootFormat<'a> {
     pub fn new(image: &'a FirmwareImage) -> Result<Self, Error> {
         let mut segment = image
-            .segments()
+            .segments_with_load_addresses()
             .map(|mut segment| {
                 // map address to the first 4MB
                 segment.addr %= 0x400000;
