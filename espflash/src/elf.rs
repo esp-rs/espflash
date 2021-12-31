@@ -7,6 +7,7 @@ use crate::flasher::FlashSize;
 use std::fmt::{Debug, Formatter};
 use std::mem::take;
 use std::ops::AddAssign;
+use xmas_elf::program::Type;
 use xmas_elf::sections::{SectionData, ShType};
 use xmas_elf::ElfFile;
 
@@ -74,6 +75,21 @@ impl<'a> FirmwareImage<'a> {
                     Ok(SectionData::Undefined(data)) => data,
                     _ => return None,
                 };
+                Some(CodeSegment::new(addr, data))
+            })
+    }
+
+    pub fn segments_with_load_addresses(&'a self) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
+        self.elf
+            .program_iter()
+            .filter(|header| {
+                header.file_size() > 0 && header.get_type() == Ok(Type::Load) && header.offset() > 0
+            })
+            .flat_map(move |header| {
+                let addr = header.physical_addr() as u32;
+                let from = header.offset() as usize;
+                let to = header.offset() as usize + header.file_size() as usize;
+                let data = &self.elf.input[from..to];
                 Some(CodeSegment::new(addr, data))
             })
     }
