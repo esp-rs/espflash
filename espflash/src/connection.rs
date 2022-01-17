@@ -109,7 +109,7 @@ impl Connection {
 
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
         match self.read(10)? {
-            None => return Ok(None),
+            None => Ok(None),
             Some(response) => {
                 let mut cursor = Cursor::new(response);
                 let header = cursor.read_le()?;
