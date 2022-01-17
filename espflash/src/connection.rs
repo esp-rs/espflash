@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     io::{BufWriter, Write},
     thread::sleep,
     time::Duration,
@@ -28,6 +29,7 @@ pub struct CommandResponse {
 pub struct Connection {
     serial: Box<dyn SerialPort>,
     decoder: SlipDecoder,
+    buffer: VecDeque<u8>,
 }
 
 #[derive(Zeroable, Pod, Copy, Clone, Debug)]
@@ -44,6 +46,7 @@ impl Connection {
         Connection {
             serial,
             decoder: SlipDecoder::new(),
+            buffer: VecDeque::with_capacity(128),
         }
     }
 
@@ -105,18 +108,19 @@ impl Connection {
     }
 
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
-        let response = self.read()?;
-        if response.len() < 10 {
-            return Ok(None);
+        match self.read(10)? {
+            None => Ok(None),
+            Some(response) => {
+                let mut cursor = Cursor::new(response);
+                let header = cursor.read_le()?;
+                Ok(Some(header))
+            }
         }
-
-        let mut cursor = Cursor::new(response);
-        let header = cursor.read_le()?;
-
-        Ok(Some(header))
     }
 
     pub fn write_command(&mut self, command: Command) -> Result<(), Error> {
+        self.buffer.clear();
+        self.serial.clear(serialport::ClearBuffer::Input)?;
         let mut writer = BufWriter::new(&mut self.serial);
         let mut encoder = SlipEncoder::new(&mut writer)?;
         command.write(&mut encoder)?;
@@ -167,13 +171,24 @@ impl Connection {
         Ok(())
     }
 
-    fn read(&mut self) -> Result<Vec<u8>, Error> {
+    fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
         let mut output = Vec::with_capacity(1024);
         self.decoder.decode(&mut self.serial, &mut output)?;
-        Ok(output)
+
+        self.buffer.extend(&output);
+        if self.buffer.len() < len {
+            return Ok(None);
+        }
+
+        // reuse allocation
+        output.clear();
+        output.extend(self.buffer.drain(..));
+
+        Ok(Some(output))
     }
 
     pub fn flush(&mut self) -> Result<(), Error> {
+        self.buffer.clear();
         self.serial.flush()?;
         Ok(())
     }
