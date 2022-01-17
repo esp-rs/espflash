@@ -7,6 +7,10 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
+      - name: Change apt mirror
+        run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
       - name: build dependencies
         run: |
           sudo apt-get install musl-tools libudev-dev
@@ -25,6 +29,10 @@ jobs:
     name: Doc Test
     runs-on: ubuntu-latest
     steps:
+      - name: Change apt mirror
+        run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
       - name: build dependencies
         run: |
           sudo apt-get install musl-tools libudev-dev
@@ -44,6 +52,10 @@ jobs:
     name: Unit Test
     runs-on: ubuntu-latest
     steps:
+      - name: Change apt mirror
+        run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
       - name: build dependencies
         run: |
           sudo apt-get install musl-tools libudev-dev
@@ -63,6 +75,10 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
+      - name: Change apt mirror
+        run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
@@ -80,6 +96,10 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
+      - name: Change apt mirror
+        run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
       - name: build dependencies
         run: |
           sudo apt-get install musl-tools libudev-dev
@@ -148,10 +168,15 @@ jobs:
         with:
           name: cargo-espflash.exe
           path: target/x86_64-pc-windows-gnu/release/cargo-espflash.exe
+
   msrv:
     name: Check MSRV
     runs-on: ubuntu-latest
     steps:
+      - name: Change apt mirror
+        run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
       - name: build dependencies
         run: |
           sudo apt-get install musl-tools libudev-dev
