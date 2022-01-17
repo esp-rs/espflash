@@ -6,7 +6,7 @@ use std::{
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
 use bytemuck::{Pod, Zeroable};
-use serialport::{available_ports, SerialPort, SerialPortType};
+use serialport::{SerialPort, UsbPortInfo};
 use slip_codec::SlipDecoder;
 
 use crate::{
@@ -29,6 +29,7 @@ pub struct CommandResponse {
 
 pub struct Connection {
     serial: Box<dyn SerialPort>,
+    port_info: UsbPortInfo,
     decoder: SlipDecoder,
 }
 
@@ -42,9 +43,10 @@ struct WriteRegParams {
 }
 
 impl Connection {
-    pub fn new(serial: Box<dyn SerialPort>) -> Self {
+    pub fn new(serial: Box<dyn SerialPort>, port_info: UsbPortInfo) -> Self {
         Connection {
             serial,
+            port_info,
             decoder: SlipDecoder::new(),
         }
     }
@@ -62,33 +64,8 @@ impl Connection {
         Ok(())
     }
 
-    // This function is probably redundant there should be another way how to get
-    // PID in src/cli/mod.rs
-    pub fn get_pid(&self) -> u16 {
-        match available_ports() {
-            Ok(ports) => {
-                for p in ports {
-                    match p.port_type {
-                        SerialPortType::UsbPort(info) => {
-                            if self.serial.name().unwrap() == p.port_name {
-                                return info.pid;
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("{:?}", e);
-                eprintln!("Error listing serial ports");
-            }
-        }
-
-        0
-    }
-
     pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
-        if Connection::get_pid(&self) == USB_SERIAL_JTAG_PID {
+        if self.port_info.pid == USB_SERIAL_JTAG_PID {
             self.serial.write_data_terminal_ready(false)?;
             self.serial.write_request_to_send(false)?;
 

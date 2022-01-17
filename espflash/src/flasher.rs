@@ -1,7 +1,7 @@
 use std::{borrow::Cow, thread::sleep};
 
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
-use serialport::SerialPort;
+use serialport::{SerialPort, UsbPortInfo};
 use strum_macros::Display;
 
 use crate::{
@@ -151,10 +151,14 @@ pub struct Flasher {
 }
 
 impl Flasher {
-    pub fn connect(serial: Box<dyn SerialPort>, speed: Option<u32>) -> Result<Self, Error> {
+    pub fn connect(
+        serial: Box<dyn SerialPort>,
+        port_info: UsbPortInfo,
+        speed: Option<u32>,
+    ) -> Result<Self, Error> {
         let mut flasher = Flasher {
-            connection: Connection::new(serial), // default baud is always 115200
-            chip: Chip::Esp8266,                 // dummy, set properly later
+            connection: Connection::new(serial, port_info), // default baud is always 115200
+            chip: Chip::Esp8266,                            // dummy, set properly later
             flash_size: FlashSize::Flash4Mb,
             spi_params: SpiAttachParams::default(), // may be set when trying to attach to flash
         };
@@ -165,7 +169,7 @@ impl Flasher {
 
         if let Some(b) = speed {
             match flasher.chip {
-                Chip::Esp8266 => (), /* Not available */
+                Chip::Esp8266 => (), // Not available
                 _ => {
                     if b > 115_200 {
                         println!("WARN setting baud rate higher than 115200 can cause issues.");
