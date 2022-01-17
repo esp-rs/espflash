@@ -172,9 +172,7 @@ fn select_serial_port(
 
         match ports.get(index) {
             Some(
-                port_info
-                @
-                SerialPortInfo {
+                port_info @ SerialPortInfo {
                     port_type: SerialPortType::UsbPort(usb_info),
                     ..
                 },
