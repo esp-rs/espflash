@@ -25,7 +25,7 @@ pub fn get_serial_port_info(
         find_serial_port(&ports, serial.to_owned())
     } else if let Some(serial) = &config.connection.serial {
         find_serial_port(&ports, serial.to_owned())
-    } else if ports.len() > 0 {
+    } else if !ports.is_empty() {
         let (port, matches) = select_serial_port(ports, config)?;
         match &port.port_type {
             SerialPortType::UsbPort(usb_info) if !matches => {
@@ -61,7 +61,7 @@ pub fn get_serial_port_info(
 
 /// Given a vector of `SerialPortInfo` structs, attempt to find and return one
 /// whose `port_name` field matches the provided `name` argument.
-fn find_serial_port(ports: &Vec<SerialPortInfo>, name: String) -> Option<SerialPortInfo> {
+fn find_serial_port(ports: &[SerialPortInfo], name: String) -> Option<SerialPortInfo> {
     ports
         .iter()
         .find(|port| port.port_name == name)
