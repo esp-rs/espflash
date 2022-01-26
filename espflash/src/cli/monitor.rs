@@ -84,6 +84,7 @@ pub fn monitor(mut serial: Box<dyn SerialPort>) -> serialport::Result<()> {
     println!();
 
     let mut buff = [0; 128];
+    serial.set_baud_rate(115_200)?;
     serial.set_timeout(Duration::from_millis(5))?;
 
     let _raw_mode = RawModeGuard::new();
