@@ -225,6 +225,7 @@ impl Flasher {
         self.connection
             .with_timeout(CommandType::Sync.timeout(), |connection| {
                 connection.write_command(Command::Sync)?;
+                connection.flush()?;
 
                 for _ in 0..100 {
                     match connection.read_response()? {

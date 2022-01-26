@@ -1,5 +1,4 @@
 use std::{
-    collections::VecDeque,
     io::{BufWriter, Write},
     thread::sleep,
     time::Duration,
@@ -29,7 +28,6 @@ pub struct CommandResponse {
 pub struct Connection {
     serial: Box<dyn SerialPort>,
     decoder: SlipDecoder,
-    buffer: VecDeque<u8>,
 }
 
 #[derive(Zeroable, Pod, Copy, Clone, Debug)]
@@ -46,7 +44,6 @@ impl Connection {
         Connection {
             serial,
             decoder: SlipDecoder::new(),
-            buffer: VecDeque::with_capacity(128),
         }
     }
 
@@ -119,7 +116,6 @@ impl Connection {
     }
 
     pub fn write_command(&mut self, command: Command) -> Result<(), Error> {
-        self.buffer.clear();
         self.serial.clear(serialport::ClearBuffer::Input)?;
         let mut writer = BufWriter::new(&mut self.serial);
         let mut encoder = SlipEncoder::new(&mut writer)?;
@@ -172,23 +168,16 @@ impl Connection {
     }
 
     fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
-        let mut output = Vec::with_capacity(1024);
-        self.decoder.decode(&mut self.serial, &mut output)?;
-
-        self.buffer.extend(&output);
-        if self.buffer.len() < len {
-            return Ok(None);
+        let mut tmp = Vec::with_capacity(1024);
+        loop {
+            self.decoder.decode(&mut self.serial, &mut tmp)?;
+            if tmp.len() >= len {
+                return Ok(Some(tmp));
+            }
         }
-
-        // reuse allocation
-        output.clear();
-        output.extend(self.buffer.drain(..));
-
-        Ok(Some(output))
     }
 
     pub fn flush(&mut self) -> Result<(), Error> {
-        self.buffer.clear();
         self.serial.flush()?;
         Ok(())
     }
