@@ -26,14 +26,14 @@ categories = [
 
 [dependencies]
 cargo_metadata = "0.14"
-cargo_toml = "0.10"
-clap = { version = "3.0.0-rc.1", features = ["derive"] }
+cargo_toml = "0.11"
+clap = { version = "3.0", features = ["derive"] }
 crossterm = "0.22"
 espflash = { version = "1", path = "../espflash" }
 miette = { version = "3", features = ["fancy"] }
 serde = { version = "1", features = ["derive"] }
+thiserror = "1.0"
 toml = "0.5"
-thiserror = "1"
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }"
