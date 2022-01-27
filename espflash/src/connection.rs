@@ -6,7 +6,7 @@ use std::{
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
 use bytemuck::{Pod, Zeroable};
-use serialport::SerialPort;
+use serialport::{SerialPort, UsbPortInfo};
 use slip_codec::SlipDecoder;
 
 use crate::{
@@ -14,6 +14,8 @@ use crate::{
     encoder::SlipEncoder,
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
 };
+
+const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
 #[derive(Debug, Copy, Clone, BinRead)]
 pub struct CommandResponse {
@@ -27,6 +29,7 @@ pub struct CommandResponse {
 
 pub struct Connection {
     serial: Box<dyn SerialPort>,
+    port_info: UsbPortInfo,
     decoder: SlipDecoder,
 }
 
@@ -40,9 +43,10 @@ struct WriteRegParams {
 }
 
 impl Connection {
-    pub fn new(serial: Box<dyn SerialPort>) -> Self {
+    pub fn new(serial: Box<dyn SerialPort>, port_info: UsbPortInfo) -> Self {
         Connection {
             serial,
+            port_info,
             decoder: SlipDecoder::new(),
         }
     }
@@ -61,18 +65,39 @@ impl Connection {
     }
 
     pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
-        self.serial.write_data_terminal_ready(false)?;
-        self.serial.write_request_to_send(true)?;
+        if self.port_info.pid == USB_SERIAL_JTAG_PID {
+            self.serial.write_data_terminal_ready(false)?;
+            self.serial.write_request_to_send(false)?;
 
-        sleep(Duration::from_millis(100));
+            sleep(Duration::from_millis(100));
 
-        self.serial.write_data_terminal_ready(true)?;
-        self.serial.write_request_to_send(false)?;
+            self.serial.write_data_terminal_ready(true)?;
+            self.serial.write_request_to_send(false)?;
 
-        let millis = if extra_delay { 500 } else { 50 };
-        sleep(Duration::from_millis(millis));
+            sleep(Duration::from_millis(100));
 
-        self.serial.write_data_terminal_ready(false)?;
+            self.serial.write_request_to_send(true)?;
+            self.serial.write_data_terminal_ready(false)?;
+            self.serial.write_request_to_send(true)?;
+
+            sleep(Duration::from_millis(100));
+
+            self.serial.write_data_terminal_ready(false)?;
+            self.serial.write_request_to_send(false)?;
+        } else {
+            self.serial.write_data_terminal_ready(false)?;
+            self.serial.write_request_to_send(true)?;
+
+            sleep(Duration::from_millis(100));
+
+            self.serial.write_data_terminal_ready(true)?;
+            self.serial.write_request_to_send(false)?;
+
+            let millis = if extra_delay { 500 } else { 50 };
+            sleep(Duration::from_millis(millis));
+
+            self.serial.write_data_terminal_ready(false)?;
+        }
 
         Ok(())
     }

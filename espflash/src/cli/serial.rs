@@ -1,30 +1,33 @@
-use super::config::Config;
 use crossterm::style::Stylize;
 use dialoguer::{theme::ColorfulTheme, Confirm, Select};
 use miette::{IntoDiagnostic, Result};
 use serialport::{available_ports, SerialPortInfo, SerialPortType};
 
-use super::clap::ConnectArgs;
-use crate::cli::config::UsbDevice;
-use crate::error::Error;
+use super::{clap::ConnectArgs, config::Config};
+use crate::{cli::config::UsbDevice, error::Error};
 
-pub fn get_serial_port(matches: &ConnectArgs, config: &Config) -> Result<String, Error> {
+pub fn get_serial_port_info(
+    matches: &ConnectArgs,
+    config: &Config,
+) -> Result<SerialPortInfo, Error> {
     // A serial port should be specified either as a command-line argument or in a
     // configuration file. In the case that both have been provided the command-line
     // argument takes precedence.
     //
     // Users may optionally specify the device's VID and PID in the configuration
-    // file. If no VID/PID have been provided, the user will always be prompted to
-    // select a serial device. If some VID/PID have been provided the user will be
-    // prompted to select a serial device, unless there is only one found and its
-    // VID/PID matches the configured values.
-    if let Some(serial) = &matches.serial {
-        Ok(serial.to_owned())
+    // file. If no VID/PID has been provided, the user will always be prompted to
+    // select a serial port. If some VID and PID were provided then the user will
+    // also be prompted to select a port, unless there is only one found and its VID
+    // and PID match the configured values.
+    let ports = detect_usb_serial_ports().unwrap_or_default();
+
+    let maybe_port = if let Some(serial) = &matches.serial {
+        find_serial_port(&ports, serial.to_owned())
     } else if let Some(serial) = &config.connection.serial {
-        Ok(serial.to_owned())
-    } else if let Ok(ports) = detect_usb_serial_ports() {
+        find_serial_port(&ports, serial.to_owned())
+    } else if !ports.is_empty() {
         let (port, matches) = select_serial_port(ports, config)?;
-        match port.port_type {
+        match &port.port_type {
             SerialPortType::UsbPort(usb_info) if !matches => {
                 if Confirm::with_theme(&ColorfulTheme::default())
                     .with_prompt("Remember this serial port for future use?")
@@ -43,20 +46,39 @@ pub fn get_serial_port(matches: &ConnectArgs, config: &Config) -> Result<String,
             }
             _ => {}
         }
-        Ok(port.port_name)
+
+        Some(port)
+    } else {
+        None
+    };
+
+    if let Some(port_info) = maybe_port {
+        Ok(port_info)
     } else {
         Err(Error::NoSerial)
     }
 }
 
-/// serialport's autodetect doesn't provide any port information when using musl linux
-/// we can do some manual parsing of sysfs to get the relevant bits without udev
+/// Given a vector of `SerialPortInfo` structs, attempt to find and return one
+/// whose `port_name` field matches the provided `name` argument.
+fn find_serial_port(ports: &[SerialPortInfo], name: String) -> Option<SerialPortInfo> {
+    ports
+        .iter()
+        .find(|port| port.port_name == name)
+        .map(|port| port.to_owned())
+}
+
+/// serialport's autodetect doesn't provide any port information when using musl
+/// linux we can do some manual parsing of sysfs to get the relevant bits
+/// without udev
 #[cfg(all(target_os = "linux", target_env = "musl"))]
 fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
+    use std::{
+        fs::{read_link, read_to_string},
+        path::PathBuf,
+    };
+
     use serialport::UsbPortInfo;
-    use std::fs::read_link;
-    use std::fs::read_to_string;
-    use std::path::PathBuf;
 
     let ports = available_ports().into_diagnostic()?;
     let ports = ports
