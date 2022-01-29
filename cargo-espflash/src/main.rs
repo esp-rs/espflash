@@ -211,6 +211,13 @@ fn build(
         args.extend(features.iter().map(|f| f.as_str()));
     }
 
+    if let Some(unstable) = build_options.unstable.as_deref() {
+        for item in unstable.iter() {
+            args.push("-Z");
+            args.push(item);
+        }
+    }
+
     // Invoke the 'cargo build' command, passing our list of arguments.
     let output = Command::new("cargo")
         .arg("build")

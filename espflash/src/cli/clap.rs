@@ -29,6 +29,9 @@ pub struct BuildArgs {
     /// Target to build for
     #[clap(long)]
     pub target: Option<String>,
+    /// Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details
+    #[clap(short = 'Z')]
+    pub unstable: Option<Vec<String>>,
 }
 
 #[derive(Parser)]
