@@ -9,11 +9,8 @@ use cargo_metadata::Message;
 use clap::{AppSettings, Parser};
 use espflash::{
     cli::{
-        board_info,
-        clap::{ConnectOpts, FlashOpts},
-        connect, flash_elf_image,
-        monitor::monitor,
-        save_elf_as_image,
+        board_info, connect, flash_elf_image, monitor::monitor, save_elf_as_image, ConnectOpts,
+        FlashOpts,
     },
     Chip, Config, ImageFormatId,
 };
@@ -60,7 +57,6 @@ pub enum SubCommand {
     SaveImage(SaveImageOpts),
 }
 
-/// Build the specified project/package using the provided options
 #[derive(Parser)]
 pub struct BuildOpts {
     /// Build the application using the release profile

@@ -7,22 +7,46 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use clap::Parser;
 use config::Config;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{FlowControl, SerialPortType};
 
-use self::clap::ConnectOpts;
 use crate::{
     cli::serial::get_serial_port_info, error::Error, Chip, FirmwareImage, Flasher, ImageFormatId,
     PartitionTable,
 };
 
-pub mod clap;
 pub mod config;
 pub mod monitor;
 
 mod line_endings;
 mod serial;
+
+#[derive(Parser)]
+pub struct ConnectOpts {
+    /// Serial port connected to target device
+    pub serial: Option<String>,
+    /// Baud rate at which to flash target device
+    #[clap(long)]
+    pub speed: Option<u32>,
+}
+
+#[derive(Parser)]
+pub struct FlashOpts {
+    /// Load the application to RAM instead of Flash
+    #[clap(long)]
+    pub ram: bool,
+    /// Path to a binary (.bin) bootloader file
+    #[clap(long)]
+    pub bootloader: Option<PathBuf>,
+    /// Path to a CSV file containing partition table
+    #[clap(long)]
+    pub partition_table: Option<PathBuf>,
+    /// Open a serial monitor after flashing
+    #[clap(long)]
+    pub monitor: bool,
+}
 
 pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
     let port_info = get_serial_port_info(opts, config)?;

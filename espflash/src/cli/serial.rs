@@ -3,7 +3,7 @@ use dialoguer::{theme::ColorfulTheme, Confirm, Select};
 use miette::{IntoDiagnostic, Result};
 use serialport::{available_ports, SerialPortInfo, SerialPortType};
 
-use super::{clap::ConnectOpts, config::Config};
+use super::{config::Config, ConnectOpts};
 use crate::{cli::config::UsbDevice, error::Error};
 
 pub fn get_serial_port_info(

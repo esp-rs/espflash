@@ -3,11 +3,8 @@ use std::{fs, mem::swap, path::PathBuf, str::FromStr};
 use clap::{AppSettings, IntoApp, Parser};
 use espflash::{
     cli::{
-        board_info,
-        clap::{ConnectOpts, FlashOpts},
-        connect, flash_elf_image,
-        monitor::monitor,
-        save_elf_as_image,
+        board_info, connect, flash_elf_image, monitor::monitor, save_elf_as_image, ConnectOpts,
+        FlashOpts,
     },
     Chip, Config, ImageFormatId,
 };
