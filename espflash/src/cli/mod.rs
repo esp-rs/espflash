@@ -1,12 +1,17 @@
-/// CLI utilities shared between espflash and cargo-espflash
-///
-/// No stability guaranties apply
+//! CLI utilities shared between espflash and cargo-espflash
+//!
+//! No stability guaranties apply
+
+use std::{fs, path::PathBuf};
+
 use config::Config;
-use miette::{Result, WrapErr};
+use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{FlowControl, SerialPortType};
 
-use self::clap::ConnectArgs;
-use crate::{cli::serial::get_serial_port_info, error::Error, Flasher};
+use self::clap::ConnectOpts;
+use crate::{
+    cli::serial::get_serial_port_info, error::Error, Chip, FirmwareImage, Flasher, ImageFormatId,
+};
 
 pub mod clap;
 pub mod config;
@@ -15,8 +20,8 @@ pub mod monitor;
 mod line_endings;
 mod serial;
 
-pub fn connect(matches: &ConnectArgs, config: &Config) -> Result<Flasher> {
-    let port_info = get_serial_port_info(matches, config)?;
+pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
+    let port_info = get_serial_port_info(opts, config)?;
 
     // Attempt to open the serial port and set its initial baud rate.
     println!("Serial port: {}", port_info.port_name);
@@ -34,5 +39,36 @@ pub fn connect(matches: &ConnectArgs, config: &Config) -> Result<Flasher> {
         _ => unreachable!(),
     };
 
-    Ok(Flasher::connect(serial, port_info, matches.speed)?)
+    Ok(Flasher::connect(serial, port_info, opts.speed)?)
+}
+
+pub fn board_info(opts: ConnectOpts, config: Config) -> Result<()> {
+    let mut flasher = connect(&opts, &config)?;
+    flasher.board_info()?;
+
+    Ok(())
+}
+
+pub fn save_elf_as_image(
+    chip: Chip,
+    elf_data: &[u8],
+    path: PathBuf,
+    image_format: Option<ImageFormatId>,
+) -> Result<()> {
+    let image = FirmwareImage::from_data(elf_data)?;
+
+    let flash_image = chip.get_flash_image(&image, None, None, image_format, None)?;
+    let parts: Vec<_> = flash_image.ota_segments().collect();
+
+    match parts.as_slice() {
+        [single] => fs::write(path, &single.data).into_diagnostic()?,
+        parts => {
+            for part in parts {
+                let part_path = format!("{:#x}_{}", part.addr, path.display());
+                fs::write(part_path, &part.data).into_diagnostic()?
+            }
+        }
+    }
+
+    Ok(())
 }

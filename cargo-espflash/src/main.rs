@@ -8,8 +8,14 @@ use std::{
 use cargo_metadata::Message;
 use clap::{AppSettings, Parser};
 use espflash::{
-    cli::{clap::*, connect, monitor::monitor},
-    Chip, Config, FirmwareImage, ImageFormatId, PartitionTable,
+    cli::{
+        board_info,
+        clap::{ConnectOpts, FlashOpts},
+        connect,
+        monitor::monitor,
+        save_elf_as_image,
+    },
+    Chip, Config, ImageFormatId, PartitionTable,
 };
 use miette::{IntoDiagnostic, Result, WrapErr};
 
@@ -24,12 +30,11 @@ mod error;
 mod package_metadata;
 
 #[derive(Parser)]
+#[clap(bin_name = "cargo", version)]
 #[clap(global_setting = AppSettings::PropagateVersion)]
-#[clap(bin_name = "cargo")]
-#[clap(version = env!("CARGO_PKG_VERSION"))]
 struct Opts {
     #[clap(subcommand)]
-    sub_cmd: CargoSubCommand,
+    subcommand: CargoSubCommand,
 }
 
 #[derive(Parser)]
@@ -40,60 +45,94 @@ enum CargoSubCommand {
 #[derive(Parser)]
 struct EspFlashOpts {
     #[clap(flatten)]
-    flash_args: FlashArgs,
+    flash_opts: FlashOpts,
     #[clap(flatten)]
-    build_args: BuildArgs,
+    build_opts: BuildOpts,
     #[clap(flatten)]
-    connect_args: ConnectArgs,
+    connect_opts: ConnectOpts,
     #[clap(subcommand)]
-    sub_cmd: Option<SubCommand>,
+    subcommand: Option<SubCommand>,
 }
 
 #[derive(Parser)]
 pub enum SubCommand {
+    BoardInfo(ConnectOpts),
     SaveImage(SaveImageOpts),
-    BoardInfo(BoardInfoOpts),
+}
+
+/// Build the specified project/package using the provided options
+#[derive(Parser)]
+pub struct BuildOpts {
+    /// Build the application using the release profile
+    #[clap(long)]
+    pub release: bool,
+    /// Example to build and flash
+    #[clap(long)]
+    pub example: Option<String>,
+    /// Specify a (binary) package within a workspace to be built
+    #[clap(long)]
+    pub package: Option<String>,
+    /// Comma delimited list of build features
+    #[clap(long, use_delimiter = true)]
+    pub features: Option<Vec<String>>,
+    /// Image format to flash (bootloader/direct-boot)
+    #[clap(long)]
+    pub format: Option<String>,
+    /// Target to build for
+    #[clap(long)]
+    pub target: Option<String>,
+    /// Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details
+    #[clap(short = 'Z')]
+    pub unstable: Option<Vec<String>>,
+}
+
+/// Save the image to disk instead of flashing to device
+#[derive(Parser)]
+pub struct SaveImageOpts {
+    #[clap(flatten)]
+    pub build_args: BuildOpts,
+    /// File name to save the generated image to
+    pub file: PathBuf,
 }
 
 fn main() -> Result<()> {
     miette::set_panic_hook();
 
-    let CargoSubCommand::Espflash(opts) = Opts::parse().sub_cmd;
+    let CargoSubCommand::Espflash(opts) = Opts::parse().subcommand;
 
     let config = Config::load()?;
     let metadata = CargoEspFlashMeta::load("Cargo.toml")?;
     let cargo_config = parse_cargo_config(".")?;
 
-    match opts.sub_cmd {
-        Some(SubCommand::BoardInfo(matches)) => board_info(matches, config, metadata, cargo_config),
-        Some(SubCommand::SaveImage(matches)) => save_image(matches, config, metadata, cargo_config),
-        None => flash(opts, config, metadata, cargo_config),
+    if let Some(subcommand) = opts.subcommand {
+        use SubCommand::*;
+
+        match subcommand {
+            BoardInfo(opts) => board_info(opts, config),
+            SaveImage(opts) => save_image(opts, metadata, cargo_config),
+        }
+    } else {
+        flash(opts, config, metadata, cargo_config)
     }
 }
 
 fn flash(
-    matches: EspFlashOpts,
+    opts: EspFlashOpts,
     config: Config,
     metadata: CargoEspFlashMeta,
     cargo_config: CargoConfig,
 ) -> Result<()> {
-    // Connect the Flasher to the target device and print the board information
-    // upon connection. If the '--board-info' flag has been provided, we have
-    // nothing left to do so exit early.
-    let mut flasher = connect(&matches.connect_args, &config)?;
-    flasher.board_info()?;
+    // Connect the Flasher to the target device and build the project, and store a
+    // reference to the artifact path.
+    let mut flasher = connect(&opts.connect_opts, &config)?;
 
-    if matches.flash_args.board_info {
-        return Ok(());
-    }
-
-    let path = build(&matches.build_args, &cargo_config, Some(flasher.chip()))
+    let path = build(&opts.build_opts, &cargo_config, Some(flasher.chip()))
         .wrap_err("Failed to build project")?;
 
     // If the '--bootloader' option is provided, load the binary file at the
     // specified path.
-    let bootloader = if let Some(path) = matches
-        .flash_args
+    let bootloader = if let Some(path) = opts
+        .flash_opts
         .bootloader
         .as_deref()
         .or_else(|| metadata.bootloader.as_deref())
@@ -107,8 +146,8 @@ fn flash(
 
     // If the '--partition-table' option is provided, load the partition table from
     // the CSV at the specified path.
-    let partition_table = if let Some(path) = matches
-        .flash_args
+    let partition_table = if let Some(path) = opts
+        .flash_opts
         .partition_table
         .as_deref()
         .or_else(|| metadata.partition_table.as_deref())
@@ -124,17 +163,22 @@ fn flash(
         None
     };
 
-    let image_format = matches
-        .build_args
+    let image_format = opts
+        .build_opts
         .format
         .as_deref()
         .map(ImageFormatId::from_str)
         .transpose()?
         .or(metadata.format);
 
+    // Print the board information once the project has successfully built. We do
+    // here rather than upon connection to show the Cargo output prior to the board
+    // information, rather than breaking up cargo-espflash's output.
+    flasher.board_info()?;
+
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(path).into_diagnostic()?;
-    if matches.flash_args.ram {
+    if opts.flash_opts.ram {
         flasher.load_elf_to_ram(&elf_data)?;
     } else {
         flasher.load_elf_to_flash_with_format(
@@ -146,7 +190,7 @@ fn flash(
     }
     println!("\nFlashing has completed!");
 
-    if matches.flash_args.monitor {
+    if opts.flash_opts.monitor {
         monitor(flasher.into_serial()).into_diagnostic()?;
     }
 
@@ -155,7 +199,7 @@ fn flash(
 }
 
 fn build(
-    build_options: &BuildArgs,
+    build_options: &BuildOpts,
     cargo_config: &CargoConfig,
     chip: Option<Chip>,
 ) -> Result<PathBuf> {
@@ -273,12 +317,11 @@ fn build(
 }
 
 fn save_image(
-    matches: SaveImageOpts,
-    _config: Config,
+    opts: SaveImageOpts,
     metadata: CargoEspFlashMeta,
     cargo_config: CargoConfig,
 ) -> Result<()> {
-    let target = matches
+    let target = opts
         .build_args
         .target
         .as_deref()
@@ -288,12 +331,10 @@ fn save_image(
 
     let chip = Chip::from_target(target).ok_or_else(|| Error::UnknownTarget(target.into()))?;
 
-    let path = build(&matches.build_args, &cargo_config, Some(chip))?;
+    let path = build(&opts.build_args, &cargo_config, Some(chip))?;
     let elf_data = fs::read(path).into_diagnostic()?;
 
-    let image = FirmwareImage::from_data(&elf_data)?;
-
-    let image_format = matches
+    let image_format = opts
         .build_args
         .format
         .as_deref()
@@ -301,32 +342,8 @@ fn save_image(
         .transpose()?
         .or(metadata.format);
 
-    let flash_image = chip.get_flash_image(&image, None, None, image_format, None)?;
-    let parts: Vec<_> = flash_image.ota_segments().collect();
+    save_elf_as_image(chip, &elf_data, opts.file, image_format)?;
 
-    let out_path = matches.file;
-
-    match parts.as_slice() {
-        [single] => fs::write(out_path, &single.data).into_diagnostic()?,
-        parts => {
-            for part in parts {
-                let part_path = format!("{:#x}_{}", part.addr, out_path);
-                fs::write(part_path, &part.data).into_diagnostic()?
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn board_info(
-    matches: BoardInfoOpts,
-    config: Config,
-    _metadata: CargoEspFlashMeta,
-    _cargo_config: CargoConfig,
-) -> Result<()> {
-    let mut flasher = connect(&matches.connect_args, &config)?;
-    flasher.board_info()?;
     Ok(())
 }
 
