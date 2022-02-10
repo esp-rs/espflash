@@ -11,11 +11,11 @@ use espflash::{
     cli::{
         board_info,
         clap::{ConnectOpts, FlashOpts},
-        connect,
+        connect, flash_elf_image,
         monitor::monitor,
         save_elf_as_image,
     },
-    Chip, Config, ImageFormatId, PartitionTable,
+    Chip, Config, ImageFormatId,
 };
 use miette::{IntoDiagnostic, Result, WrapErr};
 
@@ -122,54 +122,10 @@ fn flash(
     metadata: CargoEspFlashMeta,
     cargo_config: CargoConfig,
 ) -> Result<()> {
-    // Connect the Flasher to the target device and build the project, and store a
-    // reference to the artifact path.
     let mut flasher = connect(&opts.connect_opts, &config)?;
 
-    let path = build(&opts.build_opts, &cargo_config, Some(flasher.chip()))
+    let artifact_path = build(&opts.build_opts, &cargo_config, Some(flasher.chip()))
         .wrap_err("Failed to build project")?;
-
-    // If the '--bootloader' option is provided, load the binary file at the
-    // specified path.
-    let bootloader = if let Some(path) = opts
-        .flash_opts
-        .bootloader
-        .as_deref()
-        .or_else(|| metadata.bootloader.as_deref())
-    {
-        let path = fs::canonicalize(path).into_diagnostic()?;
-        let data = fs::read(path).into_diagnostic()?;
-        Some(data)
-    } else {
-        None
-    };
-
-    // If the '--partition-table' option is provided, load the partition table from
-    // the CSV at the specified path.
-    let partition_table = if let Some(path) = opts
-        .flash_opts
-        .partition_table
-        .as_deref()
-        .or_else(|| metadata.partition_table.as_deref())
-    {
-        let path = fs::canonicalize(path).into_diagnostic()?;
-        let data = fs::read_to_string(path)
-            .into_diagnostic()
-            .wrap_err("Failed to open partition table")?;
-        let table =
-            PartitionTable::try_from_str(data).wrap_err("Failed to parse partition table")?;
-        Some(table)
-    } else {
-        None
-    };
-
-    let image_format = opts
-        .build_opts
-        .format
-        .as_deref()
-        .map(ImageFormatId::from_str)
-        .transpose()?
-        .or(metadata.format);
 
     // Print the board information once the project has successfully built. We do
     // here rather than upon connection to show the Cargo output prior to the board
@@ -177,24 +133,44 @@ fn flash(
     flasher.board_info()?;
 
     // Read the ELF data from the build path and load it to the target.
-    let elf_data = fs::read(path).into_diagnostic()?;
+    let elf_data = fs::read(artifact_path).into_diagnostic()?;
+
     if opts.flash_opts.ram {
         flasher.load_elf_to_ram(&elf_data)?;
     } else {
-        flasher.load_elf_to_flash_with_format(
+        let bootloader = opts
+            .flash_opts
+            .bootloader
+            .as_deref()
+            .or(metadata.bootloader.as_deref());
+
+        let partition_table = opts
+            .flash_opts
+            .partition_table
+            .as_deref()
+            .or(metadata.partition_table.as_deref());
+
+        let image_format = opts
+            .build_opts
+            .format
+            .as_deref()
+            .map(ImageFormatId::from_str)
+            .transpose()?
+            .or(metadata.format);
+
+        flash_elf_image(
+            &mut flasher,
             &elf_data,
             bootloader,
             partition_table,
             image_format,
         )?;
     }
-    println!("\nFlashing has completed!");
 
     if opts.flash_opts.monitor {
         monitor(flasher.into_serial()).into_diagnostic()?;
     }
 
-    // We're all done!
     Ok(())
 }
 

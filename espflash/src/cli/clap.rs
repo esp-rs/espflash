@@ -25,10 +25,4 @@ pub struct FlashOpts {
     /// Open a serial monitor after flashing
     #[clap(long)]
     pub monitor: bool,
-    /// Encrypt the flash contents
-    #[clap(long, conflicts_with = "ram")]
-    pub encrypt: bool,
-    /// Encryption key to encrypt the flash contents with
-    #[clap(long, requires = "encrypt")]
-    pub encryption_key: Option<String>,
 }

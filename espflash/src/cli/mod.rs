@@ -2,7 +2,10 @@
 //!
 //! No stability guaranties apply
 
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use config::Config;
 use miette::{IntoDiagnostic, Result, WrapErr};
@@ -11,6 +14,7 @@ use serialport::{FlowControl, SerialPortType};
 use self::clap::ConnectOpts;
 use crate::{
     cli::serial::get_serial_port_info, error::Error, Chip, FirmwareImage, Flasher, ImageFormatId,
+    PartitionTable,
 };
 
 pub mod clap;
@@ -69,6 +73,48 @@ pub fn save_elf_as_image(
             }
         }
     }
+
+    Ok(())
+}
+
+pub fn flash_elf_image(
+    flasher: &mut Flasher,
+    elf_data: &[u8],
+    bootloader: Option<&Path>,
+    partition_table: Option<&Path>,
+    image_format: Option<ImageFormatId>,
+) -> Result<()> {
+    // If the '--bootloader' option is provided, load the binary file at the
+    // specified path.
+    let bootloader = if let Some(path) = bootloader {
+        let path = fs::canonicalize(path).into_diagnostic()?;
+        let data = fs::read(path).into_diagnostic()?;
+
+        Some(data)
+    } else {
+        None
+    };
+
+    // If the '--partition-table' option is provided, load the partition table from
+    // the CSV at the specified path.
+    let partition_table = if let Some(path) = partition_table {
+        let path = fs::canonicalize(path).into_diagnostic()?;
+        let data = fs::read_to_string(path)
+            .into_diagnostic()
+            .wrap_err("Failed to open partition table")?;
+
+        let table =
+            PartitionTable::try_from_str(data).wrap_err("Failed to parse partition table")?;
+
+        Some(table)
+    } else {
+        None
+    };
+
+    // Load the ELF data, optionally using the provider bootloader/partition
+    // table/image format, to the device's flash memory.
+    flasher.load_elf_to_flash_with_format(elf_data, bootloader, partition_table, image_format)?;
+    println!("\nFlashing has completed!");
 
     Ok(())
 }

@@ -1,20 +1,15 @@
-use std::{
-    fs::{self, read, read_to_string},
-    mem::swap,
-    path::PathBuf,
-    str::FromStr,
-};
+use std::{fs, mem::swap, path::PathBuf, str::FromStr};
 
 use clap::{AppSettings, IntoApp, Parser};
 use espflash::{
     cli::{
         board_info,
         clap::{ConnectOpts, FlashOpts},
-        connect,
+        connect, flash_elf_image,
         monitor::monitor,
         save_elf_as_image,
     },
-    Chip, Config, Error, ImageFormatId, PartitionTable,
+    Chip, Config, ImageFormatId,
 };
 use miette::{IntoDiagnostic, Result, WrapErr};
 
@@ -72,8 +67,8 @@ fn main() -> Result<()> {
         use SubCommand::*;
 
         match subcommand {
-            BoardInfo(matches) => board_info(matches, config),
-            SaveImage(matches) => save_image(matches),
+            BoardInfo(opts) => board_info(opts, config),
+            SaveImage(opts) => save_image(opts),
         }
     } else {
         flash(opts, config)
@@ -81,59 +76,34 @@ fn main() -> Result<()> {
 }
 
 fn flash(opts: Opts, config: Config) -> Result<()> {
-    let ram = opts.flash_opts.ram;
-    let bootloader_path = opts.flash_opts.bootloader;
-    let partition_table_path = opts.flash_opts.partition_table;
-    let image_format_string = opts.format;
+    let mut flasher = connect(&opts.connect_opts, &config)?;
+    flasher.board_info()?;
 
-    let elf = match opts.image {
-        Some(elf) => elf,
-        _ => {
-            Opts::into_app().print_help().ok();
-            return Ok(());
-        }
+    let elf = if let Some(elf) = opts.image {
+        elf
+    } else {
+        Opts::into_app().print_help().ok();
+        return Ok(());
     };
 
-    let mut flasher = connect(&opts.connect_opts, &config)?;
+    // Read the ELF data from the build path and load it to the target.
+    let elf_data = fs::read(&elf).into_diagnostic()?;
 
-    let input_bytes = read(&elf)
-        .into_diagnostic()
-        .wrap_err_with(|| format!("Failed to open elf image \"{}\"", elf))?;
-
-    if ram {
-        flasher.load_elf_to_ram(&input_bytes)?;
+    if opts.flash_opts.ram {
+        flasher.load_elf_to_ram(&elf_data)?;
     } else {
-        let bootloader = bootloader_path
-            .as_deref()
-            .map(read)
-            .transpose()
-            .into_diagnostic()
-            .wrap_err_with(|| {
-                format!(
-                    "Failed to open bootloader image \"{}\"",
-                    bootloader_path.unwrap().display()
-                )
-            })?;
-        let image_format = image_format_string
+        let bootloader = opts.flash_opts.bootloader.as_deref();
+        let partition_table = opts.flash_opts.partition_table.as_deref();
+
+        let image_format = opts
+            .format
             .as_deref()
             .map(ImageFormatId::from_str)
             .transpose()?;
-        let partition_table = partition_table_path
-            .as_deref()
-            .map(|path| {
-                let table = read_to_string(path)?;
-                PartitionTable::try_from_str(&table).map_err(Error::from)
-            })
-            .transpose()
-            .into_diagnostic()
-            .wrap_err_with(|| {
-                format!(
-                    "Failed to load partition table \"{}\"",
-                    partition_table_path.unwrap().display()
-                )
-            })?;
-        flasher.load_elf_to_flash_with_format(
-            &input_bytes,
+
+        flash_elf_image(
+            &mut flasher,
+            &elf_data,
             bootloader,
             partition_table,
             image_format,
