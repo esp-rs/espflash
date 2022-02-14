@@ -53,7 +53,9 @@ struct EspFlashOpts {
 
 #[derive(Parser)]
 pub enum SubCommand {
+    /// Display information about the connected board and exit without flashing
     BoardInfo(ConnectOpts),
+    /// Save the image to disk instead of flashing to device
     SaveImage(SaveImageOpts),
 }
 
@@ -82,7 +84,6 @@ pub struct BuildOpts {
     pub unstable: Option<Vec<String>>,
 }
 
-/// Save the image to disk instead of flashing to device
 #[derive(Parser)]
 pub struct SaveImageOpts {
     #[clap(flatten)]

@@ -64,7 +64,7 @@ pub fn get_serial_port_info(
 fn find_serial_port(ports: &[SerialPortInfo], name: String) -> Option<SerialPortInfo> {
     ports
         .iter()
-        .find(|port| port.port_name == name)
+        .find(|port| port.port_name.to_lowercase() == name.to_lowercase())
         .map(|port| port.to_owned())
 }
 

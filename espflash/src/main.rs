@@ -28,11 +28,12 @@ struct Opts {
 
 #[derive(Parser)]
 pub enum SubCommand {
+    /// Display information about the connected board and exit without flashing
     BoardInfo(ConnectOpts),
+    /// Save the image to disk instead of flashing to device
     SaveImage(SaveImageOpts),
 }
 
-/// Save the image to disk instead of flashing to device
 #[derive(Parser)]
 pub struct SaveImageOpts {
     /// Image format to flash
@@ -52,8 +53,15 @@ fn main() -> Result<()> {
     let mut opts = Opts::parse();
     let config = Config::load()?;
 
-    // If only a single argument is passed, it's always going to be the ELF file. In
-    // the case that the serial port was not provided as a command-line argument,
+    // If neither the IMAGE nor SERIAL arguments have been provided, print the help
+    // message and exit.
+    if opts.image.is_none() && opts.connect_opts.serial.is_none() {
+        Opts::into_app().print_help().ok();
+        return Ok(());
+    }
+
+    // If only a single argument is passed, it *should* always be the ELF file.
+    // In the case that the serial port was not provided as a command-line argument,
     // we will either load the value specified in the configuration file or do port
     // auto-detection instead.
     if opts.image.is_none() && opts.connect_opts.serial.is_some() {
