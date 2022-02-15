@@ -3,11 +3,11 @@ use dialoguer::{theme::ColorfulTheme, Confirm, Select};
 use miette::{IntoDiagnostic, Result};
 use serialport::{available_ports, SerialPortInfo, SerialPortType};
 
-use super::{clap::ConnectArgs, config::Config};
+use super::{config::Config, ConnectOpts};
 use crate::{cli::config::UsbDevice, error::Error};
 
 pub fn get_serial_port_info(
-    matches: &ConnectArgs,
+    matches: &ConnectOpts,
     config: &Config,
 ) -> Result<SerialPortInfo, Error> {
     // A serial port should be specified either as a command-line argument or in a
@@ -64,7 +64,7 @@ pub fn get_serial_port_info(
 fn find_serial_port(ports: &[SerialPortInfo], name: String) -> Option<SerialPortInfo> {
     ports
         .iter()
-        .find(|port| port.port_name == name)
+        .find(|port| port.port_name.to_lowercase() == name.to_lowercase())
         .map(|port| port.to_owned())
 }
 

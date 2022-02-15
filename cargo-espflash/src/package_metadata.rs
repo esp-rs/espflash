@@ -1,15 +1,19 @@
-use crate::error::{Error, TomlError};
+use std::{
+    fs::read_to_string,
+    path::{Path, PathBuf},
+};
+
 use cargo_toml::Manifest;
 use espflash::ImageFormatId;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::Deserialize;
-use std::fs::read_to_string;
-use std::path::Path;
+
+use crate::error::{Error, TomlError};
 
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct CargoEspFlashMeta {
-    pub partition_table: Option<String>,
-    pub bootloader: Option<String>,
+    pub partition_table: Option<PathBuf>,
+    pub bootloader: Option<PathBuf>,
     pub format: Option<ImageFormatId>,
 }
 
