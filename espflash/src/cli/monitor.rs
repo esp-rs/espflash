@@ -1,14 +1,20 @@
-use super::line_endings::normalized;
-use crossterm::event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use std::{
+    io::{stdout, ErrorKind, Read, Write},
+    thread::sleep,
+    time::Duration,
+};
+
+use crossterm::{
+    event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers},
+    terminal::{disable_raw_mode, enable_raw_mode},
+};
 use miette::{IntoDiagnostic, Result};
 use serialport::SerialPort;
-use std::io::{stdout, ErrorKind, Read, Write};
-use std::thread::sleep;
-use std::time::Duration;
 
-/// Converts key events from crossterm into appropriate character/escape sequences which are then
-/// sent over the serial connection.
+use super::line_endings::normalized;
+
+/// Converts key events from crossterm into appropriate character/escape
+/// sequences which are then sent over the serial connection.
 ///
 /// Adapted from https://github.com/dhylands/serial-monitor
 fn handle_key_event(key_event: KeyEvent) -> Option<Vec<u8>> {
@@ -83,25 +89,33 @@ pub fn monitor(mut serial: Box<dyn SerialPort>) -> serialport::Result<()> {
     println!("    CTRL+C    Exit");
     println!();
 
-    let mut buff = [0; 128];
+    // Explicitly set the baud rate when starting the serial monitor, to allow using
+    // different rates for flashing.
     serial.set_baud_rate(115_200)?;
     serial.set_timeout(Duration::from_millis(5))?;
 
     let _raw_mode = RawModeGuard::new();
+
     let stdout = stdout();
     let mut stdout = stdout.lock();
+
+    let mut buff = [0; 128];
     loop {
         let read_count = match serial.read(&mut buff) {
             Ok(count) => Ok(count),
             Err(e) if e.kind() == ErrorKind::TimedOut => Ok(0),
+            Err(e) if e.kind() == ErrorKind::Interrupted => continue,
             err => err,
         }?;
+
         if read_count > 0 {
             let data: Vec<u8> = normalized(buff[0..read_count].iter().copied()).collect();
             let data = String::from_utf8_lossy(&data);
+
             stdout.write_all(data.as_bytes()).ok();
             stdout.flush()?;
         }
+
         if poll(Duration::from_secs(0))? {
             if let Event::Key(key) = read()? {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
@@ -119,6 +133,7 @@ pub fn monitor(mut serial: Box<dyn SerialPort>) -> serialport::Result<()> {
                         _ => {}
                     }
                 }
+
                 if let Some(bytes) = handle_key_event(key) {
                     serial.write_all(&bytes)?;
                     serial.flush()?;
@@ -126,5 +141,6 @@ pub fn monitor(mut serial: Box<dyn SerialPort>) -> serialport::Result<()> {
             }
         }
     }
+
     Ok(())
 }
