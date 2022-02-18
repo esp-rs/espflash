@@ -1,6 +1,6 @@
 use std::{fs, mem::swap, path::PathBuf, str::FromStr};
 
-use clap::{AppSettings, IntoApp, Parser};
+use clap::{IntoApp, Parser};
 use espflash::{
     cli::{
         board_info, connect, flash_elf_image, monitor::monitor, save_elf_as_image, ConnectOpts,
@@ -11,10 +11,10 @@ use espflash::{
 use miette::{IntoDiagnostic, Result, WrapErr};
 
 #[derive(Parser)]
-#[clap(version, global_setting = AppSettings::PropagateVersion)]
+#[clap(version, propagate_version = true)]
 struct Opts {
     /// Image format to flash
-    #[clap(long)]
+    #[clap(long, possible_values = &["bootloader", "direct-boot"])]
     pub format: Option<String>,
     #[clap(flatten)]
     flash_opts: FlashOpts,
@@ -37,7 +37,7 @@ pub enum SubCommand {
 #[derive(Parser)]
 pub struct SaveImageOpts {
     /// Image format to flash
-    #[clap(long)]
+    #[clap(long, possible_values = &["bootloader", "direct-boot"])]
     format: Option<String>,
     /// the chip to create an image for
     chip: Chip,
@@ -56,7 +56,7 @@ fn main() -> Result<()> {
     // If neither the IMAGE nor SERIAL arguments have been provided, print the help
     // message and exit.
     if opts.image.is_none() && opts.connect_opts.serial.is_none() {
-        Opts::into_app().print_help().ok();
+        Opts::command().print_help().ok();
         return Ok(());
     }
 
@@ -87,7 +87,7 @@ fn flash(opts: Opts, config: Config) -> Result<()> {
     let elf = if let Some(elf) = opts.image {
         elf
     } else {
-        Opts::into_app().print_help().ok();
+        Opts::command().print_help().ok();
         return Ok(());
     };
 

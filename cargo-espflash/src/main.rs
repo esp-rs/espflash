@@ -6,7 +6,7 @@ use std::{
 };
 
 use cargo_metadata::Message;
-use clap::{AppSettings, Parser};
+use clap::Parser;
 use espflash::{
     cli::{
         board_info, connect, flash_elf_image, monitor::monitor, save_elf_as_image, ConnectOpts,
@@ -27,8 +27,7 @@ mod error;
 mod package_metadata;
 
 #[derive(Parser)]
-#[clap(bin_name = "cargo", version)]
-#[clap(global_setting = AppSettings::PropagateVersion)]
+#[clap(bin_name = "cargo", version, propagate_version = true)]
 struct Opts {
     #[clap(subcommand)]
     subcommand: CargoSubCommand,
@@ -71,10 +70,10 @@ pub struct BuildOpts {
     #[clap(long)]
     pub package: Option<String>,
     /// Comma delimited list of build features
-    #[clap(long, use_delimiter = true)]
+    #[clap(long, use_value_delimiter = true)]
     pub features: Option<Vec<String>>,
-    /// Image format to flash (bootloader/direct-boot)
-    #[clap(long)]
+    /// Image format to flash
+    #[clap(long, possible_values = &["bootloader", "direct-boot"])]
     pub format: Option<String>,
     /// Target to build for
     #[clap(long)]
