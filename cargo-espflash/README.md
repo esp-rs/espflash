@@ -15,7 +15,7 @@ $ cargo install cargo-espflash
 ## Usage
 
 ```text
-cargo-espflash 1.2.0
+cargo-espflash 1.3.0
 
 USAGE:
     cargo espflash [OPTIONS] [SERIAL] [SUBCOMMAND]
@@ -24,21 +24,17 @@ ARGS:
     <SERIAL>    Serial port connected to target device
 
 OPTIONS:
-        --board-info
-            Display the connected board's information (deprecated, use the `board-info` subcommand
-            instead)
-
         --bootloader <BOOTLOADER>
             Path to a binary (.bin) bootloader file
 
         --example <EXAMPLE>
             Example to build and flash
 
-        --features <FEATURES>...
+        --features <FEATURES>
             Comma delimited list of build features
 
         --format <FORMAT>
-            Image format to flash (bootloader/direct-boot)
+            Image format to flash [possible values: bootloader, direct-boot]
 
     -h, --help
             Print help information
@@ -67,10 +63,14 @@ OPTIONS:
     -V, --version
             Print version information
 
+    -Z <UNSTABLE>
+            Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details
+
 SUBCOMMANDS:
-    board-info    Display the connected board's information
+    board-info    Display information about the connected board and exit without flashing
     help          Print this message or the help of the given subcommand(s)
     save-image    Save the image to disk instead of flashing to device
+
 ```
 
 ## Configuration

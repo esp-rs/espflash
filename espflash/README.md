@@ -15,7 +15,7 @@ $ cargo install espflash
 ## Usage
 
 ```text
-espflash 1.2.0
+espflash 1.3.0
 
 USAGE:
     espflash [OPTIONS] [ARGS] [SUBCOMMAND]
@@ -25,15 +25,11 @@ ARGS:
     <IMAGE>     ELF image to flash
 
 OPTIONS:
-        --board-info
-            Display the connected board's information (deprecated, use the `board-info` subcommand
-            instead)
-
         --bootloader <BOOTLOADER>
             Path to a binary (.bin) bootloader file
 
         --format <FORMAT>
-            Image format to flash
+            Image format to flash [possible values: bootloader, direct-boot]
 
     -h, --help
             Print help information
@@ -54,7 +50,7 @@ OPTIONS:
             Print version information
 
 SUBCOMMANDS:
-    board-info    Display the connected board's information
+    board-info    Display information about the connected board and exit without flashing
     help          Print this message or the help of the given subcommand(s)
     save-image    Save the image to disk instead of flashing to device
 ```
