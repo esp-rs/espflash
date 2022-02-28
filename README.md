@@ -47,6 +47,28 @@ Please see the [espflash README] for more information.
 $ espflash /dev/ttyUSB0 target/xtensa-esp32-none-elf/release/examples/blinky
 ```
 
+## Notes on Building
+
+In order to build from source, in addition to the Rust toolchain [libuv](https://libuv.org/) must be present on your system. This can be installed via most popular package managers.
+
+### macOS
+
+```bash
+$ brew install libuv
+```
+
+### Ubuntu
+
+```bash
+$ sudo apt-get install libuv-dev
+```
+
+### Fedora
+
+```bash
+$ dnf install systemd-devel
+```
+
 ## Quickstart - Docker
 
 The `esprs/espflash` Docker image contains all necessary toolchains and tooling (including espflash) to build an application and flash it to a target device.
