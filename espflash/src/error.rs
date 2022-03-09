@@ -75,12 +75,18 @@ https://github.com/espressif/esp32c3-direct-boot-example"
         )
     )]
     InvalidDirectBootBinary,
-    #[error("No serial port specified in arguments or config")]
+    #[error("No serial ports could be detected")]
     #[diagnostic(
-        code(cargo_espflash::no_serial),
-        help("Add a command line option with the serial port to use")
+        code(espflash::no_serial),
+        help("Make sure you have connected a device to the host system")
     )]
     NoSerial,
+    #[error("The serial port '{0}' could not be found")]
+    #[diagnostic(
+        code(espflash::serial_not_found),
+        help("Make sure the correct device is connected to the host system")
+    )]
+    SerialNotFound(String),
     #[error("Canceled by user")]
     Canceled,
 }
@@ -383,7 +389,8 @@ impl CSVError {
     }
 }
 
-/// since csv doesn't give us the position in the line the error occurs, we highlight the entire line
+/// since csv doesn't give us the position in the line the error occurs, we
+/// highlight the entire line
 ///
 /// line starts at 1
 fn line_to_span(source: &str, line: usize) -> SourceSpan {
