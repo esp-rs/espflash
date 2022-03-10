@@ -10,9 +10,9 @@ use clap::Parser;
 use espflash::{
     cli::{
         board_info, connect, flash_elf_image, monitor::monitor, save_elf_as_image, ConnectOpts,
-        FlashOpts,
+        FlashConfigOpts, FlashOpts,
     },
-    Chip, Config, FlashFrequency, FlashMode, FlashSize, ImageFormatId,
+    Chip, Config, ImageFormatId,
 };
 use miette::{IntoDiagnostic, Result, WrapErr};
 
@@ -81,6 +81,8 @@ pub struct BuildOpts {
     /// Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details
     #[clap(short = 'Z')]
     pub unstable: Option<Vec<String>>,
+    #[clap(flatten)]
+    pub flash_config_opts: FlashConfigOpts,
 }
 
 #[derive(Parser)]
@@ -154,16 +156,15 @@ fn flash(
             .transpose()?
             .or(metadata.format);
 
-        // FIXME
         flash_elf_image(
             &mut flasher,
             &elf_data,
             bootloader,
             partition_table,
             image_format,
-            None,
-            None,
-            None,
+            opts.build_opts.flash_config_opts.flash_mode,
+            opts.build_opts.flash_config_opts.flash_size,
+            opts.build_opts.flash_config_opts.flash_freq,
         )?;
     }
 
@@ -317,8 +318,15 @@ fn save_image(
         .transpose()?
         .or(metadata.format);
 
-    // FIXME
-    save_elf_as_image(chip, &elf_data, opts.file, image_format, None, None, None)?;
+    save_elf_as_image(
+        chip,
+        &elf_data,
+        opts.file,
+        image_format,
+        opts.build_opts.flash_config_opts.flash_mode,
+        opts.build_opts.flash_config_opts.flash_size,
+        opts.build_opts.flash_config_opts.flash_freq,
+    )?;
 
     Ok(())
 }

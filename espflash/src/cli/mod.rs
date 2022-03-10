@@ -11,6 +11,7 @@ use clap::Parser;
 use config::Config;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{FlowControl, SerialPortType};
+use strum::VariantNames;
 
 use crate::{
     cli::serial::get_serial_port_info,
@@ -49,6 +50,19 @@ pub struct FlashOpts {
     /// Open a serial monitor after flashing
     #[clap(long)]
     pub monitor: bool,
+}
+
+#[derive(Parser)]
+pub struct FlashConfigOpts {
+    /// Flash mode to use
+    #[clap(short = 'm', long, possible_values = FlashMode::VARIANTS, value_name = "MODE")]
+    pub flash_mode: Option<FlashMode>,
+    /// Flash size of the target
+    #[clap(short = 's', long, possible_values = FlashSize::VARIANTS, value_name = "SIZE")]
+    pub flash_size: Option<FlashSize>,
+    /// Flash frequency
+    #[clap(short = 'f', long, possible_values = FlashFrequency::VARIANTS, value_name = "FREQUENCY")]
+    pub flash_freq: Option<FlashFrequency>,
 }
 
 pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
