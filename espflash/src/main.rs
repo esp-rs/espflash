@@ -6,7 +6,7 @@ use espflash::{
         board_info, connect, flash_elf_image, monitor::monitor, save_elf_as_image, ConnectOpts,
         FlashOpts,
     },
-    Chip, Config, ImageFormatId,
+    Chip, Config, FlashFrequency, FlashMode, FlashSize, ImageFormatId,
 };
 use miette::{IntoDiagnostic, Result, WrapErr};
 
@@ -108,12 +108,16 @@ fn flash(opts: Opts, config: Config) -> Result<()> {
             .map(ImageFormatId::from_str)
             .transpose()?;
 
+        // FIXME
         flash_elf_image(
             &mut flasher,
             &elf_data,
             bootloader,
             partition_table,
             image_format,
+            None,
+            None,
+            None,
         )?;
     }
 
@@ -135,7 +139,16 @@ fn save_image(opts: SaveImageOpts) -> Result<()> {
         .map(ImageFormatId::from_str)
         .transpose()?;
 
-    save_elf_as_image(opts.chip, &elf_data, opts.file, image_format)?;
+    // FIXME
+    save_elf_as_image(
+        opts.chip,
+        &elf_data,
+        opts.file,
+        image_format,
+        None,
+        None,
+        None,
+    )?;
 
     Ok(())
 }

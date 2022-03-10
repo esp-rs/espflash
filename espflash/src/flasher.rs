@@ -8,7 +8,7 @@ use crate::{
     chip::Chip,
     command::{Command, CommandType},
     connection::Connection,
-    elf::{FirmwareImage, RomSegment},
+    elf::{FirmwareImageBuilder, FlashFrequency, FlashMode, RomSegment},
     error::{ConnectionError, FlashDetectError, ResultExt},
     image_format::ImageFormatId,
     Error, PartitionTable,
@@ -376,15 +376,9 @@ impl Flasher {
         self.chip
     }
 
-    /// The flash size of the board that the flasher is connected to
-    pub fn flash_size(&self) -> FlashSize {
-        self.flash_size
-    }
-
     /// Read and print any information we can about the connected board
     pub fn board_info(&mut self) -> Result<(), Error> {
         let chip = self.chip();
-        let size = self.flash_size();
 
         let maybe_revision = chip.chip_revision(self.connection())?;
         let features = chip.chip_features(self.connection())?;
@@ -397,7 +391,7 @@ impl Flasher {
             None => println!(),
         }
         println!("Crystal frequency: {}MHz", freq);
-        println!("Flash size:        {}", size);
+        println!("Flash size:        {}", self.flash_size);
         println!("Features:          {}", features.join(", "));
         println!("MAC address:       {}", mac);
 
@@ -408,7 +402,7 @@ impl Flasher {
     ///
     /// Note that this will not touch the flash on the device
     pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
-        let image = FirmwareImage::from_data(elf_data)?;
+        let image = FirmwareImageBuilder::new(elf_data).build()?;
 
         let mut target = self.chip.ram_target();
         target.begin(&mut self.connection, &image).flashing()?;
@@ -439,9 +433,20 @@ impl Flasher {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: Option<ImageFormatId>,
+        flash_mode: Option<FlashMode>,
+        flash_size: Option<FlashSize>,
+        flash_freq: Option<FlashFrequency>,
     ) -> Result<(), Error> {
-        let mut image = FirmwareImage::from_data(elf_data)?;
-        image.flash_size = self.flash_size();
+        let mut builder = FirmwareImageBuilder::new(elf_data)
+            .flash_mode(flash_mode)
+            .flash_size(flash_size)
+            .flash_freq(flash_freq);
+
+        if builder.flash_size.is_none() {
+            builder = builder.flash_size(Some(self.flash_size));
+        }
+
+        let image = builder.build()?;
 
         let mut target = self.chip.flash_target(self.spi_params);
         target.begin(&mut self.connection, &image).flashing()?;
@@ -471,8 +476,19 @@ impl Flasher {
         elf_data: &[u8],
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
+        flash_mode: Option<FlashMode>,
+        flash_size: Option<FlashSize>,
+        flash_freq: Option<FlashFrequency>,
     ) -> Result<(), Error> {
-        self.load_elf_to_flash_with_format(elf_data, bootloader, partition_table, None)
+        self.load_elf_to_flash_with_format(
+            elf_data,
+            bootloader,
+            partition_table,
+            None,
+            flash_mode,
+            flash_size,
+            flash_freq,
+        )
     }
 
     pub fn change_baud(&mut self, speed: u32) -> Result<(), Error> {

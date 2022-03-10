@@ -85,18 +85,18 @@ pub struct FirmwareImage<'a> {
 }
 
 impl<'a> FirmwareImage<'a> {
-    pub fn from_data(data: &'a [u8]) -> Result<Self, Error> {
-        let elf = ElfFile::new(data).map_err(ElfError::from)?;
-        Ok(Self::from_elf(elf))
-    }
-
-    pub fn from_elf(elf: ElfFile<'a>) -> Self {
-        FirmwareImage {
+    pub fn new(
+        elf: ElfFile<'a>,
+        flash_mode: FlashMode,
+        flash_size: FlashSize,
+        flash_frequency: FlashFrequency,
+    ) -> Self {
+        Self {
             entry: elf.header.pt2.entry_point() as u32,
             elf,
-            flash_mode: FlashMode::Dio,
-            flash_size: FlashSize::Flash4Mb,
-            flash_frequency: FlashFrequency::Flash40M,
+            flash_mode,
+            flash_size,
+            flash_frequency,
         }
     }
 
@@ -149,6 +149,51 @@ impl<'a> FirmwareImage<'a> {
     }
 }
 
+pub struct FirmwareImageBuilder<'a> {
+    data: &'a [u8],
+    pub flash_mode: Option<FlashMode>,
+    pub flash_size: Option<FlashSize>,
+    pub flash_freq: Option<FlashFrequency>,
+}
+
+impl<'a> FirmwareImageBuilder<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self {
+            data,
+            flash_mode: None,
+            flash_size: None,
+            flash_freq: None,
+        }
+    }
+
+    pub fn flash_mode(mut self, flash_mode: Option<FlashMode>) -> Self {
+        self.flash_mode = flash_mode;
+        self
+    }
+
+    pub fn flash_size(mut self, flash_size: Option<FlashSize>) -> Self {
+        self.flash_size = flash_size;
+        self
+    }
+
+    pub fn flash_freq(mut self, flash_freq: Option<FlashFrequency>) -> Self {
+        self.flash_freq = flash_freq;
+        self
+    }
+
+    pub fn build(&self) -> Result<FirmwareImage<'a>, Error> {
+        let elf = ElfFile::new(self.data).map_err(ElfError::from)?;
+
+        let flash_mode = self.flash_mode.unwrap_or(FlashMode::Dio);
+        let flash_size = self.flash_size.unwrap_or(FlashSize::Flash4Mb);
+        let flash_freq = self.flash_freq.unwrap_or(FlashFrequency::Flash40M);
+
+        let image = FirmwareImage::new(elf, flash_mode, flash_size, flash_freq);
+
+        Ok(image)
+    }
+}
+
 #[derive(Eq, Clone, Default)]
 /// A segment of code from the source elf
 pub struct CodeSegment<'a> {
@@ -166,7 +211,8 @@ impl<'a> CodeSegment<'a> {
         segment
     }
 
-    /// Split of the first `count` bytes into a new segment, adjusting the remaining segment as needed
+    /// Split of the first `count` bytes into a new segment, adjusting the
+    /// remaining segment as needed
     pub fn split_off(&mut self, count: usize) -> Self {
         if count < self.data.len() {
             let (head, tail) = match take(&mut self.data) {

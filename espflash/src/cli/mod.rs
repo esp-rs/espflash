@@ -13,8 +13,11 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{FlowControl, SerialPortType};
 
 use crate::{
-    cli::serial::get_serial_port_info, error::Error, Chip, FirmwareImage, Flasher, ImageFormatId,
-    PartitionTable,
+    cli::serial::get_serial_port_info,
+    elf::{FirmwareImageBuilder, FlashFrequency, FlashMode},
+    error::Error,
+    flasher::FlashSize,
+    Chip, Flasher, ImageFormatId, PartitionTable,
 };
 
 pub mod config;
@@ -82,8 +85,15 @@ pub fn save_elf_as_image(
     elf_data: &[u8],
     path: PathBuf,
     image_format: Option<ImageFormatId>,
+    flash_mode: Option<FlashMode>,
+    flash_size: Option<FlashSize>,
+    flash_freq: Option<FlashFrequency>,
 ) -> Result<()> {
-    let image = FirmwareImage::from_data(elf_data)?;
+    let image = FirmwareImageBuilder::new(elf_data)
+        .flash_mode(flash_mode)
+        .flash_size(flash_size)
+        .flash_freq(flash_freq)
+        .build()?;
 
     let flash_image = chip.get_flash_image(&image, None, None, image_format, None)?;
     let parts: Vec<_> = flash_image.ota_segments().collect();
@@ -107,6 +117,9 @@ pub fn flash_elf_image(
     bootloader: Option<&Path>,
     partition_table: Option<&Path>,
     image_format: Option<ImageFormatId>,
+    flash_mode: Option<FlashMode>,
+    flash_size: Option<FlashSize>,
+    flash_freq: Option<FlashFrequency>,
 ) -> Result<()> {
     // If the '--bootloader' option is provided, load the binary file at the
     // specified path.
@@ -137,7 +150,15 @@ pub fn flash_elf_image(
 
     // Load the ELF data, optionally using the provider bootloader/partition
     // table/image format, to the device's flash memory.
-    flasher.load_elf_to_flash_with_format(elf_data, bootloader, partition_table, image_format)?;
+    flasher.load_elf_to_flash_with_format(
+        elf_data,
+        bootloader,
+        partition_table,
+        image_format,
+        flash_mode,
+        flash_size,
+        flash_freq,
+    )?;
     println!("\nFlashing has completed!");
 
     Ok(())

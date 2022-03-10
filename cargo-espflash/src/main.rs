@@ -12,7 +12,7 @@ use espflash::{
         board_info, connect, flash_elf_image, monitor::monitor, save_elf_as_image, ConnectOpts,
         FlashOpts,
     },
-    Chip, Config, ImageFormatId,
+    Chip, Config, FlashFrequency, FlashMode, FlashSize, ImageFormatId,
 };
 use miette::{IntoDiagnostic, Result, WrapErr};
 
@@ -86,7 +86,7 @@ pub struct BuildOpts {
 #[derive(Parser)]
 pub struct SaveImageOpts {
     #[clap(flatten)]
-    pub build_args: BuildOpts,
+    pub build_opts: BuildOpts,
     /// File name to save the generated image to
     pub file: PathBuf,
 }
@@ -154,12 +154,16 @@ fn flash(
             .transpose()?
             .or(metadata.format);
 
+        // FIXME
         flash_elf_image(
             &mut flasher,
             &elf_data,
             bootloader,
             partition_table,
             image_format,
+            None,
+            None,
+            None,
         )?;
     }
 
@@ -282,7 +286,6 @@ fn build(
 
     // If no target artifact was found, we don't have a path to return.
     let target_artifact = target_artifact.ok_or(Error::NoArtifact)?;
-
     let artifact_path = target_artifact.executable.unwrap().into();
 
     Ok(artifact_path)
@@ -294,7 +297,7 @@ fn save_image(
     cargo_config: CargoConfig,
 ) -> Result<()> {
     let target = opts
-        .build_args
+        .build_opts
         .target
         .as_deref()
         .or_else(|| cargo_config.target())
@@ -303,18 +306,19 @@ fn save_image(
 
     let chip = Chip::from_target(target).ok_or_else(|| Error::UnknownTarget(target.into()))?;
 
-    let path = build(&opts.build_args, &cargo_config, Some(chip))?;
+    let path = build(&opts.build_opts, &cargo_config, Some(chip))?;
     let elf_data = fs::read(path).into_diagnostic()?;
 
     let image_format = opts
-        .build_args
+        .build_opts
         .format
         .as_deref()
         .map(ImageFormatId::from_str)
         .transpose()?
         .or(metadata.format);
 
-    save_elf_as_image(chip, &elf_data, opts.file, image_format)?;
+    // FIXME
+    save_elf_as_image(chip, &elf_data, opts.file, image_format, None, None, None)?;
 
     Ok(())
 }
