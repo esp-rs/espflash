@@ -1,8 +1,8 @@
-use std::{borrow::Cow, thread::sleep};
+use std::{borrow::Cow, str::FromStr, thread::sleep};
 
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use serialport::{SerialPort, UsbPortInfo};
-use strum_macros::Display;
+use strum_macros::{Display, EnumVariantNames};
 
 use crate::{
     chip::Chip,
@@ -25,7 +25,7 @@ const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 // register used for chip detect
 const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Display)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Display, EnumVariantNames)]
 #[repr(u8)]
 pub enum FlashSize {
     #[strum(serialize = "256KB")]
@@ -62,8 +62,31 @@ impl FlashSize {
             0x18 => Ok(FlashSize::Flash16Mb),
             0x19 => Ok(FlashSize::Flash32Mb),
             0x1a => Ok(FlashSize::Flash64Mb),
+            0x21 => Ok(FlashSize::Flash128Mb),
             _ => Err(Error::UnsupportedFlash(FlashDetectError::from(value))),
         }
+    }
+}
+
+impl FromStr for FlashSize {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let size = match s.to_uppercase().as_str() {
+            "256KB" => FlashSize::Flash256Kb,
+            "512KB" => FlashSize::Flash512Kb,
+            "1MB" => FlashSize::Flash1Mb,
+            "2MB" => FlashSize::Flash2Mb,
+            "4MB" => FlashSize::Flash4Mb,
+            "8MB" => FlashSize::Flash8Mb,
+            "16MB" => FlashSize::Flash16Mb,
+            "32MB" => FlashSize::Flash32Mb,
+            "64MB" => FlashSize::Flash64Mb,
+            "128MB" => FlashSize::Flash128Mb,
+            _ => return Err(Error::InvalidFlashSize(s.to_string())),
+        };
+
+        Ok(size)
     }
 }
 

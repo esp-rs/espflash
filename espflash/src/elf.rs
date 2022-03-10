@@ -1,20 +1,29 @@
-use std::borrow::Cow;
-use std::cmp::Ordering;
+use std::{
+    borrow::Cow,
+    cmp::Ordering,
+    fmt::{Debug, Formatter},
+    mem::take,
+    ops::AddAssign,
+    str::FromStr,
+};
 
-use crate::chip::Chip;
-use crate::error::{ElfError, Error};
-use crate::flasher::FlashSize;
-use std::fmt::{Debug, Formatter};
-use std::mem::take;
-use std::ops::AddAssign;
-use xmas_elf::program::Type;
-use xmas_elf::sections::{SectionData, ShType};
-use xmas_elf::ElfFile;
+use strum_macros::EnumVariantNames;
+use xmas_elf::{
+    program::Type,
+    sections::{SectionData, ShType},
+    ElfFile,
+};
+
+use crate::{
+    chip::Chip,
+    error::{ElfError, Error},
+    flasher::FlashSize,
+};
 
 pub const ESP_CHECKSUM_MAGIC: u8 = 0xef;
 
-#[derive(Copy, Clone)]
-#[allow(dead_code)]
+#[derive(Copy, Clone, EnumVariantNames)]
+#[strum(serialize_all = "UPPERCASE")]
 pub enum FlashMode {
     Qio,
     Qout,
@@ -22,14 +31,49 @@ pub enum FlashMode {
     Dout,
 }
 
-#[derive(Copy, Clone)]
+impl FromStr for FlashMode {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mode = match s.to_uppercase().as_str() {
+            "QIO" => FlashMode::Qio,
+            "QOUT" => FlashMode::Qout,
+            "DIO" => FlashMode::Dio,
+            "DOUT" => FlashMode::Dout,
+            _ => return Err(Error::InvalidFlashMode(s.to_string())),
+        };
+
+        Ok(mode)
+    }
+}
+
+#[derive(Copy, Clone, EnumVariantNames)]
 #[repr(u8)]
-#[allow(dead_code)]
 pub enum FlashFrequency {
-    Flash40M = 0,
-    Flash26M = 1,
-    Flash20M = 2,
+    #[strum(serialize = "20M")]
+    Flash20M = 0x2,
+    #[strum(serialize = "26M")]
+    Flash26M = 0x1,
+    #[strum(serialize = "40M")]
+    Flash40M = 0x0,
+    #[strum(serialize = "80M")]
     Flash80M = 0xf,
+}
+
+impl FromStr for FlashFrequency {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let freq = match s.to_uppercase().as_str() {
+            "20M" => FlashFrequency::Flash20M,
+            "26M" => FlashFrequency::Flash26M,
+            "40M" => FlashFrequency::Flash40M,
+            "80M" => FlashFrequency::Flash80M,
+            _ => return Err(Error::InvalidFlashFrequency(s.to_string())),
+        };
+
+        Ok(freq)
+    }
 }
 
 pub struct FirmwareImage<'a> {
