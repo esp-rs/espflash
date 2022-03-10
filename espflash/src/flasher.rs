@@ -26,7 +26,6 @@ const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Display)]
-#[allow(dead_code)]
 #[repr(u8)]
 pub enum FlashSize {
     #[strum(serialize = "256KB")]
@@ -47,7 +46,8 @@ pub enum FlashSize {
     Flash32Mb = 0x19,
     #[strum(serialize = "64MB")]
     Flash64Mb = 0x1a,
-    FlashRetry = 0xFF, // used to hint that alternate detection should be tried
+    #[strum(serialize = "128MB")]
+    Flash128Mb = 0x21,
 }
 
 impl FlashSize {
@@ -62,7 +62,6 @@ impl FlashSize {
             0x18 => Ok(FlashSize::Flash16Mb),
             0x19 => Ok(FlashSize::Flash32Mb),
             0x1a => Ok(FlashSize::Flash64Mb),
-            0xFF => Ok(FlashSize::FlashRetry),
             _ => Err(Error::UnsupportedFlash(FlashDetectError::from(value))),
         }
     }
@@ -183,18 +182,21 @@ impl Flasher {
     }
 
     fn spi_autodetect(&mut self) -> Result<(), Error> {
-        // loop over all available spi params until we find one that successfully reads
-        // the flash size
+        // Loop over all available SPI parameters until we find one that successfully
+        // reads the flash size.
         for spi_params in TRY_SPI_PARAMS.iter().copied() {
             self.enable_flash(spi_params)?;
-            if self.flash_detect()? {
-                // flash detect successful, save these spi params
+            if let Some(flash_size) = self.flash_detect()? {
+                // Flash detection was successful, so save the flash size and SPI parameters and
+                // return.
+                self.flash_size = flash_size;
                 self.spi_params = spi_params;
+
                 return Ok(());
             }
         }
 
-        // none of the spi parameters were successful
+        // None of the SPI parameters were successful.
         Err(Error::FlashConnect)
     }
 
@@ -206,11 +208,18 @@ impl Flasher {
         Ok(())
     }
 
-    fn flash_detect(&mut self) -> Result<bool, Error> {
-        let flash_id = self.spi_command(CommandType::FlashDetect, &[], 24)?;
-        let size_id = flash_id >> 16;
+    fn flash_detect(&mut self) -> Result<Option<FlashSize>, Error> {
+        const FLASH_RETRY: u8 = 0xFF;
 
-        self.flash_size = match FlashSize::from(size_id as u8) {
+        let flash_id = self.spi_command(CommandType::FlashDetect, &[], 24)?;
+        let size_id = (flash_id >> 16) as u8;
+
+        // This value indicates that an alternate detection method should be tried.
+        if size_id == FLASH_RETRY {
+            return Ok(None);
+        }
+
+        let flash_size = match FlashSize::from(size_id) {
             Ok(size) => size,
             Err(_) => {
                 eprintln!(
@@ -222,7 +231,7 @@ impl Flasher {
             }
         };
 
-        Ok(self.flash_size != FlashSize::FlashRetry)
+        Ok(Some(flash_size))
     }
 
     fn sync(&mut self) -> Result<(), Error> {
