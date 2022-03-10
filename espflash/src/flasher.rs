@@ -9,12 +9,11 @@ use crate::{
     command::{Command, CommandType},
     connection::Connection,
     elf::{FirmwareImage, RomSegment},
-    error::{ConnectionError, FlashDetectError, ResultExt, RomError, RomErrorKind},
+    error::{ConnectionError, FlashDetectError, ResultExt},
     image_format::ImageFormatId,
     Error, PartitionTable,
 };
 
-const DEFAULT_CONNECT_ATTEMPTS: usize = 7;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
@@ -178,17 +177,26 @@ impl Flasher {
         port_info: UsbPortInfo,
         speed: Option<u32>,
     ) -> Result<Self, Error> {
+        // Establish a connection to the device using the default baud rate of 115,200
+        // and timeout of 3 seconds.
+        let mut connection = Connection::new(serial, port_info);
+        connection.begin()?;
+        connection.set_timeout(DEFAULT_TIMEOUT)?;
+
+        // Detect which chip we are connected to.
+        let magic = connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
+        let chip = Chip::from_magic(magic)?;
+
         let mut flasher = Flasher {
-            connection: Connection::new(serial, port_info), // default baud is always 115200
-            chip: Chip::Esp8266,                            // dummy, set properly later
+            connection,
+            chip,
             flash_size: FlashSize::Flash4Mb,
-            spi_params: SpiAttachParams::default(), // may be set when trying to attach to flash
+            spi_params: SpiAttachParams::default(),
         };
-        flasher.start_connection()?;
-        flasher.connection.set_timeout(DEFAULT_TIMEOUT)?;
-        flasher.chip_detect()?;
         flasher.spi_autodetect()?;
 
+        // Now that we have established a connection and detected the chip and flash
+        // size, we can set the baud rate of the connection to the configured value.
         if let Some(b) = speed {
             match flasher.chip {
                 Chip::Esp8266 => (), // Not available
@@ -223,14 +231,6 @@ impl Flasher {
         Err(Error::FlashConnect)
     }
 
-    fn chip_detect(&mut self) -> Result<(), Error> {
-        let magic = self.connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
-        let chip = Chip::from_magic(magic)?;
-
-        self.chip = chip;
-        Ok(())
-    }
-
     fn flash_detect(&mut self) -> Result<Option<FlashSize>, Error> {
         const FLASH_RETRY: u8 = 0xFF;
 
@@ -255,74 +255,6 @@ impl Flasher {
         };
 
         Ok(Some(flash_size))
-    }
-
-    fn sync(&mut self) -> Result<(), Error> {
-        self.connection
-            .with_timeout(CommandType::Sync.timeout(), |connection| {
-                connection.write_command(Command::Sync)?;
-                connection.flush()?;
-
-                for _ in 0..100 {
-                    match connection.read_response()? {
-                        Some(response) if response.return_op == CommandType::Sync as u8 => {
-                            if response.status == 1 {
-                                let _error = connection.flush();
-                                return Err(Error::RomError(RomError::new(
-                                    CommandType::Sync,
-                                    RomErrorKind::from(response.error),
-                                )));
-                            } else {
-                                break;
-                            }
-                        }
-                        _ => continue,
-                    }
-                }
-
-                Ok(())
-            })?;
-        for _ in 0..700 {
-            match self.connection.read_response()? {
-                Some(_) => break,
-                _ => continue,
-            }
-        }
-        Ok(())
-    }
-
-    fn start_connection(&mut self) -> Result<(), Error> {
-        let mut extra_delay = false;
-        for i in 0..DEFAULT_CONNECT_ATTEMPTS {
-            if self.connect_attempt(extra_delay).is_err() {
-                extra_delay = !extra_delay;
-
-                let delay_text = if extra_delay { "extra" } else { "default" };
-                println!("Unable to connect, retrying with {} delay...", delay_text);
-            } else {
-                // Print a blank line if more than one connection attempt was made to visually
-                // separate the status text and whatever comes next.
-                if i > 0 {
-                    println!();
-                }
-                return Ok(());
-            }
-        }
-
-        Err(Error::Connection(ConnectionError::ConnectionFailed))
-    }
-
-    fn connect_attempt(&mut self, extra_delay: bool) -> Result<(), Error> {
-        self.connection.reset_to_flash(extra_delay)?;
-
-        for _ in 0..5 {
-            self.connection.flush()?;
-            if self.sync().is_ok() {
-                return Ok(());
-            }
-        }
-
-        Err(Error::Connection(ConnectionError::ConnectionFailed))
     }
 
     fn enable_flash(&mut self, spi_params: SpiAttachParams) -> Result<(), Error> {

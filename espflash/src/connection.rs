@@ -15,6 +15,7 @@ use crate::{
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
 };
 
+const DEFAULT_CONNECT_ATTEMPTS: usize = 7;
 const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
 #[derive(Debug, Copy, Clone, BinRead)]
@@ -49,6 +50,75 @@ impl Connection {
             port_info,
             decoder: SlipDecoder::new(),
         }
+    }
+
+    pub fn begin(&mut self) -> Result<(), Error> {
+        let mut extra_delay = false;
+        for i in 0..DEFAULT_CONNECT_ATTEMPTS {
+            if self.connect_attempt(extra_delay).is_err() {
+                extra_delay = !extra_delay;
+
+                let delay_text = if extra_delay { "extra" } else { "default" };
+                println!("Unable to connect, retrying with {} delay...", delay_text);
+            } else {
+                // Print a blank line if more than one connection attempt was made to visually
+                // separate the status text and whatever comes next.
+                if i > 0 {
+                    println!();
+                }
+                return Ok(());
+            }
+        }
+
+        Err(Error::Connection(ConnectionError::ConnectionFailed))
+    }
+
+    fn connect_attempt(&mut self, extra_delay: bool) -> Result<(), Error> {
+        self.reset_to_flash(extra_delay)?;
+
+        for _ in 0..5 {
+            self.flush()?;
+            if self.sync().is_ok() {
+                return Ok(());
+            }
+        }
+
+        Err(Error::Connection(ConnectionError::ConnectionFailed))
+    }
+
+    fn sync(&mut self) -> Result<(), Error> {
+        self.with_timeout(CommandType::Sync.timeout(), |connection| {
+            connection.write_command(Command::Sync)?;
+            connection.flush()?;
+
+            for _ in 0..100 {
+                match connection.read_response()? {
+                    Some(response) if response.return_op == CommandType::Sync as u8 => {
+                        if response.status == 1 {
+                            let _error = connection.flush();
+                            return Err(Error::RomError(RomError::new(
+                                CommandType::Sync,
+                                RomErrorKind::from(response.error),
+                            )));
+                        } else {
+                            break;
+                        }
+                    }
+                    _ => continue,
+                }
+            }
+
+            Ok(())
+        })?;
+
+        for _ in 0..700 {
+            match self.read_response()? {
+                Some(_) => break,
+                _ => continue,
+            }
+        }
+
+        Ok(())
     }
 
     pub fn reset(&mut self) -> Result<(), Error> {
