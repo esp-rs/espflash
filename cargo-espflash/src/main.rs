@@ -10,7 +10,7 @@ use clap::Parser;
 use espflash::{
     cli::{
         board_info, connect, flash_elf_image, monitor::monitor, save_elf_as_image, ConnectOpts,
-        FlashOpts,
+        FlashConfigOpts, FlashOpts,
     },
     Chip, Config, ImageFormatId,
 };
@@ -81,12 +81,14 @@ pub struct BuildOpts {
     /// Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details
     #[clap(short = 'Z')]
     pub unstable: Option<Vec<String>>,
+    #[clap(flatten)]
+    pub flash_config_opts: FlashConfigOpts,
 }
 
 #[derive(Parser)]
 pub struct SaveImageOpts {
     #[clap(flatten)]
-    pub build_args: BuildOpts,
+    pub build_opts: BuildOpts,
     /// File name to save the generated image to
     pub file: PathBuf,
 }
@@ -160,6 +162,9 @@ fn flash(
             bootloader,
             partition_table,
             image_format,
+            opts.build_opts.flash_config_opts.flash_mode,
+            opts.build_opts.flash_config_opts.flash_size,
+            opts.build_opts.flash_config_opts.flash_freq,
         )?;
     }
 
@@ -282,7 +287,6 @@ fn build(
 
     // If no target artifact was found, we don't have a path to return.
     let target_artifact = target_artifact.ok_or(Error::NoArtifact)?;
-
     let artifact_path = target_artifact.executable.unwrap().into();
 
     Ok(artifact_path)
@@ -294,7 +298,7 @@ fn save_image(
     cargo_config: CargoConfig,
 ) -> Result<()> {
     let target = opts
-        .build_args
+        .build_opts
         .target
         .as_deref()
         .or_else(|| cargo_config.target())
@@ -303,18 +307,26 @@ fn save_image(
 
     let chip = Chip::from_target(target).ok_or_else(|| Error::UnknownTarget(target.into()))?;
 
-    let path = build(&opts.build_args, &cargo_config, Some(chip))?;
+    let path = build(&opts.build_opts, &cargo_config, Some(chip))?;
     let elf_data = fs::read(path).into_diagnostic()?;
 
     let image_format = opts
-        .build_args
+        .build_opts
         .format
         .as_deref()
         .map(ImageFormatId::from_str)
         .transpose()?
         .or(metadata.format);
 
-    save_elf_as_image(chip, &elf_data, opts.file, image_format)?;
+    save_elf_as_image(
+        chip,
+        &elf_data,
+        opts.file,
+        image_format,
+        opts.build_opts.flash_config_opts.flash_mode,
+        opts.build_opts.flash_config_opts.flash_size,
+        opts.build_opts.flash_config_opts.flash_freq,
+    )?;
 
     Ok(())
 }

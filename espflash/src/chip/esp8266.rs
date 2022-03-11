@@ -90,10 +90,12 @@ impl ReadEFuse for Esp8266 {
 fn test_esp8266_rom() {
     use std::fs::read;
 
+    use crate::elf::FirmwareImageBuilder;
+
     let input_bytes = read("./tests/data/esp8266").unwrap();
     let expected_bin = read("./tests/data/esp8266.bin").unwrap();
 
-    let image = FirmwareImage::from_data(&input_bytes).unwrap();
+    let image = FirmwareImageBuilder::new(&input_bytes).build().unwrap();
     let flash_image = Esp8266Format::new(&image).unwrap();
 
     let segments = flash_image.flash_segments().collect::<Vec<_>>();

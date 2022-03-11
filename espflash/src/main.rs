@@ -4,7 +4,7 @@ use clap::{IntoApp, Parser};
 use espflash::{
     cli::{
         board_info, connect, flash_elf_image, monitor::monitor, save_elf_as_image, ConnectOpts,
-        FlashOpts,
+        FlashConfigOpts, FlashOpts,
     },
     Chip, Config, ImageFormatId,
 };
@@ -16,6 +16,8 @@ struct Opts {
     /// Image format to flash
     #[clap(long, possible_values = &["bootloader", "direct-boot"])]
     pub format: Option<String>,
+    #[clap(flatten)]
+    pub flash_config_opts: FlashConfigOpts,
     #[clap(flatten)]
     flash_opts: FlashOpts,
     #[clap(flatten)]
@@ -36,6 +38,8 @@ pub enum SubCommand {
 
 #[derive(Parser)]
 pub struct SaveImageOpts {
+    #[clap(flatten)]
+    pub flash_config_opts: FlashConfigOpts,
     /// Image format to flash
     #[clap(long, possible_values = &["bootloader", "direct-boot"])]
     format: Option<String>,
@@ -114,6 +118,9 @@ fn flash(opts: Opts, config: Config) -> Result<()> {
             bootloader,
             partition_table,
             image_format,
+            opts.flash_config_opts.flash_mode,
+            opts.flash_config_opts.flash_size,
+            opts.flash_config_opts.flash_freq,
         )?;
     }
 
@@ -135,7 +142,15 @@ fn save_image(opts: SaveImageOpts) -> Result<()> {
         .map(ImageFormatId::from_str)
         .transpose()?;
 
-    save_elf_as_image(opts.chip, &elf_data, opts.file, image_format)?;
+    save_elf_as_image(
+        opts.chip,
+        &elf_data,
+        opts.file,
+        image_format,
+        opts.flash_config_opts.flash_mode,
+        opts.flash_config_opts.flash_size,
+        opts.flash_config_opts.flash_freq,
+    )?;
 
     Ok(())
 }

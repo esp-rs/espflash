@@ -115,7 +115,8 @@ jobs:
         with:
           command: clippy
           # `identity_op` and `or_fun_call` leads to false positives
-          args: -- -D warnings -A clippy::identity_op -A clippy::or_fun_call
+          # `too-many-arguments` is relatively arbitrary
+          args: -- -D warnings -A clippy::identity_op -A clippy::or_fun_call -A clippy::too-many-arguments
 
   build:
     name: Build Static Binaries

@@ -1,6 +1,6 @@
 use std::{borrow::Cow, io::Write, iter::once};
 
-use bytemuck::{bytes_of, Pod, Zeroable};
+use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -33,7 +33,7 @@ impl<'a> Esp32BootloaderFormat<'a> {
         bootloader: Option<Vec<u8>>,
     ) -> Result<Self, Error> {
         let partition_table = partition_table.unwrap_or_else(|| params.default_partition_table());
-        let bootloader = if let Some(bytes) = bootloader {
+        let mut bootloader = if let Some(bytes) = bootloader {
             Cow::Owned(bytes)
         } else {
             Cow::Borrowed(params.default_bootloader)
@@ -41,13 +41,41 @@ impl<'a> Esp32BootloaderFormat<'a> {
 
         let mut data = Vec::new();
 
-        let header = EspCommonHeader {
-            magic: ESP_MAGIC,
-            segment_count: 0,
-            flash_mode: image.flash_mode as u8,
-            flash_config: encode_flash_size(image.flash_size)? + image.flash_frequency as u8,
-            entry: image.entry,
-        };
+        // fetch the generated header from the bootloader
+        let mut header: EspCommonHeader = *from_bytes(&bootloader[0..8]);
+        if header.magic != ESP_MAGIC {
+            return Err(Error::InvalidBootloader);
+        }
+        // update the header if a user has specified any custom arguments
+        if image.flash_frequency.is_some()
+            || image.flash_mode.is_some()
+            || image.flash_size.is_some()
+        {
+            if let Some(mode) = image.flash_mode {
+                header.flash_mode = mode as u8;
+                bootloader.to_mut()[2] = bytes_of(&header)[2];
+            }
+            match (image.flash_size, image.flash_frequency) {
+                (Some(s), Some(f)) => {
+                    header.flash_config = encode_flash_size(s)? + f as u8;
+                    bootloader.to_mut()[3] = bytes_of(&header)[3];
+                }
+                (Some(s), None) => {
+                    header.flash_config = encode_flash_size(s)? + (header.flash_config & 0x0F);
+                    bootloader.to_mut()[3] = bytes_of(&header)[3];
+                }
+                (None, Some(f)) => {
+                    header.flash_config = (header.flash_config & 0xF0) + f as u8;
+                    bootloader.to_mut()[3] = bytes_of(&header)[3];
+                }
+                (None, None) => {} // nothing to update
+            }
+        }
+
+        // write the header of the app
+        // use the same settings as the bootloader
+        // just update the entry point
+        header.entry = image.entry;
         data.write_all(bytes_of(&header))?;
 
         let extended_header = ExtendedHeader {

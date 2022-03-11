@@ -10,6 +10,8 @@ use thiserror::Error;
 
 use crate::{
     command::CommandType,
+    elf::{FlashFrequency, FlashMode},
+    flasher::FlashSize,
     image_format::ImageFormatId,
     partition_table::{SubType, Type},
     Chip,
@@ -89,6 +91,26 @@ https://github.com/espressif/esp32c3-direct-boot-example"
     SerialNotFound(String),
     #[error("Canceled by user")]
     Canceled,
+    #[error("The flash mode '{0}' is not valid")]
+    #[diagnostic(
+        code(espflash::invalid_flash_mode),
+        help("The accepted values are: {:?}", FlashMode::VARIANTS)
+    )]
+    InvalidFlashMode(String),
+    #[error("The flash frequency '{0}' is not valid")]
+    #[diagnostic(
+        code(espflash::invalid_flash_frequency),
+        help("The accepted values are: {:?}", FlashFrequency::VARIANTS)
+    )]
+    InvalidFlashFrequency(String),
+    #[error("The flash size '{0}' is not valid")]
+    #[diagnostic(
+        code(espflash::invalid_flash_size),
+        help("The accepted values are: {:?}", FlashSize::VARIANTS)
+    )]
+    InvalidFlashSize(String),
+    #[error("The provided bootloader binary is not valid")]
+    InvalidBootloader,
 }
 
 #[derive(Error, Debug, Diagnostic)]

@@ -1,20 +1,19 @@
-use std::{borrow::Cow, thread::sleep};
+use std::{borrow::Cow, str::FromStr, thread::sleep};
 
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use serialport::{SerialPort, UsbPortInfo};
-use strum_macros::Display;
+use strum_macros::{Display, EnumVariantNames};
 
 use crate::{
     chip::Chip,
     command::{Command, CommandType},
     connection::Connection,
-    elf::{FirmwareImage, RomSegment},
-    error::{ConnectionError, FlashDetectError, ResultExt, RomError, RomErrorKind},
+    elf::{FirmwareImageBuilder, FlashFrequency, FlashMode, RomSegment},
+    error::{ConnectionError, FlashDetectError, ResultExt},
     image_format::ImageFormatId,
     Error, PartitionTable,
 };
 
-const DEFAULT_CONNECT_ATTEMPTS: usize = 7;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
@@ -25,8 +24,7 @@ const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 // register used for chip detect
 const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Display)]
-#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Display, EnumVariantNames)]
 #[repr(u8)]
 pub enum FlashSize {
     #[strum(serialize = "256KB")]
@@ -47,7 +45,8 @@ pub enum FlashSize {
     Flash32Mb = 0x19,
     #[strum(serialize = "64MB")]
     Flash64Mb = 0x1a,
-    FlashRetry = 0xFF, // used to hint that alternate detection should be tried
+    #[strum(serialize = "128MB")]
+    Flash128Mb = 0x21,
 }
 
 impl FlashSize {
@@ -62,9 +61,31 @@ impl FlashSize {
             0x18 => Ok(FlashSize::Flash16Mb),
             0x19 => Ok(FlashSize::Flash32Mb),
             0x1a => Ok(FlashSize::Flash64Mb),
-            0xFF => Ok(FlashSize::FlashRetry),
+            0x21 => Ok(FlashSize::Flash128Mb),
             _ => Err(Error::UnsupportedFlash(FlashDetectError::from(value))),
         }
+    }
+}
+
+impl FromStr for FlashSize {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let size = match s.to_uppercase().as_str() {
+            "256KB" => FlashSize::Flash256Kb,
+            "512KB" => FlashSize::Flash512Kb,
+            "1MB" => FlashSize::Flash1Mb,
+            "2MB" => FlashSize::Flash2Mb,
+            "4MB" => FlashSize::Flash4Mb,
+            "8MB" => FlashSize::Flash8Mb,
+            "16MB" => FlashSize::Flash16Mb,
+            "32MB" => FlashSize::Flash32Mb,
+            "64MB" => FlashSize::Flash64Mb,
+            "128MB" => FlashSize::Flash128Mb,
+            _ => return Err(Error::InvalidFlashSize(s.to_string())),
+        };
+
+        Ok(size)
     }
 }
 
@@ -156,17 +177,26 @@ impl Flasher {
         port_info: UsbPortInfo,
         speed: Option<u32>,
     ) -> Result<Self, Error> {
+        // Establish a connection to the device using the default baud rate of 115,200
+        // and timeout of 3 seconds.
+        let mut connection = Connection::new(serial, port_info);
+        connection.begin()?;
+        connection.set_timeout(DEFAULT_TIMEOUT)?;
+
+        // Detect which chip we are connected to.
+        let magic = connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
+        let chip = Chip::from_magic(magic)?;
+
         let mut flasher = Flasher {
-            connection: Connection::new(serial, port_info), // default baud is always 115200
-            chip: Chip::Esp8266,                            // dummy, set properly later
+            connection,
+            chip,
             flash_size: FlashSize::Flash4Mb,
-            spi_params: SpiAttachParams::default(), // may be set when trying to attach to flash
+            spi_params: SpiAttachParams::default(),
         };
-        flasher.start_connection()?;
-        flasher.connection.set_timeout(DEFAULT_TIMEOUT)?;
-        flasher.chip_detect()?;
         flasher.spi_autodetect()?;
 
+        // Now that we have established a connection and detected the chip and flash
+        // size, we can set the baud rate of the connection to the configured value.
         if let Some(b) = speed {
             match flasher.chip {
                 Chip::Esp8266 => (), // Not available
@@ -183,34 +213,36 @@ impl Flasher {
     }
 
     fn spi_autodetect(&mut self) -> Result<(), Error> {
-        // loop over all available spi params until we find one that successfully reads
-        // the flash size
+        // Loop over all available SPI parameters until we find one that successfully
+        // reads the flash size.
         for spi_params in TRY_SPI_PARAMS.iter().copied() {
             self.enable_flash(spi_params)?;
-            if self.flash_detect()? {
-                // flash detect successful, save these spi params
+            if let Some(flash_size) = self.flash_detect()? {
+                // Flash detection was successful, so save the flash size and SPI parameters and
+                // return.
+                self.flash_size = flash_size;
                 self.spi_params = spi_params;
+
                 return Ok(());
             }
         }
 
-        // none of the spi parameters were successful
+        // None of the SPI parameters were successful.
         Err(Error::FlashConnect)
     }
 
-    fn chip_detect(&mut self) -> Result<(), Error> {
-        let magic = self.connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
-        let chip = Chip::from_magic(magic)?;
+    fn flash_detect(&mut self) -> Result<Option<FlashSize>, Error> {
+        const FLASH_RETRY: u8 = 0xFF;
 
-        self.chip = chip;
-        Ok(())
-    }
-
-    fn flash_detect(&mut self) -> Result<bool, Error> {
         let flash_id = self.spi_command(CommandType::FlashDetect, &[], 24)?;
-        let size_id = flash_id >> 16;
+        let size_id = (flash_id >> 16) as u8;
 
-        self.flash_size = match FlashSize::from(size_id as u8) {
+        // This value indicates that an alternate detection method should be tried.
+        if size_id == FLASH_RETRY {
+            return Ok(None);
+        }
+
+        let flash_size = match FlashSize::from(size_id) {
             Ok(size) => size,
             Err(_) => {
                 eprintln!(
@@ -222,75 +254,7 @@ impl Flasher {
             }
         };
 
-        Ok(self.flash_size != FlashSize::FlashRetry)
-    }
-
-    fn sync(&mut self) -> Result<(), Error> {
-        self.connection
-            .with_timeout(CommandType::Sync.timeout(), |connection| {
-                connection.write_command(Command::Sync)?;
-                connection.flush()?;
-
-                for _ in 0..100 {
-                    match connection.read_response()? {
-                        Some(response) if response.return_op == CommandType::Sync as u8 => {
-                            if response.status == 1 {
-                                let _error = connection.flush();
-                                return Err(Error::RomError(RomError::new(
-                                    CommandType::Sync,
-                                    RomErrorKind::from(response.error),
-                                )));
-                            } else {
-                                break;
-                            }
-                        }
-                        _ => continue,
-                    }
-                }
-
-                Ok(())
-            })?;
-        for _ in 0..700 {
-            match self.connection.read_response()? {
-                Some(_) => break,
-                _ => continue,
-            }
-        }
-        Ok(())
-    }
-
-    fn start_connection(&mut self) -> Result<(), Error> {
-        let mut extra_delay = false;
-        for i in 0..DEFAULT_CONNECT_ATTEMPTS {
-            if self.connect_attempt(extra_delay).is_err() {
-                extra_delay = !extra_delay;
-
-                let delay_text = if extra_delay { "extra" } else { "default" };
-                println!("Unable to connect, retrying with {} delay...", delay_text);
-            } else {
-                // Print a blank line if more than one connection attempt was made to visually
-                // separate the status text and whatever comes next.
-                if i > 0 {
-                    println!();
-                }
-                return Ok(());
-            }
-        }
-
-        Err(Error::Connection(ConnectionError::ConnectionFailed))
-    }
-
-    fn connect_attempt(&mut self, extra_delay: bool) -> Result<(), Error> {
-        self.connection.reset_to_flash(extra_delay)?;
-
-        for _ in 0..5 {
-            self.connection.flush()?;
-            if self.sync().is_ok() {
-                return Ok(());
-            }
-        }
-
-        Err(Error::Connection(ConnectionError::ConnectionFailed))
+        Ok(Some(flash_size))
     }
 
     fn enable_flash(&mut self, spi_params: SpiAttachParams) -> Result<(), Error> {
@@ -412,15 +376,9 @@ impl Flasher {
         self.chip
     }
 
-    /// The flash size of the board that the flasher is connected to
-    pub fn flash_size(&self) -> FlashSize {
-        self.flash_size
-    }
-
     /// Read and print any information we can about the connected board
     pub fn board_info(&mut self) -> Result<(), Error> {
         let chip = self.chip();
-        let size = self.flash_size();
 
         let maybe_revision = chip.chip_revision(self.connection())?;
         let features = chip.chip_features(self.connection())?;
@@ -433,7 +391,7 @@ impl Flasher {
             None => println!(),
         }
         println!("Crystal frequency: {}MHz", freq);
-        println!("Flash size:        {}", size);
+        println!("Flash size:        {}", self.flash_size);
         println!("Features:          {}", features.join(", "));
         println!("MAC address:       {}", mac);
 
@@ -444,7 +402,7 @@ impl Flasher {
     ///
     /// Note that this will not touch the flash on the device
     pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
-        let image = FirmwareImage::from_data(elf_data)?;
+        let image = FirmwareImageBuilder::new(elf_data).build()?;
 
         let mut target = self.chip.ram_target();
         target.begin(&mut self.connection, &image).flashing()?;
@@ -475,9 +433,20 @@ impl Flasher {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: Option<ImageFormatId>,
+        flash_mode: Option<FlashMode>,
+        flash_size: Option<FlashSize>,
+        flash_freq: Option<FlashFrequency>,
     ) -> Result<(), Error> {
-        let mut image = FirmwareImage::from_data(elf_data)?;
-        image.flash_size = self.flash_size();
+        let mut builder = FirmwareImageBuilder::new(elf_data)
+            .flash_mode(flash_mode)
+            .flash_size(flash_size)
+            .flash_freq(flash_freq);
+
+        if builder.flash_size.is_none() {
+            builder = builder.flash_size(Some(self.flash_size));
+        }
+
+        let image = builder.build()?;
 
         let mut target = self.chip.flash_target(self.spi_params);
         target.begin(&mut self.connection, &image).flashing()?;
@@ -507,8 +476,19 @@ impl Flasher {
         elf_data: &[u8],
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
+        flash_mode: Option<FlashMode>,
+        flash_size: Option<FlashSize>,
+        flash_freq: Option<FlashFrequency>,
     ) -> Result<(), Error> {
-        self.load_elf_to_flash_with_format(elf_data, bootloader, partition_table, None)
+        self.load_elf_to_flash_with_format(
+            elf_data,
+            bootloader,
+            partition_table,
+            None,
+            flash_mode,
+            flash_size,
+            flash_freq,
+        )
     }
 
     pub fn change_baud(&mut self, speed: u32) -> Result<(), Error> {
