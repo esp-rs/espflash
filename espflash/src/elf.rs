@@ -79,17 +79,17 @@ impl FromStr for FlashFrequency {
 pub struct FirmwareImage<'a> {
     pub entry: u32,
     pub elf: ElfFile<'a>,
-    pub flash_mode: FlashMode,
-    pub flash_size: FlashSize,
-    pub flash_frequency: FlashFrequency,
+    pub flash_mode: Option<FlashMode>,
+    pub flash_size: Option<FlashSize>,
+    pub flash_frequency: Option<FlashFrequency>,
 }
 
 impl<'a> FirmwareImage<'a> {
     pub fn new(
         elf: ElfFile<'a>,
-        flash_mode: FlashMode,
-        flash_size: FlashSize,
-        flash_frequency: FlashFrequency,
+        flash_mode: Option<FlashMode>,
+        flash_size: Option<FlashSize>,
+        flash_frequency: Option<FlashFrequency>,
     ) -> Self {
         Self {
             entry: elf.header.pt2.entry_point() as u32,
@@ -184,11 +184,7 @@ impl<'a> FirmwareImageBuilder<'a> {
     pub fn build(&self) -> Result<FirmwareImage<'a>, Error> {
         let elf = ElfFile::new(self.data).map_err(ElfError::from)?;
 
-        let flash_mode = self.flash_mode.unwrap_or(FlashMode::Dio);
-        let flash_size = self.flash_size.unwrap_or(FlashSize::Flash4Mb);
-        let flash_freq = self.flash_freq.unwrap_or(FlashFrequency::Flash40M);
-
-        let image = FirmwareImage::new(elf, flash_mode, flash_size, flash_freq);
+        let image = FirmwareImage::new(elf, self.flash_mode, self.flash_size, self.flash_freq);
 
         Ok(image)
     }
