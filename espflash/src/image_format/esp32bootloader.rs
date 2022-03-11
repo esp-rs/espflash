@@ -1,6 +1,6 @@
 use std::{borrow::Cow, io::Write, iter::once};
 
-use bytemuck::{bytes_of, Pod, Zeroable};
+use bytemuck::{bytes_of, Pod, Zeroable, from_bytes};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -33,7 +33,7 @@ impl<'a> Esp32BootloaderFormat<'a> {
         bootloader: Option<Vec<u8>>,
     ) -> Result<Self, Error> {
         let partition_table = partition_table.unwrap_or_else(|| params.default_partition_table());
-        let bootloader = if let Some(bytes) = bootloader {
+        let mut bootloader = if let Some(bytes) = bootloader {
             Cow::Owned(bytes)
         } else {
             Cow::Borrowed(params.default_bootloader)
@@ -48,6 +48,15 @@ impl<'a> Esp32BootloaderFormat<'a> {
             flash_config: encode_flash_size(image.flash_size)? + image.flash_frequency as u8,
             entry: image.entry,
         };
+
+        // Update the bootloader header
+        let current: EspCommonHeader = *from_bytes(&bootloader[0..8]);
+        if current.magic != ESP_MAGIC {
+            return Err(Error::InvalidBootloader);
+        }
+        bootloader.to_mut()[2..4].copy_from_slice(&bytes_of(&header)[2..4]);
+
+        // write the header of the app
         data.write_all(bytes_of(&header))?;
 
         let extended_header = ExtendedHeader {

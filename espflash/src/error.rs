@@ -109,6 +109,8 @@ https://github.com/espressif/esp32c3-direct-boot-example"
         help("The accepted values are: {:?}", FlashSize::VARIANTS)
     )]
     InvalidFlashSize(String),
+    #[error("The provided bootloader binary is not valid")]
+    InvalidBootloader,
 }
 
 #[derive(Error, Debug, Diagnostic)]

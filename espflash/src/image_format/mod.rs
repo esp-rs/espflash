@@ -17,7 +17,7 @@ const ESP_MAGIC: u8 = 0xE9;
 const WP_PIN_DISABLED: u8 = 0xEE;
 
 #[derive(Copy, Clone, Zeroable, Pod, Debug)]
-#[repr(C)]
+#[repr(C, packed)]
 struct EspCommonHeader {
     magic: u8,
     segment_count: u8,
@@ -27,7 +27,7 @@ struct EspCommonHeader {
 }
 
 #[derive(Copy, Clone, Zeroable, Pod, Debug)]
-#[repr(C)]
+#[repr(C, packed)]
 struct SegmentHeader {
     addr: u32,
     length: u32,
