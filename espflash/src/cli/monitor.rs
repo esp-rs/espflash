@@ -120,8 +120,12 @@ pub fn monitor(mut serial: Box<dyn SerialPort>) -> serialport::Result<()> {
             if let Event::Key(key) = read()? {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     match key.code {
-                        KeyCode::Char('c') => break,
-                        KeyCode::Char('r') => {
+                        // NOTE: Both the lower- and upper-case variants shouldn't
+                        //       need to be matched normally, but there is a bug in
+                        //       crossterm 0.23 which requires this fix. See:
+                        //       https://github.com/crossterm-rs/crossterm/pull/629
+                        KeyCode::Char('c') | KeyCode::Char('C') => break,
+                        KeyCode::Char('r') | KeyCode::Char('R') => {
                             serial.write_data_terminal_ready(false)?;
                             serial.write_request_to_send(true)?;
 
