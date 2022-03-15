@@ -101,6 +101,9 @@ pub fn save_elf_as_image(
     flash_mode: Option<FlashMode>,
     flash_size: Option<FlashSize>,
     flash_freq: Option<FlashFrequency>,
+    merge: bool,
+    bootloader_path: Option<PathBuf>,
+    partition_table_path: Option<PathBuf>,
 ) -> Result<()> {
     let image = FirmwareImageBuilder::new(elf_data)
         .flash_mode(flash_mode)
@@ -112,7 +115,7 @@ pub fn save_elf_as_image(
     let parts: Vec<_> = flash_image.ota_segments().collect();
 
     match parts.as_slice() {
-        [single] => fs::write(path, &single.data).into_diagnostic()?,
+        [single] => fs::write(&path, &single.data).into_diagnostic()?,
         parts => {
             for part in parts {
                 let part_path = format!("{:#x}_{}", part.addr, path.display());
@@ -121,6 +124,65 @@ pub fn save_elf_as_image(
         }
     }
 
+    // merge_bin is TRUE
+    // merge bootloader, partition table and app binaries
+    // basic functionality, only merge 3 binaries
+    if merge {
+        use std::io::Write;
+
+        // If the '-B' option is provided, load the bootloader binary file at the
+        // specified path.
+        let bootloader = if let Some(bootloader_path) = bootloader_path {
+            let path = fs::canonicalize(bootloader_path).into_diagnostic()?;
+            let data = fs::read(path).into_diagnostic()?;
+
+            Some(data)
+        } else {
+            None
+        };
+
+        // If the '-T' option is provided, load the partition table from
+        // the CSV at the specified path.
+        let partition_table = if let Some(partition_table_path) = partition_table_path {
+            let path = fs::canonicalize(partition_table_path).into_diagnostic()?;
+            let data = fs::read_to_string(path)
+                .into_diagnostic()
+                .wrap_err("Failed to open partition table")?;
+
+            let table =
+                PartitionTable::try_from_str(data).wrap_err("Failed to parse partition table")?;
+
+            Some(table)
+        } else {
+            None
+        };
+
+        // To get a chip revision, the connection is needed
+        // For simplicity, the revision None is used
+        let image =
+            chip.get_flash_image(&image, bootloader, partition_table, image_format, None)?;
+
+        let merged_bin = format!("merged_{path}", path = &path.to_str().unwrap());
+
+        if Path::new(&merged_bin).exists() {
+            fs::remove_file(&merged_bin).unwrap();
+        }
+
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(merged_bin)
+            .unwrap();
+
+        for segment in image.flash_segments() {
+            let buf =
+                vec![b'\xFF'; segment.addr as usize - file.metadata().unwrap().len() as usize];
+            file.write_all(&buf).into_diagnostic()?;
+            file.write_all(&segment.data).into_diagnostic()?;
+        }
+    }
+
+    println!("The final merge binary was created successfully.");
     Ok(())
 }
 
