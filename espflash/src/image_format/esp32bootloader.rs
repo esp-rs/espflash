@@ -46,30 +46,26 @@ impl<'a> Esp32BootloaderFormat<'a> {
         if header.magic != ESP_MAGIC {
             return Err(Error::InvalidBootloader);
         }
+        
         // update the header if a user has specified any custom arguments
-        if image.flash_frequency.is_some()
-            || image.flash_mode.is_some()
-            || image.flash_size.is_some()
-        {
-            if let Some(mode) = image.flash_mode {
-                header.flash_mode = mode as u8;
-                bootloader.to_mut()[2] = bytes_of(&header)[2];
+        if let Some(mode) = image.flash_mode {
+            header.flash_mode = mode as u8;
+            bootloader.to_mut()[2] = bytes_of(&header)[2];
+        }
+        match (image.flash_size, image.flash_frequency) {
+            (Some(s), Some(f)) => {
+                header.flash_config = encode_flash_size(s)? + f as u8;
+                bootloader.to_mut()[3] = bytes_of(&header)[3];
             }
-            match (image.flash_size, image.flash_frequency) {
-                (Some(s), Some(f)) => {
-                    header.flash_config = encode_flash_size(s)? + f as u8;
-                    bootloader.to_mut()[3] = bytes_of(&header)[3];
-                }
-                (Some(s), None) => {
-                    header.flash_config = encode_flash_size(s)? + (header.flash_config & 0x0F);
-                    bootloader.to_mut()[3] = bytes_of(&header)[3];
-                }
-                (None, Some(f)) => {
-                    header.flash_config = (header.flash_config & 0xF0) + f as u8;
-                    bootloader.to_mut()[3] = bytes_of(&header)[3];
-                }
-                (None, None) => {} // nothing to update
+            (Some(s), None) => {
+                header.flash_config = encode_flash_size(s)? + (header.flash_config & 0x0F);
+                bootloader.to_mut()[3] = bytes_of(&header)[3];
             }
+            (None, Some(f)) => {
+                header.flash_config = (header.flash_config & 0xF0) + f as u8;
+                bootloader.to_mut()[3] = bytes_of(&header)[3];
+            }
+            (None, None) => {} // nothing to update
         }
 
         // write the header of the app
