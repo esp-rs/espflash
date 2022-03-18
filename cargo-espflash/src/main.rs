@@ -169,7 +169,7 @@ fn flash(
     }
 
     if opts.flash_opts.monitor {
-        monitor(flasher.into_serial()).into_diagnostic()?;
+        monitor(flasher.into_serial(), &elf_data).into_diagnostic()?;
     }
 
     Ok(())

@@ -24,7 +24,6 @@ use crate::{
 pub mod config;
 pub mod monitor;
 
-mod line_endings;
 mod serial;
 
 #[derive(Parser)]

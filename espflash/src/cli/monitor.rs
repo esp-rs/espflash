@@ -8,10 +8,9 @@ use crossterm::{
     event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
+use espmonitor::{handle_serial, load_bin_context, SerialState};
 use miette::{IntoDiagnostic, Result};
 use serialport::SerialPort;
-
-use super::line_endings::normalized;
 
 /// Converts key events from crossterm into appropriate character/escape
 /// sequences which are then sent over the serial connection.
@@ -83,7 +82,7 @@ impl Drop for RawModeGuard {
     }
 }
 
-pub fn monitor(mut serial: Box<dyn SerialPort>) -> serialport::Result<()> {
+pub fn monitor(mut serial: Box<dyn SerialPort>, elf: &[u8]) -> serialport::Result<()> {
     println!("Commands:");
     println!("    CTRL+R    Reset chip");
     println!("    CTRL+C    Exit");
@@ -99,7 +98,11 @@ pub fn monitor(mut serial: Box<dyn SerialPort>) -> serialport::Result<()> {
     let stdout = stdout();
     let mut stdout = stdout.lock();
 
-    let mut buff = [0; 128];
+    let symbols = load_bin_context(elf).ok();
+
+    let mut serial_state = SerialState::new(symbols);
+
+    let mut buff = [0; 1024];
     loop {
         let read_count = match serial.read(&mut buff) {
             Ok(count) => Ok(count),
@@ -109,11 +112,7 @@ pub fn monitor(mut serial: Box<dyn SerialPort>) -> serialport::Result<()> {
         }?;
 
         if read_count > 0 {
-            let data: Vec<u8> = normalized(buff[0..read_count].iter().copied()).collect();
-            let data = String::from_utf8_lossy(&data);
-
-            stdout.write_all(data.as_bytes()).ok();
-            stdout.flush()?;
+            handle_serial(&mut serial_state, &buff[0..read_count], &mut stdout)?;
         }
 
         if poll(Duration::from_secs(0))? {

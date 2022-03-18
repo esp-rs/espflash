@@ -46,7 +46,7 @@ impl<'a> Esp32BootloaderFormat<'a> {
         if header.magic != ESP_MAGIC {
             return Err(Error::InvalidBootloader);
         }
-        
+
         // update the header if a user has specified any custom arguments
         if let Some(mode) = image.flash_mode {
             header.flash_mode = mode as u8;
