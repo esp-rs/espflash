@@ -111,6 +111,12 @@ https://github.com/espressif/esp32c3-direct-boot-example"
     InvalidFlashSize(String),
     #[error("The provided bootloader binary is not valid")]
     InvalidBootloader,
+    #[error("The specified flash frequency ({frequency}) is not supported by the {chip}")]
+    #[diagnostic(code(espflash::unsupported_flash_frequency))]
+    UnsupportedFlashFrequency {
+        chip: Chip,
+        frequency: FlashFrequency,
+    },
 }
 
 #[derive(Error, Debug, Diagnostic)]

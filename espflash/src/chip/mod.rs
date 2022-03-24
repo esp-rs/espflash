@@ -1,5 +1,6 @@
-use std::{ops::Range, str::FromStr};
+use std::{collections::HashMap, ops::Range, str::FromStr};
 
+use maplit::hashmap;
 use strum_macros::{Display, EnumVariantNames};
 
 pub use self::{
@@ -8,7 +9,7 @@ pub use self::{
 };
 use crate::{
     connection::Connection,
-    elf::FirmwareImage,
+    elf::{FirmwareImage, FlashFrequency},
     error::ChipDetectError,
     flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
     flasher::SpiAttachParams,
@@ -66,6 +67,19 @@ pub trait ChipType: ReadEFuse {
         let bytes = &bytes[2..];
 
         Ok(bytes_to_mac_addr(bytes))
+    }
+
+    /// Return a hashmap which maps supported flash frequencies to their encoded
+    /// integer values.
+    fn flash_frequency_encodings() -> HashMap<FlashFrequency, u8> {
+        use FlashFrequency::*;
+
+        hashmap! {
+            Flash20M => 0x2,
+            Flash26M => 0x1,
+            Flash40M => 0x0,
+            Flash80M => 0xf,
+        }
     }
 
     fn has_magic_value(magic: u32) -> bool {
@@ -328,6 +342,16 @@ impl Chip {
             Chip::Esp32s2 => Esp32s2.mac_address(connection),
             Chip::Esp32s3 => Esp32s3.mac_address(connection),
             Chip::Esp8266 => Esp8266.mac_address(connection),
+        }
+    }
+
+    pub fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
+        match self {
+            Chip::Esp32 => Esp32::flash_frequency_encodings(),
+            Chip::Esp32c3 => Esp32c3::flash_frequency_encodings(),
+            Chip::Esp32s2 => Esp32s2::flash_frequency_encodings(),
+            Chip::Esp32s3 => Esp32s3::flash_frequency_encodings(),
+            Chip::Esp8266 => Esp8266::flash_frequency_encodings(),
         }
     }
 }

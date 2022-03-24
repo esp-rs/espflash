@@ -1,17 +1,19 @@
+use std::str::FromStr;
+
+use bytemuck::{Pod, Zeroable};
+use serde::Deserialize;
+use strum_macros::{Display, EnumVariantNames, IntoStaticStr};
+
+pub use self::{esp32bootloader::*, esp32directboot::*, esp8266::*};
+use crate::{
+    chip::Chip,
+    elf::{FlashFrequency, RomSegment},
+    error::Error,
+};
+
 mod esp32bootloader;
 mod esp32directboot;
 mod esp8266;
-
-use crate::elf::RomSegment;
-use bytemuck::{Pod, Zeroable};
-pub use esp32bootloader::*;
-pub use esp32directboot::*;
-pub use esp8266::*;
-
-use crate::error::Error;
-use serde::Deserialize;
-use std::str::FromStr;
-use strum_macros::{Display, EnumVariantNames, IntoStaticStr};
 
 const ESP_MAGIC: u8 = 0xE9;
 const WP_PIN_DISABLED: u8 = 0xEE;
@@ -41,7 +43,8 @@ pub trait ImageFormat<'a> {
 
     /// Get the rom segments to save when exporting for ota
     ///
-    /// Compared to `flash_segments` this excludes things like bootloader and partition table
+    /// Compared to `flash_segments` this excludes things like bootloader and
+    /// partition table
     fn ota_segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
     where
         'a: 'b;
@@ -66,5 +69,14 @@ impl FromStr for ImageFormatId {
             "direct-boot" => Ok(Self::DirectBoot),
             _ => Err(Error::UnknownImageFormat(s.into())),
         }
+    }
+}
+
+pub(crate) fn encode_flash_frequency(chip: Chip, frequency: FlashFrequency) -> Result<u8, Error> {
+    let encodings = chip.flash_frequency_encodings();
+    if let Some(&f) = encodings.get(&frequency) {
+        Ok(f)
+    } else {
+        Err(Error::UnsupportedFlashFrequency { chip, frequency })
     }
 }
