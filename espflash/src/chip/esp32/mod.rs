@@ -2,11 +2,13 @@ use crate::PartitionTable;
 
 #[allow(clippy::module_inception)]
 mod esp32;
+mod esp32c2;
 mod esp32c3;
 mod esp32s2;
 mod esp32s3;
 
 pub use esp32::Esp32;
+pub use esp32c2::Esp32c2;
 pub use esp32c3::Esp32c3;
 pub use esp32s2::Esp32s2;
 pub use esp32s3::Esp32s3;
