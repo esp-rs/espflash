@@ -182,6 +182,7 @@ dependencies = [
  "espflash",
  "miette",
  "serde",
+ "strum",
  "thiserror",
  "toml",
 ]

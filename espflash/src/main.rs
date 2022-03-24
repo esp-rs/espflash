@@ -9,6 +9,7 @@ use espflash::{
     Chip, Config, ImageFormatId,
 };
 use miette::{IntoDiagnostic, Result, WrapErr};
+use strum::VariantNames;
 
 #[derive(Parser)]
 #[clap(version, propagate_version = true)]
@@ -43,7 +44,8 @@ pub struct SaveImageOpts {
     /// Image format to flash
     #[clap(long, possible_values = &["bootloader", "direct-boot"])]
     format: Option<String>,
-    /// the chip to create an image for
+    /// Chip to create an image for
+    #[clap(possible_values = Chip::VARIANTS)]
     chip: Chip,
     /// ELF image to flash
     image: PathBuf,

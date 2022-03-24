@@ -15,6 +15,7 @@ use espflash::{
     Chip, Config, ImageFormatId,
 };
 use miette::{IntoDiagnostic, Result, WrapErr};
+use strum::VariantNames;
 
 use crate::{
     cargo_config::{parse_cargo_config, CargoConfig},
@@ -89,6 +90,9 @@ pub struct BuildOpts {
 pub struct SaveImageOpts {
     #[clap(flatten)]
     pub build_opts: BuildOpts,
+    /// Chip to create an image for
+    #[clap(possible_values = Chip::VARIANTS)]
+    pub chip: Chip,
     /// File name to save the generated image to
     pub file: PathBuf,
     /// Boolean flag to merge binaries into single binary
@@ -131,7 +135,7 @@ fn flash(
 ) -> Result<()> {
     let mut flasher = connect(&opts.connect_opts, &config)?;
 
-    let artifact_path = build(&opts.build_opts, &cargo_config, Some(flasher.chip()))
+    let artifact_path = build(&opts.build_opts, &cargo_config, flasher.chip())
         .wrap_err("Failed to build project")?;
 
     // Print the board information once the project has successfully built. We do
@@ -184,29 +188,15 @@ fn flash(
     Ok(())
 }
 
-fn build(
-    build_options: &BuildOpts,
-    cargo_config: &CargoConfig,
-    chip: Option<Chip>,
-) -> Result<PathBuf> {
+fn build(build_options: &BuildOpts, cargo_config: &CargoConfig, chip: Chip) -> Result<PathBuf> {
     let target = build_options
         .target
         .as_deref()
         .or_else(|| cargo_config.target())
-        .ok_or_else(|| NoTargetError::new(chip))?;
+        .ok_or_else(|| NoTargetError::new(Some(chip)))?;
 
-    let chip = if chip.is_some() {
-        chip
-    } else {
-        Chip::from_target(target)
-    };
-
-    if let Some(chip) = chip {
-        if !chip.supports_target(target) {
-            return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
-        }
-    } else {
-        return Err(Error::UnknownTarget(target.to_string()).into());
+    if !chip.supports_target(target) {
+        return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
     }
 
     // The 'build-std' unstable cargo feature is required to enable
@@ -306,17 +296,7 @@ fn save_image(
     metadata: CargoEspFlashMeta,
     cargo_config: CargoConfig,
 ) -> Result<()> {
-    let target = opts
-        .build_opts
-        .target
-        .as_deref()
-        .or_else(|| cargo_config.target())
-        .ok_or_else(|| NoTargetError::new(None))
-        .into_diagnostic()?;
-
-    let chip = Chip::from_target(target).ok_or_else(|| Error::UnknownTarget(target.into()))?;
-
-    let path = build(&opts.build_opts, &cargo_config, Some(chip))?;
+    let path = build(&opts.build_opts, &cargo_config, opts.chip)?;
     let elf_data = fs::read(path).into_diagnostic()?;
 
     let image_format = opts
@@ -328,7 +308,7 @@ fn save_image(
         .or(metadata.format);
 
     save_elf_as_image(
-        chip,
+        opts.chip,
         &elf_data,
         opts.file,
         image_format,
