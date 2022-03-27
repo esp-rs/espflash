@@ -65,6 +65,22 @@ impl FlashSize {
             _ => Err(Error::UnsupportedFlash(FlashDetectError::from(value))),
         }
     }
+
+    /// Returns the flash size in bytes
+    pub fn size(self) -> u32 {
+        match self {
+            FlashSize::Flash256Kb => 0x0040000,
+            FlashSize::Flash512Kb => 0x0080000,
+            FlashSize::Flash1Mb   => 0x0100000,
+            FlashSize::Flash2Mb   => 0x0200000,
+            FlashSize::Flash4Mb   => 0x0400000,
+            FlashSize::Flash8Mb   => 0x0800000,
+            FlashSize::Flash16Mb  => 0x1000000,
+            FlashSize::Flash32Mb  => 0x2000000,
+            FlashSize::Flash64Mb  => 0x4000000,
+            FlashSize::Flash128Mb => 0x8000000,
+        }
+    }
 }
 
 impl FromStr for FlashSize {
