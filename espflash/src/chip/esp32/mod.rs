@@ -26,14 +26,16 @@ pub struct Esp32Params {
 }
 
 impl Esp32Params {
-    pub fn default_partition_table(&self) -> PartitionTable {
+    /// Generates a default partition table.
+    /// `flash_size` is used to scale app partition when present, otherwise the param defaults are used.
+    pub fn default_partition_table(&self, flash_size: Option<u32>) -> PartitionTable {
         PartitionTable::basic(
             self.nvs_addr,
             self.nvs_size,
             self.phy_init_data_addr,
             self.phy_init_data_size,
             self.app_addr,
-            self.app_size,
+            flash_size.map_or(self.app_size, |size| size - self.app_addr),
         )
     }
 }
