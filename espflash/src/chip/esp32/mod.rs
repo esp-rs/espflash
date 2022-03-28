@@ -35,8 +35,7 @@ impl Esp32Params {
             self.phy_init_data_addr,
             self.phy_init_data_size,
             self.app_addr,
-            flash_size.map_or(self.app_size, 
-                |size| size - self.app_addr),
+            flash_size.map_or(self.app_size, |size| size - self.app_addr),
         )
     }
 }

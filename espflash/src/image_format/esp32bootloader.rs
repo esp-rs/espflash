@@ -32,8 +32,8 @@ impl<'a> Esp32BootloaderFormat<'a> {
         partition_table: Option<PartitionTable>,
         bootloader: Option<Vec<u8>>,
     ) -> Result<Self, Error> {
-        let partition_table = partition_table.unwrap_or_else(|| 
-            params.default_partition_table(image.flash_size.map(|v| v.size())));
+        let partition_table = partition_table
+            .unwrap_or_else(|| params.default_partition_table(image.flash_size.map(|v| v.size())));
         let mut bootloader = if let Some(bytes) = bootloader {
             Cow::Owned(bytes)
         } else {
