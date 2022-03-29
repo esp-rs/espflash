@@ -49,6 +49,15 @@ pub struct SaveImageOpts {
     image: PathBuf,
     /// File name to save the generated image to
     file: PathBuf,
+    /// Boolean flag, if set, bootloader, partition table and application binaries will be merged into single binary
+    #[clap(long, short = 'M')]
+    pub merge: bool,
+    /// Custom bootloader for merging
+    #[clap(long, short = 'B')]
+    pub bootloader: Option<PathBuf>,
+    /// Custom partition table for merging
+    #[clap(long, short = 'T')]
+    pub partition_table: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
@@ -150,6 +159,9 @@ fn save_image(opts: SaveImageOpts) -> Result<()> {
         opts.flash_config_opts.flash_mode,
         opts.flash_config_opts.flash_size,
         opts.flash_config_opts.flash_freq,
+        opts.merge,
+        opts.bootloader,
+        opts.partition_table,
     )?;
 
     Ok(())
