@@ -4,6 +4,7 @@
 
 use std::{
     fs,
+    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -128,8 +129,6 @@ pub fn save_elf_as_image(
     // merge bootloader, partition table and app binaries
     // basic functionality, only merge 3 binaries
     if merge {
-        use std::io::Write;
-
         // If the '-B' option is provided, load the bootloader binary file at the
         // specified path.
         let bootloader = if let Some(bootloader_path) = bootloader_path {
@@ -162,24 +161,38 @@ pub fn save_elf_as_image(
         let image =
             chip.get_flash_image(&image, bootloader, partition_table, image_format, None)?;
 
-        let merged_bin = format!("merged_{path}", path = &path.to_str().unwrap());
+        let merged_bin = format!(
+            "merged_{path}",
+            path = &path.to_str().unwrap_or("merged_bins.bin")
+        );
 
         if Path::new(&merged_bin).exists() {
-            fs::remove_file(&merged_bin).unwrap();
+            fs::remove_file(&merged_bin).into_diagnostic()?;
         }
 
         let mut file = fs::OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(merged_bin)
-            .unwrap();
+            .into_diagnostic()?;
 
         for segment in image.flash_segments() {
-            let buf =
-                vec![b'\xFF'; segment.addr as usize - file.metadata().unwrap().len() as usize];
-            file.write_all(&buf).into_diagnostic()?;
+            let padding_bytes = vec![
+                0xffu8;
+                segment.addr as usize
+                    - file.metadata().into_diagnostic()?.len() as usize
+            ];
+            file.write_all(&padding_bytes).into_diagnostic()?;
             file.write_all(&segment.data).into_diagnostic()?;
         }
+
+        // Take flash_size as input parameter, if None, use default value of 4Mb
+        let padding_bytes = vec![
+            0xffu8;
+            flash_size.unwrap_or(FlashSize::Flash4Mb).size() as usize
+                - file.metadata().into_diagnostic()?.len() as usize
+        ];
+        file.write_all(&padding_bytes).into_diagnostic()?;
     }
 
     println!("The final merge binary was created successfully.");
