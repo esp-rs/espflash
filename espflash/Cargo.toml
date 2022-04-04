@@ -23,12 +23,12 @@ path = "src/main.rs"
 [lib]
 
 [dependencies]
-binread = "2.0"
-bytemuck = { version = "1.7", features = ["derive"] }
+binread = "2.2"
+bytemuck = { version = "1.9", features = ["derive"] }
 indicatif = "0.16"
 md5 = "0.7"
-clap = { version = "3.0", features = ["derive"] }
-serialport = "4.0"
+clap = { version = "3.1", features = ["derive"] }
+serialport = "4.1"
 sha2 = "0.10"
 slip-codec = "0.3"
 thiserror = "1.0"
@@ -36,12 +36,12 @@ xmas-elf = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_plain = "1.0"
 toml = "0.5"
-strum = "0.23"
-strum_macros = "0.23"
+strum = "0.24"
+strum_macros = "0.24"
 csv = "1.1"
 regex = "1.5"
 flate2 = "1.0"
-miette = { version = "4.0", features = ["fancy"] }
+miette = { version = "4.3", features = ["fancy"] }
 crossterm = "0.23"
 directories-next = "2.0"
 dialoguer = "0.10"

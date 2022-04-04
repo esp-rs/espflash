@@ -31,10 +31,10 @@ pkg-fmt = "bin"
 [dependencies]
 cargo_metadata = "0.14"
 cargo_toml = "0.11"
-clap = { version = "3.0", features = ["derive"] }
+clap = { version = "3.1", features = ["derive"] }
 crossterm = "0.23"
 espflash = { version = "1.4.0-dev", path = "../espflash" }
-miette = { version = "4.0", features = ["fancy"] }
+miette = { version = "4.3", features = ["fancy"] }
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 toml = "0.5"
