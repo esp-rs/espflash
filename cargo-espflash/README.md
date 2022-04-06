@@ -15,7 +15,7 @@ $ cargo install cargo-espflash
 ## Usage
 
 ```text
-cargo-espflash 1.3.0
+cargo-espflash 1.4.0
 
 USAGE:
     cargo espflash [OPTIONS] [SERIAL] [SUBCOMMAND]
@@ -30,6 +30,9 @@ OPTIONS:
         --example <EXAMPLE>
             Example to build and flash
 
+    -f, --flash-freq <FREQUENCY>
+            Flash frequency [possible values: 20M, 26M, 40M, 80M]
+
         --features <FEATURES>
             Comma delimited list of build features
 
@@ -38,6 +41,9 @@ OPTIONS:
 
     -h, --help
             Print help information
+
+    -m, --flash-mode <MODE>
+            Flash mode to use [possible values: QIO, QOUT, DIO, DOUT]
 
         --monitor
             Open a serial monitor after flashing
@@ -53,6 +59,10 @@ OPTIONS:
 
         --release
             Build the application using the release profile
+
+    -s, --flash-size <SIZE>
+            Flash size of the target [possible values: 256KB, 512KB, 1MB, 2MB, 4MB, 8MB, 16MB, 32MB,
+            64MB, 128MB]
 
         --speed <SPEED>
             Baud rate at which to flash target device
@@ -70,7 +80,6 @@ SUBCOMMANDS:
     board-info    Display information about the connected board and exit without flashing
     help          Print this message or the help of the given subcommand(s)
     save-image    Save the image to disk instead of flashing to device
-
 ```
 
 ## Configuration

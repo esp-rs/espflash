@@ -1,6 +1,6 @@
 [package]
 name = "espflash"
-version = "1.4.0-dev"
+version = "1.4.0"
 authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",

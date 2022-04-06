@@ -15,7 +15,7 @@ $ cargo install espflash
 ## Usage
 
 ```text
-espflash 1.3.0
+espflash 1.4.0
 
 USAGE:
     espflash [OPTIONS] [ARGS] [SUBCOMMAND]
@@ -28,11 +28,17 @@ OPTIONS:
         --bootloader <BOOTLOADER>
             Path to a binary (.bin) bootloader file
 
+    -f, --flash-freq <FREQUENCY>
+            Flash frequency [possible values: 20M, 26M, 40M, 80M]
+
         --format <FORMAT>
             Image format to flash [possible values: bootloader, direct-boot]
 
     -h, --help
             Print help information
+
+    -m, --flash-mode <MODE>
+            Flash mode to use [possible values: QIO, QOUT, DIO, DOUT]
 
         --monitor
             Open a serial monitor after flashing
@@ -42,6 +48,10 @@ OPTIONS:
 
         --ram
             Load the application to RAM instead of Flash
+
+    -s, --flash-size <SIZE>
+            Flash size of the target [possible values: 256KB, 512KB, 1MB, 2MB, 4MB, 8MB, 16MB, 32MB,
+            64MB, 128MB]
 
         --speed <SPEED>
             Baud rate at which to flash target device
