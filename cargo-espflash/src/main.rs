@@ -178,7 +178,8 @@ fn flash(
     }
 
     if opts.flash_opts.monitor {
-        monitor(flasher.into_serial(), &elf_data).into_diagnostic()?;
+        let pid = flasher.get_usb_pid()?;
+        monitor(flasher.into_serial(), &elf_data, pid).into_diagnostic()?;
     }
 
     Ok(())
