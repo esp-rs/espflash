@@ -1,6 +1,5 @@
 use std::{
     io::{stdout, ErrorKind, Read, Write},
-    thread::sleep,
     time::Duration,
 };
 
@@ -11,6 +10,8 @@ use crossterm::{
 use espmonitor::{handle_serial, load_bin_context, SerialState};
 use miette::{IntoDiagnostic, Result};
 use serialport::SerialPort;
+
+use crate::connection::reset_after_flash;
 
 /// Converts key events from crossterm into appropriate character/escape
 /// sequences which are then sent over the serial connection.
@@ -82,7 +83,7 @@ impl Drop for RawModeGuard {
     }
 }
 
-pub fn monitor(mut serial: Box<dyn SerialPort>, elf: &[u8]) -> serialport::Result<()> {
+pub fn monitor(mut serial: Box<dyn SerialPort>, elf: &[u8], pid: u16) -> serialport::Result<()> {
     println!("Commands:");
     println!("    CTRL+R    Reset chip");
     println!("    CTRL+C    Exit");
@@ -125,12 +126,7 @@ pub fn monitor(mut serial: Box<dyn SerialPort>, elf: &[u8]) -> serialport::Resul
                         //       https://github.com/crossterm-rs/crossterm/pull/629
                         KeyCode::Char('c') | KeyCode::Char('C') => break,
                         KeyCode::Char('r') | KeyCode::Char('R') => {
-                            serial.write_data_terminal_ready(false)?;
-                            serial.write_request_to_send(true)?;
-
-                            sleep(Duration::from_millis(100));
-
-                            serial.write_request_to_send(false)?;
+                            reset_after_flash(&mut *serial, pid)?;
                             continue;
                         }
                         _ => {}

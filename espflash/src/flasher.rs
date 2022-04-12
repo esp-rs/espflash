@@ -521,6 +521,10 @@ impl Flasher {
     pub fn into_serial(self) -> Box<dyn SerialPort> {
         self.connection.into_serial()
     }
+
+    pub fn get_usb_pid(&self) -> Result<u16, Error> {
+        self.connection.get_usb_pid()
+    }
 }
 
 pub(crate) fn get_erase_size(offset: usize, size: usize) -> usize {
