@@ -1,4 +1,9 @@
-on: [push, pull_request]
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+  workflow_dispatch:
 
 name: CI
 
@@ -7,10 +12,6 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - name: Change apt mirror
-        run: |
-          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
-          sudo apt-get update
       - name: build dependencies
         run: |
           sudo apt-get install musl-tools libudev-dev
@@ -25,14 +26,10 @@ jobs:
         with:
           command: check
 
-  test-doc:
-    name: Doc Test
+  msrv:
+    name: Check MSRV
     runs-on: ubuntu-latest
     steps:
-      - name: Change apt mirror
-        run: |
-          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
-          sudo apt-get update
       - name: build dependencies
         run: |
           sudo apt-get install musl-tools libudev-dev
@@ -40,22 +37,17 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.56
           override: true
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --doc
+          command: check
 
   test-lib:
     name: Unit Test
     runs-on: ubuntu-latest
     steps:
-      - name: Change apt mirror
-        run: |
-          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
-          sudo apt-get update
       - name: build dependencies
         run: |
           sudo apt-get install musl-tools libudev-dev
@@ -75,18 +67,14 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - name: Change apt mirror
-        run: |
-          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
-          sudo apt-get update
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
+          components: rustfmt
       - uses: Swatinem/rust-cache@v1
-      - run: rustup component add rustfmt
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
@@ -96,10 +84,6 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - name: Change apt mirror
-        run: |
-          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
-          sudo apt-get update
       - name: build dependencies
         run: |
           sudo apt-get install musl-tools libudev-dev
@@ -109,85 +93,11 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+          components: clippy
       - uses: Swatinem/rust-cache@v1
-      - run: rustup component add clippy
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
           # `identity_op` and `or_fun_call` leads to false positives
           # `too-many-arguments` is relatively arbitrary
           args: -- -D warnings -A clippy::identity_op -A clippy::or_fun_call -A clippy::too-many-arguments
-
-  build:
-    name: Build Static Binaries
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: musl-tools
-        run: |
-          sudo apt-get install musl-tools
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: x86_64-unknown-linux-musl
-      - uses: Swatinem/rust-cache@v1
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --all --target x86_64-unknown-linux-musl
-      - uses: actions/upload-artifact@v2
-        with:
-          name: espflash
-          path: target/x86_64-unknown-linux-musl/release/espflash
-      - uses: actions/upload-artifact@v2
-        with:
-          name: cargo-espflash
-          path: target/x86_64-unknown-linux-musl/release/cargo-espflash
-
-  build-windows:
-    name: Build Static Windows Binaries
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: x86_64-pc-windows-gnu
-      - uses: Swatinem/rust-cache@v1
-      - uses: actions-rs/cargo@v1
-        with:
-          use-cross: true
-          command: build
-          args: --release --all --target x86_64-pc-windows-gnu
-      - uses: actions/upload-artifact@v2
-        with:
-          name: espflash.exe
-          path: target/x86_64-pc-windows-gnu/release/espflash.exe
-      - uses: actions/upload-artifact@v2
-        with:
-          name: cargo-espflash.exe
-          path: target/x86_64-pc-windows-gnu/release/cargo-espflash.exe
-
-  msrv:
-    name: Check MSRV
-    runs-on: ubuntu-latest
-    steps:
-      - name: Change apt mirror
-        run: |
-          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
-          sudo apt-get update
-      - name: build dependencies
-        run: |
-          sudo apt-get install musl-tools libudev-dev
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.56
-          override: true
-      - uses: Swatinem/rust-cache@v1
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
