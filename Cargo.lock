@@ -173,12 +173,11 @@ dependencies = [
 
 [[package]]
 name = "cargo-espflash"
-version = "1.4.1"
+version = "1.5.0-dev"
 dependencies = [
  "cargo_metadata",
  "cargo_toml",
  "clap",
- "crossterm",
  "espflash",
  "miette",
  "serde",
