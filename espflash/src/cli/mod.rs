@@ -97,7 +97,7 @@ pub fn board_info(opts: ConnectOpts, config: Config) -> Result<()> {
 pub fn save_elf_as_image(
     chip: Chip,
     elf_data: &[u8],
-    path: PathBuf,
+    image_path: PathBuf,
     image_format: Option<ImageFormatId>,
     flash_mode: Option<FlashMode>,
     flash_size: Option<FlashSize>,
@@ -112,23 +112,11 @@ pub fn save_elf_as_image(
         .flash_freq(flash_freq)
         .build()?;
 
-    let flash_image = chip.get_flash_image(&image, None, None, image_format, None)?;
-    let parts: Vec<_> = flash_image.ota_segments().collect();
-
-    match parts.as_slice() {
-        [single] => fs::write(&path, &single.data).into_diagnostic()?,
-        parts => {
-            for part in parts {
-                let part_path = format!("{:#x}_{}", part.addr, path.display());
-                fs::write(part_path, &part.data).into_diagnostic()?
-            }
-        }
-    }
-
-    // merge_bin is TRUE
-    // merge bootloader, partition table and app binaries
-    // basic functionality, only merge 3 binaries
     if merge {
+        // merge_bin is TRUE
+        // merge bootloader, partition table and app binaries
+        // basic functionality, only merge 3 binaries
+
         // If the '-B' option is provided, load the bootloader binary file at the
         // specified path.
         let bootloader = if let Some(bootloader_path) = bootloader_path {
@@ -161,19 +149,11 @@ pub fn save_elf_as_image(
         let image =
             chip.get_flash_image(&image, bootloader, partition_table, image_format, None)?;
 
-        let merged_bin = format!(
-            "merged_{path}",
-            path = &path.to_str().unwrap_or("merged_bins.bin")
-        );
-
-        if Path::new(&merged_bin).exists() {
-            fs::remove_file(&merged_bin).into_diagnostic()?;
-        }
-
         let mut file = fs::OpenOptions::new()
             .write(true)
-            .create_new(true)
-            .open(merged_bin)
+            .truncate(true)
+            .create(true)
+            .open(image_path)
             .into_diagnostic()?;
 
         for segment in image.flash_segments() {
@@ -193,9 +173,21 @@ pub fn save_elf_as_image(
                 - file.metadata().into_diagnostic()?.len() as usize
         ];
         file.write_all(&padding_bytes).into_diagnostic()?;
+    } else {
+        let flash_image = chip.get_flash_image(&image, None, None, image_format, None)?;
+        let parts: Vec<_> = flash_image.ota_segments().collect();
+
+        match parts.as_slice() {
+            [single] => fs::write(&image_path, &single.data).into_diagnostic()?,
+            parts => {
+                for part in parts {
+                    let part_path = format!("{:#x}_{}", part.addr, image_path.display());
+                    fs::write(part_path, &part.data).into_diagnostic()?
+                }
+            }
+        }
     }
 
-    println!("The final merge binary was created successfully.");
     Ok(())
 }
 
