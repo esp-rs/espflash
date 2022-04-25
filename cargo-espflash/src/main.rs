@@ -221,31 +221,31 @@ fn build(
     // Build the list of arguments to pass to 'cargo build'. We will always
     // explicitly state the target, as it must be provided as either a command-line
     // argument or in the cargo config file.
-    let mut args = vec!["--target", target];
+    let mut args = vec!["--target".to_string(), target.to_string()];
 
     if build_options.release {
-        args.push("--release");
+        args.push("--release".to_string());
     }
 
-    if let Some(example) = build_options.example.as_deref() {
-        args.push("--example");
-        args.push(example);
+    if let Some(example) = &build_options.example {
+        args.push("--example".to_string());
+        args.push(example.to_string());
     }
 
-    if let Some(package) = build_options.package.as_deref() {
-        args.push("--package");
-        args.push(package);
+    if let Some(package) = &build_options.package {
+        args.push("--package".to_string());
+        args.push(package.to_string());
     }
 
-    if let Some(features) = build_options.features.as_deref() {
-        args.push("--features");
-        args.extend(features.iter().map(|f| f.as_str()));
+    if let Some(features) = &build_options.features {
+        args.push("--features".to_string());
+        args.push(features.join(","));
     }
 
-    if let Some(unstable) = build_options.unstable.as_deref() {
+    if let Some(unstable) = &build_options.unstable {
         for item in unstable.iter() {
-            args.push("-Z");
-            args.push(item);
+            args.push("-Z".to_string());
+            args.push(item.to_string());
         }
     }
 
