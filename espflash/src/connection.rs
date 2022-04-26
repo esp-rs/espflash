@@ -90,7 +90,7 @@ impl Connection {
         self.with_timeout(CommandType::Sync.timeout(), |connection| {
             connection.write_command(Command::Sync)?;
             connection.flush()?;
-
+            sleep(Duration::from_millis(10));
             for _ in 0..100 {
                 match connection.read_response()? {
                     Some(response) if response.return_op == CommandType::Sync as u8 => {
