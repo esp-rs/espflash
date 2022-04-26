@@ -16,7 +16,7 @@ use crate::{
 };
 
 const DEFAULT_CONNECT_ATTEMPTS: usize = 7;
-const USB_SERIAL_JTAG_PID: u16 = 0x1001;
+pub const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
 #[derive(Debug, Copy, Clone, BinRead)]
 pub struct CommandResponse {

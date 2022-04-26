@@ -1,5 +1,5 @@
 use crate::command::{Command, CommandType};
-use crate::connection::Connection;
+use crate::connection::{Connection, USB_SERIAL_JTAG_PID};
 use crate::elf::{FirmwareImage, RomSegment};
 use crate::error::Error;
 use crate::flash_target::FlashTarget;
@@ -31,6 +31,49 @@ impl FlashTarget for Esp32Target {
                 spi_params: self.spi_attach_params,
             })
         })?;
+
+        // TODO remove this when we use the stub, the stub should be taking care of this.
+        // TODO do we also need to disable rtc super wdt?
+        if connection.get_usb_pid()? == USB_SERIAL_JTAG_PID {
+            match self.chip {
+                Chip::Esp32c3 => {
+                    connection.command(Command::WriteReg {
+                        address: 0x600080a8,
+                        value: 0x50D83AA1u32,
+                        mask: None,
+                    })?; // WP disable
+                    connection.command(Command::WriteReg {
+                        address: 0x60008090,
+                        value: 0x0,
+                        mask: None,
+                    })?; // turn off RTC WDG
+                    connection.command(Command::WriteReg {
+                        address: 0x600080a8,
+                        value: 0x0,
+                        mask: None,
+                    })?; // WP enable
+                }
+                Chip::Esp32s3 => {
+                    connection.command(Command::WriteReg {
+                        address: 0x00B0,
+                        value: 0x50D83AA1u32,
+                        mask: None,
+                    })?; // WP disable
+                    connection.command(Command::WriteReg {
+                        address: 0x0098,
+                        value: 0x0,
+                        mask: None,
+                    })?; // turn off RTC WDG
+                    connection.command(Command::WriteReg {
+                        address: 0x00B0,
+                        value: 0x0,
+                        mask: None,
+                    })?; // WP enable
+                }
+                _ => {}
+            }
+        }
+
         Ok(())
     }
 
