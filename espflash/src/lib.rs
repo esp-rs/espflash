@@ -1,7 +1,7 @@
 pub use chip::Chip;
 pub use cli::config::Config;
 pub use elf::{FlashFrequency, FlashMode};
-pub use error::Error;
+pub use error::{Error, InvalidPartitionTable};
 pub use flasher::{FlashSize, Flasher};
 pub use image_format::ImageFormatId;
 pub use partition_table::PartitionTable;

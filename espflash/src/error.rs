@@ -346,6 +346,18 @@ pub enum PartitionTableError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     UnalignedPartitionError(#[from] UnalignedPartitionError),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    LengthNotMultipleOf32(#[from] LengthNotMultipleOf32),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    InvalidChecksum(#[from] InvalidChecksum),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    NoEndMarker(#[from] NoEndMarker),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    InvalidPartitionTable(#[from] InvalidPartitionTable),
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -534,6 +546,26 @@ impl UnalignedPartitionError {
         }
     }
 }
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("Partition table length not a multiple of 32")]
+#[diagnostic(code(espflash::partition_table::invalid_length))]
+pub struct LengthNotMultipleOf32;
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("Checksum invalid")]
+#[diagnostic(code(espflash::partition_table::invalid_checksum))]
+pub struct InvalidChecksum;
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("No end marker found")]
+#[diagnostic(code(espflash::partition_table::no_end_marker))]
+pub struct NoEndMarker;
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("Invalid partition table")]
+#[diagnostic(code(espflash::partition_table::invalid_partition_table))]
+pub struct InvalidPartitionTable;
 
 #[derive(Debug, Error)]
 #[error("{0}")]

@@ -6,7 +6,7 @@ authors = [
     "Jesse Braham <jesse@beta7.io>",
 ]
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.58"
 description = "A command-line tool for flashing Espressif devices over serial"
 repository = "https://github.com/esp-rs/espflash"
 license = "GPL-2.0"
@@ -35,6 +35,7 @@ path = "src/main.rs"
 binread = "2.2"
 bytemuck = { version = "1.9", features = ["derive"] }
 clap = { version = "3.1", features = ["derive"] }
+comfy-table = "5"
 crossterm = "0.23"
 csv = "1.1"
 dialoguer = "0.10"

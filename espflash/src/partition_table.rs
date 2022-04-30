@@ -1,10 +1,12 @@
 use std::{
     cmp::{max, min},
     fmt::{Display, Formatter, Write as _},
-    io::Write,
+    io::{Cursor, Write},
     ops::Rem,
 };
 
+use binread::{BinRead, BinReaderExt};
+use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use md5::{Context, Digest};
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -12,17 +14,24 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use crate::error::{
-    CSVError, DuplicatePartitionsError, InvalidSubTypeError, NoAppError,
-    OverlappingPartitionsError, PartitionTableError, UnalignedPartitionError,
+    CSVError, DuplicatePartitionsError, InvalidChecksum, InvalidSubTypeError,
+    LengthNotMultipleOf32, NoAppError, NoEndMarker, OverlappingPartitionsError,
+    PartitionTableError, UnalignedPartitionError,
 };
 
 const MAX_PARTITION_LENGTH: usize = 0xC00;
 const PARTITION_TABLE_SIZE: usize = 0x1000;
 const PARTITION_SIZE: usize = 32;
 const PARTITION_ALIGNMENT: u32 = 0x10000;
+const MAGIC_BYTES: &[u8] = &[0xAA, 0x50];
+const MD5_PART_MAGIC_BYTES: &[u8] = &[
+    0xEB, 0xEB, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+];
+const END_MARKER: [u8; 32] = [0xFF; 32];
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, BinRead)]
 #[repr(u8)]
+#[br(little, repr = u8)]
 #[serde(rename_all = "lowercase")]
 pub enum Type {
     App = 0x00,
@@ -53,8 +62,9 @@ impl Display for Type {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, BinRead)]
 #[repr(u8)]
+#[br(little, repr = u8)]
 pub enum AppType {
     #[serde(rename = "factory")]
     Factory = 0x00,
@@ -94,8 +104,9 @@ pub enum AppType {
     Test = 0x20,
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, EnumIter, Serialize, PartialEq)]
+#[derive(Copy, Clone, Debug, Deserialize, EnumIter, Serialize, PartialEq, BinRead)]
 #[repr(u8)]
+#[br(little, repr = u8)]
 #[serde(rename_all = "lowercase")]
 pub enum DataType {
     Ota = 0x00,
@@ -116,7 +127,7 @@ impl DataType {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Copy, Clone, BinRead)]
 #[serde(untagged)]
 pub enum SubType {
     App(AppType),
@@ -151,7 +162,9 @@ impl SubType {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, BinRead)]
+#[repr(u8)]
+#[br(little, repr = u8)]
 #[serde(rename_all = "lowercase")]
 pub enum Flags {
     Encrypted = 0x1,
@@ -163,7 +176,7 @@ impl Flags {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct PartitionTable {
     partitions: Vec<Partition>,
 }
@@ -206,8 +219,9 @@ impl PartitionTable {
         }
     }
 
-    /// Attempt to parse a partition table from the given string. For more
-    /// information on the partition table CSV format see:
+    /// Attempt to parse a CSV partition table from the given string.
+    ///
+    /// For more information on the partition table format see:
     /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html
     pub fn try_from_str<S>(data: S) -> Result<Self, PartitionTableError>
     where
@@ -245,33 +259,85 @@ impl PartitionTable {
         Ok(table)
     }
 
+    /// Attempt to parse a binary partition table from the given bytes.
+    ///
+    /// For more information on the partition table format see:
+    /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html
+    pub fn try_from_bytes<S>(data: S) -> Result<Self, PartitionTableError>
+    where
+        S: Into<Vec<u8>>,
+    {
+        let data = data.into();
+        if data.len() % 32 != 0 {
+            return Err(PartitionTableError::LengthNotMultipleOf32(
+                LengthNotMultipleOf32 {},
+            ));
+        }
+        let mut md5 = Context::new();
+
+        let mut partitions = vec![];
+        for line in data.chunks_exact(PARTITION_SIZE) {
+            if line.starts_with(MD5_PART_MAGIC_BYTES) {
+                // The first 16 bytes are just the marker. The next 16 bytes is the actual md5
+                // string.
+                let digest_in_file = &line[16..32];
+                let digest_computed = *md5.clone().compute();
+                if digest_computed != digest_in_file {
+                    return Err(PartitionTableError::InvalidChecksum(InvalidChecksum {}));
+                }
+            } else if line == END_MARKER {
+                let table = Self { partitions };
+                return Ok(table);
+            } else {
+                let mut reader = Cursor::new(line);
+                let part: Partition = reader.read_le().unwrap();
+                partitions.push(part);
+                md5.consume(line);
+            }
+        }
+        Err(PartitionTableError::NoEndMarker(NoEndMarker {}))
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut result = Vec::with_capacity(PARTITION_TABLE_SIZE);
-        self.save(&mut result).unwrap();
+        self.save_bin(&mut result).unwrap();
 
         result
     }
 
-    pub fn save<W>(&self, writer: &mut W) -> std::io::Result<()>
+    /// Write binary form of partition table into `writer`.
+    pub fn save_bin<W>(&self, writer: &mut W) -> std::io::Result<()>
     where
         W: Write,
     {
         let mut hasher = HashWriter::new(writer);
         for partition in &self.partitions {
-            partition.save(&mut hasher)?;
+            partition.save_bin(&mut hasher)?;
         }
 
         let (writer, hash) = hasher.compute();
 
-        writer.write_all(&[
-            0xEB, 0xEB, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-            0xFF, 0xFF,
-        ])?;
+        writer.write_all(MD5_PART_MAGIC_BYTES)?;
         writer.write_all(&hash.0)?;
 
         let written = self.partitions.len() * PARTITION_SIZE + 32;
         for _ in 0..(MAX_PARTITION_LENGTH - written) {
             writer.write_all(&[0xFF])?;
+        }
+
+        Ok(())
+    }
+
+    /// Write CSV form of partition table into `writer`.
+    pub fn save_csv<W>(&self, writer: &mut W) -> std::io::Result<()>
+    where
+        W: Write,
+    {
+        writeln!(writer, "# ESP-IDF Partition Table")?;
+        writeln!(writer, "# Name,   Type, SubType, Offset,  Size, Flags")?;
+        let mut csv = csv::Writer::from_writer(writer);
+        for partition in &self.partitions {
+            partition.save_csv(&mut csv)?;
         }
 
         Ok(())
@@ -345,6 +411,50 @@ impl PartitionTable {
 
         Ok(())
     }
+
+    pub fn pretty_print(&self) {
+        let mut table = Table::new();
+        table
+            .load_preset(UTF8_FULL)
+            .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
+            .set_header(vec![
+                Cell::new("Name")
+                    .fg(Color::Green)
+                    .add_attribute(Attribute::Bold),
+                Cell::new("Type")
+                    .fg(Color::Cyan)
+                    .add_attribute(Attribute::Bold),
+                Cell::new("SubType")
+                    .fg(Color::Magenta)
+                    .add_attribute(Attribute::Bold),
+                Cell::new("Offset")
+                    .fg(Color::Red)
+                    .add_attribute(Attribute::Bold),
+                Cell::new("Size")
+                    .fg(Color::Yellow)
+                    .add_attribute(Attribute::Bold),
+                Cell::new("Flags")
+                    .fg(Color::DarkCyan)
+                    .add_attribute(Attribute::Bold),
+            ]);
+        for part in &self.partitions {
+            table.add_row(vec![
+                Cell::new(&part.name).fg(Color::Green),
+                Cell::new(&part.ty.to_string()).fg(Color::Cyan),
+                Cell::new(&part.sub_type.to_string()).fg(Color::Magenta),
+                Cell::new(&format!("{:#x}", part.offset)).fg(Color::Red),
+                Cell::new(&format!("{:#x} ({}KiB)", part.size, part.size / 1024)).fg(Color::Yellow),
+                Cell::new(
+                    &part
+                        .flags
+                        .map(|x| format!("{:#x}", x.as_u32()))
+                        .unwrap_or_default(),
+                )
+                .fg(Color::DarkCyan),
+            ]);
+        }
+        println!("{table}");
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -383,15 +493,31 @@ impl DeserializedPartition {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, BinRead, Serialize)]
+#[br(magic = b"\xAA\x50", assert(!name.is_empty()))]
 pub struct Partition {
-    name: String,
     ty: Type,
     sub_type: SubType,
     offset: u32,
     size: u32,
+    #[br(count = 16)]
+    #[br(map = |s: Vec<u8>| String::from_utf8_lossy(&s).trim_matches(char::from(0)).to_string())]
+    name: String,
+    #[br(try)]
     flags: Option<Flags>,
+    #[br(ignore)]
     line: Option<usize>,
+}
+
+impl PartialEq for Partition {
+    fn eq(&self, other: &Self) -> bool {
+        self.ty == other.ty
+            && self.sub_type == other.sub_type
+            && self.offset == other.offset
+            && self.size == other.size
+            && self.name == other.name
+            && self.flags == other.flags
+    }
 }
 
 impl Partition {
@@ -416,11 +542,11 @@ impl Partition {
         }
     }
 
-    pub fn save<W>(&self, writer: &mut W) -> std::io::Result<()>
+    pub fn save_bin<W>(&self, writer: &mut W) -> std::io::Result<()>
     where
         W: Write,
     {
-        writer.write_all(&[0xAA, 0x50])?;
+        writer.write_all(MAGIC_BYTES)?;
         writer.write_all(&[self.ty as u8, self.sub_type.as_u8()])?;
         writer.write_all(&self.offset.to_le_bytes())?;
         writer.write_all(&self.size.to_le_bytes())?;
@@ -437,6 +563,24 @@ impl Partition {
         };
         writer.write_all(&flags)?;
 
+        Ok(())
+    }
+
+    pub fn save_csv<W>(&self, csv: &mut csv::Writer<W>) -> std::io::Result<()>
+    where
+        W: Write,
+    {
+        csv.write_record(&[
+            &self.name,
+            &self.ty.to_string(),
+            &self.sub_type.to_string(),
+            &format!("{:#x}", self.offset),
+            &format!("{:#x}", self.size),
+            &self
+                .flags
+                .map(|x| format!("{:#x}", x.as_u32()))
+                .unwrap_or_default(),
+        ])?;
         Ok(())
     }
 
@@ -690,6 +834,18 @@ phy_init, data, phy,     0xf000,  0x1000,
 
         PartitionTable::try_from_str(PTABLE_NO_APP)
             .expect_err("Failed to reject partition table without factory or ota partition");
+    }
+
+    #[test]
+    fn test_from_bytes() {
+        use std::fs::{read, read_to_string};
+        let binary_table = read("./tests/data/partitions.bin").unwrap();
+        let binary_parsed = PartitionTable::try_from_bytes(binary_table).unwrap();
+
+        let csv_table = read_to_string("./tests/data/partitions.csv").unwrap();
+        let csv_parsed = PartitionTable::try_from_str(csv_table).unwrap();
+
+        assert_eq!(binary_parsed, csv_parsed);
     }
 
     #[test]
