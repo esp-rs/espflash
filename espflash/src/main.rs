@@ -1,12 +1,12 @@
-use std::{fs, io::Write, mem::swap, path::PathBuf, str::FromStr};
+use std::{fs, mem::swap, path::PathBuf, str::FromStr};
 
 use clap::{IntoApp, Parser};
 use espflash::{
     cli::{
-        board_info, connect, flash_elf_image, monitor::monitor, save_elf_as_image, ConnectOpts,
-        FlashConfigOpts, FlashOpts,
+        board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image,
+        ConnectOpts, FlashConfigOpts, FlashOpts, PartitionTableOpts,
     },
-    Chip, Config, ImageFormatId, InvalidPartitionTable, PartitionTable,
+    Chip, Config, ImageFormatId,
 };
 use miette::{IntoDiagnostic, Result, WrapErr};
 
@@ -60,24 +60,6 @@ pub struct SaveImageOpts {
     /// Custom partition table for merging
     #[clap(long, short = 'T')]
     pub partition_table: Option<PathBuf>,
-}
-
-#[derive(Parser)]
-pub struct PartitionTableOpts {
-    /// Convert CSV parition table to binary representation
-    #[clap(long, required_unless_present_any = ["info", "to-csv"])]
-    to_binary: bool,
-    /// Convert binary partition table to CSV representation
-    #[clap(long, required_unless_present_any = ["info", "to-binary"])]
-    to_csv: bool,
-    /// Show information on partition table
-    #[clap(short, long, required_unless_present_any = ["to-binary", "to-csv"])]
-    info: bool,
-    /// Input partition table
-    partition_table: PathBuf,
-    /// Optional output file name, if unset will output to stdout
-    #[clap(short, long)]
-    output: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
@@ -188,53 +170,6 @@ fn save_image(opts: SaveImageOpts) -> Result<()> {
         opts.bootloader,
         opts.partition_table,
     )?;
-
-    Ok(())
-}
-
-fn partition_table(opts: PartitionTableOpts) -> Result<()> {
-    if opts.to_binary {
-        let input = fs::read(&opts.partition_table).into_diagnostic()?;
-        let part_table = PartitionTable::try_from_str(String::from_utf8(input).into_diagnostic()?)
-            .into_diagnostic()?;
-
-        // Use either stdout or a file if provided for the output.
-        let mut writer: Box<dyn Write> = if let Some(output) = opts.output {
-            Box::new(fs::File::create(output).into_diagnostic()?)
-        } else {
-            Box::new(std::io::stdout())
-        };
-        part_table.save_bin(&mut writer).into_diagnostic()?;
-    } else if opts.to_csv {
-        let input = fs::read(&opts.partition_table).into_diagnostic()?;
-        let part_table = PartitionTable::try_from_bytes(input).into_diagnostic()?;
-
-        // Use either stdout or a file if provided for the output.
-        let mut writer: Box<dyn Write> = if let Some(output) = opts.output {
-            Box::new(fs::File::create(output).into_diagnostic()?)
-        } else {
-            Box::new(std::io::stdout())
-        };
-        part_table.save_csv(&mut writer).into_diagnostic()?;
-    } else if opts.info {
-        let input = fs::read(&opts.partition_table).into_diagnostic()?;
-
-        // Try getting the partition table from either the csv or the binary representation and
-        // fail otherwise.
-        let part_table = if let Ok(part_table) =
-            PartitionTable::try_from_bytes(input.clone()).into_diagnostic()
-        {
-            part_table
-        } else if let Ok(part_table) =
-            PartitionTable::try_from_str(String::from_utf8(input).into_diagnostic()?)
-        {
-            part_table
-        } else {
-            return Err((InvalidPartitionTable {}).into());
-        };
-
-        part_table.pretty_print();
-    }
 
     Ok(())
 }
