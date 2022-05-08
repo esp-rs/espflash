@@ -98,7 +98,7 @@ An example configuration file may look as follows (note that TOML does _not_ sup
 [connection]
 serial = "/dev/ttyUSB0"
 
-[usb_device]
+[[usb_device]]
 vid = "303A"
 pid = "8000"
 ```
