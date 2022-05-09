@@ -25,8 +25,9 @@ categories = [
 ]
 
 [package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/v{ version }/{ name }"
-pkg-fmt = "bin"
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.{ archive-format }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "zip"
 
 [dependencies]
 cargo_metadata = "0.14"

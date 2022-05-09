@@ -24,8 +24,9 @@ categories = [
 exclude = ["tests/data"]
 
 [package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/v{ version }/{ name }"
-pkg-fmt = "bin"
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.{ archive-format }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "zip"
 
 [[bin]]
 name = "espflash"
