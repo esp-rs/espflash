@@ -3,3 +3,7 @@ members = [
     "cargo-espflash",
     "espflash",
 ]
+
+[profile.release]
+lto   = "thin"
+strip = true
