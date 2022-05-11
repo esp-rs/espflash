@@ -19,9 +19,11 @@ jobs:
     runs-on: ${{ inputs.runs_on }}
 
     steps:
-      - name: build dependencies
+      - name: Change apt mirror and install dependencies
         if: ${{ inputs.runs_on == 'ubuntu-latest' }}
         run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
           sudo apt-get install musl-tools libudev-dev
 
       - uses: actions/checkout@v2

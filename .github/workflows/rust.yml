@@ -12,8 +12,10 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - name: build dependencies
+      - name: Change apt mirror and install dependencies
         run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
           sudo apt-get install musl-tools libudev-dev
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -30,8 +32,10 @@ jobs:
     name: Check MSRV
     runs-on: ubuntu-latest
     steps:
-      - name: build dependencies
+      - name: Change apt mirror and install dependencies
         run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
           sudo apt-get install musl-tools libudev-dev
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -48,8 +52,10 @@ jobs:
     name: Unit Test
     runs-on: ubuntu-latest
     steps:
-      - name: build dependencies
+      - name: Change apt mirror and install dependencies
         run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
           sudo apt-get install musl-tools libudev-dev
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -84,8 +90,10 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - name: build dependencies
+      - name: Change apt mirror and install dependencies
         run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
           sudo apt-get install musl-tools libudev-dev
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
