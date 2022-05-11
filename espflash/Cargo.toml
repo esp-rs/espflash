@@ -1,6 +1,6 @@
 [package]
 name = "espflash"
-version = "1.5.0-dev"
+version = "1.5.0"
 authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",
@@ -36,7 +36,7 @@ path = "src/main.rs"
 binread = "2.2"
 bytemuck = { version = "1.9", features = ["derive"] }
 clap = { version = "3.1", features = ["derive"] }
-comfy-table = "5"
+comfy-table = "5.0"
 crossterm = "0.23"
 csv = "1.1"
 dialoguer = "0.10"
@@ -45,7 +45,7 @@ espmonitor = "0.7"
 flate2 = "1.0"
 indicatif = "0.16"
 md5 = "0.7"
-miette = { version = "4.5", features = ["fancy"] }
+miette = { version = "4.7", features = ["fancy"] }
 regex = "1.5"
 serde = { version = "1.0", features = ["derive"] }
 serde-hex = "0.1"

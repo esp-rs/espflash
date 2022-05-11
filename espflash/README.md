@@ -15,7 +15,7 @@ $ cargo install espflash
 ## Usage
 
 ```text
-espflash 1.4.1
+espflash 1.5.0
 
 USAGE:
     espflash [OPTIONS] [ARGS] [SUBCOMMAND]
@@ -60,9 +60,10 @@ OPTIONS:
             Print version information
 
 SUBCOMMANDS:
-    board-info    Display information about the connected board and exit without flashing
-    help          Print this message or the help of the given subcommand(s)
-    save-image    Save the image to disk instead of flashing to device
+    board-info         Display information about the connected board and exit without flashing
+    help               Print this message or the help of the given subcommand(s)
+    partition-table    Operations for partitions tables
+    save-image         Save the image to disk instead of flashing to device
 ```
 
 ## Configuration
@@ -81,7 +82,7 @@ An example configuration file may look as follows (note that TOML does _not_ sup
 [connection]
 serial = "/dev/ttyUSB0"
 
-[usb_device]
+[[usb_device]]
 vid = 12346 # 0x303A
 pid = 32768 # 0x8000
 ```

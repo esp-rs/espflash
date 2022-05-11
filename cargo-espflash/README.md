@@ -15,7 +15,7 @@ $ cargo install cargo-espflash
 ## Usage
 
 ```text
-cargo-espflash 1.4.1
+cargo-espflash 1.5.0
 
 USAGE:
     cargo espflash [OPTIONS] [SERIAL] [SUBCOMMAND]
@@ -77,9 +77,10 @@ OPTIONS:
             Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details
 
 SUBCOMMANDS:
-    board-info    Display information about the connected board and exit without flashing
-    help          Print this message or the help of the given subcommand(s)
-    save-image    Save the image to disk instead of flashing to device
+    board-info         Display information about the connected board and exit without flashing
+    help               Print this message or the help of the given subcommand(s)
+    partition-table    Operations for partitions tables
+    save-image         Save the image to disk instead of flashing to device
 ```
 
 ## Configuration
