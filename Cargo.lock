@@ -173,7 +173,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-espflash"
-version = "1.5.0"
+version = "1.5.1"
 dependencies = [
  "cargo_metadata",
  "cargo_toml",
@@ -436,7 +436,7 @@ checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
 name = "espflash"
-version = "1.5.1-dev"
+version = "1.5.1"
 dependencies = [
  "binread",
  "bytemuck",
