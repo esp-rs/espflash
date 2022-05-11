@@ -68,10 +68,7 @@ fn main() -> Result<()> {
     let mut opts = Opts::parse();
     let config = Config::load()?;
 
-    if !matches!(
-        opts.subcommand,
-        Some(SubCommand::BoardInfo(..) | SubCommand::PartitionTable(..)),
-    ) {
+    if opts.subcommand.is_none() {
         // If neither the IMAGE nor SERIAL arguments have been provided, print the
         // help message and exit.
         if opts.image.is_none() && opts.connect_opts.serial.is_none() {
