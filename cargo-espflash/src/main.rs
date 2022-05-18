@@ -65,6 +65,12 @@ pub struct BuildOpts {
     /// Build the application using the release profile
     #[clap(long)]
     pub release: bool,
+    /// Require Cargo.lock is up to date
+    #[clap(long)]
+    pub locked: bool,
+    /// Require Cargo.lock and cache are up to date
+    #[clap(long)]
+    pub frozen: bool,
     /// Example to build and flash
     #[clap(long)]
     pub example: Option<String>,
@@ -228,6 +234,14 @@ fn build(
 
     if build_options.release {
         args.push("--release".to_string());
+    }
+
+    if build_options.locked {
+        args.push("--locked".to_string());
+    }
+
+    if build_options.frozen {
+        args.push("--frozen".to_string());
     }
 
     if let Some(example) = &build_options.example {
