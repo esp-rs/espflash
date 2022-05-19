@@ -14,6 +14,12 @@ impl Esp8266Target {
     }
 }
 
+impl Default for Esp8266Target {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FlashTarget for Esp8266Target {
     fn begin(&mut self, connection: &mut Connection, _image: &FirmwareImage) -> Result<(), Error> {
         connection.command(Command::FlashBegin {

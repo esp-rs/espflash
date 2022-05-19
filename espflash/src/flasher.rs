@@ -443,6 +443,7 @@ impl Flasher {
     }
 
     /// Load an elf image to flash and execute it
+    #[allow(clippy::too_many_arguments)]
     pub fn load_elf_to_flash_with_format(
         &mut self,
         elf_data: &[u8],

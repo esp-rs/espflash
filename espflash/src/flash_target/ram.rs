@@ -22,6 +22,12 @@ impl RamTarget {
     }
 }
 
+impl Default for RamTarget {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FlashTarget for RamTarget {
     fn begin(&mut self, _connection: &mut Connection, image: &FirmwareImage) -> Result<(), Error> {
         self.entry = Some(image.entry());
