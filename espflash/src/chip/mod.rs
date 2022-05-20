@@ -141,11 +141,16 @@ impl FromStr for Chip {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_ascii_lowercase().as_str() {
+        let s: String = s
+            .chars()
+            .filter(|&c| c != '-')
+            .map(|c| c.to_ascii_lowercase())
+            .collect();
+        match s.as_str() {
             "esp32" => Ok(Chip::Esp32),
-            "esp32-c3" => Ok(Chip::Esp32c3),
-            "esp32-s2" => Ok(Chip::Esp32s2),
-            "esp32-s3" => Ok(Chip::Esp32s3),
+            "esp32c3" => Ok(Chip::Esp32c3),
+            "esp32s2" => Ok(Chip::Esp32s2),
+            "esp32s3" => Ok(Chip::Esp32s3),
             "esp8266" => Ok(Chip::Esp8266),
             _ => Err(Error::UnrecognizedChipName),
         }
