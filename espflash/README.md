@@ -87,6 +87,9 @@ vid = 12346 # 0x303A
 pid = 32768 # 0x8000
 ```
 
+## WSL2
+It is not possible to flash `usb-serial-jtag` chips with `WSL2` because the reset also resets `serial-jtag-peripheral` which disconnects the chip from WSL2.
+
 ## Use as a Cargo Runner
 
 You can also use `espflash` as a Cargo runner by adding the followin to your project's `.cargo/config` file:

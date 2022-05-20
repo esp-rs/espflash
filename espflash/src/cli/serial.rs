@@ -132,7 +132,12 @@ fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
     let ports = available_ports().into_diagnostic()?;
     let ports = ports
         .into_iter()
-        .filter(|port_info| matches!(&port_info.port_type, SerialPortType::UsbPort(..)))
+        .filter(|port_info| {
+            matches!(
+                &port_info.port_type,
+                SerialPortType::UsbPort(..) | SerialPortType::Unknown
+            )
+        })
         .collect::<Vec<_>>();
 
     Ok(ports)
@@ -214,6 +219,13 @@ fn select_serial_port(
         let port_name = port.port_name.clone();
         let port_info = match &port.port_type {
             SerialPortType::UsbPort(info) => info,
+            SerialPortType::Unknown => &UsbPortInfo {
+                vid: 0,
+                pid: 0,
+                serial_number: None,
+                manufacturer: None,
+                product: None,
+            },
             _ => unreachable!(),
         };
 
