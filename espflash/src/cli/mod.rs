@@ -11,7 +11,7 @@ use std::{
 use clap::Parser;
 use config::Config;
 use miette::{IntoDiagnostic, Result, WrapErr};
-use serialport::{FlowControl, SerialPortType};
+use serialport::{FlowControl, SerialPortType, UsbPortInfo};
 use strum::VariantNames;
 
 use crate::{
@@ -99,6 +99,16 @@ pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
     //       can just pretend the remaining types don't exist here.
     let port_info = match port_info.port_type {
         SerialPortType::UsbPort(info) => info,
+        SerialPortType::Unknown => {
+            println!("Matched SerialPortType::Unknown");
+            UsbPortInfo {
+                vid: 0,
+                pid: 0,
+                serial_number: None,
+                manufacturer: None,
+                product: None,
+            }
+        }
         _ => unreachable!(),
     };
 

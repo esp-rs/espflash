@@ -104,6 +104,9 @@ vid = "303A"
 pid = "8000"
 ```
 
+## WSL2
+It is not possible to flash `usb-serial-jtag` chips with `WSL2` because the reset also resets `serial-jtag-peripheral` which disconnects the chip from WSL2.
+
 ## Package Metadata
 
 You can specify the bootloader, partition table, or image format for a project in the package metadata in `Cargo.toml`:
