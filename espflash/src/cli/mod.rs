@@ -122,7 +122,6 @@ pub fn board_info(opts: ConnectOpts, config: Config) -> Result<()> {
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn save_elf_as_image(
     chip: Chip,
     elf_data: &[u8],
@@ -220,7 +219,6 @@ pub fn save_elf_as_image(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn flash_elf_image(
     flasher: &mut Flasher,
     elf_data: &[u8],

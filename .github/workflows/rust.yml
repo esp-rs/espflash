@@ -106,6 +106,6 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          # `identity_op` and `or_fun_call` leads to false positives
-          # `too-many-arguments` is relatively arbitrary
-          args: -- -D warnings -A clippy::identity_op -A clippy::or_fun_call -A clippy::too-many-arguments
+          # `identity_op` and `or_fun_call` may lead to false positives
+          # `too_many_arguments` is relatively arbitrary
+          args: -- -D warnings -A clippy::identity_op -A clippy::or_fun_call -A clippy::too_many_arguments
