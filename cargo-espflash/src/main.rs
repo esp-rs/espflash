@@ -86,6 +86,9 @@ pub struct BuildOpts {
     /// Target to build for
     #[clap(long)]
     pub target: Option<String>,
+    /// Directory for all generated artifacts
+    #[clap(long)]
+    pub target_dir: Option<String>,
     /// Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details
     #[clap(short = 'Z')]
     pub unstable: Option<Vec<String>>,
@@ -231,6 +234,11 @@ fn build(
     // explicitly state the target, as it must be provided as either a command-line
     // argument or in the cargo config file.
     let mut args = vec!["--target".to_string(), target.to_string()];
+
+    if let Some(target_dir) = &build_options.target_dir {
+        args.push("--target-dir".to_string());
+        args.push(target_dir.to_string());
+    }
 
     if build_options.release {
         args.push("--release".to_string());
