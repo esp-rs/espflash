@@ -77,11 +77,10 @@ impl FromStr for FlashFrequency {
 }
 
 pub struct FirmwareImage<'a> {
-    pub entry: u32,
-    pub elf: ElfFile<'a>,
-    pub flash_mode: Option<FlashMode>,
-    pub flash_size: Option<FlashSize>,
-    pub flash_frequency: Option<FlashFrequency>,
+    elf: ElfFile<'a>,
+    flash_mode: Option<FlashMode>,
+    flash_size: Option<FlashSize>,
+    flash_frequency: Option<FlashFrequency>,
 }
 
 impl<'a> FirmwareImage<'a> {
@@ -92,7 +91,6 @@ impl<'a> FirmwareImage<'a> {
         flash_frequency: Option<FlashFrequency>,
     ) -> Self {
         Self {
-            entry: elf.header.pt2.entry_point() as u32,
             elf,
             flash_mode,
             flash_size,
@@ -146,6 +144,18 @@ impl<'a> FirmwareImage<'a> {
     pub fn ram_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
         self.segments()
             .filter(move |segment| !chip.addr_is_flash(segment.addr))
+    }
+
+    pub fn flash_mode(&self) -> Option<FlashMode> {
+        self.flash_mode
+    }
+
+    pub fn flash_size(&self) -> Option<FlashSize> {
+        self.flash_size
+    }
+
+    pub fn flash_frequency(&self) -> Option<FlashFrequency> {
+        self.flash_frequency
     }
 }
 

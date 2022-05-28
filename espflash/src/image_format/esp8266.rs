@@ -33,10 +33,10 @@ impl<'a> Esp8266Format<'a> {
         let header = EspCommonHeader {
             magic: ESP_MAGIC,
             segment_count: image.ram_segments(Chip::Esp8266).count() as u8,
-            flash_mode: image.flash_mode.unwrap_or(FlashMode::Dio) as u8,
-            flash_config: encode_flash_size(image.flash_size.unwrap_or(FlashSize::Flash4Mb))?
-                + image.flash_frequency.unwrap_or(FlashFrequency::Flash40M) as u8,
-            entry: image.entry,
+            flash_mode: image.flash_mode().unwrap_or(FlashMode::Dio) as u8,
+            flash_config: encode_flash_size(image.flash_size().unwrap_or(FlashSize::Flash4Mb))?
+                + image.flash_frequency().unwrap_or(FlashFrequency::Flash40M) as u8,
+            entry: image.entry(),
         };
         common_data.write_all(bytes_of(&header))?;
 

@@ -32,8 +32,9 @@ impl<'a> Esp32BootloaderFormat<'a> {
         partition_table: Option<PartitionTable>,
         bootloader: Option<Vec<u8>>,
     ) -> Result<Self, Error> {
-        let partition_table = partition_table
-            .unwrap_or_else(|| params.default_partition_table(image.flash_size.map(|v| v.size())));
+        let partition_table = partition_table.unwrap_or_else(|| {
+            params.default_partition_table(image.flash_size().map(|v| v.size()))
+        });
         let mut bootloader = if let Some(bytes) = bootloader {
             Cow::Owned(bytes)
         } else {
@@ -49,11 +50,11 @@ impl<'a> Esp32BootloaderFormat<'a> {
         }
 
         // update the header if a user has specified any custom arguments
-        if let Some(mode) = image.flash_mode {
+        if let Some(mode) = image.flash_mode() {
             header.flash_mode = mode as u8;
             bootloader.to_mut()[2] = bytes_of(&header)[2];
         }
-        match (image.flash_size, image.flash_frequency) {
+        match (image.flash_size(), image.flash_frequency()) {
             (Some(s), Some(f)) => {
                 header.flash_config = encode_flash_size(s)? + f as u8;
                 bootloader.to_mut()[3] = bytes_of(&header)[3];
@@ -72,7 +73,7 @@ impl<'a> Esp32BootloaderFormat<'a> {
         // write the header of the app
         // use the same settings as the bootloader
         // just update the entry point
-        header.entry = image.entry;
+        header.entry = image.entry();
         data.write_all(bytes_of(&header))?;
 
         let extended_header = ExtendedHeader {
