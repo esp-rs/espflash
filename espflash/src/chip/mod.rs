@@ -4,10 +4,10 @@ use strum_macros::Display;
 
 use crate::{
     connection::Connection,
-    elf::FirmwareImage,
+    elf::{FirmwareImage, FlashFrequency, FlashMode},
     error::ChipDetectError,
     flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
-    flasher::SpiAttachParams,
+    flasher::{FlashSize, SpiAttachParams},
     image_format::{ImageFormat, ImageFormatId},
     Error, PartitionTable,
 };
@@ -54,6 +54,9 @@ pub trait ChipType: ReadEFuse {
         partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
         chip_revision: Option<u32>,
+        flash_mode: Option<FlashMode>,
+        flash_size: Option<FlashSize>,
+        flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
 
     /// Read the MAC address of the connected chip.
@@ -194,6 +197,9 @@ impl Chip {
         partition_table: Option<PartitionTable>,
         image_format: Option<ImageFormatId>,
         chip_revision: Option<u32>,
+        flash_mode: Option<FlashMode>,
+        flash_size: Option<FlashSize>,
+        flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         let image_format = image_format.unwrap_or_else(|| self.default_image_format());
 
@@ -204,6 +210,9 @@ impl Chip {
                 partition_table,
                 image_format,
                 chip_revision,
+                flash_mode,
+                flash_size,
+                flash_freq,
             ),
             Chip::Esp32c3 => Esp32c3::get_flash_segments(
                 image,
@@ -211,6 +220,9 @@ impl Chip {
                 partition_table,
                 image_format,
                 chip_revision,
+                flash_mode,
+                flash_size,
+                flash_freq,
             ),
             Chip::Esp32s2 => Esp32s2::get_flash_segments(
                 image,
@@ -218,6 +230,9 @@ impl Chip {
                 partition_table,
                 image_format,
                 chip_revision,
+                flash_mode,
+                flash_size,
+                flash_freq,
             ),
             Chip::Esp32s3 => Esp32s3::get_flash_segments(
                 image,
@@ -225,10 +240,20 @@ impl Chip {
                 partition_table,
                 image_format,
                 chip_revision,
+                flash_mode,
+                flash_size,
+                flash_freq,
             ),
-            Chip::Esp8266 => {
-                Esp8266::get_flash_segments(image, None, None, image_format, chip_revision)
-            }
+            Chip::Esp8266 => Esp8266::get_flash_segments(
+                image,
+                None,
+                None,
+                image_format,
+                chip_revision,
+                flash_mode,
+                flash_size,
+                flash_freq,
+            ),
         }
     }
 

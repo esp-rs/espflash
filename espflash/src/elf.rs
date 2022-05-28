@@ -17,7 +17,6 @@ use xmas_elf::{
 use crate::{
     chip::Chip,
     error::{ElfError, Error},
-    flasher::FlashSize,
 };
 
 pub const ESP_CHECKSUM_MAGIC: u8 = 0xef;
@@ -80,9 +79,6 @@ pub trait FirmwareImage<'a> {
     fn entry(&self) -> u32;
     fn segments(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
     fn segments_with_load_addresses(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
-    fn flash_mode(&self) -> Option<FlashMode>;
-    fn flash_size(&self) -> Option<FlashSize>;
-    fn flash_frequency(&self) -> Option<FlashFrequency>;
 
     fn rom_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
         Box::new(
@@ -101,24 +97,11 @@ pub trait FirmwareImage<'a> {
 
 pub struct ElfFirmwareImage<'a> {
     elf: ElfFile<'a>,
-    flash_mode: Option<FlashMode>,
-    flash_size: Option<FlashSize>,
-    flash_frequency: Option<FlashFrequency>,
 }
 
 impl<'a> ElfFirmwareImage<'a> {
-    pub fn new(
-        elf: ElfFile<'a>,
-        flash_mode: Option<FlashMode>,
-        flash_size: Option<FlashSize>,
-        flash_frequency: Option<FlashFrequency>,
-    ) -> Self {
-        Self {
-            elf,
-            flash_mode,
-            flash_size,
-            flash_frequency,
-        }
+    pub fn new(elf: ElfFile<'a>) -> Self {
+        Self { elf }
     }
 }
 
@@ -166,56 +149,21 @@ impl<'a> FirmwareImage<'a> for ElfFirmwareImage<'a> {
                 }),
         )
     }
-
-    fn flash_mode(&self) -> Option<FlashMode> {
-        self.flash_mode
-    }
-
-    fn flash_size(&self) -> Option<FlashSize> {
-        self.flash_size
-    }
-
-    fn flash_frequency(&self) -> Option<FlashFrequency> {
-        self.flash_frequency
-    }
 }
 
 pub struct ElfFirmwareImageBuilder<'a> {
     data: &'a [u8],
-    pub flash_mode: Option<FlashMode>,
-    pub flash_size: Option<FlashSize>,
-    pub flash_freq: Option<FlashFrequency>,
 }
 
 impl<'a> ElfFirmwareImageBuilder<'a> {
     pub fn new(data: &'a [u8]) -> Self {
-        Self {
-            data,
-            flash_mode: None,
-            flash_size: None,
-            flash_freq: None,
-        }
-    }
-
-    pub fn flash_mode(mut self, flash_mode: Option<FlashMode>) -> Self {
-        self.flash_mode = flash_mode;
-        self
-    }
-
-    pub fn flash_size(mut self, flash_size: Option<FlashSize>) -> Self {
-        self.flash_size = flash_size;
-        self
-    }
-
-    pub fn flash_freq(mut self, flash_freq: Option<FlashFrequency>) -> Self {
-        self.flash_freq = flash_freq;
-        self
+        Self { data }
     }
 
     pub fn build(&self) -> Result<ElfFirmwareImage<'a>, Error> {
         let elf = ElfFile::new(self.data).map_err(ElfError::from)?;
 
-        let image = ElfFirmwareImage::new(elf, self.flash_mode, self.flash_size, self.flash_freq);
+        let image = ElfFirmwareImage::new(elf);
 
         Ok(image)
     }

@@ -5,7 +5,8 @@ use crate::error::UnsupportedImageFormatError;
 use crate::{
     chip::{bytes_to_mac_addr, Chip, ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
-    elf::FirmwareImage,
+    elf::{FirmwareImage, FlashFrequency, FlashMode},
+    flasher::FlashSize,
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
     Error, PartitionTable,
 };
@@ -119,6 +120,9 @@ impl ChipType for Esp32 {
         partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
         _chip_revision: Option<u32>,
+        flash_mode: Option<FlashMode>,
+        flash_size: Option<FlashSize>,
+        flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         match image_format {
             ImageFormatId::Bootloader => Ok(Box::new(Esp32BootloaderFormat::new(
@@ -127,6 +131,9 @@ impl ChipType for Esp32 {
                 PARAMS,
                 partition_table,
                 bootloader,
+                flash_mode,
+                flash_size,
+                flash_freq,
             )?)),
             _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp32, None).into()),
         }
@@ -189,7 +196,9 @@ fn test_esp32_rom() {
     let expected_bin = read("./tests/data/esp32.bin").unwrap();
 
     let image = ElfFirmwareImageBuilder::new(&input_bytes).build().unwrap();
-    let flash_image = Esp32BootloaderFormat::new(&image, Chip::Esp32, PARAMS, None, None).unwrap();
+    let flash_image =
+        Esp32BootloaderFormat::new(&image, Chip::Esp32, PARAMS, None, None, None, None, None)
+            .unwrap();
 
     let segments = flash_image.flash_segments().collect::<Vec<_>>();
 

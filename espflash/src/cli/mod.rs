@@ -134,11 +134,7 @@ pub fn save_elf_as_image(
     bootloader_path: Option<PathBuf>,
     partition_table_path: Option<PathBuf>,
 ) -> Result<()> {
-    let image = ElfFirmwareImageBuilder::new(elf_data)
-        .flash_mode(flash_mode)
-        .flash_size(flash_size)
-        .flash_freq(flash_freq)
-        .build()?;
+    let image = ElfFirmwareImageBuilder::new(elf_data).build()?;
 
     if merge {
         // merge_bin is TRUE
@@ -174,8 +170,16 @@ pub fn save_elf_as_image(
 
         // To get a chip revision, the connection is needed
         // For simplicity, the revision None is used
-        let image =
-            chip.get_flash_image(&image, bootloader, partition_table, image_format, None)?;
+        let image = chip.get_flash_image(
+            &image,
+            bootloader,
+            partition_table,
+            image_format,
+            None,
+            flash_mode,
+            flash_size,
+            flash_freq,
+        )?;
 
         let mut file = fs::OpenOptions::new()
             .write(true)
@@ -202,7 +206,16 @@ pub fn save_elf_as_image(
         ];
         file.write_all(&padding_bytes).into_diagnostic()?;
     } else {
-        let flash_image = chip.get_flash_image(&image, None, None, image_format, None)?;
+        let flash_image = chip.get_flash_image(
+            &image,
+            None,
+            None,
+            image_format,
+            None,
+            flash_mode,
+            flash_size,
+            flash_freq,
+        )?;
         let parts: Vec<_> = flash_image.ota_segments().collect();
 
         match parts.as_slice() {

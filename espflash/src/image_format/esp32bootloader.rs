@@ -6,8 +6,8 @@ use sha2::{Digest, Sha256};
 use crate::{
     chip::Esp32Params,
     elf::{
-        merge_adjacent_segments, update_checksum, CodeSegment, FirmwareImage, RomSegment,
-        ESP_CHECKSUM_MAGIC,
+        merge_adjacent_segments, update_checksum, CodeSegment, FirmwareImage, FlashFrequency,
+        FlashMode, RomSegment, ESP_CHECKSUM_MAGIC,
     },
     error::{Error, FlashDetectError},
     flasher::FlashSize,
@@ -31,10 +31,12 @@ impl<'a> Esp32BootloaderFormat<'a> {
         params: Esp32Params,
         partition_table: Option<PartitionTable>,
         bootloader: Option<Vec<u8>>,
+        flash_mode: Option<FlashMode>,
+        flash_size: Option<FlashSize>,
+        flash_freq: Option<FlashFrequency>,
     ) -> Result<Self, Error> {
-        let partition_table = partition_table.unwrap_or_else(|| {
-            params.default_partition_table(image.flash_size().map(|v| v.size()))
-        });
+        let partition_table = partition_table
+            .unwrap_or_else(|| params.default_partition_table(flash_size.map(|v| v.size())));
         let mut bootloader = if let Some(bytes) = bootloader {
             Cow::Owned(bytes)
         } else {
@@ -50,11 +52,11 @@ impl<'a> Esp32BootloaderFormat<'a> {
         }
 
         // update the header if a user has specified any custom arguments
-        if let Some(mode) = image.flash_mode() {
+        if let Some(mode) = flash_mode {
             header.flash_mode = mode as u8;
             bootloader.to_mut()[2] = bytes_of(&header)[2];
         }
-        match (image.flash_size(), image.flash_frequency()) {
+        match (flash_size, flash_freq) {
             (Some(s), Some(f)) => {
                 header.flash_config = encode_flash_size(s)? + f as u8;
                 bootloader.to_mut()[3] = bytes_of(&header)[3];

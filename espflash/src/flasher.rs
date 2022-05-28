@@ -453,16 +453,7 @@ impl Flasher {
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<(), Error> {
-        let mut builder = ElfFirmwareImageBuilder::new(elf_data)
-            .flash_mode(flash_mode)
-            .flash_size(flash_size)
-            .flash_freq(flash_freq);
-
-        if builder.flash_size.is_none() {
-            builder = builder.flash_size(Some(self.flash_size));
-        }
-
-        let image = builder.build()?;
+        let image = ElfFirmwareImageBuilder::new(elf_data).build()?;
 
         let mut target = self.chip.flash_target(self.spi_params);
         target.begin(&mut self.connection).flashing()?;
@@ -473,6 +464,9 @@ impl Flasher {
             partition_table,
             image_format,
             self.chip.chip_revision(&mut self.connection)?,
+            flash_mode,
+            flash_size.or(Some(self.flash_size)),
+            flash_freq,
         )?;
 
         for segment in flash_image.flash_segments() {
