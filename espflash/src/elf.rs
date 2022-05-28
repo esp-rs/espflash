@@ -105,6 +105,18 @@ impl<'a> ElfFirmwareImage<'a> {
     }
 }
 
+impl<'a> TryFrom<&'a [u8]> for ElfFirmwareImage<'a> {
+    type Error = Error;
+
+    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+        let elf = ElfFile::new(value).map_err(ElfError::from)?;
+
+        let image = ElfFirmwareImage::new(elf);
+
+        Ok(image)
+    }
+}
+
 impl<'a> FirmwareImage<'a> for ElfFirmwareImage<'a> {
     fn entry(&self) -> u32 {
         self.elf.header.pt2.entry_point() as u32
@@ -148,24 +160,6 @@ impl<'a> FirmwareImage<'a> for ElfFirmwareImage<'a> {
                     Some(CodeSegment::new(addr, data))
                 }),
         )
-    }
-}
-
-pub struct ElfFirmwareImageBuilder<'a> {
-    data: &'a [u8],
-}
-
-impl<'a> ElfFirmwareImageBuilder<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data }
-    }
-
-    pub fn build(&self) -> Result<ElfFirmwareImage<'a>, Error> {
-        let elf = ElfFile::new(self.data).map_err(ElfError::from)?;
-
-        let image = ElfFirmwareImage::new(elf);
-
-        Ok(image)
     }
 }
 

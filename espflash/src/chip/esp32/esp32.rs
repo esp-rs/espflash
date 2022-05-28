@@ -190,12 +190,12 @@ impl Esp32 {
 fn test_esp32_rom() {
     use std::fs::read;
 
-    use crate::elf::ElfFirmwareImageBuilder;
+    use crate::elf::ElfFirmwareImage;
 
     let input_bytes = read("./tests/data/esp32").unwrap();
     let expected_bin = read("./tests/data/esp32.bin").unwrap();
 
-    let image = ElfFirmwareImageBuilder::new(&input_bytes).build().unwrap();
+    let image = ElfFirmwareImage::try_from(input_bytes.as_slice()).unwrap();
     let flash_image =
         Esp32BootloaderFormat::new(&image, Chip::Esp32, PARAMS, None, None, None, None, None)
             .unwrap();

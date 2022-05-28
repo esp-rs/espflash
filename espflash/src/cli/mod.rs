@@ -16,7 +16,7 @@ use strum::VariantNames;
 
 use crate::{
     cli::serial::get_serial_port_info,
-    elf::{ElfFirmwareImageBuilder, FlashFrequency, FlashMode},
+    elf::{ElfFirmwareImage, FlashFrequency, FlashMode},
     error::Error,
     flasher::FlashSize,
     Chip, Flasher, ImageFormatId, InvalidPartitionTable, PartitionTable,
@@ -134,7 +134,7 @@ pub fn save_elf_as_image(
     bootloader_path: Option<PathBuf>,
     partition_table_path: Option<PathBuf>,
 ) -> Result<()> {
-    let image = ElfFirmwareImageBuilder::new(elf_data).build()?;
+    let image = ElfFirmwareImage::try_from(elf_data)?;
 
     if merge {
         // merge_bin is TRUE
