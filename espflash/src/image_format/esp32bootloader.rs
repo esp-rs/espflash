@@ -26,7 +26,7 @@ pub struct Esp32BootloaderFormat<'a> {
 
 impl<'a> Esp32BootloaderFormat<'a> {
     pub fn new(
-        image: &'a FirmwareImage,
+        image: &'a dyn FirmwareImage<'a>,
         chip: Chip,
         params: Esp32Params,
         partition_table: Option<PartitionTable>,

@@ -49,7 +49,7 @@ pub trait ChipType: ReadEFuse {
 
     /// Get the firmware segments for writing an image to flash.
     fn get_flash_segments<'a>(
-        image: &'a FirmwareImage,
+        image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
@@ -189,7 +189,7 @@ impl Chip {
 
     pub fn get_flash_image<'a>(
         &self,
-        image: &'a FirmwareImage,
+        image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: Option<ImageFormatId>,

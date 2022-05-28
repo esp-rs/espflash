@@ -76,14 +76,25 @@ impl FromStr for FlashFrequency {
     }
 }
 
-pub struct FirmwareImage<'a> {
+pub trait FirmwareImage<'a> {
+    fn entry(&self) -> u32;
+    fn segments(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
+    fn segments_with_load_addresses(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
+    fn rom_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
+    fn ram_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
+    fn flash_mode(&self) -> Option<FlashMode>;
+    fn flash_size(&self) -> Option<FlashSize>;
+    fn flash_frequency(&self) -> Option<FlashFrequency>;
+}
+
+pub struct ElfFirmwareImage<'a> {
     elf: ElfFile<'a>,
     flash_mode: Option<FlashMode>,
     flash_size: Option<FlashSize>,
     flash_frequency: Option<FlashFrequency>,
 }
 
-impl<'a> FirmwareImage<'a> {
+impl<'a> ElfFirmwareImage<'a> {
     pub fn new(
         elf: ElfFile<'a>,
         flash_mode: Option<FlashMode>,
@@ -97,76 +108,88 @@ impl<'a> FirmwareImage<'a> {
             flash_frequency,
         }
     }
+}
 
-    pub fn entry(&self) -> u32 {
+impl<'a> FirmwareImage<'a> for ElfFirmwareImage<'a> {
+    fn entry(&self) -> u32 {
         self.elf.header.pt2.entry_point() as u32
     }
 
-    pub fn segments(&'a self) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
-        self.elf
-            .section_iter()
-            .filter(|header| {
-                header.size() > 0
-                    && header.get_type() == Ok(ShType::ProgBits)
-                    && header.offset() > 0
-                    && header.address() > 0
-            })
-            .flat_map(move |header| {
-                let addr = header.address() as u32;
-                let data = match header.get_data(&self.elf) {
-                    Ok(SectionData::Undefined(data)) => data,
-                    _ => return None,
-                };
-                Some(CodeSegment::new(addr, data))
-            })
+    fn segments(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
+        Box::new(
+            self.elf
+                .section_iter()
+                .filter(|header| {
+                    header.size() > 0
+                        && header.get_type() == Ok(ShType::ProgBits)
+                        && header.offset() > 0
+                        && header.address() > 0
+                })
+                .flat_map(move |header| {
+                    let addr = header.address() as u32;
+                    let data = match header.get_data(&self.elf) {
+                        Ok(SectionData::Undefined(data)) => data,
+                        _ => return None,
+                    };
+                    Some(CodeSegment::new(addr, data))
+                }),
+        )
     }
 
-    pub fn segments_with_load_addresses(&'a self) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
-        self.elf
-            .program_iter()
-            .filter(|header| {
-                header.file_size() > 0 && header.get_type() == Ok(Type::Load) && header.offset() > 0
-            })
-            .flat_map(move |header| {
-                let addr = header.physical_addr() as u32;
-                let from = header.offset() as usize;
-                let to = header.offset() as usize + header.file_size() as usize;
-                let data = &self.elf.input[from..to];
-                Some(CodeSegment::new(addr, data))
-            })
+    fn segments_with_load_addresses(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
+        Box::new(
+            self.elf
+                .program_iter()
+                .filter(|header| {
+                    header.file_size() > 0
+                        && header.get_type() == Ok(Type::Load)
+                        && header.offset() > 0
+                })
+                .flat_map(move |header| {
+                    let addr = header.physical_addr() as u32;
+                    let from = header.offset() as usize;
+                    let to = header.offset() as usize + header.file_size() as usize;
+                    let data = &self.elf.input[from..to];
+                    Some(CodeSegment::new(addr, data))
+                }),
+        )
     }
 
-    pub fn rom_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
-        self.segments()
-            .filter(move |segment| chip.addr_is_flash(segment.addr))
+    fn rom_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
+        Box::new(
+            self.segments()
+                .filter(move |segment| chip.addr_is_flash(segment.addr)),
+        )
     }
 
-    pub fn ram_segments(&'a self, chip: Chip) -> impl Iterator<Item = CodeSegment<'a>> + 'a {
-        self.segments()
-            .filter(move |segment| !chip.addr_is_flash(segment.addr))
+    fn ram_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
+        Box::new(
+            self.segments()
+                .filter(move |segment| !chip.addr_is_flash(segment.addr)),
+        )
     }
 
-    pub fn flash_mode(&self) -> Option<FlashMode> {
+    fn flash_mode(&self) -> Option<FlashMode> {
         self.flash_mode
     }
 
-    pub fn flash_size(&self) -> Option<FlashSize> {
+    fn flash_size(&self) -> Option<FlashSize> {
         self.flash_size
     }
 
-    pub fn flash_frequency(&self) -> Option<FlashFrequency> {
+    fn flash_frequency(&self) -> Option<FlashFrequency> {
         self.flash_frequency
     }
 }
 
-pub struct FirmwareImageBuilder<'a> {
+pub struct ElfFirmwareImageBuilder<'a> {
     data: &'a [u8],
     pub flash_mode: Option<FlashMode>,
     pub flash_size: Option<FlashSize>,
     pub flash_freq: Option<FlashFrequency>,
 }
 
-impl<'a> FirmwareImageBuilder<'a> {
+impl<'a> ElfFirmwareImageBuilder<'a> {
     pub fn new(data: &'a [u8]) -> Self {
         Self {
             data,
@@ -191,10 +214,10 @@ impl<'a> FirmwareImageBuilder<'a> {
         self
     }
 
-    pub fn build(&self) -> Result<FirmwareImage<'a>, Error> {
+    pub fn build(&self) -> Result<ElfFirmwareImage<'a>, Error> {
         let elf = ElfFile::new(self.data).map_err(ElfError::from)?;
 
-        let image = FirmwareImage::new(elf, self.flash_mode, self.flash_size, self.flash_freq);
+        let image = ElfFirmwareImage::new(elf, self.flash_mode, self.flash_size, self.flash_freq);
 
         Ok(image)
     }

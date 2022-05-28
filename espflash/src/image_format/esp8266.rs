@@ -19,7 +19,7 @@ pub struct Esp8266Format<'a> {
 }
 
 impl<'a> Esp8266Format<'a> {
-    pub fn new(image: &'a FirmwareImage) -> Result<Self, Error> {
+    pub fn new(image: &'a dyn FirmwareImage<'a>) -> Result<Self, Error> {
         // irom goes into a separate plain bin
         let irom_data = merge_rom_segments(image.rom_segments(Chip::Esp8266));
 

@@ -114,7 +114,7 @@ impl ChipType for Esp32 {
     }
 
     fn get_flash_segments<'a>(
-        image: &'a FirmwareImage,
+        image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
@@ -183,12 +183,12 @@ impl Esp32 {
 fn test_esp32_rom() {
     use std::fs::read;
 
-    use crate::elf::FirmwareImageBuilder;
+    use crate::elf::ElfFirmwareImageBuilder;
 
     let input_bytes = read("./tests/data/esp32").unwrap();
     let expected_bin = read("./tests/data/esp32.bin").unwrap();
 
-    let image = FirmwareImageBuilder::new(&input_bytes).build().unwrap();
+    let image = ElfFirmwareImageBuilder::new(&input_bytes).build().unwrap();
     let flash_image = Esp32BootloaderFormat::new(&image, Chip::Esp32, PARAMS, None, None).unwrap();
 
     let segments = flash_image.flash_segments().collect::<Vec<_>>();

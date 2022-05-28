@@ -91,7 +91,7 @@ impl ChipType for Esp32s2 {
     }
 
     fn get_flash_segments<'a>(
-        image: &'a FirmwareImage,
+        image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
