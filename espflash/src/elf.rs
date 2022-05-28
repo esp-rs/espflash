@@ -80,11 +80,23 @@ pub trait FirmwareImage<'a> {
     fn entry(&self) -> u32;
     fn segments(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
     fn segments_with_load_addresses(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
-    fn rom_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
-    fn ram_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
     fn flash_mode(&self) -> Option<FlashMode>;
     fn flash_size(&self) -> Option<FlashSize>;
     fn flash_frequency(&self) -> Option<FlashFrequency>;
+
+    fn rom_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
+        Box::new(
+            self.segments()
+                .filter(move |segment| chip.addr_is_flash(segment.addr)),
+        )
+    }
+
+    fn ram_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
+        Box::new(
+            self.segments()
+                .filter(move |segment| !chip.addr_is_flash(segment.addr)),
+        )
+    }
 }
 
 pub struct ElfFirmwareImage<'a> {
@@ -152,20 +164,6 @@ impl<'a> FirmwareImage<'a> for ElfFirmwareImage<'a> {
                     let data = &self.elf.input[from..to];
                     Some(CodeSegment::new(addr, data))
                 }),
-        )
-    }
-
-    fn rom_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
-        Box::new(
-            self.segments()
-                .filter(move |segment| chip.addr_is_flash(segment.addr)),
-        )
-    }
-
-    fn ram_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
-        Box::new(
-            self.segments()
-                .filter(move |segment| !chip.addr_is_flash(segment.addr)),
         )
     }
 
