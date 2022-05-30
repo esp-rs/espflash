@@ -1,6 +1,6 @@
 use crate::command::{Command, CommandType};
 use crate::connection::Connection;
-use crate::elf::{FirmwareImage, RomSegment};
+use crate::elf::RomSegment;
 use crate::error::Error;
 use crate::flash_target::FlashTarget;
 use crate::flasher::{get_erase_size, FLASH_WRITE_SIZE};
@@ -21,7 +21,7 @@ impl Default for Esp8266Target {
 }
 
 impl FlashTarget for Esp8266Target {
-    fn begin(&mut self, connection: &mut Connection, _image: &FirmwareImage) -> Result<(), Error> {
+    fn begin(&mut self, connection: &mut Connection) -> Result<(), Error> {
         connection.command(Command::FlashBegin {
             size: 0,
             blocks: 0,

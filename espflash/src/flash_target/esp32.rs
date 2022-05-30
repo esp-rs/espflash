@@ -1,6 +1,6 @@
 use crate::command::{Command, CommandType};
 use crate::connection::{Connection, USB_SERIAL_JTAG_PID};
-use crate::elf::{FirmwareImage, RomSegment};
+use crate::elf::RomSegment;
 use crate::error::Error;
 use crate::flash_target::FlashTarget;
 use crate::flasher::{SpiAttachParams, FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
@@ -25,7 +25,7 @@ impl Esp32Target {
 }
 
 impl FlashTarget for Esp32Target {
-    fn begin(&mut self, connection: &mut Connection, _image: &FirmwareImage) -> Result<(), Error> {
+    fn begin(&mut self, connection: &mut Connection) -> Result<(), Error> {
         connection.with_timeout(CommandType::SpiAttach.timeout(), |connection| {
             connection.command(Command::SpiAttach {
                 spi_params: self.spi_attach_params,

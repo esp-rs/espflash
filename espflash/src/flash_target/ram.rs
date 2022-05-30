@@ -1,6 +1,6 @@
 use crate::command::{Command, CommandType};
 use crate::connection::Connection;
-use crate::elf::{FirmwareImage, RomSegment};
+use crate::elf::RomSegment;
 use crate::error::Error;
 use crate::flash_target::FlashTarget;
 use bytemuck::{Pod, Zeroable};
@@ -17,20 +17,19 @@ pub struct RamTarget {
 }
 
 impl RamTarget {
-    pub fn new() -> Self {
-        RamTarget { entry: None }
+    pub fn new(entry: Option<u32>) -> Self {
+        RamTarget { entry }
     }
 }
 
 impl Default for RamTarget {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
 impl FlashTarget for RamTarget {
-    fn begin(&mut self, _connection: &mut Connection, image: &FirmwareImage) -> Result<(), Error> {
-        self.entry = Some(image.entry());
+    fn begin(&mut self, _connection: &mut Connection) -> Result<(), Error> {
         Ok(())
     }
 

@@ -3,7 +3,7 @@ mod esp8266;
 mod ram;
 
 use crate::connection::Connection;
-use crate::elf::{FirmwareImage, RomSegment};
+use crate::elf::RomSegment;
 use crate::error::Error;
 
 use bytemuck::{Pod, Zeroable};
@@ -12,7 +12,7 @@ pub use esp8266::Esp8266Target;
 pub use ram::RamTarget;
 
 pub trait FlashTarget {
-    fn begin(&mut self, connection: &mut Connection, image: &FirmwareImage) -> Result<(), Error>;
+    fn begin(&mut self, connection: &mut Connection) -> Result<(), Error>;
     fn write_segment(
         &mut self,
         connection: &mut Connection,
