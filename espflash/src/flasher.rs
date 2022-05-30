@@ -420,8 +420,8 @@ impl Flasher {
     pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
         let image = FirmwareImageBuilder::new(elf_data).build()?;
 
-        let mut target = self.chip.ram_target();
-        target.begin(&mut self.connection, &image).flashing()?;
+        let mut target = self.chip.ram_target(Some(image.entry()));
+        target.begin(&mut self.connection).flashing()?;
 
         if image.rom_segments(self.chip).next().is_some() {
             return Err(Error::ElfNotRamLoadable);
@@ -465,7 +465,7 @@ impl Flasher {
         let image = builder.build()?;
 
         let mut target = self.chip.flash_target(self.spi_params);
-        target.begin(&mut self.connection, &image).flashing()?;
+        target.begin(&mut self.connection).flashing()?;
 
         let flash_image = self.chip.get_flash_image(
             &image,

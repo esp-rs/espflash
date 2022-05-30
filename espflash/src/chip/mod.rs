@@ -254,8 +254,8 @@ impl Chip {
         }
     }
 
-    pub fn ram_target(&self) -> Box<dyn FlashTarget> {
-        Box::new(RamTarget::new())
+    pub fn ram_target(&self, entry: Option<u32>) -> Box<dyn FlashTarget> {
+        Box::new(RamTarget::new(entry))
     }
 
     pub fn flash_target(&self, spi_params: SpiAttachParams) -> Box<dyn FlashTarget> {
