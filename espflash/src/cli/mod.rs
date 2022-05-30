@@ -244,12 +244,23 @@ pub fn flash_elf_image(
     // the CSV at the specified path.
     let partition_table = if let Some(path) = partition_table {
         let path = fs::canonicalize(path).into_diagnostic()?;
-        let data = fs::read_to_string(path)
-            .into_diagnostic()
-            .wrap_err("Failed to open partition table")?;
 
-        let table =
-            PartitionTable::try_from_str(data).wrap_err("Failed to parse partition table")?;
+        // If a partition table was detected from ESP-IDF (eg. using `esp-idf-sys`) then
+        // it will be passed in its _binary_ form. Otherwise, it will be provided as a
+        // CSV.
+        let table = if path.extension().map(|e| e.to_str().unwrap()) == Some("csv") {
+            let data = fs::read_to_string(path)
+                .into_diagnostic()
+                .wrap_err("Failed to open partition table")?;
+
+            PartitionTable::try_from_str(data).wrap_err("Failed to parse partition table")?
+        } else {
+            let data = fs::read(path)
+                .into_diagnostic()
+                .wrap_err("Failed to open partition table")?;
+
+            PartitionTable::try_from_bytes(data).wrap_err("Failed to parse partition table")?
+        };
 
         Some(table)
     } else {

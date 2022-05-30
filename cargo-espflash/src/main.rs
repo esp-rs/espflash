@@ -135,6 +135,13 @@ fn main() -> Result<()> {
     }
 }
 
+#[derive(Debug, Clone)]
+struct BuildContext {
+    pub artifact_path: PathBuf,
+    pub bootloader_path: Option<PathBuf>,
+    pub partition_table_path: Option<PathBuf>,
+}
+
 fn flash(
     opts: EspFlashOpts,
     config: Config,
@@ -143,7 +150,7 @@ fn flash(
 ) -> Result<()> {
     let mut flasher = connect(&opts.connect_opts, &config)?;
 
-    let artifact_path = build(&opts.build_opts, &cargo_config, Some(flasher.chip()))
+    let build_ctx = build(&opts.build_opts, &cargo_config, Some(flasher.chip()))
         .wrap_err("Failed to build project")?;
 
     // Print the board information once the project has successfully built. We do
@@ -152,7 +159,7 @@ fn flash(
     flasher.board_info()?;
 
     // Read the ELF data from the build path and load it to the target.
-    let elf_data = fs::read(artifact_path).into_diagnostic()?;
+    let elf_data = fs::read(build_ctx.artifact_path).into_diagnostic()?;
 
     if opts.flash_opts.ram {
         flasher.load_elf_to_ram(&elf_data)?;
@@ -161,13 +168,15 @@ fn flash(
             .flash_opts
             .bootloader
             .as_deref()
-            .or(metadata.bootloader.as_deref());
+            .or(metadata.bootloader.as_deref())
+            .or(build_ctx.bootloader_path.as_deref());
 
         let partition_table = opts
             .flash_opts
             .partition_table
             .as_deref()
-            .or(metadata.partition_table.as_deref());
+            .or(metadata.partition_table.as_deref())
+            .or(build_ctx.partition_table_path.as_deref());
 
         let image_format = opts
             .build_opts
@@ -201,7 +210,7 @@ fn build(
     build_options: &BuildOpts,
     cargo_config: &CargoConfig,
     chip: Option<Chip>,
-) -> Result<PathBuf> {
+) -> Result<BuildContext> {
     let target = build_options
         .target
         .as_deref()
@@ -291,9 +300,31 @@ fn build(
 
     // Find artifacts.
     let mut target_artifact = None;
+    let mut bootloader_path = None;
+    let mut partition_table_path = None;
 
     for message in messages {
         match message.into_diagnostic()? {
+            Message::BuildScriptExecuted(script)
+                if script.package_id.repr.starts_with("esp-idf-sys") =>
+            {
+                // If the `esp-idf-sys` package is being used, attempt to use the bootloader and
+                // partition table compiled by `embuild` instead.
+                let build_path = PathBuf::from(script.out_dir).join("build");
+
+                let bl_path = build_path.join("bootloader").join("bootloader.bin");
+                let pt_path = build_path
+                    .join("partition_table")
+                    .join("partition-table.bin");
+
+                if bl_path.exists() && bl_path.is_file() {
+                    bootloader_path = Some(bl_path);
+                }
+
+                if pt_path.exists() && pt_path.is_file() {
+                    partition_table_path = Some(pt_path);
+                }
+            }
             Message::CompilerArtifact(artifact) => {
                 if artifact.executable.is_some() {
                     if target_artifact.is_some() {
@@ -324,7 +355,13 @@ fn build(
     let target_artifact = target_artifact.ok_or(Error::NoArtifact)?;
     let artifact_path = target_artifact.executable.unwrap().into();
 
-    Ok(artifact_path)
+    let build_ctx = BuildContext {
+        artifact_path,
+        bootloader_path,
+        partition_table_path,
+    };
+
+    Ok(build_ctx)
 }
 
 fn save_image(
@@ -342,8 +379,22 @@ fn save_image(
 
     let chip = Chip::from_target(target).ok_or_else(|| Error::UnknownTarget(target.into()))?;
 
-    let path = build(&opts.build_opts, &cargo_config, Some(chip))?;
-    let elf_data = fs::read(path).into_diagnostic()?;
+    let build_ctx = build(&opts.build_opts, &cargo_config, Some(chip))?;
+    let elf_data = fs::read(build_ctx.artifact_path).into_diagnostic()?;
+
+    let bootloader = opts
+        .bootloader
+        .as_deref()
+        .or(metadata.bootloader.as_deref())
+        .or(build_ctx.bootloader_path.as_deref())
+        .map(|p| p.to_path_buf());
+
+    let partition_table = opts
+        .partition_table
+        .as_deref()
+        .or(metadata.partition_table.as_deref())
+        .or(build_ctx.partition_table_path.as_deref())
+        .map(|p| p.to_path_buf());
 
     let image_format = opts
         .build_opts
@@ -362,8 +413,8 @@ fn save_image(
         opts.build_opts.flash_config_opts.flash_size,
         opts.build_opts.flash_config_opts.flash_freq,
         opts.merge,
-        opts.bootloader,
-        opts.partition_table,
+        bootloader,
+        partition_table,
     )?;
 
     Ok(())
