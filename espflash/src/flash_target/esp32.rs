@@ -55,17 +55,17 @@ impl FlashTarget for Esp32Target {
                 }
                 Chip::Esp32s3 => {
                     connection.command(Command::WriteReg {
-                        address: 0x00B0,
+                        address: 0x6000_80B0,
                         value: 0x50D83AA1u32,
                         mask: None,
                     })?; // WP disable
                     connection.command(Command::WriteReg {
-                        address: 0x0098,
+                        address: 0x6000_8098,
                         value: 0x0,
                         mask: None,
                     })?; // turn off RTC WDG
                     connection.command(Command::WriteReg {
-                        address: 0x00B0,
+                        address: 0x6000_80B0,
                         value: 0x0,
                         mask: None,
                     })?; // WP enable
