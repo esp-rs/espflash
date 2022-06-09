@@ -4,8 +4,9 @@ use super::Esp32Params;
 use crate::{
     chip::{ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
-    elf::FirmwareImage,
+    elf::{FirmwareImage, FlashFrequency, FlashMode},
     error::UnsupportedImageFormatError,
+    flasher::FlashSize,
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
     Chip, Error, PartitionTable,
 };
@@ -91,11 +92,14 @@ impl ChipType for Esp32s2 {
     }
 
     fn get_flash_segments<'a>(
-        image: &'a FirmwareImage,
+        image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
         _chip_revision: Option<u32>,
+        flash_mode: Option<FlashMode>,
+        flash_size: Option<FlashSize>,
+        flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         match image_format {
             ImageFormatId::Bootloader => Ok(Box::new(Esp32BootloaderFormat::new(
@@ -104,6 +108,9 @@ impl ChipType for Esp32s2 {
                 PARAMS,
                 partition_table,
                 bootloader,
+                flash_mode,
+                flash_size,
+                flash_freq,
             )?)),
             _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp32s2, None).into()),
         }

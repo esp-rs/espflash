@@ -8,7 +8,7 @@ use crate::{
     chip::Chip,
     command::{Command, CommandType},
     connection::Connection,
-    elf::{FirmwareImageBuilder, FlashFrequency, FlashMode, RomSegment},
+    elf::{ElfFirmwareImage, FirmwareImage, FlashFrequency, FlashMode, RomSegment},
     error::{ConnectionError, FlashDetectError, ResultExt},
     image_format::ImageFormatId,
     Error, PartitionTable,
@@ -418,7 +418,7 @@ impl Flasher {
     ///
     /// Note that this will not touch the flash on the device
     pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
-        let image = FirmwareImageBuilder::new(elf_data).build()?;
+        let image = ElfFirmwareImage::try_from(elf_data)?;
 
         let mut target = self.chip.ram_target(Some(image.entry()));
         target.begin(&mut self.connection).flashing()?;
@@ -453,16 +453,7 @@ impl Flasher {
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<(), Error> {
-        let mut builder = FirmwareImageBuilder::new(elf_data)
-            .flash_mode(flash_mode)
-            .flash_size(flash_size)
-            .flash_freq(flash_freq);
-
-        if builder.flash_size.is_none() {
-            builder = builder.flash_size(Some(self.flash_size));
-        }
-
-        let image = builder.build()?;
+        let image = ElfFirmwareImage::try_from(elf_data)?;
 
         let mut target = self.chip.flash_target(self.spi_params);
         target.begin(&mut self.connection).flashing()?;
@@ -473,6 +464,9 @@ impl Flasher {
             partition_table,
             image_format,
             self.chip.chip_revision(&mut self.connection)?,
+            flash_mode,
+            flash_size.or(Some(self.flash_size)),
+            flash_freq,
         )?;
 
         for segment in flash_image.flash_segments() {

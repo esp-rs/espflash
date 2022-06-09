@@ -12,7 +12,7 @@ pub struct Esp32DirectBootFormat<'a> {
 }
 
 impl<'a> Esp32DirectBootFormat<'a> {
-    pub fn new(image: &'a FirmwareImage) -> Result<Self, Error> {
+    pub fn new(image: &'a dyn FirmwareImage<'a>) -> Result<Self, Error> {
         let mut segment = image
             .segments_with_load_addresses()
             .map(|mut segment| {

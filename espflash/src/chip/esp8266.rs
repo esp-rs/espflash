@@ -4,8 +4,9 @@ use super::{bytes_to_mac_addr, ChipType};
 use crate::{
     chip::{ReadEFuse, SpiRegisters},
     connection::Connection,
-    elf::FirmwareImage,
+    elf::{FirmwareImage, FlashFrequency, FlashMode},
     error::UnsupportedImageFormatError,
+    flasher::FlashSize,
     image_format::{Esp8266Format, ImageFormat, ImageFormatId},
     Chip, Error, PartitionTable,
 };
@@ -43,14 +44,19 @@ impl ChipType for Esp8266 {
     }
 
     fn get_flash_segments<'a>(
-        image: &'a FirmwareImage,
+        image: &'a dyn FirmwareImage<'a>,
         _bootloader: Option<Vec<u8>>,
         _partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
         _chip_revision: Option<u32>,
+        flash_mode: Option<FlashMode>,
+        flash_size: Option<FlashSize>,
+        flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         match image_format {
-            ImageFormatId::Bootloader => Ok(Box::new(Esp8266Format::new(image)?)),
+            ImageFormatId::Bootloader => Ok(Box::new(Esp8266Format::new(
+                image, flash_mode, flash_size, flash_freq,
+            )?)),
             _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp8266, None).into()),
         }
     }
@@ -90,13 +96,13 @@ impl ReadEFuse for Esp8266 {
 fn test_esp8266_rom() {
     use std::fs::read;
 
-    use crate::elf::FirmwareImageBuilder;
+    use crate::elf::ElfFirmwareImage;
 
     let input_bytes = read("./tests/data/esp8266").unwrap();
     let expected_bin = read("./tests/data/esp8266.bin").unwrap();
 
-    let image = FirmwareImageBuilder::new(&input_bytes).build().unwrap();
-    let flash_image = Esp8266Format::new(&image).unwrap();
+    let image = ElfFirmwareImage::try_from(input_bytes.as_slice()).unwrap();
+    let flash_image = Esp8266Format::new(&image, None, None, None).unwrap();
 
     let segments = flash_image.flash_segments().collect::<Vec<_>>();
 
