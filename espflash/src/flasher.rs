@@ -480,6 +480,19 @@ impl Flasher {
         Ok(())
     }
 
+    /// Load an bin image to flash at a specific address
+    pub fn write_bin_to_flash(&mut self, addr: u32, data: &[u8]) -> Result<(), Error> {
+        let mut target = self.chip.flash_target(self.spi_params);
+        target.begin(&mut self.connection).flashing()?;
+        let segment = RomSegment {
+            addr,
+            data: Cow::from(data),
+        };
+        target.write_segment(&mut self.connection, segment)?;
+        target.finish(&mut self.connection, true).flashing()?;
+        Ok(())
+    }
+
     /// Load an elf image to flash and execute it
     pub fn load_elf_to_flash(
         &mut self,

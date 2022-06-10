@@ -4,7 +4,8 @@ use clap::{IntoApp, Parser};
 use espflash::{
     cli::{
         board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image,
-        ConnectOpts, FlashConfigOpts, FlashOpts, PartitionTableOpts,
+        write_bin_to_flash, ConnectOpts, FlashConfigOpts, FlashOpts, PartitionTableOpts,
+        WriteBinToFlashOpts,
     },
     Chip, Config, ImageFormatId,
 };
@@ -36,6 +37,8 @@ pub enum SubCommand {
     SaveImage(SaveImageOpts),
     /// Operations for partitions tables
     PartitionTable(PartitionTableOpts),
+    /// Writes a binary file to a specific address in the chip's flash
+    WriteBinToFlash(WriteBinToFlashOpts),
 }
 
 #[derive(Parser)]
@@ -92,6 +95,7 @@ fn main() -> Result<()> {
             BoardInfo(opts) => board_info(opts, config),
             SaveImage(opts) => save_image(opts),
             PartitionTable(opts) => partition_table(opts),
+            WriteBinToFlash(opts) => write_bin_to_flash(opts),
         }
     } else {
         flash(opts, config)
