@@ -3,8 +3,8 @@
 //! No stability guaranties apply
 
 use std::{
-    fs,
-    io::Write,
+    fs::{self, File},
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -81,6 +81,16 @@ pub struct PartitionTableOpts {
     /// Optional output file name, if unset will output to stdout
     #[clap(short, long)]
     output: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct WriteBinToFlashOpts {
+    /// Address at which to write the binary file
+    addr: u32,
+    /// File containing the binary data to write
+    bin_file: String,
+    #[clap(flatten)]
+    connect_opts: ConnectOpts,
 }
 
 pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
@@ -340,5 +350,19 @@ pub fn partition_table(opts: PartitionTableOpts) -> Result<()> {
         part_table.pretty_print();
     }
 
+    Ok(())
+}
+
+pub fn write_bin_to_flash(opts: WriteBinToFlashOpts) -> Result<()> {
+    let config = Config::load()?;
+    let mut flasher = connect(&opts.connect_opts, &config)?;
+    flasher.board_info()?;
+
+    let mut f = File::open(&opts.bin_file).into_diagnostic()?;
+    let metadata = fs::metadata(&opts.bin_file).into_diagnostic()?;
+    let mut buffer = vec![0; metadata.len() as usize];
+    f.read(&mut buffer).into_diagnostic()?;
+
+    flasher.write_bin_to_flash(opts.addr, &buffer)?;
     Ok(())
 }
