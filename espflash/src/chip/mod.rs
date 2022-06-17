@@ -20,8 +20,7 @@ mod esp32;
 mod esp8266;
 
 pub trait ChipType: ReadEFuse {
-    const CHIP_DETECT_MAGIC_VALUE: u32;
-    const CHIP_DETECT_MAGIC_VALUE2: u32 = 0x0; // give default value, as most chips don't only have one
+    const CHIP_DETECT_MAGIC_VALUES: &'static [u32];
 
     const UART_CLKDIV_REG: u32;
     const UART_CLKDIV_MASK: u32 = 0xFFFFF;
@@ -30,10 +29,10 @@ pub trait ChipType: ReadEFuse {
     const SPI_REGISTERS: SpiRegisters;
     const FLASH_RANGES: &'static [Range<u32>];
 
-    const DEFAULT_IMAGE_FORMAT: ImageFormatId;
-    const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId];
-
     const SUPPORTED_TARGETS: &'static [&'static str];
+
+    const DEFAULT_IMAGE_FORMAT: ImageFormatId = ImageFormatId::Bootloader;
+    const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId] = &[ImageFormatId::Bootloader];
 
     /// List the available features of the connected chip.
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error>;
@@ -69,6 +68,10 @@ pub trait ChipType: ReadEFuse {
         let bytes = &bytes[2..];
 
         Ok(bytes_to_mac_addr(bytes))
+    }
+
+    fn has_magic_value(magic: u32) -> bool {
+        Self::CHIP_DETECT_MAGIC_VALUES.contains(&magic)
     }
 
     fn supports_target(target: &str) -> bool {
@@ -157,15 +160,18 @@ impl FromStr for Chip {
 
 impl Chip {
     pub fn from_magic(magic: u32) -> Result<Self, ChipDetectError> {
-        match magic {
-            Esp32::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp32),
-            Esp32c3::CHIP_DETECT_MAGIC_VALUE | Esp32c3::CHIP_DETECT_MAGIC_VALUE2 => {
-                Ok(Chip::Esp32c3)
-            }
-            Esp32s2::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp32s2),
-            Esp32s3::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp32s3),
-            Esp8266::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp8266),
-            _ => Err(ChipDetectError::from(magic)),
+        if Esp32::has_magic_value(magic) {
+            Ok(Chip::Esp32)
+        } else if Esp32c3::has_magic_value(magic) {
+            Ok(Chip::Esp32c3)
+        } else if Esp32s2::has_magic_value(magic) {
+            Ok(Chip::Esp32s2)
+        } else if Esp32s3::has_magic_value(magic) {
+            Ok(Chip::Esp32s3)
+        } else if Esp8266::has_magic_value(magic) {
+            Ok(Chip::Esp8266)
+        } else {
+            Err(ChipDetectError::from(magic))
         }
     }
 

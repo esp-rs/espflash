@@ -12,27 +12,16 @@ use crate::{
 
 pub struct Esp32s3;
 
-const IROM_MAP_START: u32 = 0x42000000;
-const IROM_MAP_END: u32 = 0x44000000;
-
-const DROM_MAP_START: u32 = 0x3c000000;
-const DROM_MAP_END: u32 = 0x3e000000;
-
-pub const PARAMS: Esp32Params = Esp32Params {
-    boot_addr: 0x0,
-    partition_addr: 0x8000,
-    nvs_addr: 0x9000,
-    nvs_size: 0x6000,
-    phy_init_data_addr: 0xf000,
-    phy_init_data_size: 0x1000,
-    app_addr: 0x10000,
-    app_size: 0x100000,
-    chip_id: 9,
-    default_bootloader: include_bytes!("../../../bootloader/esp32s3-bootloader.bin"),
-};
+pub const PARAMS: Esp32Params = Esp32Params::new(
+    0x0,
+    0x10000,
+    0x100000,
+    9,
+    include_bytes!("../../../bootloader/esp32s3-bootloader.bin"),
+);
 
 impl ChipType for Esp32s3 {
-    const CHIP_DETECT_MAGIC_VALUE: u32 = 0x9;
+    const CHIP_DETECT_MAGIC_VALUES: &'static [u32] = &[0x9];
 
     const UART_CLKDIV_REG: u32 = 0x60000014;
 
@@ -46,10 +35,11 @@ impl ChipType for Esp32s3 {
         miso_length_offset: Some(0x28),
     };
 
-    const FLASH_RANGES: &'static [Range<u32>] =
-        &[IROM_MAP_START..IROM_MAP_END, DROM_MAP_START..DROM_MAP_END];
+    const FLASH_RANGES: &'static [Range<u32>] = &[
+        0x42000000..0x44000000, // IROM
+        0x3c000000..0x3e000000, // DROM
+    ];
 
-    const DEFAULT_IMAGE_FORMAT: ImageFormatId = ImageFormatId::Bootloader;
     const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId] =
         &[ImageFormatId::Bootloader, ImageFormatId::DirectBoot];
 
