@@ -1,7 +1,11 @@
-use std::ops::Range;
+use std::{ops::Range, str::FromStr};
 
-use strum_macros::Display;
+use strum_macros::{Display, EnumVariantNames};
 
+pub use self::{
+    esp32::{Esp32, Esp32Params, Esp32c3, Esp32s2, Esp32s3},
+    esp8266::Esp8266,
+};
 use crate::{
     connection::Connection,
     elf::{FirmwareImage, FlashFrequency, FlashMode},
@@ -14,10 +18,6 @@ use crate::{
 
 mod esp32;
 mod esp8266;
-
-pub use esp32::{Esp32, Esp32Params, Esp32c3, Esp32s2, Esp32s3};
-pub use esp8266::Esp8266;
-use std::str::FromStr;
 
 pub trait ChipType: ReadEFuse {
     const CHIP_DETECT_MAGIC_VALUE: u32;
@@ -126,7 +126,7 @@ impl SpiRegisters {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Display, EnumVariantNames)]
 pub enum Chip {
     #[strum(serialize = "ESP32")]
     Esp32,
@@ -144,12 +144,7 @@ impl FromStr for Chip {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s: String = s
-            .chars()
-            .filter(|&c| c != '-')
-            .map(|c| c.to_ascii_lowercase())
-            .collect();
-        match s.as_str() {
+        match s.to_lowercase().replace('-', "").as_str() {
             "esp32" => Ok(Chip::Esp32),
             "esp32c3" => Ok(Chip::Esp32c3),
             "esp32s2" => Ok(Chip::Esp32s2),
@@ -172,22 +167,6 @@ impl Chip {
             Esp8266::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp8266),
             _ => Err(ChipDetectError::from(magic)),
         }
-    }
-
-    pub fn from_target(target: &str) -> Option<Self> {
-        if Esp32::supports_target(target) {
-            return Some(Chip::Esp32);
-        } else if Esp32c3::supports_target(target) {
-            return Some(Chip::Esp32c3);
-        } else if Esp32s2::supports_target(target) {
-            return Some(Chip::Esp32s2);
-        } else if Esp32s3::supports_target(target) {
-            return Some(Chip::Esp32s3);
-        } else if Esp8266::supports_target(target) {
-            return Some(Chip::Esp8266);
-        }
-
-        None
     }
 
     pub fn get_flash_image<'a>(
