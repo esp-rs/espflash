@@ -2,6 +2,7 @@ use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
 
 use bytemuck::bytes_of;
 
+use super::encode_flash_frequency;
 use crate::{
     elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
     error::{Error, FlashDetectError},
@@ -9,8 +10,6 @@ use crate::{
     image_format::{EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC},
     Chip, FlashFrequency, FlashMode,
 };
-
-const IROM_MAP_START: u32 = 0x40200000;
 
 /// Image format for flashing to esp8266 chips
 pub struct Esp8266Format<'a> {
@@ -25,7 +24,7 @@ impl<'a> Esp8266Format<'a> {
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Self, Error> {
-        // irom goes into a separate plain bin
+        // IROM goes into a separate plain binary
         let irom_data = merge_rom_segments(image.rom_segments(Chip::Esp8266));
 
         let mut common_data = Vec::with_capacity(
@@ -34,19 +33,22 @@ impl<'a> Esp8266Format<'a> {
                 .map(|segment| segment.size() as usize)
                 .sum(),
         );
-        // common header
+
+        // Common header
+        let flash_size = flash_size.unwrap_or(FlashSize::Flash4Mb);
+        let flash_freq = flash_freq.unwrap_or(FlashFrequency::Flash40M);
+
         let header = EspCommonHeader {
             magic: ESP_MAGIC,
             segment_count: image.ram_segments(Chip::Esp8266).count() as u8,
             flash_mode: flash_mode.unwrap_or(FlashMode::Dio) as u8,
-            flash_config: encode_flash_size(flash_size.unwrap_or(FlashSize::Flash4Mb))?
-                + flash_freq.unwrap_or(FlashFrequency::Flash40M) as u8,
+            flash_config: encode_flash_size(flash_size)?
+                + encode_flash_frequency(Chip::Esp8266, flash_freq)?,
             entry: image.entry(),
         };
         common_data.write_all(bytes_of(&header))?;
 
         let mut total_len = 8;
-
         let mut checksum = ESP_CHECKSUM_MAGIC;
 
         for segment in image.ram_segments(Chip::Esp8266) {
@@ -68,7 +70,6 @@ impl<'a> Esp8266Format<'a> {
         let padding = 15 - (total_len % 16);
         let padding = &[0u8; 16][0..padding as usize];
         common_data.write_all(padding)?;
-
         common_data.write_all(&[checksum])?;
 
         let flash_segment = RomSegment {
@@ -112,8 +113,10 @@ impl<'a> ImageFormat<'a> for Esp8266Format<'a> {
 fn merge_rom_segments<'a>(
     mut segments: impl Iterator<Item = CodeSegment<'a>>,
 ) -> Option<RomSegment<'a>> {
+    const IROM_MAP_START: u32 = 0x40200000;
+
     let first = segments.next()?;
-    if let Some(second) = segments.next() {
+    let data = if let Some(second) = segments.next() {
         let mut data = Vec::with_capacity(first.data().len() + second.data().len());
         data.extend_from_slice(first.data());
 
@@ -123,27 +126,28 @@ fn merge_rom_segments<'a>(
             data.extend_from_slice(segment.data());
         }
 
-        Some(RomSegment {
-            addr: first.addr - IROM_MAP_START,
-            data: Cow::Owned(data),
-        })
+        data
     } else {
-        Some(RomSegment {
-            addr: first.addr - IROM_MAP_START,
-            data: Cow::Owned(first.data().into()),
-        })
-    }
+        first.data().into()
+    };
+
+    Some(RomSegment {
+        addr: first.addr - IROM_MAP_START,
+        data: Cow::Owned(data),
+    })
 }
 
 fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
+    use FlashSize::*;
+
     match size {
-        FlashSize::Flash256Kb => Ok(0x10),
-        FlashSize::Flash512Kb => Ok(0x00),
-        FlashSize::Flash1Mb => Ok(0x20),
-        FlashSize::Flash2Mb => Ok(0x30),
-        FlashSize::Flash4Mb => Ok(0x40),
-        FlashSize::Flash8Mb => Ok(0x80),
-        FlashSize::Flash16Mb => Ok(0x90),
+        Flash256Kb => Ok(0x10),
+        Flash512Kb => Ok(0x00),
+        Flash1Mb => Ok(0x20),
+        Flash2Mb => Ok(0x30),
+        Flash4Mb => Ok(0x40),
+        Flash8Mb => Ok(0x80),
+        Flash16Mb => Ok(0x90),
         _ => Err(FlashDetectError::from(size as u8)),
     }
 }
