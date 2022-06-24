@@ -359,9 +359,9 @@ pub fn write_bin_to_flash(opts: WriteBinToFlashOpts) -> Result<()> {
     flasher.board_info()?;
 
     let mut f = File::open(&opts.bin_file).into_diagnostic()?;
-    let metadata = fs::metadata(&opts.bin_file).into_diagnostic()?;
-    let mut buffer = vec![0; metadata.len() as usize];
-    f.read(&mut buffer).into_diagnostic()?;
+    let size = f.metadata().into_diagnostic()?.len();
+    let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
+    f.read_to_end(&mut buffer).into_diagnostic()?;
 
     flasher.write_bin_to_flash(opts.addr, &buffer)?;
     Ok(())
