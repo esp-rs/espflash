@@ -5,6 +5,7 @@
 use std::{
     fs::{self, File},
     io::{Read, Write},
+    num::ParseIntError,
     path::{Path, PathBuf},
 };
 
@@ -86,11 +87,16 @@ pub struct PartitionTableOpts {
 #[derive(Parser)]
 pub struct WriteBinToFlashOpts {
     /// Address at which to write the binary file
+    #[clap(value_parser = parse_u32)]
     addr: u32,
     /// File containing the binary data to write
     bin_file: String,
     #[clap(flatten)]
     connect_opts: ConnectOpts,
+}
+
+fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
+    parse_int::parse(input)
 }
 
 pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
@@ -364,5 +370,6 @@ pub fn write_bin_to_flash(opts: WriteBinToFlashOpts) -> Result<()> {
     f.read_to_end(&mut buffer).into_diagnostic()?;
 
     flasher.write_bin_to_flash(opts.addr, &buffer)?;
+
     Ok(())
 }
