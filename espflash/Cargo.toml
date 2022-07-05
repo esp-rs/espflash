@@ -37,7 +37,7 @@ binread = "2.2"
 bytemuck = { version = "1.9", features = ["derive"] }
 clap = { version = "3.2", features = ["derive"] }
 comfy-table = "6.0"
-crossterm = "0.23"
+crossterm = "0.24"
 csv = "1.1"
 dialoguer = "0.10"
 directories-next = "2.0"
