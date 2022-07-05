@@ -1,8 +1,11 @@
-pub use self::{esp32::Esp32, esp32c3::Esp32c3, esp32s2::Esp32s2, esp32s3::Esp32s3};
+pub use self::{
+    esp32::Esp32, esp32c2::Esp32c2, esp32c3::Esp32c3, esp32s2::Esp32s2, esp32s3::Esp32s3,
+};
 use crate::PartitionTable;
 
 #[allow(clippy::module_inception)]
 mod esp32;
+mod esp32c2;
 mod esp32c3;
 mod esp32s2;
 mod esp32s3;
