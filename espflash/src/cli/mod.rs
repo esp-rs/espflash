@@ -16,8 +16,8 @@ use serialport::{FlowControl, SerialPortType, UsbPortInfo};
 use strum::VariantNames;
 
 use crate::{
-    cli::serial::get_serial_port_info,
     cli::monitor::monitor,
+    cli::serial::get_serial_port_info,
     elf::{ElfFirmwareImage, FlashFrequency, FlashMode},
     error::Error,
     flasher::FlashSize,

@@ -9,8 +9,8 @@ use cargo_metadata::Message;
 use clap::Parser;
 use espflash::{
     cli::{
-        board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image, serial_monitor,
-        ConnectOpts, FlashConfigOpts, FlashOpts, PartitionTableOpts,
+        board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image,
+        serial_monitor, ConnectOpts, FlashConfigOpts, FlashOpts, PartitionTableOpts,
     },
     Chip, Config, ImageFormatId,
 };

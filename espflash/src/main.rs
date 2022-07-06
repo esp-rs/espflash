@@ -3,9 +3,9 @@ use std::{fs, mem::swap, path::PathBuf, str::FromStr};
 use clap::{IntoApp, Parser};
 use espflash::{
     cli::{
-        board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image, serial_monitor,
-        write_bin_to_flash, ConnectOpts, FlashConfigOpts, FlashOpts, PartitionTableOpts,
-        WriteBinToFlashOpts,
+        board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image,
+        serial_monitor, write_bin_to_flash, ConnectOpts, FlashConfigOpts, FlashOpts,
+        PartitionTableOpts, WriteBinToFlashOpts,
     },
     Chip, Config, ImageFormatId,
 };

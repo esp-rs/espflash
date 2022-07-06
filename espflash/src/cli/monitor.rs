@@ -83,7 +83,11 @@ impl Drop for RawModeGuard {
     }
 }
 
-pub fn monitor(mut serial: Box<dyn SerialPort>, elf: Option<&[u8]>, pid: u16) -> serialport::Result<()> {
+pub fn monitor(
+    mut serial: Box<dyn SerialPort>,
+    elf: Option<&[u8]>,
+    pid: u16,
+) -> serialport::Result<()> {
     println!("Commands:");
     println!("    CTRL+R    Reset chip");
     println!("    CTRL+C    Exit");
@@ -102,9 +106,7 @@ pub fn monitor(mut serial: Box<dyn SerialPort>, elf: Option<&[u8]>, pid: u16) ->
     if let Some(elf) = elf {
         let symbols = load_bin_context(elf).ok();
         serial_state = SerialState::new(symbols);
-    }
-    else
-    {
+    } else {
         serial_state = SerialState::new(None);
         reset_after_flash(&mut *serial, pid)?;
     }
