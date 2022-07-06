@@ -60,10 +60,12 @@ OPTIONS:
             Print version information
 
 SUBCOMMANDS:
-    board-info         Display information about the connected board and exit without flashing
-    help               Print this message or the help of the given subcommand(s)
-    partition-table    Operations for partitions tables
-    save-image         Save the image to disk instead of flashing to device
+    board-info              Display information about the connected board and exit without flashing
+    help                    Print this message or the help of the given subcommand(s)
+    partition-table         Operations for partitions tables
+    save-image              Save the image to disk instead of flashing to device
+    serial-monitor          Open the serial monitor without flashing
+    write-bin-to-flash      Writes a binary file to a specific address in the chip's flash
 ```
 
 ## Configuration

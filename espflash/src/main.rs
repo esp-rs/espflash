@@ -4,8 +4,8 @@ use clap::{IntoApp, Parser};
 use espflash::{
     cli::{
         board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image,
-        write_bin_to_flash, ConnectOpts, FlashConfigOpts, FlashOpts, PartitionTableOpts,
-        WriteBinToFlashOpts,
+        serial_monitor, write_bin_to_flash, ConnectOpts, FlashConfigOpts, FlashOpts,
+        PartitionTableOpts, WriteBinToFlashOpts,
     },
     Chip, Config, ImageFormatId,
 };
@@ -36,6 +36,8 @@ pub enum SubCommand {
     BoardInfo(ConnectOpts),
     /// Save the image to disk instead of flashing to device
     SaveImage(SaveImageOpts),
+    /// Open the serial monitor without flashing
+    SerialMonitor(ConnectOpts),
     /// Operations for partitions tables
     PartitionTable(PartitionTableOpts),
     /// Writes a binary file to a specific address in the chip's flash
@@ -97,6 +99,7 @@ fn main() -> Result<()> {
         match subcommand {
             BoardInfo(opts) => board_info(opts, config),
             SaveImage(opts) => save_image(opts),
+            SerialMonitor(opts) => serial_monitor(opts, config),
             PartitionTable(opts) => partition_table(opts),
             WriteBinToFlash(opts) => write_bin_to_flash(opts),
         }
@@ -145,7 +148,7 @@ fn flash(opts: Opts, config: Config) -> Result<()> {
 
     if opts.flash_opts.monitor {
         let pid = flasher.get_usb_pid()?;
-        monitor(flasher.into_serial(), &elf_data, pid).into_diagnostic()?;
+        monitor(flasher.into_serial(), Some(&elf_data), pid).into_diagnostic()?;
     }
 
     Ok(())

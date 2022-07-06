@@ -16,6 +16,7 @@ use serialport::{FlowControl, SerialPortType, UsbPortInfo};
 use strum::VariantNames;
 
 use crate::{
+    cli::monitor::monitor,
     cli::serial::get_serial_port_info,
     elf::{ElfFirmwareImage, FlashFrequency, FlashMode},
     error::Error,
@@ -134,6 +135,14 @@ pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
 pub fn board_info(opts: ConnectOpts, config: Config) -> Result<()> {
     let mut flasher = connect(&opts, &config)?;
     flasher.board_info()?;
+
+    Ok(())
+}
+
+pub fn serial_monitor(opts: ConnectOpts, config: Config) -> Result<()> {
+    let flasher = connect(&opts, &config)?;
+    let pid = flasher.get_usb_pid()?;
+    monitor(flasher.into_serial(), None, pid).into_diagnostic()?;
 
     Ok(())
 }

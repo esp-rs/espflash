@@ -10,7 +10,7 @@ use clap::Parser;
 use espflash::{
     cli::{
         board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image,
-        ConnectOpts, FlashConfigOpts, FlashOpts, PartitionTableOpts,
+        serial_monitor, ConnectOpts, FlashConfigOpts, FlashOpts, PartitionTableOpts,
     },
     Chip, Config, ImageFormatId,
 };
@@ -57,6 +57,8 @@ pub enum SubCommand {
     BoardInfo(ConnectOpts),
     /// Save the image to disk instead of flashing to device
     SaveImage(SaveImageOpts),
+    /// Open the serial monitor without flashing
+    SerialMonitor(ConnectOpts),
     /// Operations for partitions tables
     PartitionTable(PartitionTableOpts),
 }
@@ -132,6 +134,7 @@ fn main() -> Result<()> {
         match subcommand {
             BoardInfo(opts) => board_info(opts, config),
             SaveImage(opts) => save_image(opts, metadata, cargo_config),
+            SerialMonitor(opts) => serial_monitor(opts, config),
             PartitionTable(opts) => partition_table(opts),
         }
     } else {
@@ -204,7 +207,7 @@ fn flash(
 
     if opts.flash_opts.monitor {
         let pid = flasher.get_usb_pid()?;
-        monitor(flasher.into_serial(), &elf_data, pid).into_diagnostic()?;
+        monitor(flasher.into_serial(), Some(&elf_data), pid).into_diagnostic()?;
     }
 
     Ok(())
