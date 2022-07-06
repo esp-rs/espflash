@@ -17,6 +17,7 @@ use strum::VariantNames;
 
 use crate::{
     cli::serial::get_serial_port_info,
+    cli::monitor::monitor,
     elf::{ElfFirmwareImage, FlashFrequency, FlashMode},
     error::Error,
     flasher::FlashSize,
@@ -134,6 +135,14 @@ pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
 pub fn board_info(opts: ConnectOpts, config: Config) -> Result<()> {
     let mut flasher = connect(&opts, &config)?;
     flasher.board_info()?;
+
+    Ok(())
+}
+
+pub fn serial_monitor(opts: ConnectOpts, config: Config) -> Result<()> {
+    let flasher = connect(&opts, &config)?;
+    let pid = flasher.get_usb_pid()?;
+    monitor(flasher.into_serial(), None, pid).into_diagnostic()?;
 
     Ok(())
 }
