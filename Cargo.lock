@@ -181,6 +181,7 @@ dependencies = [
  "espflash",
  "miette",
  "serde",
+ "strum",
  "thiserror",
  "toml",
 ]
@@ -465,6 +466,7 @@ dependencies = [
  "espmonitor",
  "flate2",
  "indicatif",
+ "maplit",
  "md5",
  "miette",
  "parse_int",
@@ -484,9 +486,9 @@ dependencies = [
 
 [[package]]
 name = "espmonitor"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a73907f3778412c532cb4bbe8b0d04f0a4356ef547948e8c99b0ef79647b5c8c"
+checksum = "02d8108f9eddda1613b8c558a3bf0a363187e743f9b4825613dd924b9f422e6d"
 dependencies = [
  "addr2line",
  "clap",
@@ -703,6 +705,12 @@ checksum = "b823e83b2affd8f40a9ee8c29dbc56404c1e34cd2710921f2801e2cf29527afa"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "maplit"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
 name = "maybe-uninit"

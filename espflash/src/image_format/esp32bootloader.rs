@@ -3,6 +3,7 @@ use std::{borrow::Cow, io::Write, iter::once};
 use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use sha2::{Digest, Sha256};
 
+use super::encode_flash_frequency;
 use crate::{
     chip::Esp32Params,
     elf::{
@@ -58,7 +59,7 @@ impl<'a> Esp32BootloaderFormat<'a> {
         }
         match (flash_size, flash_freq) {
             (Some(s), Some(f)) => {
-                header.flash_config = encode_flash_size(s)? + f as u8;
+                header.flash_config = encode_flash_size(s)? + encode_flash_frequency(chip, f)?;
                 bootloader.to_mut()[3] = bytes_of(&header)[3];
             }
             (Some(s), None) => {
@@ -66,7 +67,8 @@ impl<'a> Esp32BootloaderFormat<'a> {
                 bootloader.to_mut()[3] = bytes_of(&header)[3];
             }
             (None, Some(f)) => {
-                header.flash_config = (header.flash_config & 0xF0) + f as u8;
+                header.flash_config =
+                    (header.flash_config & 0xF0) + encode_flash_frequency(chip, f)?;
                 bootloader.to_mut()[3] = bytes_of(&header)[3];
             }
             (None, None) => {} // nothing to update
@@ -152,8 +154,8 @@ impl<'a> Esp32BootloaderFormat<'a> {
 
         // The default partition table contains the "factory" partition, and if a user
         // provides a partition table via command-line then the validation step confirms
-        // that at least one "app" partition is present. We prefer the "factory" partition,
-        // and use any available "app" partitions if not present.
+        // that at least one "app" partition is present. We prefer the "factory"
+        // partition, and use any available "app" partitions if not present.
         let factory_partition = partition_table
             .find("factory")
             .or_else(|| partition_table.find_by_type(Type::App))
@@ -200,12 +202,17 @@ impl<'a> ImageFormat<'a> for Esp32BootloaderFormat<'a> {
 }
 
 fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
+    use FlashSize::*;
+
     match size {
-        FlashSize::Flash1Mb => Ok(0x00),
-        FlashSize::Flash2Mb => Ok(0x10),
-        FlashSize::Flash4Mb => Ok(0x20),
-        FlashSize::Flash8Mb => Ok(0x30),
-        FlashSize::Flash16Mb => Ok(0x40),
+        Flash1Mb => Ok(0x00),
+        Flash2Mb => Ok(0x10),
+        Flash4Mb => Ok(0x20),
+        Flash8Mb => Ok(0x30),
+        Flash16Mb => Ok(0x40),
+        Flash32Mb => Ok(0x19),
+        Flash64Mb => Ok(0x1a),
+        Flash128Mb => Ok(0x21),
         _ => Err(FlashDetectError::from(size as u8)),
     }
 }

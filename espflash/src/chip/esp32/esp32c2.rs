@@ -1,30 +1,31 @@
-use std::ops::Range;
+use std::{collections::HashMap, ops::Range};
+
+use maplit::hashmap;
 
 use super::Esp32Params;
 use crate::{
     chip::{ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
     elf::{FirmwareImage, FlashFrequency, FlashMode},
-    error::UnsupportedImageFormatError,
     flasher::FlashSize,
     image_format::{Esp32BootloaderFormat, Esp32DirectBootFormat, ImageFormat, ImageFormatId},
     Chip, Error, PartitionTable,
 };
 
-pub struct Esp32c3;
+pub struct Esp32c2;
 
 pub const PARAMS: Esp32Params = Esp32Params::new(
     0x0,
     0x10000,
-    0x3f0000,
-    5,
-    include_bytes!("../../../bootloader/esp32c3-bootloader.bin"),
+    0x1f0000,
+    12,
+    include_bytes!("../../../bootloader/esp32c2-bootloader.bin"),
 );
 
-impl ChipType for Esp32c3 {
+impl ChipType for Esp32c2 {
     const CHIP_DETECT_MAGIC_VALUES: &'static [u32] = &[
-        0x6921506f, // ECO1 + ECO2
-        0x1b31506f, // ECO3
+        0x6F51306F, // ECO0
+        0x7C41A06F, // ECO1
     ];
 
     const UART_CLKDIV_REG: u32 = 0x3ff40014;
@@ -40,8 +41,8 @@ impl ChipType for Esp32c3 {
     };
 
     const FLASH_RANGES: &'static [Range<u32>] = &[
-        0x42000000..0x42800000, // IROM
-        0x3c000000..0x3c800000, // DROM
+        0x42000000..0x42400000, // IROM
+        0x3C000000..0x3C400000, // DROM
     ];
 
     const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId] =
@@ -58,7 +59,7 @@ impl ChipType for Esp32c3 {
     }
 
     fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
-        // The ESP32-C3's XTAL has a fixed frequency of 40MHz.
+        // The ESP32-C2's XTAL has a fixed frequency of 40MHz.
         Ok(40)
     }
 
@@ -67,15 +68,15 @@ impl ChipType for Esp32c3 {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: ImageFormatId,
-        chip_revision: Option<u32>,
+        _chip_revision: Option<u32>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        match (image_format, chip_revision) {
-            (ImageFormatId::Bootloader, _) => Ok(Box::new(Esp32BootloaderFormat::new(
+        match image_format {
+            ImageFormatId::Bootloader => Ok(Box::new(Esp32BootloaderFormat::new(
                 image,
-                Chip::Esp32c3,
+                Chip::Esp32c2,
                 PARAMS,
                 partition_table,
                 bootloader,
@@ -83,23 +84,29 @@ impl ChipType for Esp32c3 {
                 flash_size,
                 flash_freq,
             )?)),
-            (ImageFormatId::DirectBoot, None | Some(3..)) => {
-                Ok(Box::new(Esp32DirectBootFormat::new(image)?))
-            }
-            _ => Err(
-                UnsupportedImageFormatError::new(image_format, Chip::Esp32c3, chip_revision).into(),
-            ),
+            ImageFormatId::DirectBoot => Ok(Box::new(Esp32DirectBootFormat::new(image)?)),
+        }
+    }
+
+    fn flash_frequency_encodings() -> HashMap<FlashFrequency, u8> {
+        use FlashFrequency::*;
+
+        hashmap! {
+            Flash15M => 0x2,
+            Flash20M => 0x1,
+            Flash30M => 0x0,
+            Flash60M => 0xF,
         }
     }
 }
 
-impl ReadEFuse for Esp32c3 {
-    const EFUSE_REG_BASE: u32 = 0x60008830;
+impl ReadEFuse for Esp32c2 {
+    const EFUSE_REG_BASE: u32 = 0x60008800;
 }
 
-impl Esp32c3 {
+impl Esp32c2 {
     pub fn chip_revision(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let block1_addr = Self::EFUSE_REG_BASE + 0x14;
+        let block1_addr = Self::EFUSE_REG_BASE + 0x44;
         let num_word = 3;
         let pos = 18;
 

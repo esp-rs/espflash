@@ -1,7 +1,12 @@
-use std::ops::Range;
+use std::{collections::HashMap, ops::Range, str::FromStr};
 
-use strum_macros::Display;
+use maplit::hashmap;
+use strum_macros::{Display, EnumVariantNames};
 
+pub use self::{
+    esp32::{Esp32, Esp32Params, Esp32c2, Esp32c3, Esp32s2, Esp32s3},
+    esp8266::Esp8266,
+};
 use crate::{
     connection::Connection,
     elf::{FirmwareImage, FlashFrequency, FlashMode},
@@ -15,13 +20,8 @@ use crate::{
 mod esp32;
 mod esp8266;
 
-pub use esp32::{Esp32, Esp32Params, Esp32c3, Esp32s2, Esp32s3};
-pub use esp8266::Esp8266;
-use std::str::FromStr;
-
 pub trait ChipType: ReadEFuse {
-    const CHIP_DETECT_MAGIC_VALUE: u32;
-    const CHIP_DETECT_MAGIC_VALUE2: u32 = 0x0; // give default value, as most chips don't only have one
+    const CHIP_DETECT_MAGIC_VALUES: &'static [u32];
 
     const UART_CLKDIV_REG: u32;
     const UART_CLKDIV_MASK: u32 = 0xFFFFF;
@@ -30,10 +30,10 @@ pub trait ChipType: ReadEFuse {
     const SPI_REGISTERS: SpiRegisters;
     const FLASH_RANGES: &'static [Range<u32>];
 
-    const DEFAULT_IMAGE_FORMAT: ImageFormatId;
-    const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId];
-
     const SUPPORTED_TARGETS: &'static [&'static str];
+
+    const DEFAULT_IMAGE_FORMAT: ImageFormatId = ImageFormatId::Bootloader;
+    const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId] = &[ImageFormatId::Bootloader];
 
     /// List the available features of the connected chip.
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error>;
@@ -69,6 +69,23 @@ pub trait ChipType: ReadEFuse {
         let bytes = &bytes[2..];
 
         Ok(bytes_to_mac_addr(bytes))
+    }
+
+    /// Return a hashmap which maps supported flash frequencies to their encoded
+    /// integer values.
+    fn flash_frequency_encodings() -> HashMap<FlashFrequency, u8> {
+        use FlashFrequency::*;
+
+        hashmap! {
+            Flash20M => 0x2,
+            Flash26M => 0x1,
+            Flash40M => 0x0,
+            Flash80M => 0xf,
+        }
+    }
+
+    fn has_magic_value(magic: u32) -> bool {
+        Self::CHIP_DETECT_MAGIC_VALUES.contains(&magic)
     }
 
     fn supports_target(target: &str) -> bool {
@@ -126,10 +143,12 @@ impl SpiRegisters {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Display, EnumVariantNames)]
 pub enum Chip {
     #[strum(serialize = "ESP32")]
     Esp32,
+    #[strum(serialize = "ESP32-C2")]
+    Esp32c2,
     #[strum(serialize = "ESP32-C3")]
     Esp32c3,
     #[strum(serialize = "ESP32-S2")]
@@ -144,13 +163,9 @@ impl FromStr for Chip {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s: String = s
-            .chars()
-            .filter(|&c| c != '-')
-            .map(|c| c.to_ascii_lowercase())
-            .collect();
-        match s.as_str() {
+        match s.to_lowercase().replace('-', "").as_str() {
             "esp32" => Ok(Chip::Esp32),
+            "esp32c2" => Ok(Chip::Esp32c2),
             "esp32c3" => Ok(Chip::Esp32c3),
             "esp32s2" => Ok(Chip::Esp32s2),
             "esp32s3" => Ok(Chip::Esp32s3),
@@ -162,32 +177,21 @@ impl FromStr for Chip {
 
 impl Chip {
     pub fn from_magic(magic: u32) -> Result<Self, ChipDetectError> {
-        match magic {
-            Esp32::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp32),
-            Esp32c3::CHIP_DETECT_MAGIC_VALUE | Esp32c3::CHIP_DETECT_MAGIC_VALUE2 => {
-                Ok(Chip::Esp32c3)
-            }
-            Esp32s2::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp32s2),
-            Esp32s3::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp32s3),
-            Esp8266::CHIP_DETECT_MAGIC_VALUE => Ok(Chip::Esp8266),
-            _ => Err(ChipDetectError::from(magic)),
+        if Esp32::has_magic_value(magic) {
+            Ok(Chip::Esp32)
+        } else if Esp32c2::has_magic_value(magic) {
+            Ok(Chip::Esp32c2)
+        } else if Esp32c3::has_magic_value(magic) {
+            Ok(Chip::Esp32c3)
+        } else if Esp32s2::has_magic_value(magic) {
+            Ok(Chip::Esp32s2)
+        } else if Esp32s3::has_magic_value(magic) {
+            Ok(Chip::Esp32s3)
+        } else if Esp8266::has_magic_value(magic) {
+            Ok(Chip::Esp8266)
+        } else {
+            Err(ChipDetectError::from(magic))
         }
-    }
-
-    pub fn from_target(target: &str) -> Option<Self> {
-        if Esp32::supports_target(target) {
-            return Some(Chip::Esp32);
-        } else if Esp32c3::supports_target(target) {
-            return Some(Chip::Esp32c3);
-        } else if Esp32s2::supports_target(target) {
-            return Some(Chip::Esp32s2);
-        } else if Esp32s3::supports_target(target) {
-            return Some(Chip::Esp32s3);
-        } else if Esp8266::supports_target(target) {
-            return Some(Chip::Esp8266);
-        }
-
-        None
     }
 
     pub fn get_flash_image<'a>(
@@ -205,6 +209,16 @@ impl Chip {
 
         match self {
             Chip::Esp32 => Esp32::get_flash_segments(
+                image,
+                bootloader,
+                partition_table,
+                image_format,
+                chip_revision,
+                flash_mode,
+                flash_size,
+                flash_freq,
+            ),
+            Chip::Esp32c2 => Esp32c2::get_flash_segments(
                 image,
                 bootloader,
                 partition_table,
@@ -260,6 +274,7 @@ impl Chip {
     pub fn addr_is_flash(&self, addr: u32) -> bool {
         let flash_ranges = match self {
             Chip::Esp32 => Esp32::FLASH_RANGES,
+            Chip::Esp32c2 => Esp32c2::FLASH_RANGES,
             Chip::Esp32c3 => Esp32c3::FLASH_RANGES,
             Chip::Esp32s2 => Esp32s2::FLASH_RANGES,
             Chip::Esp32s3 => Esp32s3::FLASH_RANGES,
@@ -272,6 +287,7 @@ impl Chip {
     pub fn spi_registers(&self) -> SpiRegisters {
         match self {
             Chip::Esp32 => Esp32::SPI_REGISTERS,
+            Chip::Esp32c2 => Esp32c2::SPI_REGISTERS,
             Chip::Esp32c3 => Esp32c3::SPI_REGISTERS,
             Chip::Esp32s2 => Esp32s2::SPI_REGISTERS,
             Chip::Esp32s3 => Esp32s3::SPI_REGISTERS,
@@ -293,6 +309,7 @@ impl Chip {
     fn default_image_format(&self) -> ImageFormatId {
         match self {
             Chip::Esp32 => Esp32::DEFAULT_IMAGE_FORMAT,
+            Chip::Esp32c2 => Esp32c2::DEFAULT_IMAGE_FORMAT,
             Chip::Esp32c3 => Esp32c3::DEFAULT_IMAGE_FORMAT,
             Chip::Esp32s2 => Esp32s2::DEFAULT_IMAGE_FORMAT,
             Chip::Esp32s3 => Esp32s3::DEFAULT_IMAGE_FORMAT,
@@ -303,6 +320,7 @@ impl Chip {
     pub fn supported_image_formats(&self) -> &[ImageFormatId] {
         match self {
             Chip::Esp32 => Esp32::SUPPORTED_IMAGE_FORMATS,
+            Chip::Esp32c2 => Esp32c2::SUPPORTED_IMAGE_FORMATS,
             Chip::Esp32c3 => Esp32c3::SUPPORTED_IMAGE_FORMATS,
             Chip::Esp32s2 => Esp32s2::SUPPORTED_IMAGE_FORMATS,
             Chip::Esp32s3 => Esp32s3::SUPPORTED_IMAGE_FORMATS,
@@ -313,6 +331,7 @@ impl Chip {
     pub fn supports_target(&self, target: &str) -> bool {
         match self {
             Chip::Esp32 => Esp32::supports_target(target),
+            Chip::Esp32c2 => Esp32c2::supports_target(target),
             Chip::Esp32c3 => Esp32c3::supports_target(target),
             Chip::Esp32s2 => Esp32s2::supports_target(target),
             Chip::Esp32s3 => Esp32s3::supports_target(target),
@@ -323,6 +342,7 @@ impl Chip {
     pub fn supported_targets(&self) -> &[&str] {
         match self {
             Chip::Esp32 => Esp32::SUPPORTED_TARGETS,
+            Chip::Esp32c2 => Esp32c2::SUPPORTED_TARGETS,
             Chip::Esp32c3 => Esp32c3::SUPPORTED_TARGETS,
             Chip::Esp32s2 => Esp32s2::SUPPORTED_TARGETS,
             Chip::Esp32s3 => Esp32s3::SUPPORTED_TARGETS,
@@ -333,6 +353,7 @@ impl Chip {
     pub fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
         match self {
             Chip::Esp32 => Esp32.crystal_freq(connection),
+            Chip::Esp32c2 => Esp32c2.crystal_freq(connection),
             Chip::Esp32c3 => Esp32c3.crystal_freq(connection),
             Chip::Esp32s2 => Esp32s2.crystal_freq(connection),
             Chip::Esp32s3 => Esp32s3.crystal_freq(connection),
@@ -343,6 +364,7 @@ impl Chip {
     pub fn chip_revision(&self, connection: &mut Connection) -> Result<Option<u32>, Error> {
         let rev = match self {
             Chip::Esp32 => Some(Esp32.chip_revision(connection)?),
+            Chip::Esp32c2 => Some(Esp32c2.chip_revision(connection)?),
             Chip::Esp32c3 => Some(Esp32c3.chip_revision(connection)?),
             _ => None,
         };
@@ -353,6 +375,7 @@ impl Chip {
     pub fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
         match self {
             Chip::Esp32 => Esp32.chip_features(connection),
+            Chip::Esp32c2 => Esp32c2.chip_features(connection),
             Chip::Esp32c3 => Esp32c3.chip_features(connection),
             Chip::Esp32s2 => Esp32s2.chip_features(connection),
             Chip::Esp32s3 => Esp32s3.chip_features(connection),
@@ -363,10 +386,22 @@ impl Chip {
     pub fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
         match self {
             Chip::Esp32 => Esp32.mac_address(connection),
+            Chip::Esp32c2 => Esp32c2.mac_address(connection),
             Chip::Esp32c3 => Esp32c3.mac_address(connection),
             Chip::Esp32s2 => Esp32s2.mac_address(connection),
             Chip::Esp32s3 => Esp32s3.mac_address(connection),
             Chip::Esp8266 => Esp8266.mac_address(connection),
+        }
+    }
+
+    pub fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
+        match self {
+            Chip::Esp32 => Esp32::flash_frequency_encodings(),
+            Chip::Esp32c2 => Esp32c2::flash_frequency_encodings(),
+            Chip::Esp32c3 => Esp32c3::flash_frequency_encodings(),
+            Chip::Esp32s2 => Esp32s2::flash_frequency_encodings(),
+            Chip::Esp32s3 => Esp32s3::flash_frequency_encodings(),
+            Chip::Esp8266 => Esp8266::flash_frequency_encodings(),
         }
     }
 }

@@ -11,13 +11,10 @@ use crate::{
     Chip, Error, PartitionTable,
 };
 
-const IROM_MAP_START: u32 = 0x40200000;
-const IROM_MAP_END: u32 = 0x40300000;
-
 pub struct Esp8266;
 
 impl ChipType for Esp8266 {
-    const CHIP_DETECT_MAGIC_VALUE: u32 = 0xfff0c101;
+    const CHIP_DETECT_MAGIC_VALUES: &'static [u32] = &[0xfff0c101];
 
     const UART_CLKDIV_REG: u32 = 0x60000014;
     const XTAL_CLK_DIVIDER: u32 = 2;
@@ -32,10 +29,9 @@ impl ChipType for Esp8266 {
         miso_length_offset: None,
     };
 
-    const FLASH_RANGES: &'static [Range<u32>] = &[IROM_MAP_START..IROM_MAP_END];
-
-    const DEFAULT_IMAGE_FORMAT: ImageFormatId = ImageFormatId::Bootloader;
-    const SUPPORTED_IMAGE_FORMATS: &'static [ImageFormatId] = &[ImageFormatId::Bootloader];
+    const FLASH_RANGES: &'static [Range<u32>] = &[
+        0x40200000..0x40300000, // IROM
+    ];
 
     const SUPPORTED_TARGETS: &'static [&'static str] = &["xtensa-esp8266-none-elf"];
 
