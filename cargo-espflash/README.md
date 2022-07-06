@@ -81,6 +81,7 @@ SUBCOMMANDS:
     help               Print this message or the help of the given subcommand(s)
     partition-table    Operations for partitions tables
     save-image         Save the image to disk instead of flashing to device
+    serial-monitor     Open the serial monitor without flashing
 ```
 
 ## Configuration
