@@ -33,7 +33,7 @@ pkg-fmt = "zip"
 cargo_metadata = "0.15"
 cargo_toml = "0.11"
 clap = { version = "3.1", features = ["derive"] }
-espflash = { version = "1.6.0", path = "../espflash" }
+espflash = { version = "=1.6.1-dev", path = "../espflash" }
 miette = { version = "5.1", features = ["fancy"] }
 serde = { version = "1.0", features = ["derive"] }
 strum = "0.24"
