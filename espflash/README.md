@@ -15,7 +15,7 @@ $ cargo install espflash
 ## Usage
 
 ```text
-espflash 1.5.1
+espflash 1.6.0
 
 USAGE:
     espflash [OPTIONS] [ARGS] [SUBCOMMAND]
@@ -29,7 +29,7 @@ OPTIONS:
             Path to a binary (.bin) bootloader file
 
     -f, --flash-freq <FREQUENCY>
-            Flash frequency [possible values: 20M, 26M, 40M, 80M]
+            Flash frequency [possible values: 12M, 15M, 16M, 20M, 24M, 26M, 30M, 40M, 48M, 60M, 80M]
 
         --format <FORMAT>
             Image format to flash [possible values: bootloader, direct-boot]
@@ -60,12 +60,12 @@ OPTIONS:
             Print version information
 
 SUBCOMMANDS:
-    board-info              Display information about the connected board and exit without flashing
-    help                    Print this message or the help of the given subcommand(s)
-    partition-table         Operations for partitions tables
-    save-image              Save the image to disk instead of flashing to device
-    serial-monitor          Open the serial monitor without flashing
-    write-bin-to-flash      Writes a binary file to a specific address in the chip's flash
+    board-info            Display information about the connected board and exit without flashing
+    help                  Print this message or the help of the given subcommand(s)
+    partition-table       Operations for partitions tables
+    save-image            Save the image to disk instead of flashing to device
+    serial-monitor        Open the serial monitor without flashing
+    write-bin-to-flash    Writes a binary file to a specific address in the chip's flash
 ```
 
 ## Configuration
@@ -90,6 +90,7 @@ pid = 32768 # 0x8000
 ```
 
 ## WSL2
+
 It is not possible to flash `usb-serial-jtag` chips with `WSL2` because the reset also resets `serial-jtag-peripheral` which disconnects the chip from WSL2.
 
 ## Use as a Cargo Runner

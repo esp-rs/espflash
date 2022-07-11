@@ -15,7 +15,7 @@ $ cargo install cargo-espflash
 ## Usage
 
 ```text
-cargo-espflash 1.5.1
+cargo-espflash 1.6.0
 
 USAGE:
     cargo espflash [OPTIONS] [SERIAL] [SUBCOMMAND]
@@ -31,7 +31,7 @@ OPTIONS:
             Example to build and flash
 
     -f, --flash-freq <FREQUENCY>
-            Flash frequency [possible values: 20M, 26M, 40M, 80M]
+            Flash frequency [possible values: 12M, 15M, 16M, 20M, 24M, 26M, 30M, 40M, 48M, 60M, 80M]
 
         --features <FEATURES>
             Comma delimited list of build features
@@ -39,8 +39,14 @@ OPTIONS:
         --format <FORMAT>
             Image format to flash [possible values: bootloader, direct-boot]
 
+        --frozen
+            Require Cargo.lock and cache are up to date
+
     -h, --help
             Print help information
+
+        --locked
+            Require Cargo.lock is up to date
 
     -m, --flash-mode <MODE>
             Flash mode to use [possible values: QIO, QOUT, DIO, DOUT]
@@ -69,6 +75,9 @@ OPTIONS:
 
         --target <TARGET>
             Target to build for
+
+        --target-dir <TARGET_DIR>
+            Directory for all generated artifacts
 
     -V, --version
             Print version information
@@ -106,6 +115,7 @@ pid = "8000"
 ```
 
 ## WSL2
+
 It is not possible to flash `usb-serial-jtag` chips with `WSL2` because the reset also resets `serial-jtag-peripheral` which disconnects the chip from WSL2.
 
 ## Package Metadata

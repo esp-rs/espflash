@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "1.5.2-dev"
+version = "1.6.0"
 authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",
@@ -30,11 +30,11 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "zip"
 
 [dependencies]
-cargo_metadata = "0.14"
+cargo_metadata = "0.15"
 cargo_toml = "0.11"
 clap = { version = "3.1", features = ["derive"] }
-espflash = { version = "=1.5.2-dev", path = "../espflash" }
-miette = { version = "4.7", features = ["fancy"] }
+espflash = { version = "1.6.0", path = "../espflash" }
+miette = { version = "5.1", features = ["fancy"] }
 serde = { version = "1.0", features = ["derive"] }
 strum = "0.24"
 thiserror = "1.0"

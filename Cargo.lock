@@ -173,7 +173,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-espflash"
-version = "1.5.2-dev"
+version = "1.6.0"
 dependencies = [
  "cargo_metadata",
  "cargo_toml",
@@ -197,9 +197,9 @@ dependencies = [
 
 [[package]]
 name = "cargo_metadata"
-version = "0.14.2"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4acbb09d9ee8e23699b9634375c72795d095bf268439da88562cf9b501f181fa"
+checksum = "3abb7553d5b9b8421c6de7cb02606ff15e0c6eea7d8eadd75ef013fd636bec36"
 dependencies = [
  "camino",
  "cargo-platform",
@@ -453,7 +453,7 @@ checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
 name = "espflash"
-version = "1.5.2-dev"
+version = "1.6.0"
 dependencies = [
  "binread",
  "bytemuck",
@@ -741,9 +741,9 @@ dependencies = [
 
 [[package]]
 name = "miette"
-version = "4.7.1"
+version = "5.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c90329e44f9208b55f45711f9558cec15d7ef8295cc65ecd6d4188ae8edc58c"
+checksum = "89d67f6972a70e33dbb5551875c6a3e46ae0a7cddd4661a2811ee48be51054e9"
 dependencies = [
  "atty",
  "backtrace",
@@ -761,9 +761,9 @@ dependencies = [
 
 [[package]]
 name = "miette-derive"
-version = "4.7.1"
+version = "5.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b5bc45b761bcf1b5e6e6c4128cd93b84c218721a8d9b894aa0aff4ed180174c"
+checksum = "426594bc7266dedee4d687cdaebc121c74c52a667e4ce933c83694ad035990a6"
 dependencies = [
  "proc-macro2",
  "quote",
