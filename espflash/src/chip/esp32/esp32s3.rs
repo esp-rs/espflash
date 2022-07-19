@@ -76,7 +76,7 @@ impl ChipType for Esp32s3 {
                 flash_size,
                 flash_freq,
             )?)),
-            ImageFormatId::DirectBoot => Ok(Box::new(Esp32DirectBootFormat::new(image)?)),
+            ImageFormatId::DirectBoot => Ok(Box::new(Esp32DirectBootFormat::new(image, 0x400)?)),
         }
     }
 }
