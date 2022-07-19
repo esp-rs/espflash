@@ -84,7 +84,7 @@ impl ChipType for Esp32c3 {
                 flash_freq,
             )?)),
             (ImageFormatId::DirectBoot, None | Some(3..)) => {
-                Ok(Box::new(Esp32DirectBootFormat::new(image)?))
+                Ok(Box::new(Esp32DirectBootFormat::new(image, 0)?))
             }
             _ => Err(
                 UnsupportedImageFormatError::new(image_format, Chip::Esp32c3, chip_revision).into(),

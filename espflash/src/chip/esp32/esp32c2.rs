@@ -84,7 +84,7 @@ impl ChipType for Esp32c2 {
                 flash_size,
                 flash_freq,
             )?)),
-            ImageFormatId::DirectBoot => Ok(Box::new(Esp32DirectBootFormat::new(image)?)),
+            ImageFormatId::DirectBoot => Ok(Box::new(Esp32DirectBootFormat::new(image, 0)?)),
         }
     }
 
