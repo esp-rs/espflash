@@ -178,15 +178,15 @@ pub fn save_elf_as_image(
         };
 
         // If the '-T' option is provided, load the partition table from
-        // the CSV at the specified path.
+        // the CSV or binary file at the specified path.
         let partition_table = if let Some(partition_table_path) = partition_table_path {
             let path = fs::canonicalize(partition_table_path).into_diagnostic()?;
-            let data = fs::read_to_string(path)
+            let data = fs::read(path)
                 .into_diagnostic()
                 .wrap_err("Failed to open partition table")?;
 
             let table =
-                PartitionTable::try_from_str(data).wrap_err("Failed to parse partition table")?;
+                PartitionTable::try_from(data).wrap_err("Failed to parse partition table")?;
 
             Some(table)
         } else {
@@ -279,26 +279,14 @@ pub fn flash_elf_image(
     };
 
     // If the '--partition-table' option is provided, load the partition table from
-    // the CSV at the specified path.
+    // the CSV or binary file at the specified path.
     let partition_table = if let Some(path) = partition_table {
         let path = fs::canonicalize(path).into_diagnostic()?;
 
-        // If a partition table was detected from ESP-IDF (eg. using `esp-idf-sys`) then
-        // it will be passed in its _binary_ form. Otherwise, it will be provided as a
-        // CSV.
-        let table = if path.extension().map(|e| e.to_str().unwrap()) == Some("csv") {
-            let data = fs::read_to_string(path)
-                .into_diagnostic()
-                .wrap_err("Failed to open partition table")?;
-
-            PartitionTable::try_from_str(data).wrap_err("Failed to parse partition table")?
-        } else {
-            let data = fs::read(path)
-                .into_diagnostic()
-                .wrap_err("Failed to open partition table")?;
-
-            PartitionTable::try_from_bytes(data).wrap_err("Failed to parse partition table")?
-        };
+        let data = fs::read(path)
+            .into_diagnostic()
+            .wrap_err("Failed to open partition table")?;
+        let table = PartitionTable::try_from(data).wrap_err("Failed to parse partition table")?;
 
         Some(table)
     } else {
@@ -350,13 +338,7 @@ pub fn partition_table(opts: PartitionTableOpts) -> Result<()> {
 
         // Try getting the partition table from either the csv or the binary representation and
         // fail otherwise.
-        let part_table = if let Ok(part_table) =
-            PartitionTable::try_from_bytes(input.clone()).into_diagnostic()
-        {
-            part_table
-        } else if let Ok(part_table) =
-            PartitionTable::try_from_str(String::from_utf8(input).into_diagnostic()?)
-        {
+        let part_table = if let Ok(part_table) = PartitionTable::try_from(input).into_diagnostic() {
             part_table
         } else {
             return Err((InvalidPartitionTable {}).into());

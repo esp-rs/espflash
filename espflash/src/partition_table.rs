@@ -14,9 +14,9 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use crate::error::{
-    CSVError, DuplicatePartitionsError, InvalidChecksum, InvalidSubTypeError,
-    LengthNotMultipleOf32, NoAppError, NoEndMarker, OverlappingPartitionsError,
-    PartitionTableError, UnalignedPartitionError,
+    CSVError, DuplicatePartitionsError, InvalidChecksum, InvalidPartitionTable,
+    InvalidSubTypeError, LengthNotMultipleOf32, NoAppError, NoEndMarker,
+    OverlappingPartitionsError, PartitionTableError, UnalignedPartitionError,
 };
 
 const MAX_PARTITION_LENGTH: usize = 0xC00;
@@ -216,6 +216,30 @@ impl PartitionTable {
                     None,
                 ),
             ],
+        }
+    }
+
+    /// Attempt to parse either a binary or CSV partition table from the given input.
+    ///
+    /// For more information on the partition table format see:
+    /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html
+    pub fn try_from<S>(data: S) -> Result<Self, PartitionTableError>
+    where
+        S: Into<Vec<u8>>,
+    {
+        let input: Vec<u8> = data.into();
+
+        // If a partition table was detected from ESP-IDF (eg. using `esp-idf-sys`) then
+        // it will be passed in its _binary_ form. Otherwise, it will be provided as a
+        // CSV.
+        if let Ok(part_table) = Self::try_from_bytes(&*input) {
+            Ok(part_table)
+        } else if let Ok(part_table) =
+            Self::try_from_str(String::from_utf8(input).map_err(|_| InvalidPartitionTable)?)
+        {
+            Ok(part_table)
+        } else {
+            Err(InvalidPartitionTable.into())
         }
     }
 
@@ -810,6 +834,39 @@ phy_init, data, phy,     0xf000,  0x1000,
 
         assert_eq!(expected.len(), result.len());
         assert_eq!(expected, result.as_slice());
+    }
+
+    #[test]
+    fn test_from() {
+        let pt0 = PartitionTable::try_from(PTABLE_0);
+        assert!(pt0.is_ok());
+
+        let pt0 = pt0.unwrap();
+        let nvs = pt0.find("nvs").unwrap();
+        let fac = pt0.find("factory").unwrap();
+        assert_eq!(nvs.flags(), None);
+        assert_eq!(fac.flags(), Some(Flags::Encrypted));
+
+        let pt1 = PartitionTable::try_from(PTABLE_1);
+        assert!(pt1.is_ok());
+
+        let pt_spiffs = PartitionTable::try_from(PTABLE_SPIFFS);
+        assert!(pt_spiffs.is_ok());
+
+        PartitionTable::try_from(PTABLE_NO_FACTORY)
+            .expect("Failed to parse partition table without factory partition");
+
+        PartitionTable::try_from(PTABLE_NO_APP)
+            .expect_err("Failed to reject partition table without factory or ota partition");
+
+        use std::fs::{read, read_to_string};
+        let binary_table = read("./tests/data/partitions.bin").unwrap();
+        let binary_parsed = PartitionTable::try_from_bytes(binary_table).unwrap();
+
+        let csv_table = read_to_string("./tests/data/partitions.csv").unwrap();
+        let csv_parsed = PartitionTable::try_from(csv_table).unwrap();
+
+        assert_eq!(binary_parsed, csv_parsed);
     }
 
     #[test]
