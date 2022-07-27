@@ -178,15 +178,15 @@ pub fn save_elf_as_image(
         };
 
         // If the '-T' option is provided, load the partition table from
-        // the CSV at the specified path.
+        // the CSV or binary file at the specified path.
         let partition_table = if let Some(partition_table_path) = partition_table_path {
             let path = fs::canonicalize(partition_table_path).into_diagnostic()?;
-            let data = fs::read_to_string(path)
+            let data = fs::read(path)
                 .into_diagnostic()
                 .wrap_err("Failed to open partition table")?;
 
             let table =
-                PartitionTable::try_from_str(data).wrap_err("Failed to parse partition table")?;
+                PartitionTable::try_from(data).wrap_err("Failed to parse partition table")?;
 
             Some(table)
         } else {
