@@ -63,6 +63,7 @@ impl FlashTarget for Esp8266Target {
         pb_chunk.set_style(
             ProgressStyle::default_bar()
                 .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+                .unwrap()
                 .progress_chars("#>-"),
         );
 
