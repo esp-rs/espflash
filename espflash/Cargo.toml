@@ -34,7 +34,7 @@ path = "src/main.rs"
 
 [dependencies]
 binread = "2.2"
-bytemuck = { version = "1.9", features = ["derive"] }
+bytemuck = { version = "1.11", features = ["derive"] }
 clap = { version = "3.2", features = ["derive"] }
 comfy-table = "6.0"
 crossterm = "0.24"
@@ -43,12 +43,12 @@ dialoguer = "0.10"
 directories-next = "2.0"
 espmonitor = "0.10"
 flate2 = "1.0"
-indicatif = "0.16"
+indicatif = "0.17"
 maplit = "1.0"
 md5 = "0.7"
-miette = { version = "5.1", features = ["fancy"] }
+miette = { version = "5.2", features = ["fancy"] }
 parse_int = "0.6"
-regex = "1.5"
+regex = "1.6"
 serde = { version = "1.0", features = ["derive"] }
 serde-hex = "0.1"
 serde_plain = "1.0"
