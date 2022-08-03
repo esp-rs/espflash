@@ -28,10 +28,6 @@ pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.{ archive
 bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "zip"
 
-[[bin]]
-name = "espflash"
-path = "src/main.rs"
-
 [dependencies]
 binread = "2.2"
 bytemuck = { version = "1.11", features = ["derive"] }
@@ -59,4 +55,5 @@ strum = "0.24"
 strum_macros = "0.24"
 thiserror = "1.0"
 toml = "0.5"
+update-informer = "0.5"
 xmas-elf = "0.8"
