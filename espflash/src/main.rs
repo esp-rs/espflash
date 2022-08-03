@@ -3,9 +3,9 @@ use std::{fs, mem::swap, path::PathBuf, str::FromStr};
 use clap::{IntoApp, Parser};
 use espflash::{
     cli::{
-        board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image,
-        serial_monitor, write_bin_to_flash, ConnectOpts, FlashConfigOpts, FlashOpts,
-        PartitionTableOpts, WriteBinToFlashOpts,
+        board_info, check_for_updates, connect, flash_elf_image, monitor::monitor, partition_table,
+        save_elf_as_image, serial_monitor, write_bin_to_flash, ConnectOpts, FlashConfigOpts,
+        FlashOpts, PartitionTableOpts, WriteBinToFlashOpts,
     },
     Chip, Config, ImageFormatId,
 };
@@ -72,6 +72,8 @@ pub struct SaveImageOpts {
 
 fn main() -> Result<()> {
     miette::set_panic_hook();
+
+    check_for_updates(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     let mut opts = Opts::parse();
     let config = Config::load()?;

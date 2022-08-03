@@ -9,8 +9,9 @@ use cargo_metadata::Message;
 use clap::Parser;
 use espflash::{
     cli::{
-        board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image,
-        serial_monitor, ConnectOpts, FlashConfigOpts, FlashOpts, PartitionTableOpts,
+        board_info, check_for_updates, connect, flash_elf_image, monitor::monitor, partition_table,
+        save_elf_as_image, serial_monitor, ConnectOpts, FlashConfigOpts, FlashOpts,
+        PartitionTableOpts,
     },
     Chip, Config, ImageFormatId,
 };
@@ -121,6 +122,8 @@ pub struct SaveImageOpts {
 
 fn main() -> Result<()> {
     miette::set_panic_hook();
+
+    check_for_updates(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     let CargoSubCommand::Espflash(opts) = Opts::parse().subcommand;
 

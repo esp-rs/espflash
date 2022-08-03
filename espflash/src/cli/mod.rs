@@ -7,6 +7,7 @@ use std::{
     io::{Read, Write},
     num::ParseIntError,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 use clap::Parser;
@@ -14,6 +15,7 @@ use config::Config;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{FlowControl, SerialPortType, UsbPortInfo};
 use strum::VariantNames;
+use update_informer::{registry, Check};
 
 use crate::{
     cli::monitor::monitor,
@@ -363,4 +365,14 @@ pub fn write_bin_to_flash(opts: WriteBinToFlashOpts) -> Result<()> {
     flasher.write_bin_to_flash(opts.addr, &buffer)?;
 
     Ok(())
+}
+
+pub fn check_for_updates(name: &str, version: &str) {
+    const NO_INTERVAL: Duration = Duration::from_secs(0);
+
+    let informer = update_informer::new(registry::Crates, name, version).interval(NO_INTERVAL);
+
+    if let Some(version) = informer.check_version().ok().flatten() {
+        println!("New version of {name} is available: {version}\n");
+    }
 }
