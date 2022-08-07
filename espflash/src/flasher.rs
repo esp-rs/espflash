@@ -294,10 +294,17 @@ impl Flasher {
         // Loop over all available SPI parameters until we find one that successfully
         // reads the flash size.
         for spi_params in TRY_SPI_PARAMS.iter().copied() {
+            debug!("Attempting flash enable with: {:?}", spi_params);
+
+            // Send `SpiAttach` to enable flash, in some instances this command
+            // may fail while the flash connection succeeds
             if let Err(_e) = self.enable_flash(spi_params) {
-                continue;
+                debug!("Flash enable failed");
             }
+
             if let Some(flash_size) = self.flash_detect()? {
+                debug!("Flash detect OK!");
+
                 // Flash detection was successful, so save the flash size and SPI parameters and
                 // return.
                 self.flash_size = flash_size;
@@ -305,7 +312,11 @@ impl Flasher {
 
                 return Ok(());
             }
+
+            debug!("Flash detect failed");
         }
+
+        debug!("SPI flash autodetection failed");
 
         // None of the SPI parameters were successful.
         Err(Error::FlashConnect)
