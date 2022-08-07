@@ -492,6 +492,7 @@ checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 name = "espflash"
 version = "1.6.1-dev"
 dependencies = [
+ "base64",
  "binread",
  "bytemuck",
  "clap",
@@ -510,6 +511,7 @@ dependencies = [
  "regex",
  "serde",
  "serde-hex",
+ "serde_json",
  "serde_plain",
  "serialport",
  "sha2",

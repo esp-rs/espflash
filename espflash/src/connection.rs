@@ -86,7 +86,7 @@ impl Connection {
         Err(Error::Connection(ConnectionError::ConnectionFailed))
     }
 
-    fn sync(&mut self) -> Result<(), Error> {
+    pub(crate) fn sync(&mut self) -> Result<(), Error> {
         self.with_timeout(CommandType::Sync.timeout(), |connection| {
             connection.write_command(Command::Sync)?;
             connection.flush()?;
@@ -254,7 +254,7 @@ impl Connection {
         Ok(())
     }
 
-    fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
+    pub(crate) fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
         let mut tmp = Vec::with_capacity(1024);
         loop {
             self.decoder.decode(&mut self.serial, &mut tmp)?;

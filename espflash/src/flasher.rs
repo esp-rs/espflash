@@ -11,7 +11,7 @@ use crate::{
     elf::{ElfFirmwareImage, FirmwareImage, FlashFrequency, FlashMode, RomSegment},
     error::{ConnectionError, FlashDetectError, ResultExt},
     image_format::ImageFormatId,
-    Error, PartitionTable,
+    Error, PartitionTable, stubs::FlashStub,
 };
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
@@ -192,6 +192,7 @@ impl Flasher {
         serial: Box<dyn SerialPort>,
         port_info: UsbPortInfo,
         speed: Option<u32>,
+        use_stub: bool,
     ) -> Result<Self, Error> {
         // Establish a connection to the device using the default baud rate of 115,200
         // and timeout of 3 seconds.
@@ -209,6 +210,13 @@ impl Flasher {
             flash_size: FlashSize::Flash4Mb,
             spi_params: SpiAttachParams::default(),
         };
+
+        // Load flash stub if enabled
+        if use_stub {
+            println!("Using flash stub");
+            flasher.load_stub()?;
+        }
+
         flasher.spi_autodetect()?;
 
         // Now that we have established a connection and detected the chip and flash
@@ -228,11 +236,65 @@ impl Flasher {
         Ok(flasher)
     }
 
+    /// Load flash stub
+    fn load_stub(&mut self) -> Result<(), Error> {
+
+        println!("Loading flash stub for chip: {:?}", self.chip);
+
+        // Load flash stub
+        let stub = FlashStub::get(self.chip).unwrap();
+
+        let mut ram_target = self.chip.ram_target(Some(stub.entry()));
+        ram_target.begin(&mut self.connection).flashing()?;
+
+        let (text_addr, text) = stub.text();
+        println!("Write {} byte stub text", text.len());
+
+        ram_target.write_segment(
+                &mut self.connection,
+                RomSegment {
+                    addr: text_addr,
+                    data: Cow::Borrowed(&text),
+                },
+            )
+            .flashing()?;
+
+
+        let (data_addr, data) = stub.data();
+        println!("Write {} byte stub data", data.len());
+
+        ram_target.write_segment(
+                &mut self.connection,
+                RomSegment {
+                    addr: data_addr,
+                    data: Cow::Borrowed(&data),
+                },
+            )
+            .flashing()?;
+
+        println!("Finish stub write");
+        ram_target.finish(&mut self.connection, true).flashing()?;
+        
+        println!("Stub written...");
+
+        // Re-sync connection
+        self.connection.sync()?;
+
+        // Re-detect chip to check stub is up
+        let magic = self.connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
+        let chip = Chip::from_magic(magic)?;
+        println!("Re-detected chip: {:?}", chip);
+
+        Ok(())
+    }
+
     fn spi_autodetect(&mut self) -> Result<(), Error> {
         // Loop over all available SPI parameters until we find one that successfully
         // reads the flash size.
         for spi_params in TRY_SPI_PARAMS.iter().copied() {
-            self.enable_flash(spi_params)?;
+            if let Err(_e) = self.enable_flash(spi_params) {
+                continue;
+            }
             if let Some(flash_size) = self.flash_detect()? {
                 // Flash detection was successful, so save the flash size and SPI parameters and
                 // return.

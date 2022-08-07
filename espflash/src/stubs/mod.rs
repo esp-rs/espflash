@@ -1,0 +1,56 @@
+use serde::{Serialize, Deserialize};
+
+use crate::Chip;
+
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct FlashStub {
+    entry: u32,
+    text: String,
+    text_start: u32,
+    data: String,
+    data_start: u32,
+}
+
+const STUB_32:   &str = include_str!("../../../stubs/stub_flasher_32.json");
+const STUB_32C2: &str = include_str!("../../../stubs/stub_flasher_32c2.json");
+const STUB_32C3: &str = include_str!("../../../stubs/stub_flasher_32c3.json");
+const STUB_32S2: &str = include_str!("../../../stubs/stub_flasher_32s2.json");
+const STUB_32S3: &str = include_str!("../../../stubs/stub_flasher_32s3.json");
+const STUB_8266: &str = include_str!("../../../stubs/stub_flasher_8266.json");
+
+impl FlashStub {
+    /// Fetch flash stub for the provided chip
+    pub fn get(chip: Chip) -> Result<FlashStub, ()> {
+        let s = match chip {
+            Chip::Esp32 => STUB_32,
+            Chip::Esp32c2 => STUB_32C2,
+            Chip::Esp32c3 => STUB_32C3,
+            Chip::Esp32s2 => STUB_32S2,
+            Chip::Esp32s3 => STUB_32S3,
+            Chip::Esp8266 => STUB_8266,
+        };
+
+        let stub: FlashStub = serde_json::from_str(s)
+            .map_err(|_| () )?;
+
+        Ok(stub)
+    }
+
+    /// Fetch stub entry point
+    pub fn entry(&self) -> u32 {
+        self.entry
+    }
+
+    /// Fetch text start address and bytes
+    pub fn text(&self) -> (u32, Vec<u8>) {
+        let v = base64::decode(&self.text).unwrap();
+        (self.text_start, v)
+    }
+
+    /// Fetch data start address and bytes
+    pub fn data(&self) -> (u32, Vec<u8>) {
+        let v = base64::decode(&self.data).unwrap();
+        (self.data_start, v)
+    }
+}

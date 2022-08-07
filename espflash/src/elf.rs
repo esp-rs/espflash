@@ -21,7 +21,7 @@ use crate::{
 
 pub const ESP_CHECKSUM_MAGIC: u8 = 0xef;
 
-#[derive(Copy, Clone, EnumVariantNames)]
+#[derive(Copy, Clone, Debug, EnumVariantNames)]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum FlashMode {
     Qio,

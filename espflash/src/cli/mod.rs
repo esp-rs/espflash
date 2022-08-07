@@ -31,16 +31,21 @@ pub mod monitor;
 
 mod serial;
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 pub struct ConnectOpts {
     /// Serial port connected to target device
     pub serial: Option<String>,
+
     /// Baud rate at which to flash target device
     #[clap(long)]
     pub speed: Option<u32>,
+
+    /// Use RAM stub for loading
+    #[clap(long)]
+    pub use_stub: bool,
 }
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 pub struct FlashOpts {
     /// Load the application to RAM instead of Flash
     #[clap(long)]
@@ -56,7 +61,7 @@ pub struct FlashOpts {
     pub monitor: bool,
 }
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 pub struct FlashConfigOpts {
     /// Flash mode to use
     #[clap(short = 'm', long, possible_values = FlashMode::VARIANTS, value_name = "MODE")]
@@ -69,7 +74,7 @@ pub struct FlashConfigOpts {
     pub flash_freq: Option<FlashFrequency>,
 }
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 pub struct PartitionTableOpts {
     /// Convert CSV parition table to binary representation
     #[clap(long, required_unless_present_any = ["info", "to-csv"])]
@@ -87,13 +92,15 @@ pub struct PartitionTableOpts {
     output: Option<PathBuf>,
 }
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 pub struct WriteBinToFlashOpts {
     /// Address at which to write the binary file
     #[clap(value_parser = parse_u32)]
     addr: u32,
+
     /// File containing the binary data to write
     bin_file: String,
+
     #[clap(flatten)]
     connect_opts: ConnectOpts,
 }
@@ -131,7 +138,7 @@ pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
         _ => unreachable!(),
     };
 
-    Ok(Flasher::connect(serial, port_info, opts.speed)?)
+    Ok(Flasher::connect(serial, port_info, opts.speed, opts.use_stub)?)
 }
 
 pub fn board_info(opts: ConnectOpts, config: Config) -> Result<()> {

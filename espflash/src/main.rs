@@ -12,25 +12,30 @@ use espflash::{
 use miette::{IntoDiagnostic, Result, WrapErr};
 use strum::VariantNames;
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[clap(version, propagate_version = true)]
 struct Opts {
     /// Image format to flash
     #[clap(long, possible_values = &["bootloader", "direct-boot"])]
     pub format: Option<String>,
+
     #[clap(flatten)]
     pub flash_config_opts: FlashConfigOpts,
+
     #[clap(flatten)]
     flash_opts: FlashOpts,
+
     #[clap(flatten)]
     connect_opts: ConnectOpts,
+
     /// ELF image to flash
     image: Option<String>,
+
     #[clap(subcommand)]
     subcommand: Option<SubCommand>,
 }
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 pub enum SubCommand {
     /// Display information about the connected board and exit without flashing
     BoardInfo(ConnectOpts),
@@ -44,7 +49,7 @@ pub enum SubCommand {
     WriteBinToFlash(WriteBinToFlashOpts),
 }
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 pub struct SaveImageOpts {
     #[clap(flatten)]
     pub flash_config_opts: FlashConfigOpts,
