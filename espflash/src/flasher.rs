@@ -1,6 +1,7 @@
 use std::{borrow::Cow, str::FromStr, thread::sleep};
 
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
+use log::debug;
 use serialport::{SerialPort, UsbPortInfo};
 use strum_macros::{Display, EnumVariantNames};
 
@@ -11,7 +12,8 @@ use crate::{
     elf::{ElfFirmwareImage, FirmwareImage, FlashFrequency, FlashMode, RomSegment},
     error::{ConnectionError, FlashDetectError, ResultExt},
     image_format::ImageFormatId,
-    Error, PartitionTable, stubs::FlashStub,
+    stubs::FlashStub,
+    Error, PartitionTable,
 };
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
@@ -238,8 +240,7 @@ impl Flasher {
 
     /// Load flash stub
     fn load_stub(&mut self) -> Result<(), Error> {
-
-        println!("Loading flash stub for chip: {:?}", self.chip);
+        debug!("Loading flash stub for chip: {:?}", self.chip);
 
         // Load flash stub
         let stub = FlashStub::get(self.chip).unwrap();
@@ -248,9 +249,10 @@ impl Flasher {
         ram_target.begin(&mut self.connection).flashing()?;
 
         let (text_addr, text) = stub.text();
-        println!("Write {} byte stub text", text.len());
+        debug!("Write {} byte stub text", text.len());
 
-        ram_target.write_segment(
+        ram_target
+            .write_segment(
                 &mut self.connection,
                 RomSegment {
                     addr: text_addr,
@@ -259,11 +261,11 @@ impl Flasher {
             )
             .flashing()?;
 
-
         let (data_addr, data) = stub.data();
-        println!("Write {} byte stub data", data.len());
+        debug!("Write {} byte stub data", data.len());
 
-        ram_target.write_segment(
+        ram_target
+            .write_segment(
                 &mut self.connection,
                 RomSegment {
                     addr: data_addr,
@@ -272,10 +274,10 @@ impl Flasher {
             )
             .flashing()?;
 
-        println!("Finish stub write");
+        debug!("Finish stub write");
         ram_target.finish(&mut self.connection, true).flashing()?;
-        
-        println!("Stub written...");
+
+        debug!("Stub written...");
 
         // Re-sync connection
         self.connection.sync()?;
@@ -283,7 +285,7 @@ impl Flasher {
         // Re-detect chip to check stub is up
         let magic = self.connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
         let chip = Chip::from_magic(magic)?;
-        println!("Re-detected chip: {:?}", chip);
+        debug!("Re-detected chip: {:?}", chip);
 
         Ok(())
     }

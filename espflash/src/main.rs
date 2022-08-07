@@ -9,8 +9,10 @@ use espflash::{
     },
     Chip, Config, ImageFormatId,
 };
+use log::debug;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use strum::VariantNames;
+use tracing_subscriber::{filter::LevelFilter, EnvFilter};
 
 #[derive(Debug, Parser)]
 #[clap(version, propagate_version = true)]
@@ -33,6 +35,10 @@ struct Opts {
 
     #[clap(subcommand)]
     subcommand: Option<SubCommand>,
+
+    /// Log level
+    #[clap(long, default_value = "info", env)]
+    log_level: LevelFilter,
 }
 
 #[derive(Debug, Parser)]
@@ -80,8 +86,16 @@ fn main() -> Result<()> {
 
     check_for_updates(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
+    // Read options and configuration
     let mut opts = Opts::parse();
     let config = Config::load()?;
+
+    debug!("options: {:?}", opts);
+
+    // Setup logging
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env().add_directive(opts.log_level.into()))
+        .init();
 
     if opts.subcommand.is_none() {
         // If neither the IMAGE nor SERIAL arguments have been provided, print the
