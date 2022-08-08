@@ -183,10 +183,16 @@ struct EntryParams {
 }
 
 pub struct Flasher {
+    /// Connection for flash operations
     connection: Connection,
+    /// Chip ID
     chip: Chip,
+    /// Flash size, loaded from SPI flash
     flash_size: FlashSize,
+    /// Configuration for SPI attached flash (0 to use fused values)
     spi_params: SpiAttachParams,
+    /// Indicate RAM stub loader is in use
+    use_stub: bool,
 }
 
 impl Flasher {
@@ -211,6 +217,7 @@ impl Flasher {
             chip,
             flash_size: FlashSize::Flash4Mb,
             spi_params: SpiAttachParams::default(),
+            use_stub,
         };
 
         // Load flash stub if enabled
@@ -590,9 +597,16 @@ impl Flasher {
     }
 
     pub fn change_baud(&mut self, speed: u32) -> Result<(), Error> {
+        debug!("Change baud to: {}", speed);
+
+        let prior_baud = match self.use_stub {
+            true => self.connection.get_baud()?,
+            false => 0,
+        };
+
         self.connection
             .with_timeout(CommandType::ChangeBaud.timeout(), |connection| {
-                connection.command(Command::ChangeBaud { speed })
+                connection.command(Command::ChangeBaud { new_baud: speed, prior_baud })
             })?;
         self.connection.set_baud(speed)?;
         std::thread::sleep(Duration::from_secs_f32(0.05));

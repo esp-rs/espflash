@@ -113,7 +113,10 @@ pub enum Command<'a> {
         spi_params: SpiAttachParams,
     },
     ChangeBaud {
-        speed: u32,
+        /// New baud rate
+        new_baud: u32,
+        /// Prior baud rate ('0' for ROM flasher)
+        prior_baud: u32,
     },
     FlashDeflateBegin {
         size: u32,
@@ -267,14 +270,14 @@ impl<'a> Command<'a> {
             Command::SpiAttach { spi_params } => {
                 write_basic(writer, &spi_params.encode(), 0)?;
             }
-            Command::ChangeBaud { speed } => {
+            Command::ChangeBaud { new_baud, prior_baud } => {
                 // length
                 writer.write_all(&(8u16.to_le_bytes()))?;
                 // checksum
                 writer.write_all(&(0u32.to_le_bytes()))?;
                 // data
-                writer.write_all(&speed.to_le_bytes())?;
-                writer.write_all(&0u32.to_le_bytes())?;
+                writer.write_all(&new_baud.to_le_bytes())?;
+                writer.write_all(&prior_baud.to_le_bytes())?;
             }
             Command::FlashDeflateBegin {
                 size,
