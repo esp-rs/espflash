@@ -112,6 +112,9 @@ pub enum Command<'a> {
     SpiAttach {
         spi_params: SpiAttachParams,
     },
+    SpiAttachStub {
+        spi_params: SpiAttachParams,
+    },
     ChangeBaud {
         /// New baud rate
         new_baud: u32,
@@ -150,6 +153,7 @@ impl<'a> Command<'a> {
             Command::WriteReg { .. } => CommandType::WriteReg,
             Command::ReadReg { .. } => CommandType::ReadReg,
             Command::SpiAttach { .. } => CommandType::SpiAttach,
+            Command::SpiAttachStub { .. } => CommandType::SpiAttach,
             Command::ChangeBaud { .. } => CommandType::ChangeBaud,
             Command::FlashDeflateBegin { .. } => CommandType::FlashDeflateBegin,
             Command::FlashDeflateData { .. } => CommandType::FlashDeflateData,
@@ -268,9 +272,15 @@ impl<'a> Command<'a> {
                 write_basic(writer, &address.to_le_bytes(), 0)?;
             }
             Command::SpiAttach { spi_params } => {
-                write_basic(writer, &spi_params.encode(), 0)?;
+                write_basic(writer, &spi_params.encode(false), 0)?;
             }
-            Command::ChangeBaud { new_baud, prior_baud } => {
+            Command::SpiAttachStub { spi_params } => {
+                write_basic(writer, &spi_params.encode(true), 0)?;
+            }
+            Command::ChangeBaud {
+                new_baud,
+                prior_baud,
+            } => {
                 // length
                 writer.write_all(&(8u16.to_le_bytes()))?;
                 // checksum

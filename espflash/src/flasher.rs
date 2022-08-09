@@ -138,17 +138,20 @@ impl SpiAttachParams {
         }
     }
 
-    pub fn encode(self) -> Vec<u8> {
+    pub fn encode(self, stub: bool) -> Vec<u8> {
         let packed = ((self.hd as u32) << 24)
             | ((self.cs as u32) << 18)
             | ((self.d as u32) << 12)
             | ((self.q as u32) << 6)
             | (self.clk as u32);
-        if packed == 0 {
-            vec![0; 5]
-        } else {
-            packed.to_le_bytes().to_vec()
+
+        let mut encoded: Vec<u8> = packed.to_le_bytes().to_vec();
+
+        if !stub {
+            encoded.append(&mut vec![0u8; 4]);
         }
+
+        encoded
     }
 }
 
@@ -369,7 +372,11 @@ impl Flasher {
             _ => {
                 self.connection
                     .with_timeout(CommandType::SpiAttach.timeout(), |connection| {
-                        connection.command(Command::SpiAttach { spi_params })
+                        connection.command(if self.use_stub {
+                            Command::SpiAttachStub { spi_params }
+                        } else {
+                            Command::SpiAttach { spi_params }
+                        })
                     })?;
             }
         }
@@ -537,7 +544,7 @@ impl Flasher {
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
 
-        let mut target = self.chip.flash_target(self.spi_params);
+        let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
         target.begin(&mut self.connection).flashing()?;
 
         let flash_image = self.chip.get_flash_image(
@@ -564,7 +571,7 @@ impl Flasher {
 
     /// Load an bin image to flash at a specific address
     pub fn write_bin_to_flash(&mut self, addr: u32, data: &[u8]) -> Result<(), Error> {
-        let mut target = self.chip.flash_target(self.spi_params);
+        let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
         target.begin(&mut self.connection).flashing()?;
         let segment = RomSegment {
             addr,
@@ -606,7 +613,10 @@ impl Flasher {
 
         self.connection
             .with_timeout(CommandType::ChangeBaud.timeout(), |connection| {
-                connection.command(Command::ChangeBaud { new_baud: speed, prior_baud })
+                connection.command(Command::ChangeBaud {
+                    new_baud: speed,
+                    prior_baud,
+                })
             })?;
         self.connection.set_baud(speed)?;
         std::thread::sleep(Duration::from_secs_f32(0.05));

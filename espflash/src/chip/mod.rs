@@ -299,10 +299,14 @@ impl Chip {
         Box::new(RamTarget::new(entry))
     }
 
-    pub fn flash_target(&self, spi_params: SpiAttachParams) -> Box<dyn FlashTarget> {
+    pub fn flash_target(
+        &self,
+        spi_params: SpiAttachParams,
+        use_stub: bool,
+    ) -> Box<dyn FlashTarget> {
         match self {
             Chip::Esp8266 => Box::new(Esp8266Target::new()),
-            _ => Box::new(Esp32Target::new(*self, spi_params)),
+            _ => Box::new(Esp32Target::new(*self, spi_params, use_stub)),
         }
     }
 
