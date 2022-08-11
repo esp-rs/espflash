@@ -28,7 +28,7 @@ const STUB_8266: &str = include_str!("../../../stubs/stub_flasher_8266.json");
 
 impl FlashStub {
     /// Fetch flash stub for the provided chip
-    pub fn get(chip: Chip) -> Result<FlashStub, ()> {
+    pub fn get(chip: Chip) -> FlashStub {
         let s = match chip {
             Chip::Esp32 => STUB_32,
             Chip::Esp32c2 => STUB_32C2,
@@ -38,9 +38,9 @@ impl FlashStub {
             Chip::Esp8266 => STUB_8266,
         };
 
-        let stub: FlashStub = serde_json::from_str(s).map_err(|_| ())?;
+        let stub: FlashStub = serde_json::from_str(s).unwrap();
 
-        Ok(stub)
+        stub
     }
 
     /// Fetch stub entry point
@@ -72,7 +72,7 @@ mod tests {
     fn check_stub_encodings() {
         for c in Chip::iter() {
             // Stub must be valid json
-            let s = FlashStub::get(c).unwrap();
+            let s = FlashStub::get(c);
 
             // Data decoded from b64
             let _ = s.text();

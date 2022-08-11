@@ -253,7 +253,7 @@ impl Flasher {
         debug!("Loading flash stub for chip: {:?}", self.chip);
 
         // Load flash stub
-        let stub = FlashStub::get(self.chip).unwrap();
+        let stub = FlashStub::get(self.chip);
 
         let mut ram_target = self.chip.ram_target(Some(stub.entry()));
         ram_target.begin(&mut self.connection).flashing()?;
