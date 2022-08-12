@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::Chip;
 
 /// Flash stub object (deserialized from json as used by `esptool.py`)
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct FlashStub {
     /// Entry point (address)
     entry: u32,

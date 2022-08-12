@@ -135,7 +135,7 @@ fn main() -> Result<()> {
     let opts = Opts::parse();
 
     // Setup logging
-    let _ = tracing_subscriber::fmt()
+    tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env().add_directive(opts.log_level.into()))
         .init();
 
