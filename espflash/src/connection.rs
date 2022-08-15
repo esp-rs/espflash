@@ -88,10 +88,10 @@ impl Connection {
 
     fn sync(&mut self) -> Result<(), Error> {
         self.with_timeout(CommandType::Sync.timeout(), |connection| {
-            connection.write_command(Command::Sync)?;
+            connection.command(Command::Sync)?;
             connection.flush()?;
             sleep(Duration::from_millis(10));
-            for _ in 0..100 {
+            for _ in 0..7 {
                 match connection.read_response()? {
                     Some(response) if response.return_op == CommandType::Sync as u8 => {
                         if response.status == 1 {
@@ -100,23 +100,19 @@ impl Connection {
                                 CommandType::Sync,
                                 RomErrorKind::from(response.error),
                             )));
-                        } else {
-                            break;
                         }
                     }
-                    _ => continue,
+                    _ => {
+                        return Err(Error::RomError(RomError::new(
+                            CommandType::Sync,
+                            RomErrorKind::InvalidMessage,
+                        )))
+                    }
                 }
             }
 
             Ok(())
         })?;
-
-        for _ in 0..700 {
-            match self.read_response()? {
-                Some(_) => break,
-                _ => continue,
-            }
-        }
 
         Ok(())
     }
