@@ -29,7 +29,7 @@ const MD5_PART_MAGIC_BYTES: &[u8] = &[
 ];
 const END_MARKER: [u8; 32] = [0xFF; 32];
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, BinRead)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, Eq, BinRead)]
 #[repr(u8)]
 #[br(little, repr = u8)]
 #[serde(rename_all = "lowercase")]
@@ -62,7 +62,7 @@ impl Display for Type {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, BinRead)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, Eq, BinRead)]
 #[repr(u8)]
 #[br(little, repr = u8)]
 pub enum AppType {
@@ -104,7 +104,7 @@ pub enum AppType {
     Test = 0x20,
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, EnumIter, Serialize, PartialEq, BinRead)]
+#[derive(Copy, Clone, Debug, Deserialize, EnumIter, Serialize, PartialEq, Eq, BinRead)]
 #[repr(u8)]
 #[br(little, repr = u8)]
 #[serde(rename_all = "lowercase")]
@@ -127,7 +127,7 @@ impl DataType {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Copy, Clone, BinRead)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Copy, Clone, BinRead)]
 #[serde(untagged)]
 pub enum SubType {
     App(AppType),
@@ -162,7 +162,7 @@ impl SubType {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, BinRead)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, Eq, BinRead)]
 #[repr(u8)]
 #[br(little, repr = u8)]
 #[serde(rename_all = "lowercase")]
