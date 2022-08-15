@@ -108,7 +108,7 @@ impl FlashTarget for Esp32Target {
                     blocks: block_count as u32,
                     block_size: FLASH_WRITE_SIZE as u32,
                     offset: addr,
-                    supports_encryption: self.chip != Chip::Esp32,
+                    supports_encryption: self.chip != Chip::Esp32 && !self.use_stub,
                 })?;
                 Ok(())
             },
