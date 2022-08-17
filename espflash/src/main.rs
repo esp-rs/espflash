@@ -9,28 +9,39 @@ use espflash::{
     },
     Chip, Config, ImageFormatId,
 };
+use log::debug;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use strum::VariantNames;
+use tracing_subscriber::{filter::LevelFilter, EnvFilter};
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[clap(version, propagate_version = true)]
 struct Opts {
     /// Image format to flash
     #[clap(long, possible_values = &["bootloader", "direct-boot"])]
     pub format: Option<String>,
+
     #[clap(flatten)]
     pub flash_config_opts: FlashConfigOpts,
+
     #[clap(flatten)]
     flash_opts: FlashOpts,
+
     #[clap(flatten)]
     connect_opts: ConnectOpts,
+
     /// ELF image to flash
     image: Option<String>,
+
     #[clap(subcommand)]
     subcommand: Option<SubCommand>,
+
+    /// Log level
+    #[clap(long, default_value = "info", env)]
+    log_level: LevelFilter,
 }
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 pub enum SubCommand {
     /// Display information about the connected board and exit without flashing
     BoardInfo(ConnectOpts),
@@ -44,7 +55,7 @@ pub enum SubCommand {
     WriteBinToFlash(WriteBinToFlashOpts),
 }
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 pub struct SaveImageOpts {
     #[clap(flatten)]
     pub flash_config_opts: FlashConfigOpts,
@@ -75,8 +86,16 @@ fn main() -> Result<()> {
 
     check_for_updates(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
+    // Read options and configuration
     let mut opts = Opts::parse();
     let config = Config::load()?;
+
+    debug!("options: {:?}", opts);
+
+    // Setup logging
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env().add_directive(opts.log_level.into()))
+        .init();
 
     if opts.subcommand.is_none() {
         // If neither the IMAGE nor SERIAL arguments have been provided, print the

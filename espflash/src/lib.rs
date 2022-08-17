@@ -19,3 +19,5 @@ pub mod partition_table;
 
 #[doc(hidden)]
 pub mod cli;
+
+pub mod stubs;

@@ -1,6 +1,7 @@
 use std::{borrow::Cow, str::FromStr, thread::sleep};
 
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
+use log::debug;
 use serialport::{SerialPort, UsbPortInfo};
 use strum_macros::{Display, EnumVariantNames};
 
@@ -11,6 +12,7 @@ use crate::{
     elf::{ElfFirmwareImage, FirmwareImage, FlashFrequency, FlashMode, RomSegment},
     error::{ConnectionError, FlashDetectError, ResultExt},
     image_format::ImageFormatId,
+    stubs::FlashStub,
     Error, PartitionTable,
 };
 
@@ -23,6 +25,8 @@ const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 
 // register used for chip detect
 const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
+
+const EXPECTED_STUB_HANDSHAKE: &str = "OHAI";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Display, EnumVariantNames)]
 #[repr(u8)]
@@ -136,17 +140,20 @@ impl SpiAttachParams {
         }
     }
 
-    pub fn encode(self) -> Vec<u8> {
+    pub fn encode(self, stub: bool) -> Vec<u8> {
         let packed = ((self.hd as u32) << 24)
             | ((self.cs as u32) << 18)
             | ((self.d as u32) << 12)
             | ((self.q as u32) << 6)
             | (self.clk as u32);
-        if packed == 0 {
-            vec![0; 5]
-        } else {
-            packed.to_le_bytes().to_vec()
+
+        let mut encoded: Vec<u8> = packed.to_le_bytes().to_vec();
+
+        if !stub {
+            encoded.append(&mut vec![0u8; 4]);
         }
+
+        encoded
     }
 }
 
@@ -181,10 +188,16 @@ struct EntryParams {
 }
 
 pub struct Flasher {
+    /// Connection for flash operations
     connection: Connection,
+    /// Chip ID
     chip: Chip,
+    /// Flash size, loaded from SPI flash
     flash_size: FlashSize,
+    /// Configuration for SPI attached flash (0 to use fused values)
     spi_params: SpiAttachParams,
+    /// Indicate RAM stub loader is in use
+    use_stub: bool,
 }
 
 impl Flasher {
@@ -192,6 +205,7 @@ impl Flasher {
         serial: Box<dyn SerialPort>,
         port_info: UsbPortInfo,
         speed: Option<u32>,
+        use_stub: bool,
     ) -> Result<Self, Error> {
         // Establish a connection to the device using the default baud rate of 115,200
         // and timeout of 3 seconds.
@@ -208,7 +222,15 @@ impl Flasher {
             chip,
             flash_size: FlashSize::Flash4Mb,
             spi_params: SpiAttachParams::default(),
+            use_stub,
         };
+
+        // Load flash stub if enabled
+        if use_stub {
+            println!("Using flash stub");
+            flasher.load_stub()?;
+        }
+
         flasher.spi_autodetect()?;
 
         // Now that we have established a connection and detected the chip and flash
@@ -228,12 +250,75 @@ impl Flasher {
         Ok(flasher)
     }
 
+    /// Load flash stub
+    fn load_stub(&mut self) -> Result<(), Error> {
+        debug!("Loading flash stub for chip: {:?}", self.chip);
+
+        // Load flash stub
+        let stub = FlashStub::get(self.chip);
+
+        let mut ram_target = self.chip.ram_target(Some(stub.entry()));
+        ram_target.begin(&mut self.connection).flashing()?;
+
+        let (text_addr, text) = stub.text();
+        debug!("Write {} byte stub text", text.len());
+
+        ram_target
+            .write_segment(
+                &mut self.connection,
+                RomSegment {
+                    addr: text_addr,
+                    data: Cow::Borrowed(&text),
+                },
+            )
+            .flashing()?;
+
+        let (data_addr, data) = stub.data();
+        debug!("Write {} byte stub data", data.len());
+
+        ram_target
+            .write_segment(
+                &mut self.connection,
+                RomSegment {
+                    addr: data_addr,
+                    data: Cow::Borrowed(&data),
+                },
+            )
+            .flashing()?;
+
+        debug!("Finish stub write");
+        ram_target.finish(&mut self.connection, true).flashing()?;
+
+        debug!("Stub written...");
+
+        match self.connection.read(EXPECTED_STUB_HANDSHAKE.len())? {
+            Some(resp) if resp == EXPECTED_STUB_HANDSHAKE.as_bytes() => Ok(()),
+            _ => Err(Error::Connection(ConnectionError::InvalidStubHandshake)),
+        }?;
+
+        // Re-detect chip to check stub is up
+        let magic = self.connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
+        let chip = Chip::from_magic(magic)?;
+        debug!("Re-detected chip: {:?}", chip);
+
+        Ok(())
+    }
+
     fn spi_autodetect(&mut self) -> Result<(), Error> {
         // Loop over all available SPI parameters until we find one that successfully
         // reads the flash size.
         for spi_params in TRY_SPI_PARAMS.iter().copied() {
-            self.enable_flash(spi_params)?;
+            debug!("Attempting flash enable with: {:?}", spi_params);
+
+            // Send `SpiAttach` to enable flash, in some instances this command
+            // may fail while the flash connection succeeds
+            if let Err(_e) = self.enable_flash(spi_params) {
+                debug!("Flash enable failed");
+            }
+
             if let Some(flash_size) = self.flash_detect()? {
+                debug!("Flash detect OK!");
+
                 // Flash detection was successful, so save the flash size and SPI parameters and
                 // return.
                 self.flash_size = flash_size;
@@ -241,7 +326,11 @@ impl Flasher {
 
                 return Ok(());
             }
+
+            debug!("Flash detect failed");
         }
+
+        debug!("SPI flash autodetection failed");
 
         // None of the SPI parameters were successful.
         Err(Error::FlashConnect)
@@ -287,7 +376,11 @@ impl Flasher {
             _ => {
                 self.connection
                     .with_timeout(CommandType::SpiAttach.timeout(), |connection| {
-                        connection.command(Command::SpiAttach { spi_params })
+                        connection.command(if self.use_stub {
+                            Command::SpiAttachStub { spi_params }
+                        } else {
+                            Command::SpiAttach { spi_params }
+                        })
                     })?;
             }
         }
@@ -455,7 +548,7 @@ impl Flasher {
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
 
-        let mut target = self.chip.flash_target(self.spi_params);
+        let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
         target.begin(&mut self.connection).flashing()?;
 
         let flash_image = self.chip.get_flash_image(
@@ -482,7 +575,7 @@ impl Flasher {
 
     /// Load an bin image to flash at a specific address
     pub fn write_bin_to_flash(&mut self, addr: u32, data: &[u8]) -> Result<(), Error> {
-        let mut target = self.chip.flash_target(self.spi_params);
+        let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
         target.begin(&mut self.connection).flashing()?;
         let segment = RomSegment {
             addr,
@@ -515,9 +608,19 @@ impl Flasher {
     }
 
     pub fn change_baud(&mut self, speed: u32) -> Result<(), Error> {
+        debug!("Change baud to: {}", speed);
+
+        let prior_baud = match self.use_stub {
+            true => self.connection.get_baud()?,
+            false => 0,
+        };
+
         self.connection
             .with_timeout(CommandType::ChangeBaud.timeout(), |connection| {
-                connection.command(Command::ChangeBaud { speed })
+                connection.command(Command::ChangeBaud {
+                    new_baud: speed,
+                    prior_baud,
+                })
             })?;
         self.connection.set_baud(speed)?;
         std::thread::sleep(Duration::from_secs_f32(0.05));

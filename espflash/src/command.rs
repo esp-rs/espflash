@@ -112,8 +112,14 @@ pub enum Command<'a> {
     SpiAttach {
         spi_params: SpiAttachParams,
     },
+    SpiAttachStub {
+        spi_params: SpiAttachParams,
+    },
     ChangeBaud {
-        speed: u32,
+        /// New baud rate
+        new_baud: u32,
+        /// Prior baud rate ('0' for ROM flasher)
+        prior_baud: u32,
     },
     FlashDeflateBegin {
         size: u32,
@@ -147,6 +153,7 @@ impl<'a> Command<'a> {
             Command::WriteReg { .. } => CommandType::WriteReg,
             Command::ReadReg { .. } => CommandType::ReadReg,
             Command::SpiAttach { .. } => CommandType::SpiAttach,
+            Command::SpiAttachStub { .. } => CommandType::SpiAttach,
             Command::ChangeBaud { .. } => CommandType::ChangeBaud,
             Command::FlashDeflateBegin { .. } => CommandType::FlashDeflateBegin,
             Command::FlashDeflateData { .. } => CommandType::FlashDeflateData,
@@ -265,16 +272,22 @@ impl<'a> Command<'a> {
                 write_basic(writer, &address.to_le_bytes(), 0)?;
             }
             Command::SpiAttach { spi_params } => {
-                write_basic(writer, &spi_params.encode(), 0)?;
+                write_basic(writer, &spi_params.encode(false), 0)?;
             }
-            Command::ChangeBaud { speed } => {
+            Command::SpiAttachStub { spi_params } => {
+                write_basic(writer, &spi_params.encode(true), 0)?;
+            }
+            Command::ChangeBaud {
+                new_baud,
+                prior_baud,
+            } => {
                 // length
                 writer.write_all(&(8u16.to_le_bytes()))?;
                 // checksum
                 writer.write_all(&(0u32.to_le_bytes()))?;
                 // data
-                writer.write_all(&speed.to_le_bytes())?;
-                writer.write_all(&0u32.to_le_bytes())?;
+                writer.write_all(&new_baud.to_le_bytes())?;
+                writer.write_all(&prior_baud.to_le_bytes())?;
             }
             Command::FlashDeflateBegin {
                 size,

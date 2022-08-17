@@ -176,7 +176,7 @@ impl Flags {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Eq, Serialize)]
 pub struct PartitionTable {
     partitions: Vec<Partition>,
 }
@@ -543,6 +543,8 @@ impl PartialEq for Partition {
             && self.flags == other.flags
     }
 }
+
+impl Eq for Partition {}
 
 impl Partition {
     pub fn new(

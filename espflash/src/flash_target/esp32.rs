@@ -13,13 +13,15 @@ use std::io::Write;
 pub struct Esp32Target {
     chip: Chip,
     spi_attach_params: SpiAttachParams,
+    use_stub: bool,
 }
 
 impl Esp32Target {
-    pub fn new(chip: Chip, spi_attach_params: SpiAttachParams) -> Self {
+    pub fn new(chip: Chip, spi_attach_params: SpiAttachParams, use_stub: bool) -> Self {
         Esp32Target {
             chip,
             spi_attach_params,
+            use_stub,
         }
     }
 }
@@ -27,8 +29,14 @@ impl Esp32Target {
 impl FlashTarget for Esp32Target {
     fn begin(&mut self, connection: &mut Connection) -> Result<(), Error> {
         connection.with_timeout(CommandType::SpiAttach.timeout(), |connection| {
-            connection.command(Command::SpiAttach {
-                spi_params: self.spi_attach_params,
+            connection.command(if self.use_stub {
+                Command::SpiAttachStub {
+                    spi_params: self.spi_attach_params,
+                }
+            } else {
+                Command::SpiAttach {
+                    spi_params: self.spi_attach_params,
+                }
             })
         })?;
 
@@ -100,7 +108,7 @@ impl FlashTarget for Esp32Target {
                     blocks: block_count as u32,
                     block_size: FLASH_WRITE_SIZE as u32,
                     offset: addr,
-                    supports_encryption: self.chip != Chip::Esp32,
+                    supports_encryption: self.chip != Chip::Esp32 && !self.use_stub,
                 })?;
                 Ok(())
             },

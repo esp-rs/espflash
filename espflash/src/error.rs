@@ -152,6 +152,8 @@ pub enum ConnectionError {
         help("Try hard-resetting the device and try again, if the error persists your rom might be corrupted")
     )]
     OverSizedPacket,
+    #[error("Invalid stub handshake response received")]
+    InvalidStubHandshake,
 }
 
 #[derive(Debug, Default, Clone)]

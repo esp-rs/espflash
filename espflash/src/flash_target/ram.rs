@@ -67,13 +67,12 @@ impl FlashTarget for RamTarget {
         if reboot {
             let entry = self.entry.unwrap_or_default();
             connection.with_timeout(CommandType::MemEnd.timeout(), |connection| {
-                connection.write_command(Command::MemEnd {
+                connection.command(Command::MemEnd {
                     no_entry: entry == 0,
                     entry,
                 })
-            })
-        } else {
-            Ok(())
+            })?;
         }
+        Ok(())
     }
 }

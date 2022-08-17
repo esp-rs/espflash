@@ -15,8 +15,10 @@ use espflash::{
     },
     Chip, Config, ImageFormatId,
 };
+use log::debug;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use strum::VariantNames;
+use tracing_subscriber::{filter::LevelFilter, EnvFilter};
 
 use crate::{
     cargo_config::{parse_cargo_config, CargoConfig},
@@ -28,19 +30,23 @@ mod cargo_config;
 mod error;
 mod package_metadata;
 
-#[derive(Parser)]
+#[derive(Debug, Clone, Parser)]
 #[clap(bin_name = "cargo", version, propagate_version = true)]
 struct Opts {
     #[clap(subcommand)]
     subcommand: CargoSubCommand,
+
+    /// Log level
+    #[clap(long, default_value = "info", env)]
+    log_level: LevelFilter,
 }
 
-#[derive(Parser)]
+#[derive(Debug, Clone, Parser)]
 enum CargoSubCommand {
     Espflash(EspFlashOpts),
 }
 
-#[derive(Parser)]
+#[derive(Debug, Clone, Parser)]
 struct EspFlashOpts {
     #[clap(flatten)]
     flash_opts: FlashOpts,
@@ -52,7 +58,7 @@ struct EspFlashOpts {
     subcommand: Option<SubCommand>,
 }
 
-#[derive(Parser)]
+#[derive(Debug, Clone, Parser)]
 pub enum SubCommand {
     /// Display information about the connected board and exit without flashing
     BoardInfo(ConnectOpts),
@@ -64,7 +70,7 @@ pub enum SubCommand {
     PartitionTable(PartitionTableOpts),
 }
 
-#[derive(Parser)]
+#[derive(Debug, Clone, Parser)]
 pub struct BuildOpts {
     /// Build the application using the release profile
     #[clap(long)]
@@ -100,7 +106,7 @@ pub struct BuildOpts {
     pub flash_config_opts: FlashConfigOpts,
 }
 
-#[derive(Parser)]
+#[derive(Debug, Clone, Parser)]
 pub struct SaveImageOpts {
     #[clap(flatten)]
     pub build_opts: BuildOpts,
@@ -125,8 +131,20 @@ fn main() -> Result<()> {
 
     check_for_updates(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
-    let CargoSubCommand::Espflash(opts) = Opts::parse().subcommand;
+    // Parse options
+    let opts = Opts::parse();
 
+    // Setup logging
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env().add_directive(opts.log_level.into()))
+        .init();
+
+    // Extract subcommand
+    let CargoSubCommand::Espflash(opts) = opts.subcommand;
+
+    debug!("subcommand options: {:?}", opts);
+
+    // Load configuration and metadata
     let config = Config::load()?;
     let metadata = CargoEspFlashMeta::load("Cargo.toml")?;
     let cargo_config = parse_cargo_config(".")?;

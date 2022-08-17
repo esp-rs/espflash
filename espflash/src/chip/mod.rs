@@ -1,7 +1,7 @@
 use std::{collections::HashMap, ops::Range, str::FromStr};
 
 use maplit::hashmap;
-use strum_macros::{Display, EnumVariantNames};
+use strum_macros::{Display, EnumIter, EnumVariantNames};
 
 pub use self::{
     esp32::{Esp32, Esp32Params, Esp32c2, Esp32c3, Esp32s2, Esp32s3},
@@ -143,7 +143,7 @@ impl SpiRegisters {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display, EnumVariantNames)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Display, EnumVariantNames, EnumIter)]
 pub enum Chip {
     #[strum(serialize = "ESP32")]
     Esp32,
@@ -299,10 +299,14 @@ impl Chip {
         Box::new(RamTarget::new(entry))
     }
 
-    pub fn flash_target(&self, spi_params: SpiAttachParams) -> Box<dyn FlashTarget> {
+    pub fn flash_target(
+        &self,
+        spi_params: SpiAttachParams,
+        use_stub: bool,
+    ) -> Box<dyn FlashTarget> {
         match self {
             Chip::Esp8266 => Box::new(Esp8266Target::new()),
-            _ => Box::new(Esp32Target::new(*self, spi_params)),
+            _ => Box::new(Esp32Target::new(*self, spi_params, use_stub)),
         }
     }
 
