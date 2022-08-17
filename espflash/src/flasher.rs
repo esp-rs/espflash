@@ -26,6 +26,8 @@ const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 // register used for chip detect
 const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
 
+const EXPECTED_STUB_HANDSHAKE: &str = "OHAI";
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Display, EnumVariantNames)]
 #[repr(u8)]
 pub enum FlashSize {
@@ -289,8 +291,10 @@ impl Flasher {
 
         debug!("Stub written...");
 
-        // Re-sync connection
-        self.connection.sync()?;
+        match self.connection.read(EXPECTED_STUB_HANDSHAKE.len())? {
+            Some(resp) if resp == EXPECTED_STUB_HANDSHAKE.as_bytes() => Ok(()),
+            _ => Err(Error::Connection(ConnectionError::InvalidStubHandshake)),
+        }?;
 
         // Re-detect chip to check stub is up
         let magic = self.connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
