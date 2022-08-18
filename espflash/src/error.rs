@@ -13,7 +13,7 @@ use crate::{
     elf::{FlashFrequency, FlashMode},
     flasher::FlashSize,
     image_format::ImageFormatId,
-    partition_table::{SubType, Type},
+    partition_table::{CoreType, SubType, Type},
     Chip,
 };
 
@@ -413,9 +413,10 @@ impl CSVError {
             help = format!(
                 "the following sub-types are supported:
     {} for data partitions
-    {} for app partitions\n\n",
-                Type::Data.subtype_hint(),
-                Type::App.subtype_hint()
+    {} for app partitions
+    0x00-0xFE for custom partitions\n\n",
+                CoreType::Data.subtype_hint(),
+                CoreType::App.subtype_hint()
             )
         }
 
