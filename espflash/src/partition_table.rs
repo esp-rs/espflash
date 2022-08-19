@@ -3,7 +3,6 @@ use std::{
     fmt::{Display, Formatter, Write as _},
     io::{Cursor, Write},
     ops::Rem,
-    str::FromStr,
 };
 
 use binread::{BinRead, BinReaderExt};
@@ -12,7 +11,7 @@ use md5::{Context, Digest};
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize};
 use strum::IntoEnumIterator;
-use strum_macros::{EnumIter, EnumString};
+use strum_macros::EnumIter;
 
 use crate::error::{
     CSVError, DuplicatePartitionsError, InvalidChecksum, InvalidPartitionTable,
@@ -96,73 +95,52 @@ impl Display for Type {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, Eq, BinRead, EnumString)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, Eq, BinRead)]
 #[repr(u8)]
 #[br(little, repr = u8)]
 pub enum AppType {
     #[serde(rename = "factory")]
-    #[strum(serialize = "factory")]
     Factory = 0x00,
     #[serde(rename = "ota_0")]
-    #[strum(serialize = "ota_0")]
     Ota0 = 0x10,
     #[serde(rename = "ota_1")]
-    #[strum(serialize = "ota_1")]
     Ota1 = 0x11,
     #[serde(rename = "ota_2")]
-    #[strum(serialize = "ota_2")]
     Ota2 = 0x12,
     #[serde(rename = "ota_3")]
-    #[strum(serialize = "ota_3")]
     Ota3 = 0x13,
     #[serde(rename = "ota_4")]
-    #[strum(serialize = "ota_4")]
     Ota4 = 0x14,
     #[serde(rename = "ota_5")]
-    #[strum(serialize = "ota_5")]
     Ota5 = 0x15,
     #[serde(rename = "ota_6")]
-    #[strum(serialize = "ota_6")]
     Ota6 = 0x16,
     #[serde(rename = "ota_7")]
-    #[strum(serialize = "ota_7")]
     Ota7 = 0x17,
     #[serde(rename = "ota_8")]
-    #[strum(serialize = "ota_8")]
     Ota8 = 0x18,
     #[serde(rename = "ota_9")]
-    #[strum(serialize = "ota_9")]
     Ota9 = 0x19,
     #[serde(rename = "ota_10")]
-    #[strum(serialize = "ota_10")]
     Ota10 = 0x1a,
     #[serde(rename = "ota_11")]
-    #[strum(serialize = "ota_11")]
     Ota11 = 0x1b,
     #[serde(rename = "ota_12")]
-    #[strum(serialize = "ota_12")]
     Ota12 = 0x1c,
     #[serde(rename = "ota_13")]
-    #[strum(serialize = "ota_13")]
     Ota13 = 0x1d,
     #[serde(rename = "ota_14")]
-    #[strum(serialize = "ota_14")]
     Ota14 = 0x1e,
     #[serde(rename = "ota_15")]
-    #[strum(serialize = "ota_15")]
     Ota15 = 0x1f,
     #[serde(rename = "test")]
-    #[strum(serialize = "test")]
     Test = 0x20,
 }
 
-#[derive(
-    Copy, Clone, Debug, Deserialize, EnumIter, Serialize, PartialEq, Eq, BinRead, EnumString,
-)]
+#[derive(Copy, Clone, Debug, Deserialize, EnumIter, Serialize, PartialEq, Eq, BinRead)]
 #[repr(u8)]
 #[br(little, repr = u8)]
 #[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
 pub enum DataType {
     Ota = 0x00,
     Phy = 0x01,
@@ -187,6 +165,7 @@ impl DataType {
 pub enum SubType {
     App(AppType),
     Data(DataType),
+    #[serde(deserialize_with = "deserialize_custom_partition_sub_type")]
     Custom(u8),
 }
 
@@ -376,7 +355,9 @@ impl PartitionTable {
                 return Ok(table);
             } else {
                 let mut reader = Cursor::new(line);
-                let part: Partition = reader.read_le().unwrap();
+                let mut part: Partition = reader.read_le().unwrap();
+                part.fixup_sub_type();
+
                 partitions.push(part);
                 md5.consume(line);
             }
@@ -554,7 +535,6 @@ pub struct DeserializedPartition {
     name: String,
     #[serde(deserialize_with = "deserialize_partition_type")]
     ty: Type,
-    #[serde(deserialize_with = "deserialize_partition_sub_type")]
     sub_type: SubType,
     #[serde(deserialize_with = "deserialize_partition_offset")]
     offset: Option<u32>,
@@ -686,6 +666,12 @@ impl Partition {
         self.flags
     }
 
+    pub fn fixup_sub_type(&mut self) {
+        if matches!(self.ty, Type::Custom(_)) && !matches!(self.sub_type, SubType::Custom(_)) {
+            self.sub_type = SubType::Custom(self.sub_type.as_u8());
+        }
+    }
+
     fn overlaps(&self, other: &Partition) -> bool {
         max(self.offset, other.offset) < min(self.offset + self.size, other.offset + other.size)
     }
@@ -744,7 +730,7 @@ where
     }
 }
 
-fn deserialize_partition_sub_type<'de, D>(deserializer: D) -> Result<SubType, D::Error>
+fn deserialize_custom_partition_sub_type<'de, D>(deserializer: D) -> Result<u8, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -753,15 +739,7 @@ where
     let buf = String::deserialize(deserializer)?;
     let buf = buf.trim();
 
-    if let Ok(app_type) = AppType::from_str(buf) {
-        Ok(SubType::App(app_type))
-    } else if let Ok(data_type) = DataType::from_str(buf) {
-        Ok(SubType::Data(data_type))
-    } else if let Ok(int) = parse_int::parse::<u8>(buf) {
-        Ok(SubType::Custom(int))
-    } else {
-        Err(Error::custom("invalid data sub-type"))
-    }
+    parse_int::parse::<u8>(buf).or(Err(Error::custom("invalid data sub-type")))
 }
 
 fn deserialize_partition_offset_or_size<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
@@ -1032,6 +1010,25 @@ custom,   0x40, 0x00,    0xf00000, 0x100000,
         let csv_parsed = PartitionTable::try_from_str(csv_table).unwrap();
 
         assert_eq!(binary_parsed, csv_parsed);
+    }
+
+    #[test]
+    fn test_from_csv_to_bin_and_back() {
+        let pt_basic = PartitionTable::try_from_str(PTABLE_0).unwrap();
+
+        let mut data = Vec::new();
+        pt_basic.save_bin(&mut data).unwrap();
+        let pt_from_bytes = PartitionTable::try_from_bytes(data).unwrap();
+
+        assert_eq!(pt_basic, pt_from_bytes);
+
+        let pt_custom = PartitionTable::try_from_str(PTABLE_CUSTOM_PARTITIONS).unwrap();
+
+        let mut data = Vec::new();
+        pt_custom.save_bin(&mut data).unwrap();
+        let pt_from_bytes = PartitionTable::try_from_bytes(data).unwrap();
+
+        assert_eq!(pt_custom, pt_from_bytes);
     }
 
     #[test]
