@@ -159,7 +159,7 @@ impl FlashTarget for Esp32Target {
 
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error> {
         connection.with_timeout(CommandType::FlashDeflateEnd.timeout(), |connection| {
-            connection.write_command(Command::FlashDeflateEnd { reboot: false })
+            connection.command(Command::FlashDeflateEnd { reboot: false })
         })?;
         if reboot {
             connection.reset()
