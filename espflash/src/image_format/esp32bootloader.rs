@@ -129,7 +129,7 @@ impl<'a> Esp32BootloaderFormat<'a> {
                     break;
                 }
             }
-            checksum = save_flash_segment(&mut data, &segment, checksum)?;
+            checksum = save_flash_segment(&mut data, segment, checksum)?;
             segment_count += 1;
         }
 
@@ -240,20 +240,23 @@ fn get_segment_padding(offset: usize, segment: &CodeSegment) -> u32 {
 
 fn save_flash_segment(
     data: &mut Vec<u8>,
-    segment: &CodeSegment,
+    mut segment: CodeSegment,
     checksum: u8,
 ) -> Result<u8, Error> {
     let end_pos = (data.len() + segment.data().len()) as u32 + SEG_HEADER_LEN;
     let segment_reminder = end_pos % IROM_ALIGN;
 
-    let checksum = save_segment(data, segment, checksum)?;
-
     if segment_reminder < 0x24 {
         // Work around a bug in ESP-IDF 2nd stage bootloader, that it didn't map the
         // last MMU page, if an IROM/DROM segment was < 0x24 bytes over the page
         // boundary.
-        data.write_all(&[0u8; 0x24][0..(0x24 - segment_reminder as usize)])?;
+        static PADDING: [u8; 0x24] = [0; 0x24];
+
+        segment += &PADDING[0..(0x24 - segment_reminder as usize)];
     }
+
+    let checksum = save_segment(data, &segment, checksum)?;
+
     Ok(checksum)
 }
 
