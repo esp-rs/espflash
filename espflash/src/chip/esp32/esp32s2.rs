@@ -6,10 +6,13 @@ use crate::{
     connection::Connection,
     elf::{FirmwareImage, FlashFrequency, FlashMode},
     error::UnsupportedImageFormatError,
-    flasher::FlashSize,
+    flash_target::MAX_RAM_BLOCK_SIZE,
+    flasher::{FlashSize, FLASH_WRITE_SIZE},
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
     Chip, Error, PartitionTable,
 };
+
+const MAX_USB_BLOCK_SIZE: usize = 0x800;
 
 pub struct Esp32s2;
 
@@ -79,6 +82,22 @@ impl ChipType for Esp32s2 {
         Ok(40)
     }
 
+    fn flash_write_size(&self, connection: &mut Connection) -> Result<usize, Error> {
+        Ok(if self.connection_is_usb_otg(connection)? {
+            MAX_USB_BLOCK_SIZE
+        } else {
+            FLASH_WRITE_SIZE
+        })
+    }
+
+    fn max_ram_block_size(&self, connection: &mut Connection) -> Result<usize, Error> {
+        Ok(if self.connection_is_usb_otg(connection)? {
+            MAX_USB_BLOCK_SIZE
+        } else {
+            MAX_RAM_BLOCK_SIZE
+        })
+    }
+
     fn get_flash_segments<'a>(
         image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
@@ -110,6 +129,13 @@ impl ReadEFuse for Esp32s2 {
 }
 
 impl Esp32s2 {
+    fn connection_is_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
+        const UARTDEV_BUF_NO: u32 = 0x3FFFFD14; // Address which indicates OTG in use
+        const UARTDEV_BUF_NO_USB_OTG: u32 = 2; // Value of UARTDEV_BUF_NO when OTG is in use
+
+        Ok(connection.read_reg(UARTDEV_BUF_NO)? == UARTDEV_BUF_NO_USB_OTG)
+    }
+
     fn get_flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let blk1_word3 = self.read_efuse(connection, 8)?;
         let flash_version = (blk1_word3 >> 21) & 0xf;

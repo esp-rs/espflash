@@ -11,8 +11,8 @@ use crate::{
     connection::Connection,
     elf::{FirmwareImage, FlashFrequency, FlashMode},
     error::ChipDetectError,
-    flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
-    flasher::{FlashSize, SpiAttachParams},
+    flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget, MAX_RAM_BLOCK_SIZE},
+    flasher::{FlashSize, SpiAttachParams, FLASH_WRITE_SIZE},
     image_format::{ImageFormat, ImageFormatId},
     Error, PartitionTable,
 };
@@ -90,6 +90,14 @@ pub trait ChipType: ReadEFuse {
 
     fn supports_target(target: &str) -> bool {
         Self::SUPPORTED_TARGETS.contains(&target)
+    }
+
+    fn flash_write_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
+        Ok(FLASH_WRITE_SIZE)
+    }
+
+    fn max_ram_block_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
+        Ok(MAX_RAM_BLOCK_SIZE)
     }
 }
 
@@ -295,8 +303,12 @@ impl Chip {
         }
     }
 
-    pub fn ram_target(&self, entry: Option<u32>) -> Box<dyn FlashTarget> {
-        Box::new(RamTarget::new(entry))
+    pub fn ram_target(
+        &self,
+        entry: Option<u32>,
+        max_ram_block_size: usize,
+    ) -> Box<dyn FlashTarget> {
+        Box::new(RamTarget::new(entry, max_ram_block_size))
     }
 
     pub fn flash_target(
@@ -406,6 +418,28 @@ impl Chip {
             Chip::Esp32s2 => Esp32s2::flash_frequency_encodings(),
             Chip::Esp32s3 => Esp32s3::flash_frequency_encodings(),
             Chip::Esp8266 => Esp8266::flash_frequency_encodings(),
+        }
+    }
+
+    pub fn flash_write_size(&self, connection: &mut Connection) -> Result<usize, Error> {
+        match self {
+            Chip::Esp32 => Esp32.flash_write_size(connection),
+            Chip::Esp32c2 => Esp32c2.flash_write_size(connection),
+            Chip::Esp32c3 => Esp32c3.flash_write_size(connection),
+            Chip::Esp32s2 => Esp32s2.flash_write_size(connection),
+            Chip::Esp32s3 => Esp32s3.flash_write_size(connection),
+            Chip::Esp8266 => Esp8266.flash_write_size(connection),
+        }
+    }
+
+    pub fn max_ram_block_size(&self, connection: &mut Connection) -> Result<usize, Error> {
+        match self {
+            Chip::Esp32 => Esp32.max_ram_block_size(connection),
+            Chip::Esp32c2 => Esp32c2.max_ram_block_size(connection),
+            Chip::Esp32c3 => Esp32c3.max_ram_block_size(connection),
+            Chip::Esp32s2 => Esp32s2.max_ram_block_size(connection),
+            Chip::Esp32s3 => Esp32s3.max_ram_block_size(connection),
+            Chip::Esp8266 => Esp8266.max_ram_block_size(connection),
         }
     }
 }
