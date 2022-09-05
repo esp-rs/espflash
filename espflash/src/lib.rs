@@ -1,4 +1,5 @@
 pub use chip::Chip;
+#[cfg(feature = "cli")]
 pub use cli::config::Config;
 pub use elf::{FlashFrequency, FlashMode};
 pub use error::{Error, InvalidPartitionTable};
@@ -18,6 +19,7 @@ pub mod image_format;
 pub mod partition_table;
 
 #[doc(hidden)]
+#[cfg(feature = "cli")]
 pub mod cli;
 
 pub mod stubs;
