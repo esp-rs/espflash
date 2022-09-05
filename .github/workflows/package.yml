@@ -38,7 +38,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --all --target ${{ inputs.target }}
+          args: --release --all --target ${{ inputs.target }} --features cli
 
       - uses: papeloto/action-zip@v1
         with:
