@@ -124,6 +124,9 @@ pub struct SaveImageOpts {
     /// Custom partition table for merging
     #[clap(long, short = 'T')]
     pub partition_table: Option<PathBuf>,
+    /// Don't pad the image to the flash size
+    #[clap(long, short = 'P')]
+    pub skip_padding: bool,
 }
 
 fn main() -> Result<()> {
@@ -423,6 +426,7 @@ fn save_image(
         opts.merge,
         bootloader,
         partition_table,
+        opts.skip_padding,
     )?;
 
     Ok(())
