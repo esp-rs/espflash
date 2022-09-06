@@ -23,7 +23,7 @@ use crate::{
     elf::{ElfFirmwareImage, FlashFrequency, FlashMode},
     error::{Error, NoOtadataError},
     flasher::FlashSize,
-    Chip, Flasher, ImageFormatId, InvalidPartitionTable, PartitionTable, MissingPartitionTable,
+    Chip, Flasher, ImageFormatId, InvalidPartitionTable, MissingPartitionTable, PartitionTable,
 };
 
 pub mod config;

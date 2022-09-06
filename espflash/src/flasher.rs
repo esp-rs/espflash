@@ -641,7 +641,7 @@ impl Flasher {
 
         self.connection
             .with_timeout(CommandType::EraseRegion.timeout(), |connection| {
-                connection.command(Command::EraseRegion { offset, size, })
+                connection.command(Command::EraseRegion { offset, size })
             })?;
         std::thread::sleep(Duration::from_secs_f32(0.05));
         self.connection.flush()?;

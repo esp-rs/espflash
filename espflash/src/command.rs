@@ -333,7 +333,7 @@ impl<'a> Command<'a> {
             }
             Command::EraseFlash => {
                 write_basic(writer, &[], 0)?;
-            },
+            }
             Command::EraseRegion { offset, size } => {
                 // length
                 writer.write_all(&(8u16.to_le_bytes()))?;
@@ -342,7 +342,7 @@ impl<'a> Command<'a> {
                 // data
                 writer.write_all(&offset.to_le_bytes())?;
                 writer.write_all(&size.to_le_bytes())?;
-            },
+            }
         };
         Ok(())
     }
