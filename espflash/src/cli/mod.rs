@@ -172,6 +172,7 @@ pub fn save_elf_as_image(
     merge: bool,
     bootloader_path: Option<PathBuf>,
     partition_table_path: Option<PathBuf>,
+    skip_padding: bool,
 ) -> Result<()> {
     let image = ElfFirmwareImage::try_from(elf_data)?;
 
@@ -237,13 +238,15 @@ pub fn save_elf_as_image(
             file.write_all(&segment.data).into_diagnostic()?;
         }
 
-        // Take flash_size as input parameter, if None, use default value of 4Mb
-        let padding_bytes = vec![
-            0xffu8;
-            flash_size.unwrap_or(FlashSize::Flash4Mb).size() as usize
-                - file.metadata().into_diagnostic()?.len() as usize
-        ];
-        file.write_all(&padding_bytes).into_diagnostic()?;
+        if !skip_padding {
+            // Take flash_size as input parameter, if None, use default value of 4Mb
+            let padding_bytes = vec![
+                0xffu8;
+                flash_size.unwrap_or(FlashSize::Flash4Mb).size() as usize
+                    - file.metadata().into_diagnostic()?.len() as usize
+            ];
+            file.write_all(&padding_bytes).into_diagnostic()?;
+        }
     } else {
         let flash_image = chip.get_flash_image(
             &image,
