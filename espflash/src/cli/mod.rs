@@ -21,9 +21,9 @@ use crate::{
     cli::monitor::monitor,
     cli::serial::get_serial_port_info,
     elf::{ElfFirmwareImage, FlashFrequency, FlashMode},
-    error::Error,
+    error::{Error, NoOtadataError},
     flasher::FlashSize,
-    Chip, Flasher, ImageFormatId, InvalidPartitionTable, PartitionTable,
+    Chip, Flasher, ImageFormatId, InvalidPartitionTable, PartitionTable, MissingPartitionTable,
 };
 
 pub mod config;
@@ -59,6 +59,10 @@ pub struct FlashOpts {
     /// Open a serial monitor after flashing
     #[clap(long)]
     pub monitor: bool,
+    /// Erase the OTADATA partition
+    /// This is useful when using multiple OTA partitions and still wanting to be able to reflash via espflash
+    #[clap(long)]
+    pub erase_otadata: bool,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -280,6 +284,7 @@ pub fn flash_elf_image(
     flash_mode: Option<FlashMode>,
     flash_size: Option<FlashSize>,
     flash_freq: Option<FlashFrequency>,
+    erase_otadata: bool,
 ) -> Result<()> {
     // If the '--bootloader' option is provided, load the binary file at the
     // specified path.
@@ -306,6 +311,23 @@ pub fn flash_elf_image(
     } else {
         None
     };
+
+    if erase_otadata {
+        let partition_table = match &partition_table {
+            Some(partition_table) => partition_table,
+            None => return Err((MissingPartitionTable {}).into()),
+        };
+
+        let otadata = match partition_table.find("otadata") {
+            Some(otadata) => otadata,
+            None => return Err((NoOtadataError {}).into()),
+        };
+
+        let offset = otadata.offset();
+        let size = otadata.size();
+
+        flasher.erase_region(offset, size)?;
+    }
 
     // Load the ELF data, optionally using the provider bootloader/partition
     // table/image format, to the device's flash memory.

@@ -662,6 +662,10 @@ impl Partition {
         self.offset
     }
 
+    pub fn size(&self) -> u32 {
+        self.size
+    }
+
     pub fn flags(&self) -> Option<Flags> {
         self.flags
     }

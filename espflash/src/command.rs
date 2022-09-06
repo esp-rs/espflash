@@ -8,6 +8,7 @@ use strum_macros::Display;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 const ERASE_REGION_TIMEOUT_PER_MB: Duration = Duration::from_secs(30);
 const ERASE_WRITE_TIMEOUT_PER_MB: Duration = Duration::from_secs(40);
+const ERASE_CHIP_TIMEOUT: Duration = Duration::from_secs(120);
 const MEM_END_TIMEOUT: Duration = Duration::from_millis(50);
 const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 
@@ -34,6 +35,9 @@ pub enum CommandType {
     FlashDeflateEnd = 0x12,
     FlashMd5 = 0x13,
     FlashDetect = 0x9f,
+    // Some commands supported by stub only
+    EraseFlash = 0xd0,
+    EraseRegion = 0xd1,
 }
 
 impl CommandType {
@@ -41,6 +45,7 @@ impl CommandType {
         match self {
             CommandType::MemEnd => MEM_END_TIMEOUT,
             CommandType::Sync => SYNC_TIMEOUT,
+            CommandType::EraseFlash => ERASE_CHIP_TIMEOUT,
             _ => DEFAULT_TIMEOUT,
         }
     }
@@ -54,7 +59,7 @@ impl CommandType {
             )
         }
         match self {
-            CommandType::FlashBegin | CommandType::FlashDeflateBegin => {
+            CommandType::FlashBegin | CommandType::FlashDeflateBegin | CommandType::EraseRegion => {
                 calc_timeout(ERASE_REGION_TIMEOUT_PER_MB, size)
             }
             CommandType::FlashData | CommandType::FlashDeflateData => {
@@ -138,6 +143,11 @@ pub enum Command<'a> {
         reboot: bool,
     },
     FlashDetect,
+    EraseFlash,
+    EraseRegion {
+        offset: u32,
+        size: u32,
+    },
 }
 
 impl<'a> Command<'a> {
@@ -159,6 +169,8 @@ impl<'a> Command<'a> {
             Command::FlashDeflateData { .. } => CommandType::FlashDeflateData,
             Command::FlashDeflateEnd { .. } => CommandType::FlashDeflateEnd,
             Command::FlashDetect => CommandType::FlashDetect,
+            Command::EraseFlash { .. } => CommandType::EraseFlash,
+            Command::EraseRegion { .. } => CommandType::EraseRegion,
         }
     }
 
@@ -319,6 +331,18 @@ impl<'a> Command<'a> {
             Command::FlashDetect => {
                 write_basic(writer, &[], 0)?;
             }
+            Command::EraseFlash => {
+                write_basic(writer, &[], 0)?;
+            },
+            Command::EraseRegion { offset, size } => {
+                // length
+                writer.write_all(&(8u16.to_le_bytes()))?;
+                // checksum
+                writer.write_all(&(0u32.to_le_bytes()))?;
+                // data
+                writer.write_all(&offset.to_le_bytes())?;
+                writer.write_all(&size.to_le_bytes())?;
+            },
         };
         Ok(())
     }

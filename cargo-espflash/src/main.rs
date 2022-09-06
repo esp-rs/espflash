@@ -140,9 +140,14 @@ fn main() -> Result<()> {
         .init();
 
     // Extract subcommand
-    let CargoSubCommand::Espflash(opts) = opts.subcommand;
+    let CargoSubCommand::Espflash(mut opts) = opts.subcommand;
 
     debug!("subcommand options: {:?}", opts);
+
+    // `erase_otadata` requires `use_stub`
+    if opts.flash_opts.erase_otadata {
+        opts.connect_opts.use_stub = true;
+    }
 
     // Load configuration and metadata
     let config = Config::load()?;
@@ -223,6 +228,7 @@ fn flash(
             opts.build_opts.flash_config_opts.flash_mode,
             opts.build_opts.flash_config_opts.flash_size,
             opts.build_opts.flash_config_opts.flash_freq,
+            opts.flash_opts.erase_otadata,
         )?;
     }
 

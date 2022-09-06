@@ -366,6 +366,9 @@ pub enum PartitionTableError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     InvalidPartitionTable(#[from] InvalidPartitionTable),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    MissingPartitionTable(#[from] MissingPartitionTable),
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -536,7 +539,14 @@ impl NoAppError {
         }
     }
 }
+#[derive(Debug, Error, Diagnostic)]
+#[error("No otadata partition was found")]
+#[diagnostic(
+    code(espflash::partition_table::no_otadata),
+    help("Partition table must contain an otadata partition when trying to erase it")
+)]
 
+pub struct NoOtadataError;
 #[derive(Debug, Error, Diagnostic)]
 #[error("Unaligned partition")]
 #[diagnostic(code(espflash::partition_table::unaligned))]
@@ -575,6 +585,11 @@ pub struct NoEndMarker;
 #[error("Invalid partition table")]
 #[diagnostic(code(espflash::partition_table::invalid_partition_table))]
 pub struct InvalidPartitionTable;
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("Missing partition table")]
+#[diagnostic(code(espflash::partition_table::missing_partition_table))]
+pub struct MissingPartitionTable;
 
 #[derive(Debug, Error)]
 #[error("{0}")]
