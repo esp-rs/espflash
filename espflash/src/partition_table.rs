@@ -572,7 +572,7 @@ pub struct Partition {
     ty: Type,
     sub_type: SubType,
     offset: u32,
-    size: u32,
+    pub(crate) size: u32,
     #[br(count = 16)]
     #[br(map = |s: Vec<u8>| String::from_utf8_lossy(&s).trim_matches(char::from(0)).to_string())]
     name: String,
