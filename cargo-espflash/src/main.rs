@@ -84,6 +84,9 @@ pub struct BuildOpts {
     /// Example to build and flash
     #[clap(long)]
     pub example: Option<String>,
+    /// Binary to build and flash
+    #[clap(long)]
+    pub bin: Option<String>,
     /// Specify a (binary) package within a workspace to be built
     #[clap(long)]
     pub package: Option<String>,
@@ -291,6 +294,11 @@ fn build(
     if let Some(example) = &build_options.example {
         args.push("--example".to_string());
         args.push(example.to_string());
+    }
+
+    if let Some(bin) = &build_options.bin {
+        args.push("--bin".to_string());
+        args.push(bin.to_string());
     }
 
     if let Some(package) = &build_options.package {
