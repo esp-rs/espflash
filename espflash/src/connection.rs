@@ -290,7 +290,6 @@ pub fn reset_after_flash(serial: &mut dyn SerialPort, pid: u16) -> Result<(), se
 
         serial.write_request_to_send(false)?;
     } else {
-        serial.write_data_terminal_ready(false)?;
         serial.write_request_to_send(true)?;
 
         sleep(Duration::from_millis(100));

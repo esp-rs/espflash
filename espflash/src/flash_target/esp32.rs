@@ -3,7 +3,7 @@ use crate::connection::{Connection, USB_SERIAL_JTAG_PID};
 use crate::elf::RomSegment;
 use crate::error::Error;
 use crate::flash_target::FlashTarget;
-use crate::flasher::{SpiAttachParams, FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
+use crate::flasher::{SpiAttachParams, FLASH_SECTOR_SIZE};
 use crate::Chip;
 use flate2::write::{ZlibDecoder, ZlibEncoder};
 use flate2::Compression;
@@ -94,7 +94,8 @@ impl FlashTarget for Esp32Target {
         let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
         encoder.write_all(&segment.data)?;
         let compressed = encoder.finish()?;
-        let block_count = (compressed.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;
+        let flash_write_size = self.chip.flash_write_size(connection)?;
+        let block_count = (compressed.len() + flash_write_size - 1) / flash_write_size;
         let erase_count = (segment.data.len() + FLASH_SECTOR_SIZE - 1) / FLASH_SECTOR_SIZE;
 
         // round up to sector size
@@ -106,7 +107,7 @@ impl FlashTarget for Esp32Target {
                 connection.command(Command::FlashDeflateBegin {
                     size: erase_size,
                     blocks: block_count as u32,
-                    block_size: FLASH_WRITE_SIZE as u32,
+                    block_size: flash_write_size as u32,
                     offset: addr,
                     supports_encryption: self.chip != Chip::Esp32 && !self.use_stub,
                 })?;
@@ -114,7 +115,7 @@ impl FlashTarget for Esp32Target {
             },
         )?;
 
-        let chunks = compressed.chunks(FLASH_WRITE_SIZE);
+        let chunks = compressed.chunks(flash_write_size);
 
         let (_, chunk_size) = chunks.size_hint();
         let chunk_size = chunk_size.unwrap_or(0) as u64;

@@ -257,7 +257,10 @@ impl Flasher {
         // Load flash stub
         let stub = FlashStub::get(self.chip);
 
-        let mut ram_target = self.chip.ram_target(Some(stub.entry()));
+        let mut ram_target = self.chip.ram_target(
+            Some(stub.entry()),
+            self.chip.max_ram_block_size(&mut self.connection)?,
+        );
         ram_target.begin(&mut self.connection).flashing()?;
 
         let (text_addr, text) = stub.text();
@@ -513,7 +516,10 @@ impl Flasher {
     pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
 
-        let mut target = self.chip.ram_target(Some(image.entry()));
+        let mut target = self.chip.ram_target(
+            Some(image.entry()),
+            self.chip.max_ram_block_size(&mut self.connection)?,
+        );
         target.begin(&mut self.connection).flashing()?;
 
         if image.rom_segments(self.chip).next().is_some() {
