@@ -739,7 +739,7 @@ where
     let buf = String::deserialize(deserializer)?;
     let buf = buf.trim();
 
-    parse_int::parse::<u8>(buf).or(Err(Error::custom("invalid data sub-type")))
+    parse_int::parse::<u8>(buf).map_err(|_| Error::custom("invalid data sub-type"))
 }
 
 fn deserialize_partition_offset_or_size<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
