@@ -418,6 +418,12 @@ impl PartitionTable {
         self.partitions.iter().find(|&p| p.ty == ty)
     }
 
+    pub fn find_by_subtype(&self, ty: Type, sub_type: SubType) -> Option<&Partition> {
+        self.partitions
+            .iter()
+            .find(|&p| p.ty == ty && p.sub_type == sub_type)
+    }
+
     fn validate(&self, source: &str) -> Result<(), PartitionTableError> {
         for partition in &self.partitions {
             if let Some(line) = &partition.line {

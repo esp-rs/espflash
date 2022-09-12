@@ -23,7 +23,8 @@ use crate::{
     elf::{ElfFirmwareImage, FlashFrequency, FlashMode},
     error::{Error, NoOtadataError},
     flasher::FlashSize,
-    Chip, Flasher, ImageFormatId, InvalidPartitionTable, MissingPartitionTable, PartitionTable,
+    partition_table, Chip, Flasher, ImageFormatId, InvalidPartitionTable, MissingPartitionTable,
+    PartitionTable,
 };
 
 pub mod config;
@@ -318,7 +319,10 @@ pub fn flash_elf_image(
             None => return Err((MissingPartitionTable {}).into()),
         };
 
-        let otadata = match partition_table.find("otadata") {
+        let otadata = match partition_table.find_by_subtype(
+            partition_table::Type::CoreType(partition_table::CoreType::Data),
+            partition_table::SubType::Data(partition_table::DataType::Ota),
+        ) {
             Some(otadata) => otadata,
             None => return Err((NoOtadataError {}).into()),
         };
