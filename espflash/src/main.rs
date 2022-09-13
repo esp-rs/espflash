@@ -95,6 +95,10 @@ fn main() -> Result<()> {
 
     debug!("options: {:?}", opts);
 
+    if opts.flash_opts.erase_otadata {
+        opts.connect_opts.use_stub = true;
+    }
+
     // Setup logging
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env().add_directive(opts.log_level.into()))
@@ -167,6 +171,7 @@ fn flash(opts: Opts, config: Config) -> Result<()> {
             opts.flash_config_opts.flash_mode,
             opts.flash_config_opts.flash_size,
             opts.flash_config_opts.flash_freq,
+            opts.flash_opts.erase_otadata,
         )?;
     }
 
