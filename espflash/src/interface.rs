@@ -3,6 +3,8 @@ use serialport::SerialPort;
 #[cfg(feature = "raspberry")]
 use rppal::gpio::OutputPin;
 
+use crate::{cli::ConnectOpts, Config};
+
 /// Wrapper around SerialPort where platform-specific modifications can be implemented.
 pub struct Interface {
     pub serial_port: Box<dyn SerialPort>,
@@ -22,6 +24,29 @@ fn write_gpio(gpio: &mut OutputPin, level: bool) {
 }
 
 impl Interface {
+    #[cfg(feature = "raspberry")]
+    pub(crate) fn new(serial: Box<dyn SerialPort>, opts: &ConnectOpts, config: &Config) -> Self {
+        Self {
+            serial_port: serial,
+            rts: opts
+                .rts
+                .or(config.rts)
+                .map(|num| gpios.get(num).into_output()),
+
+            dtr: opts
+                .dtr
+                .or(config.dtr)
+                .map(|num| gpios.get(num).into_output()),
+        }
+    }
+
+    #[cfg(not(feature = "raspberry"))]
+    pub(crate) fn new(serial: Box<dyn SerialPort>, _opts: &ConnectOpts, _config: &Config) -> Self {
+        Self {
+            serial_port: serial,
+        }
+    }
+
     pub fn write_data_terminal_ready(&mut self, pin_state: bool) -> serialport::Result<()> {
         #[cfg(feature = "raspberry")]
         if let Some(gpio) = self.dtr.as_mut() {

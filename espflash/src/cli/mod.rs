@@ -42,6 +42,16 @@ pub struct ConnectOpts {
     #[clap(long)]
     pub speed: Option<u32>,
 
+    /// DTR pin to use for the internal UART hardware.
+    #[cfg(feature = "raspberry")]
+    #[cfg_attr(feature = "raspberry", clap(long))]
+    pub dtr: Option<u8>,
+
+    /// RTS pin to use for the internal UART hardware.
+    #[cfg(feature = "raspberry")]
+    #[cfg_attr(feature = "raspberry", clap(long))]
+    pub rts: Option<u8>,
+
     /// Use RAM stub for loading
     #[clap(long)]
     pub use_stub: bool,
@@ -143,14 +153,10 @@ pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
         }
         _ => unreachable!(),
     };
+    #[cfg(feature = "raspberry")]
+    let mut gpios = rppal::Gpio::new().unwrap();
 
-    let interface = Interface {
-        serial_port: serial,
-        #[cfg(feature = "raspberry")]
-        rts: None,
-        #[cfg(feature = "raspberry")]
-        dtr: None,
-    };
+    let interface = Interface::new(serial, opts, config);
 
     Ok(Flasher::connect(
         interface,

@@ -12,6 +12,10 @@ pub struct Config {
     pub connection: Connection,
     #[serde(default)]
     pub usb_device: Vec<UsbDevice>,
+    #[cfg(feature = "raspberry")]
+    pub rts: Option<u8>,
+    #[cfg(feature = "raspberry")]
+    pub dtr: Option<u8>,
     #[serde(skip)]
     save_path: PathBuf,
 }
