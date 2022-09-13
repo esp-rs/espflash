@@ -67,7 +67,7 @@ jobs:
           echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
 
       - name: Build binary
-        run: cargo build --release --all --target=${{ inputs.target }}
+        run: cargo build --release --all --target=${{ inputs.target }} --features=raspberry
 
       - uses: papeloto/action-zip@v1
         with:

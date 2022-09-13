@@ -1,5 +1,5 @@
 use std::{
-    io::{stdout, ErrorKind, Read, Write},
+    io::{stdout, ErrorKind},
     time::Duration,
 };
 
@@ -9,9 +9,8 @@ use crossterm::{
 };
 use espmonitor::{handle_serial, load_bin_context, SerialState};
 use miette::{IntoDiagnostic, Result};
-use serialport::SerialPort;
 
-use crate::connection::reset_after_flash;
+use crate::{connection::reset_after_flash, interface::Interface};
 
 /// Converts key events from crossterm into appropriate character/escape
 /// sequences which are then sent over the serial connection.
@@ -84,7 +83,7 @@ impl Drop for RawModeGuard {
 }
 
 pub fn monitor(
-    mut serial: Box<dyn SerialPort>,
+    mut serial: Interface,
     elf: Option<&[u8]>,
     pid: u16,
     baud: u32,
@@ -96,8 +95,10 @@ pub fn monitor(
 
     // Explicitly set the baud rate when starting the serial monitor, to allow using
     // different rates for flashing.
-    serial.set_baud_rate(baud)?;
-    serial.set_timeout(Duration::from_millis(5))?;
+    serial.serial_port_mut().set_baud_rate(baud)?;
+    serial
+        .serial_port_mut()
+        .set_timeout(Duration::from_millis(5))?;
 
     let _raw_mode = RawModeGuard::new();
 
@@ -109,12 +110,12 @@ pub fn monitor(
         serial_state = SerialState::new(symbols);
     } else {
         serial_state = SerialState::new(None);
-        reset_after_flash(&mut *serial, pid)?;
+        reset_after_flash(&mut serial, pid)?;
     }
 
     let mut buff = [0; 1024];
     loop {
-        let read_count = match serial.read(&mut buff) {
+        let read_count = match serial.serial_port_mut().read(&mut buff) {
             Ok(count) => Ok(count),
             Err(e) if e.kind() == ErrorKind::TimedOut => Ok(0),
             Err(e) if e.kind() == ErrorKind::Interrupted => continue,
@@ -131,7 +132,7 @@ pub fn monitor(
                     match key.code {
                         KeyCode::Char('c') => break,
                         KeyCode::Char('r') => {
-                            reset_after_flash(&mut *serial, pid)?;
+                            reset_after_flash(&mut serial, pid)?;
                             continue;
                         }
                         _ => {}
@@ -139,8 +140,8 @@ pub fn monitor(
                 }
 
                 if let Some(bytes) = handle_key_event(key) {
-                    serial.write_all(&bytes)?;
-                    serial.flush()?;
+                    serial.serial_port_mut().write_all(&bytes)?;
+                    serial.serial_port_mut().flush()?;
                 }
             }
         }

@@ -2,7 +2,7 @@ use std::{borrow::Cow, str::FromStr, thread::sleep};
 
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use log::debug;
-use serialport::{SerialPort, UsbPortInfo};
+use serialport::UsbPortInfo;
 use strum_macros::{Display, EnumVariantNames};
 
 use crate::{
@@ -12,6 +12,7 @@ use crate::{
     elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
     error::{ConnectionError, FlashDetectError, ResultExt},
     image_format::ImageFormatId,
+    interface::Interface,
     stubs::FlashStub,
     Error, PartitionTable,
 };
@@ -277,7 +278,7 @@ pub struct Flasher {
 
 impl Flasher {
     pub fn connect(
-        serial: Box<dyn SerialPort>,
+        serial: Interface,
         port_info: UsbPortInfo,
         speed: Option<u32>,
         use_stub: bool,
@@ -709,10 +710,6 @@ impl Flasher {
         Ok(())
     }
 
-    pub fn into_serial(self) -> Box<dyn SerialPort> {
-        self.connection.into_serial()
-    }
-
     pub fn get_usb_pid(&self) -> Result<u16, Error> {
         self.connection.get_usb_pid()
     }
@@ -727,6 +724,10 @@ impl Flasher {
         std::thread::sleep(Duration::from_secs_f32(0.05));
         self.connection.flush()?;
         Ok(())
+    }
+
+    pub fn into_interface(self) -> Interface {
+        self.connection.into_interface()
     }
 }
 
