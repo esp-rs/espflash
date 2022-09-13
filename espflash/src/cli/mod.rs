@@ -18,8 +18,7 @@ use strum::VariantNames;
 use update_informer::{registry, Check};
 
 use crate::{
-    cli::monitor::monitor,
-    cli::serial::get_serial_port_info,
+    cli::{monitor::monitor, serial::get_serial_port_info},
     elf::{ElfFirmwareImage, FlashFrequency, FlashMode},
     error::{Error, NoOtadataError},
     flasher::FlashSize,
