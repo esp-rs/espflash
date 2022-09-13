@@ -1,3 +1,6 @@
+#![feature(trait_upcasting)]
+#![allow(incomplete_features)] // trait_upcasting
+
 pub use chip::Chip;
 pub use cli::config::Config;
 pub use elf::{FlashFrequency, FlashMode};
@@ -15,6 +18,7 @@ pub mod error;
 pub mod flash_target;
 pub mod flasher;
 pub mod image_format;
+pub mod interface;
 pub mod partition_table;
 
 #[doc(hidden)]

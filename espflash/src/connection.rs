@@ -1,18 +1,19 @@
 use std::{
-    io::{BufWriter, Write},
+    io::{BufWriter, Read},
     thread::sleep,
     time::Duration,
 };
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
 use bytemuck::{Pod, Zeroable};
-use serialport::{SerialPort, UsbPortInfo};
+use serialport::UsbPortInfo;
 use slip_codec::SlipDecoder;
 
 use crate::{
     command::{Command, CommandType},
     encoder::SlipEncoder,
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
+    interface::Interface,
 };
 
 const DEFAULT_CONNECT_ATTEMPTS: usize = 7;
@@ -29,7 +30,7 @@ pub struct CommandResponse {
 }
 
 pub struct Connection {
-    serial: Box<dyn SerialPort>,
+    serial: Interface,
     port_info: UsbPortInfo,
     decoder: SlipDecoder,
 }
@@ -44,7 +45,7 @@ struct WriteRegParams {
 }
 
 impl Connection {
-    pub fn new(serial: Box<dyn SerialPort>, port_info: UsbPortInfo) -> Self {
+    pub fn new(serial: Interface, port_info: UsbPortInfo) -> Self {
         Connection {
             serial,
             port_info,
@@ -119,7 +120,7 @@ impl Connection {
 
     pub fn reset(&mut self) -> Result<(), Error> {
         let pid = self.port_info.pid;
-        Ok(reset_after_flash(&mut *self.serial, pid)?)
+        Ok(reset_after_flash(&mut self.serial, pid)?)
     }
 
     pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
@@ -161,18 +162,18 @@ impl Connection {
     }
 
     pub fn set_timeout(&mut self, timeout: Duration) -> Result<(), Error> {
-        self.serial.set_timeout(timeout)?;
+        self.serial.serial_port_mut().set_timeout(timeout)?;
         Ok(())
     }
 
     pub fn set_baud(&mut self, speed: u32) -> Result<(), Error> {
-        self.serial.set_baud_rate(speed)?;
+        self.serial.serial_port_mut().set_baud_rate(speed)?;
 
         Ok(())
     }
 
     pub fn get_baud(&self) -> Result<u32, Error> {
-        Ok(self.serial.baud_rate()?)
+        Ok(self.serial.serial_port().baud_rate()?)
     }
 
     pub fn with_timeout<T, F: FnMut(&mut Connection) -> Result<T, Error>>(
@@ -180,10 +181,17 @@ impl Connection {
         timeout: Duration,
         mut f: F,
     ) -> Result<T, Error> {
-        let old_timeout = self.serial.timeout();
-        self.serial.set_timeout(timeout)?;
+        let old_timeout = {
+            let serial = self.serial.serial_port_mut();
+            let old_timeout = serial.timeout();
+            serial.set_timeout(timeout)?;
+            old_timeout
+        };
+
         let result = f(self);
-        self.serial.set_timeout(old_timeout)?;
+
+        self.serial.serial_port_mut().set_timeout(old_timeout)?;
+
         result
     }
 
@@ -199,8 +207,10 @@ impl Connection {
     }
 
     pub fn write_command(&mut self, command: Command) -> Result<(), Error> {
-        self.serial.clear(serialport::ClearBuffer::Input)?;
-        let mut writer = BufWriter::new(&mut self.serial);
+        let serial = self.serial.serial_port_mut();
+
+        serial.clear(serialport::ClearBuffer::Input)?;
+        let mut writer = BufWriter::new(serial);
         let mut encoder = SlipEncoder::new(&mut writer)?;
         command.write(&mut encoder)?;
         encoder.finish()?;
@@ -253,7 +263,8 @@ impl Connection {
     pub(crate) fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
         let mut tmp = Vec::with_capacity(1024);
         loop {
-            self.decoder.decode(&mut self.serial, &mut tmp)?;
+            self.decoder
+                .decode(self.serial.serial_port_mut() as &mut dyn Read, &mut tmp)?;
             if tmp.len() >= len {
                 return Ok(Some(tmp));
             }
@@ -261,11 +272,11 @@ impl Connection {
     }
 
     pub fn flush(&mut self) -> Result<(), Error> {
-        self.serial.flush()?;
+        self.serial.serial_port_mut().flush()?;
         Ok(())
     }
 
-    pub fn into_serial(self) -> Box<dyn SerialPort> {
+    pub fn into_interface(self) -> Interface {
         self.serial
     }
 
@@ -274,7 +285,7 @@ impl Connection {
     }
 }
 
-pub fn reset_after_flash(serial: &mut dyn SerialPort, pid: u16) -> Result<(), serialport::Error> {
+pub fn reset_after_flash(serial: &mut Interface, pid: u16) -> Result<(), serialport::Error> {
     sleep(Duration::from_millis(100));
 
     if pid == USB_SERIAL_JTAG_PID {

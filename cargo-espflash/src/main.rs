@@ -240,7 +240,7 @@ fn flash(
 
     if opts.flash_opts.monitor {
         let pid = flasher.get_usb_pid()?;
-        monitor(flasher.into_serial(), Some(&elf_data), pid).into_diagnostic()?;
+        monitor(flasher.into_interface(), Some(&elf_data), pid).into_diagnostic()?;
     }
 
     Ok(())

@@ -23,6 +23,7 @@ use crate::{
     elf::{ElfFirmwareImage, FlashFrequency, FlashMode},
     error::{Error, NoOtadataError},
     flasher::FlashSize,
+    interface::Interface,
     partition_table, Chip, Flasher, ImageFormatId, InvalidPartitionTable, MissingPartitionTable,
     PartitionTable,
 };
@@ -143,8 +144,12 @@ pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
         _ => unreachable!(),
     };
 
+    let interface = Interface {
+        serial_port: serial,
+    };
+
     Ok(Flasher::connect(
-        serial,
+        interface,
         port_info,
         opts.speed,
         opts.use_stub,
@@ -161,7 +166,7 @@ pub fn board_info(opts: ConnectOpts, config: Config) -> Result<()> {
 pub fn serial_monitor(opts: ConnectOpts, config: Config) -> Result<()> {
     let flasher = connect(&opts, &config)?;
     let pid = flasher.get_usb_pid()?;
-    monitor(flasher.into_serial(), None, pid).into_diagnostic()?;
+    monitor(flasher.into_interface(), None, pid).into_diagnostic()?;
 
     Ok(())
 }
