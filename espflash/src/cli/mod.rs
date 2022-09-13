@@ -146,6 +146,10 @@ pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
 
     let interface = Interface {
         serial_port: serial,
+        #[cfg(feature = "raspberry")]
+        rts: None,
+        #[cfg(feature = "raspberry")]
+        dtr: None,
     };
 
     Ok(Flasher::connect(
