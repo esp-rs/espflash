@@ -43,6 +43,12 @@ SUBCOMMANDS:
     write-bin          Writes a binary file to a specific address in the chip's flash
 ```
 
+## Compile-time features
+
+ - `raspberry`: enables configuring DTR and RTS GPIOs which are necessary to use a Raspberry Pi's
+   internal UART peripherals. This feature is optional (external USB <-> UART converters work
+   without it) and adds a dependency on [`rppal`](https://crates.io/crates/rppal).
+
 ## Configuration
 
 You can also specify the serial port and/or expected VID/PID values by setting them in the configuration file. This file is in different locations depending on your operating system:

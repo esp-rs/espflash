@@ -19,6 +19,7 @@ pub mod error;
 pub mod flash_target;
 pub mod flasher;
 pub mod image_format;
+pub mod interface;
 pub mod partition_table;
 pub mod stubs;
 

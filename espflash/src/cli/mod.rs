@@ -11,15 +11,16 @@ use std::{
 use clap::Args;
 use config::Config;
 use miette::{IntoDiagnostic, Result, WrapErr};
-use serialport::{FlowControl, SerialPortType, UsbPortInfo};
+use serialport::{SerialPortType, UsbPortInfo};
 use strum::VariantNames;
 
 use crate::{
     cli::{monitor::monitor, serial::get_serial_port_info},
     elf::ElfFirmwareImage,
-    error::{Error, NoOtadataError},
+    error::NoOtadataError,
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::ImageFormatType,
+    interface::Interface,
     partition_table, Chip, Flasher, ImageFormatId, InvalidPartitionTable, MissingPartitionTable,
     PartitionTable,
 };
@@ -40,6 +41,17 @@ pub struct ConnectArgs {
     /// Serial port connected to target device
     #[clap(short = 'p', long)]
     pub port: Option<String>,
+
+    /// DTR pin to use for the internal UART hardware. Uses BCM numbering.
+    #[cfg(feature = "raspberry")]
+    #[cfg_attr(feature = "raspberry", clap(long))]
+    pub dtr: Option<u8>,
+
+    /// RTS pin to use for the internal UART hardware. Uses BCM numbering.
+    #[cfg(feature = "raspberry")]
+    #[cfg_attr(feature = "raspberry", clap(long))]
+    pub rts: Option<u8>,
+
     /// Use RAM stub for loading
     #[clap(long)]
     pub use_stub: bool,
@@ -126,10 +138,8 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
     // Attempt to open the serial port and set its initial baud rate.
     println!("Serial port: {}", port_info.port_name);
     println!("Connecting...\n");
-    let serial = serialport::new(&port_info.port_name, 115_200)
-        .flow_control(FlowControl::None)
-        .open()
-        .map_err(Error::from)
+
+    let interface = Interface::new(&port_info, args, config)
         .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
 
     // NOTE: since `get_serial_port_info` filters out all non-USB serial ports, we
@@ -150,7 +160,7 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
     };
 
     Ok(Flasher::connect(
-        serial,
+        interface,
         port_info,
         args.baud,
         args.use_stub,
@@ -169,7 +179,7 @@ pub fn serial_monitor(args: ConnectArgs, config: &Config) -> Result<()> {
     let pid = flasher.get_usb_pid()?;
 
     monitor(
-        flasher.into_serial(),
+        flasher.into_interface(),
         None,
         pid,
         args.monitor_baud.unwrap_or(115_200),

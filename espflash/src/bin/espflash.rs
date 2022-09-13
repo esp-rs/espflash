@@ -159,7 +159,7 @@ fn flash(mut args: FlashArgs, config: &Config) -> Result<()> {
         let pid = flasher.get_usb_pid()?;
 
         monitor(
-            flasher.into_serial(),
+            flasher.into_interface(),
             Some(&elf_data),
             pid,
             args.connect_args.monitor_baud.unwrap_or(115_200),

@@ -19,6 +19,10 @@ pub struct Config {
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Connection {
     pub serial: Option<String>,
+    #[cfg(feature = "raspberry")]
+    pub rts: Option<u8>,
+    #[cfg(feature = "raspberry")]
+    pub dtr: Option<u8>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
