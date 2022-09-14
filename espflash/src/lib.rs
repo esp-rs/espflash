@@ -1,6 +1,3 @@
-#![feature(trait_upcasting)]
-#![allow(incomplete_features)] // trait_upcasting
-
 pub use chip::Chip;
 pub use cli::config::Config;
 pub use elf::{FlashFrequency, FlashMode};

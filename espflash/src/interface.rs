@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use serialport::SerialPort;
 
 #[cfg(feature = "raspberry")]
@@ -77,5 +79,13 @@ impl Interface {
 
     pub fn serial_port_mut(&mut self) -> &mut dyn SerialPort {
         self.serial_port.as_mut()
+    }
+}
+
+// Note(dbuga): this impl is necessary because using `dyn SerialPort` as `dyn Read`
+// requires trait_upcasting which isn't stable yet.
+impl Read for Interface {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.serial_port.read(buf)
     }
 }

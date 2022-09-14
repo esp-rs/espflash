@@ -1,8 +1,4 @@
-use std::{
-    io::{BufWriter, Read},
-    thread::sleep,
-    time::Duration,
-};
+use std::{io::BufWriter, thread::sleep, time::Duration};
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
 use bytemuck::{Pod, Zeroable};
@@ -263,8 +259,7 @@ impl Connection {
     pub(crate) fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
         let mut tmp = Vec::with_capacity(1024);
         loop {
-            self.decoder
-                .decode(self.serial.serial_port_mut() as &mut dyn Read, &mut tmp)?;
+            self.decoder.decode(&mut self.serial, &mut tmp)?;
             if tmp.len() >= len {
                 return Ok(Some(tmp));
             }
