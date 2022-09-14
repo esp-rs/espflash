@@ -4,13 +4,21 @@ Serial flasher utility for Espressif SoCs and modules.
 
 Currently supports the **ESP32**, **ESP32-C3**, **ESP32-S2**, **ESP32-S3**, and **ESP8266**.
 
-[![asciicast](https://asciinema.org/a/UxRaCy4pretvGkghrRO0Qvypm.svg)](https://asciinema.org/a/UxRaCy4pretvGkghrRO0Qvypm)
-
 ## Installation
 
 ```shell
 $ cargo install espflash
 ```
+
+Alternatively, you can use [cargo-binstall] to install pre-compiled binaries on any supported system. Please check the [releases] to see which architectures and operating systems have pre-compiled binaries.
+
+```shell
+$ cargo install cargo-binstall
+$ cargo binstall espflash
+```
+
+[cargo-binstall]: https://github.com/ryankurte/cargo-binstall
+[releases]: https://github.com/esp-rs/espflash/releases
 
 ## Usage
 
@@ -88,8 +96,8 @@ An example configuration file may look as follows (note that TOML does _not_ sup
 serial = "/dev/ttyUSB0"
 
 [[usb_device]]
-vid = 12346 # 0x303A
-pid = 32768 # 0x8000
+vid = "303A"
+pid = "8000"
 ```
 
 ## WSL2
@@ -109,4 +117,15 @@ This then allows you to run your project using `cargo run`.
 
 ## License
 
-Licensed under the GNU General Public License Version 2. See [LICENSE](LICENSE) for more details.
+Licensed under either of:
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](../LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](../LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+at your option.
+
+### Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in
+the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without
+any additional terms or conditions.

@@ -4,13 +4,25 @@ Cross-compiler and serial flasher cargo subcommand for Espressif SoCs and module
 
 Currently supports the **ESP32**, **ESP32-C3**, **ESP32-S2**, **ESP32-S3**, and **ESP8266**.
 
-Prior to flashing, the project is built using the `build-std` unstable Cargo feature. Please refer to the [cargo documentation](https://doc.rust-lang.org/cargo/reference/unstable.html#build-std) for more information.
+Prior to flashing, the project is built using the `build-std` unstable Cargo feature. Please refer to the [cargo documentation] for more information.
+
+[cargo documentation]: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std
 
 ## Installation
 
 ```shell
 $ cargo install cargo-espflash
 ```
+
+Alternatively, you can use [cargo-binstall] to install pre-compiled binaries on any supported system. Please check the [releases] to see which architectures and operating systems have pre-compiled binaries.
+
+```shell
+$ cargo install cargo-binstall
+$ cargo binstall cargo-espflash
+```
+
+[cargo-binstall]: https://github.com/ryankurte/cargo-binstall
+[releases]: https://github.com/esp-rs/espflash/releases
 
 ## Usage
 
@@ -131,4 +143,15 @@ format = "direct-boot"
 
 ## License
 
-Licensed under the GNU General Public License Version 2. See [LICENSE](LICENSE) for more details.
+Licensed under either of:
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](../LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](../LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+at your option.
+
+### Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in
+the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without
+any additional terms or conditions.
