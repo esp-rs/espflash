@@ -13,7 +13,7 @@ use std::{
 use clap::Parser;
 use config::Config;
 use miette::{IntoDiagnostic, Result, WrapErr};
-use serialport::{FlowControl, SerialPortType, UsbPortInfo};
+use serialport::{SerialPortType, UsbPortInfo};
 use strum::VariantNames;
 use update_informer::{registry, Check};
 
@@ -130,16 +130,8 @@ pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
     // Attempt to open the serial port and set its initial baud rate.
     println!("Serial port: {}", port_info.port_name);
     println!("Connecting...\n");
-    let serial = serialport::new(&port_info.port_name, 115_200)
-        .flow_control(FlowControl::None)
-        .open()
-        .map_err(Error::from)
-        .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
 
-    #[cfg(feature = "raspberry")]
-    let mut gpios = rppal::Gpio::new().unwrap();
-
-    let interface = Interface::new(serial, opts, config)
+    let interface = Interface::new(&port_info, opts, config)
         .map_err(Error::from)
         .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
 

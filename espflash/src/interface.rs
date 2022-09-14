@@ -1,17 +1,21 @@
 use std::io::Read;
 
-use serialport::SerialPort;
+use crate::{cli::ConnectOpts, Config, Error};
+use miette::Context;
+use serialport::{FlowControl, SerialPort, SerialPortInfo};
 
 #[cfg(feature = "raspberry")]
-use rppal::gpio::OutputPin;
-
-use crate::{cli::ConnectOpts, Config};
+use rppal::gpio::{Gpio, OutputPin};
 
 #[derive(thiserror::Error, Debug)]
 pub enum SerialConfigError {
     #[cfg(feature = "raspberry")]
     #[error("You need to specify DTR when using an internal UART peripheral")]
     MissingDtrForInternalUart,
+
+    #[cfg(feature = "raspberry")]
+    #[error("GPIO {0} is not available")]
+    GpioUnavailable(u8),
 }
 
 /// Wrapper around SerialPort where platform-specific modifications can be implemented.
@@ -35,26 +39,63 @@ fn write_gpio(gpio: &mut OutputPin, level: bool) {
 impl Interface {
     #[cfg(feature = "raspberry")]
     pub(crate) fn new(
-        serial: Box<dyn SerialPort>,
+        port_info: &SerialPortInfo,
         opts: &ConnectOpts,
         config: &Config,
-    ) -> Result<Self, SerialConfigError> {
+    ) -> Result<Self, Error> {
         let rts_gpio = opts.rts.or(config.rts);
         let dtr_gpio = opts.dtr.or(config.dtr);
 
+        if port_info.port_type == serialport::SerialPortType::Unknown && dtr_gpio.is_none() {
+            // Assume internal UART, which has no DTR pin.
+            return Err(SerialConfigError::MissingDtrForInternalUart);
+        }
+
+        let mut gpios = Gpio::new().unwrap();
+
+        let rts = if let Some(gpio) = rts_gpio {
+            match gpios.get(gpio) {
+                Ok(pin) => Some(pin.into_output()),
+                Err(_) => return Err(SerialConfigError::GpioUnavailable),
+            }
+        } else {
+            None
+        };
+
+        let dtr = if let Some(gpio) = dtr_gpio {
+            match gpios.get(gpio) {
+                Ok(pin) => Some(pin.into_output()),
+                Err(_) => return Err(SerialConfigError::GpioUnavailable),
+            }
+        } else {
+            None
+        };
+
+        let serial = serialport::new(&port_info.port_name, 115_200)
+            .flow_control(FlowControl::None)
+            .open()
+            .map_err(Error::from)
+            .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
+
         Ok(Self {
             serial_port: serial,
-            rts: rts_gpio.map(|num| gpios.get(num).into_output()),
-            dtr: dtr_gpio.map(|num| gpios.get(num).into_output()),
+            rts,
+            dtr,
         })
     }
 
     #[cfg(not(feature = "raspberry"))]
     pub(crate) fn new(
-        serial: Box<dyn SerialPort>,
+        port_info: &SerialPortInfo,
         _opts: &ConnectOpts,
         _config: &Config,
-    ) -> Result<Self, SerialConfigError> {
+    ) -> Result<Self, Error> {
+        let serial = serialport::new(&port_info.port_name, 115_200)
+            .flow_control(FlowControl::None)
+            .open()
+            .map_err(Error::from)
+            .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
+
         Ok(Self {
             serial_port: serial,
         })
