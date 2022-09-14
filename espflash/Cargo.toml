@@ -64,5 +64,5 @@ update-informer = "0.5.0"
 xmas-elf = "0.8.0"
 
 [features]
-raspberry = ["dep:rppal"]
+raspberry = ["rppal"]
 default = []
