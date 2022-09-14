@@ -81,4 +81,6 @@ $ dnf install systemd-devel
 
 ## License
 
-Licensed under the GNU General Public License Version 2. See [LICENSE](./espflash/LICENSE) for more details.
+Espflash is distributed under the terms of both the MIT license and the Apache License (Version 2.0).
+
+See [LICENSE-APACHE](./LICENSE-APACHE) and [LICENSE-MIT](./LICENSE-MIT) for more details. Files in the project may not be copied, modified, or distributed except according to those terms.
