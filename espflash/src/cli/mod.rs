@@ -20,7 +20,7 @@ use update_informer::{registry, Check};
 use crate::{
     cli::{monitor::monitor, serial::get_serial_port_info},
     elf::{ElfFirmwareImage, FlashFrequency, FlashMode},
-    error::{Error, NoOtadataError},
+    error::NoOtadataError,
     flasher::FlashSize,
     interface::Interface,
     partition_table, Chip, Flasher, ImageFormatId, InvalidPartitionTable, MissingPartitionTable,
@@ -132,7 +132,6 @@ pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
     println!("Connecting...\n");
 
     let interface = Interface::new(&port_info, opts, config)
-        .map_err(Error::from)
         .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
 
     // NOTE: since `get_serial_port_info` filters out all non-USB serial ports, we

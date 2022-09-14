@@ -1,7 +1,7 @@
 use std::io::Read;
 
 use crate::{cli::ConnectOpts, Config, Error};
-use miette::Context;
+use miette::{Context, Result};
 use serialport::{FlowControl, SerialPort, SerialPortInfo};
 
 #[cfg(feature = "raspberry")]
@@ -29,11 +29,19 @@ pub struct Interface {
 
 #[cfg(feature = "raspberry")]
 fn write_gpio(gpio: &mut OutputPin, level: bool) {
-    if pin_state {
+    if level {
         gpio.set_high();
     } else {
         gpio.set_low();
     }
+}
+
+fn open_port(port_info: &SerialPortInfo) -> Result<Box<dyn SerialPort>> {
+    serialport::new(&port_info.port_name, 115_200)
+        .flow_control(FlowControl::None)
+        .open()
+        .map_err(Error::from)
+        .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))
 }
 
 impl Interface {
@@ -42,7 +50,7 @@ impl Interface {
         port_info: &SerialPortInfo,
         opts: &ConnectOpts,
         config: &Config,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
         let rts_gpio = opts.rts.or(config.rts);
         let dtr_gpio = opts.dtr.or(config.dtr);
 
@@ -50,15 +58,15 @@ impl Interface {
             && (dtr_gpio.is_none() || rts_gpio.is_none())
         {
             // Assume internal UART, which has no DTR pin and usually no RTS either.
-            return Err(Error::from(SerialConfigError::MissingDtrRtsForInternalUart));
+            return Err(Error::from(SerialConfigError::MissingDtrRtsForInternalUart).into());
         }
 
-        let mut gpios = Gpio::new().unwrap();
+        let gpios = Gpio::new().unwrap();
 
         let rts = if let Some(gpio) = rts_gpio {
             match gpios.get(gpio) {
                 Ok(pin) => Some(pin.into_output()),
-                Err(_) => return Err(SerialConfigError::GpioUnavailable),
+                Err(_) => return Err(Error::from(SerialConfigError::GpioUnavailable(gpio)).into()),
             }
         } else {
             None
@@ -67,20 +75,14 @@ impl Interface {
         let dtr = if let Some(gpio) = dtr_gpio {
             match gpios.get(gpio) {
                 Ok(pin) => Some(pin.into_output()),
-                Err(_) => return Err(SerialConfigError::GpioUnavailable),
+                Err(_) => return Err(Error::from(SerialConfigError::GpioUnavailable(gpio)).into()),
             }
         } else {
             None
         };
 
-        let serial = serialport::new(&port_info.port_name, 115_200)
-            .flow_control(FlowControl::None)
-            .open()
-            .map_err(Error::from)
-            .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
-
         Ok(Self {
-            serial_port: serial,
+            serial_port: open_port(port_info)?,
             rts,
             dtr,
         })
@@ -91,15 +93,9 @@ impl Interface {
         port_info: &SerialPortInfo,
         _opts: &ConnectOpts,
         _config: &Config,
-    ) -> Result<Self, Error> {
-        let serial = serialport::new(&port_info.port_name, 115_200)
-            .flow_control(FlowControl::None)
-            .open()
-            .map_err(Error::from)
-            .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
-
+    ) -> Result<Self> {
         Ok(Self {
-            serial_port: serial,
+            serial_port: open_port(port_info)?,
         })
     }
 
