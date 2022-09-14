@@ -41,12 +41,12 @@ pub struct ConnectOpts {
     #[clap(long)]
     pub speed: Option<u32>,
 
-    /// DTR pin to use for the internal UART hardware.
+    /// DTR pin to use for the internal UART hardware. Uses BCM numbering.
     #[cfg(feature = "raspberry")]
     #[cfg_attr(feature = "raspberry", clap(long))]
     pub dtr: Option<u8>,
 
-    /// RTS pin to use for the internal UART hardware.
+    /// RTS pin to use for the internal UART hardware. Uses BCM numbering.
     #[cfg(feature = "raspberry")]
     #[cfg_attr(feature = "raspberry", clap(long))]
     pub rts: Option<u8>,
