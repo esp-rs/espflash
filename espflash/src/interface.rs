@@ -7,6 +7,13 @@ use rppal::gpio::OutputPin;
 
 use crate::{cli::ConnectOpts, Config};
 
+#[derive(thiserror::Error, Debug)]
+pub enum SerialConfigError {
+    #[cfg(feature = "raspberry")]
+    #[error("You need to specify DTR when using an internal UART peripheral")]
+    MissingDtrForInternalUart,
+}
+
 /// Wrapper around SerialPort where platform-specific modifications can be implemented.
 pub struct Interface {
     pub serial_port: Box<dyn SerialPort>,
@@ -27,26 +34,30 @@ fn write_gpio(gpio: &mut OutputPin, level: bool) {
 
 impl Interface {
     #[cfg(feature = "raspberry")]
-    pub(crate) fn new(serial: Box<dyn SerialPort>, opts: &ConnectOpts, config: &Config) -> Self {
-        Self {
-            serial_port: serial,
-            rts: opts
-                .rts
-                .or(config.rts)
-                .map(|num| gpios.get(num).into_output()),
+    pub(crate) fn new(
+        serial: Box<dyn SerialPort>,
+        opts: &ConnectOpts,
+        config: &Config,
+    ) -> Result<Self, SerialConfigError> {
+        let rts_gpio = opts.rts.or(config.rts);
+        let dtr_gpio = opts.dtr.or(config.dtr);
 
-            dtr: opts
-                .dtr
-                .or(config.dtr)
-                .map(|num| gpios.get(num).into_output()),
-        }
+        Ok(Self {
+            serial_port: serial,
+            rts: rts_gpio.map(|num| gpios.get(num).into_output()),
+            dtr: dtr_gpio.map(|num| gpios.get(num).into_output()),
+        })
     }
 
     #[cfg(not(feature = "raspberry"))]
-    pub(crate) fn new(serial: Box<dyn SerialPort>, _opts: &ConnectOpts, _config: &Config) -> Self {
-        Self {
+    pub(crate) fn new(
+        serial: Box<dyn SerialPort>,
+        _opts: &ConnectOpts,
+        _config: &Config,
+    ) -> Result<Self, SerialConfigError> {
+        Ok(Self {
             serial_port: serial,
-        }
+        })
     }
 
     pub fn write_data_terminal_ready(&mut self, pin_state: bool) -> serialport::Result<()> {

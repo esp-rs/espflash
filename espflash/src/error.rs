@@ -13,6 +13,7 @@ use crate::{
     elf::{FlashFrequency, FlashMode},
     flasher::FlashSize,
     image_format::ImageFormatId,
+    interface::SerialConfigError,
     partition_table::{CoreType, SubType, Type},
     Chip,
 };
@@ -91,6 +92,12 @@ https://github.com/espressif/esp32c3-direct-boot-example"
         help("Make sure the correct device is connected to the host system")
     )]
     SerialNotFound(String),
+    #[error("Incorrect serial port configuration")]
+    #[diagnostic(
+        code(espflash::serial_config),
+        help("Make sure you have specified the DTR signal if you are using an internal UART peripherial")
+    )]
+    SerialConfiguration(SerialConfigError),
     #[error("Canceled by user")]
     Canceled,
     #[error("The flash mode '{0}' is not valid")]
@@ -243,6 +250,12 @@ impl From<binread::Error> for ConnectionError {
 impl From<binread::Error> for Error {
     fn from(err: binread::Error) -> Self {
         Self::Connection(err.into())
+    }
+}
+
+impl From<SerialConfigError> for Error {
+    fn from(err: SerialConfigError) -> Self {
+        Self::SerialConfiguration(err)
     }
 }
 

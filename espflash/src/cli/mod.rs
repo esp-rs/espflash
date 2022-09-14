@@ -136,6 +136,13 @@ pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
         .map_err(Error::from)
         .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
 
+    #[cfg(feature = "raspberry")]
+    let mut gpios = rppal::Gpio::new().unwrap();
+
+    let interface = Interface::new(serial, opts, config)
+        .map_err(Error::from)
+        .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
+
     // NOTE: since `get_serial_port_info` filters out all non-USB serial ports, we
     //       can just pretend the remaining types don't exist here.
     let port_info = match port_info.port_type {
@@ -152,10 +159,6 @@ pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
         }
         _ => unreachable!(),
     };
-    #[cfg(feature = "raspberry")]
-    let mut gpios = rppal::Gpio::new().unwrap();
-
-    let interface = Interface::new(serial, opts, config);
 
     Ok(Flasher::connect(
         interface,
