@@ -418,13 +418,3 @@ pub fn write_bin_to_flash(opts: WriteBinToFlashOpts) -> Result<()> {
 
     Ok(())
 }
-
-pub fn check_for_updates(name: &str, version: &str) {
-    const NO_INTERVAL: Duration = Duration::from_secs(0);
-
-    let informer = update_informer::new(registry::Crates, name, version).interval(NO_INTERVAL);
-
-    if let Some(version) = informer.check_version().ok().flatten() {
-        println!("New version of {name} is available: {version}\n");
-    }
-}
