@@ -60,13 +60,14 @@ struct SaveImageArgs {
     /// Image format to flash
     #[clap(long, possible_values = ImageFormatType::VARIANTS)]
     format: Option<String>,
-    /// ELF image to flash
-    image: PathBuf,
 
     #[clap(flatten)]
     pub flash_config_args: FlashConfigArgs,
     #[clap(flatten)]
     save_image_args: BaseSaveImageArgs,
+
+    /// ELF image to flash
+    image: PathBuf,
 }
 
 /// Writes a binary file to a specific address in the chip's flash
