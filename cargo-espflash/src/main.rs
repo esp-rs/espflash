@@ -6,19 +6,21 @@ use std::{
 };
 
 use cargo_metadata::Message;
-use clap::Parser;
+use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        board_info, check_for_updates, connect, flash_elf_image, monitor::monitor, partition_table,
-        save_elf_as_image, serial_monitor, ConnectOpts, FlashConfigOpts, FlashOpts,
-        PartitionTableOpts,
+        board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image,
+        serial_monitor, ConnectArgs, FlashArgs as BaseFlashArgs, FlashConfigArgs,
+        PartitionTableArgs, SaveImageArgs as BaseSaveImageArgs,
     },
+    image_format::ImageFormatType,
+    logging::initialize_logger,
+    update::check_for_update,
     Chip, Config, ImageFormatId,
 };
-use log::debug;
+use log::{debug, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use strum::VariantNames;
-use tracing_subscriber::{filter::LevelFilter, EnvFilter};
 
 use crate::{
     cargo_config::{parse_cargo_config, CargoConfig},
@@ -30,72 +32,60 @@ mod cargo_config;
 mod error;
 mod package_metadata;
 
-#[derive(Debug, Clone, Parser)]
-#[clap(bin_name = "cargo", version, propagate_version = true)]
-struct Opts {
+#[derive(Debug, Parser)]
+#[clap(bin_name = "cargo", propagate_version = true, version)]
+struct Cli {
     #[clap(subcommand)]
-    subcommand: CargoSubCommand,
-
-    /// Log level
-    #[clap(long, default_value = "info", env)]
-    log_level: LevelFilter,
+    subcommand: CargoSubcommand,
 }
 
-#[derive(Debug, Clone, Parser)]
-enum CargoSubCommand {
-    Espflash(EspFlashOpts),
+#[derive(Debug, Subcommand)]
+enum CargoSubcommand {
+    #[clap(about)]
+    Espflash {
+        #[clap(subcommand)]
+        subcommand: Commands,
+    },
 }
 
-#[derive(Debug, Clone, Parser)]
-struct EspFlashOpts {
-    #[clap(flatten)]
-    flash_opts: FlashOpts,
-    #[clap(flatten)]
-    build_opts: BuildOpts,
-    #[clap(flatten)]
-    connect_opts: ConnectOpts,
-    #[clap(subcommand)]
-    subcommand: Option<SubCommand>,
-}
-
-#[derive(Debug, Clone, Parser)]
-pub enum SubCommand {
+#[derive(Debug, Subcommand)]
+enum Commands {
     /// Display information about the connected board and exit without flashing
-    BoardInfo(ConnectOpts),
-    /// Save the image to disk instead of flashing to device
-    SaveImage(SaveImageOpts),
+    BoardInfo(ConnectArgs),
+    /// Flash an application to a target device
+    Flash(FlashArgs),
     /// Open the serial monitor without flashing
-    SerialMonitor(ConnectOpts),
-    /// Operations for partitions tables
-    PartitionTable(PartitionTableOpts),
+    Monitor(ConnectArgs),
+    PartitionTable(PartitionTableArgs),
+    SaveImage(SaveImageArgs),
 }
 
-#[derive(Debug, Clone, Parser)]
-pub struct BuildOpts {
-    /// Build the application using the release profile
-    #[clap(long)]
-    pub release: bool,
-    /// Require Cargo.lock is up to date
-    #[clap(long)]
-    pub locked: bool,
-    /// Require Cargo.lock and cache are up to date
-    #[clap(long)]
-    pub frozen: bool,
-    /// Example to build and flash
-    #[clap(long)]
-    pub example: Option<String>,
+#[derive(Debug, Args)]
+struct BuildArgs {
     /// Binary to build and flash
     #[clap(long)]
     pub bin: Option<String>,
-    /// Specify a (binary) package within a workspace to be built
+    /// Example to build and flash
     #[clap(long)]
-    pub package: Option<String>,
+    pub example: Option<String>,
     /// Comma delimited list of build features
     #[clap(long, use_value_delimiter = true)]
     pub features: Option<Vec<String>>,
     /// Image format to flash
-    #[clap(long, possible_values = &["bootloader", "direct-boot"])]
+    #[clap(long, possible_values = ImageFormatType::VARIANTS)]
     pub format: Option<String>,
+    /// Require Cargo.lock and cache are up to date
+    #[clap(long)]
+    pub frozen: bool,
+    /// Require Cargo.lock is up to date
+    #[clap(long)]
+    pub locked: bool,
+    /// Specify a (binary) package within a workspace to be built
+    #[clap(long)]
+    pub package: Option<String>,
+    /// Build the application using the release profile
+    #[clap(long)]
+    pub release: bool,
     /// Target to build for
     #[clap(long)]
     pub target: Option<String>,
@@ -105,72 +95,57 @@ pub struct BuildOpts {
     /// Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details
     #[clap(short = 'Z')]
     pub unstable: Option<Vec<String>>,
+
     #[clap(flatten)]
-    pub flash_config_opts: FlashConfigOpts,
+    pub flash_config_args: FlashConfigArgs,
 }
 
-#[derive(Debug, Clone, Parser)]
-pub struct SaveImageOpts {
+/// Build and flash an application to a target device
+#[derive(Debug, Args)]
+struct FlashArgs {
     #[clap(flatten)]
-    pub build_opts: BuildOpts,
-    /// Chip to create an image for
-    #[clap(possible_values = Chip::VARIANTS)]
-    pub chip: Chip,
-    /// File name to save the generated image to
-    pub file: PathBuf,
-    /// Boolean flag to merge binaries into single binary
-    #[clap(long, short = 'M')]
-    pub merge: bool,
-    /// Custom bootloader for merging
-    #[clap(long, short = 'B')]
-    pub bootloader: Option<PathBuf>,
-    /// Custom partition table for merging
-    #[clap(long, short = 'T')]
-    pub partition_table: Option<PathBuf>,
-    /// Don't pad the image to the flash size
-    #[clap(long, short = 'P')]
-    pub skip_padding: bool,
+    build_args: BuildArgs,
+    #[clap(flatten)]
+    connect_args: ConnectArgs,
+    #[clap(flatten)]
+    flash_args: BaseFlashArgs,
+}
+
+#[derive(Debug, Args)]
+struct SaveImageArgs {
+    #[clap(flatten)]
+    build_args: BuildArgs,
+    #[clap(flatten)]
+    save_image_args: BaseSaveImageArgs,
 }
 
 fn main() -> Result<()> {
     miette::set_panic_hook();
+    initialize_logger(LevelFilter::Debug);
 
-    check_for_updates(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    // Attempt to parse any provided comand-line arguments, or print the help
+    // message and terminate if the invocation is not correct.
+    let CargoSubcommand::Espflash { subcommand: args } = Cli::parse().subcommand;
+    debug!("{:#?}", args);
 
-    // Parse options
-    let opts = Opts::parse();
+    // Only check for updates once the command-line arguments have been processed,
+    // to avoid printing any update notifications when the help message is
+    // displayed.
+    check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
-    // Setup logging
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env().add_directive(opts.log_level.into()))
-        .init();
-
-    // Extract subcommand
-    let CargoSubCommand::Espflash(mut opts) = opts.subcommand;
-
-    debug!("subcommand options: {:?}", opts);
-
-    // `erase_otadata` requires `use_stub`
-    if opts.flash_opts.erase_otadata {
-        opts.connect_opts.use_stub = true;
-    }
-
-    // Load configuration and metadata
-    let config = Config::load()?;
-    let metadata = CargoEspFlashMeta::load("Cargo.toml")?;
+    // Load any user configuraiton and/or package metadata, if present.
+    let config = Config::load().unwrap();
     let cargo_config = parse_cargo_config(".")?;
+    let metadata = CargoEspFlashMeta::load("Cargo.toml")?;
 
-    if let Some(subcommand) = opts.subcommand {
-        use SubCommand::*;
-
-        match subcommand {
-            BoardInfo(opts) => board_info(opts, config),
-            SaveImage(opts) => save_image(opts, metadata, cargo_config),
-            SerialMonitor(opts) => serial_monitor(opts, config),
-            PartitionTable(opts) => partition_table(opts),
-        }
-    } else {
-        flash(opts, config, metadata, cargo_config)
+    // Execute the correct action based on the provided subcommand and its
+    // associated arguments.
+    match args {
+        Commands::BoardInfo(args) => board_info(args, &config),
+        Commands::Flash(args) => flash(args, &config, &cargo_config, &metadata),
+        Commands::Monitor(args) => serial_monitor(args, &config),
+        Commands::PartitionTable(args) => partition_table(args),
+        Commands::SaveImage(args) => save_image(args, &cargo_config, &metadata),
     }
 }
 
@@ -182,14 +157,20 @@ struct BuildContext {
 }
 
 fn flash(
-    opts: EspFlashOpts,
-    config: Config,
-    metadata: CargoEspFlashMeta,
-    cargo_config: CargoConfig,
+    mut args: FlashArgs,
+    config: &Config,
+    cargo_config: &CargoConfig,
+    metadata: &CargoEspFlashMeta,
 ) -> Result<()> {
-    let mut flasher = connect(&opts.connect_opts, &config)?;
+    // The `erase_otadata` argument requires `use_stub`, which is implicitly
+    // enabled here.
+    if args.flash_args.erase_otadata {
+        args.connect_args.use_stub = true;
+    }
 
-    let build_ctx = build(&opts.build_opts, &cargo_config, flasher.chip())
+    let mut flasher = connect(&args.connect_args, &config)?;
+
+    let build_ctx = build(&args.build_args, &cargo_config, flasher.chip())
         .wrap_err("Failed to build project")?;
 
     // Print the board information once the project has successfully built. We do
@@ -200,25 +181,25 @@ fn flash(
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(build_ctx.artifact_path).into_diagnostic()?;
 
-    if opts.flash_opts.ram {
+    if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data)?;
     } else {
-        let bootloader = opts
-            .flash_opts
+        let bootloader = args
+            .flash_args
             .bootloader
             .as_deref()
             .or(metadata.bootloader.as_deref())
             .or(build_ctx.bootloader_path.as_deref());
 
-        let partition_table = opts
-            .flash_opts
+        let partition_table = args
+            .flash_args
             .partition_table
             .as_deref()
             .or(metadata.partition_table.as_deref())
             .or(build_ctx.partition_table_path.as_deref());
 
-        let image_format = opts
-            .build_opts
+        let image_format = args
+            .build_args
             .format
             .as_deref()
             .map(ImageFormatId::from_str)
@@ -231,14 +212,14 @@ fn flash(
             bootloader,
             partition_table,
             image_format,
-            opts.build_opts.flash_config_opts.flash_mode,
-            opts.build_opts.flash_config_opts.flash_size,
-            opts.build_opts.flash_config_opts.flash_freq,
-            opts.flash_opts.erase_otadata,
+            args.build_args.flash_config_args.flash_mode,
+            args.build_args.flash_config_args.flash_size,
+            args.build_args.flash_config_args.flash_freq,
+            args.flash_args.erase_otadata,
         )?;
     }
 
-    if opts.flash_opts.monitor {
+    if args.flash_args.monitor {
         let pid = flasher.get_usb_pid()?;
         monitor(
             flasher.into_serial(),
@@ -253,7 +234,7 @@ fn flash(
 }
 
 fn build(
-    build_options: &BuildOpts,
+    build_options: &BuildArgs,
     cargo_config: &CargoConfig,
     chip: Chip,
 ) -> Result<BuildContext> {
@@ -414,29 +395,31 @@ fn build(
 }
 
 fn save_image(
-    opts: SaveImageOpts,
-    metadata: CargoEspFlashMeta,
-    cargo_config: CargoConfig,
+    args: SaveImageArgs,
+    cargo_config: &CargoConfig,
+    metadata: &CargoEspFlashMeta,
 ) -> Result<()> {
-    let build_ctx = build(&opts.build_opts, &cargo_config, opts.chip)?;
+    let build_ctx = build(&args.build_args, &cargo_config, args.save_image_args.chip)?;
     let elf_data = fs::read(build_ctx.artifact_path).into_diagnostic()?;
 
-    let bootloader = opts
+    let bootloader = args
+        .save_image_args
         .bootloader
         .as_deref()
         .or(metadata.bootloader.as_deref())
         .or(build_ctx.bootloader_path.as_deref())
         .map(|p| p.to_path_buf());
 
-    let partition_table = opts
+    let partition_table = args
+        .save_image_args
         .partition_table
         .as_deref()
         .or(metadata.partition_table.as_deref())
         .or(build_ctx.partition_table_path.as_deref())
         .map(|p| p.to_path_buf());
 
-    let image_format = opts
-        .build_opts
+    let image_format = args
+        .build_args
         .format
         .as_deref()
         .map(ImageFormatId::from_str)
@@ -444,17 +427,17 @@ fn save_image(
         .or(metadata.format);
 
     save_elf_as_image(
-        opts.chip,
+        args.save_image_args.chip,
         &elf_data,
-        opts.file,
+        args.save_image_args.file,
         image_format,
-        opts.build_opts.flash_config_opts.flash_mode,
-        opts.build_opts.flash_config_opts.flash_size,
-        opts.build_opts.flash_config_opts.flash_freq,
-        opts.merge,
+        args.build_args.flash_config_args.flash_mode,
+        args.build_args.flash_config_args.flash_size,
+        args.build_args.flash_config_args.flash_freq,
+        args.save_image_args.merge,
         bootloader,
         partition_table,
-        opts.skip_padding,
+        args.save_image_args.skip_padding,
     )?;
 
     Ok(())

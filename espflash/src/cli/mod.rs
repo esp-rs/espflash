@@ -3,26 +3,23 @@
 //! No stability guaranties apply
 
 use std::{
-    fs::{self, File},
-    io::{Read, Write},
-    num::ParseIntError,
+    fs,
+    io::Write,
     path::{Path, PathBuf},
-    time::Duration,
 };
 
-use clap::Parser;
+use clap::Args;
 use config::Config;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{FlowControl, SerialPortType, UsbPortInfo};
 use strum::VariantNames;
-use update_informer::{registry, Check};
 
 use crate::{
-    cli::monitor::monitor,
-    cli::serial::get_serial_port_info,
+    cli::{monitor::monitor, serial::get_serial_port_info},
     elf::{ElfFirmwareImage, FlashFrequency, FlashMode},
     error::{Error, NoOtadataError},
     flasher::FlashSize,
+    image_format::ImageFormatType,
     partition_table, Chip, Flasher, ImageFormatId, InvalidPartitionTable, MissingPartitionTable,
     PartitionTable,
 };
@@ -32,94 +29,99 @@ pub mod monitor;
 
 mod serial;
 
-#[derive(Clone, Debug, Parser)]
-pub struct ConnectOpts {
-    /// Serial port connected to target device
-    pub serial: Option<String>,
-
-    /// Baud rate at which to flash target device
-    #[clap(long)]
-    pub speed: Option<u32>,
-
+#[derive(Debug, Args)]
+pub struct ConnectArgs {
+    /// Baud rate at which to communicate with target device
+    #[clap(short = 'b', long)]
+    pub baud: Option<u32>,
     /// Baud rate at which to read console output
     #[clap(long)]
-    pub monitor_speed: Option<u32>,
-
+    pub monitor_baud: Option<u32>,
+    /// Serial port connected to target device
+    #[clap(short = 'p', long)]
+    pub port: Option<String>,
     /// Use RAM stub for loading
     #[clap(long)]
     pub use_stub: bool,
 }
 
-#[derive(Clone, Debug, Parser)]
-pub struct FlashOpts {
-    /// Load the application to RAM instead of Flash
-    #[clap(long)]
-    pub ram: bool,
-    /// Path to a binary (.bin) bootloader file
-    #[clap(long)]
-    pub bootloader: Option<PathBuf>,
-    /// Path to a CSV file containing partition table
-    #[clap(long)]
-    pub partition_table: Option<PathBuf>,
-    /// Open a serial monitor after flashing
-    #[clap(long)]
-    pub monitor: bool,
-    /// Erase the OTADATA partition
-    /// This is useful when using multiple OTA partitions and still wanting to be able to reflash via espflash
-    #[clap(long)]
-    pub erase_otadata: bool,
-}
-
-#[derive(Debug, Clone, Parser)]
-pub struct FlashConfigOpts {
+#[derive(Debug, Args)]
+pub struct FlashConfigArgs {
+    /// Flash frequency
+    #[clap(short = 'f', long, possible_values = FlashFrequency::VARIANTS, value_name = "FREQ")]
+    pub flash_freq: Option<FlashFrequency>,
     /// Flash mode to use
     #[clap(short = 'm', long, possible_values = FlashMode::VARIANTS, value_name = "MODE")]
     pub flash_mode: Option<FlashMode>,
     /// Flash size of the target
     #[clap(short = 's', long, possible_values = FlashSize::VARIANTS, value_name = "SIZE")]
     pub flash_size: Option<FlashSize>,
-    /// Flash frequency
-    #[clap(short = 'f', long, possible_values = FlashFrequency::VARIANTS, value_name = "FREQUENCY")]
-    pub flash_freq: Option<FlashFrequency>,
 }
 
-#[derive(Clone, Debug, Parser)]
-pub struct PartitionTableOpts {
-    /// Convert CSV parition table to binary representation
-    #[clap(long, required_unless_present_any = ["info", "to-csv"])]
-    to_binary: bool,
-    /// Convert binary partition table to CSV representation
-    #[clap(long, required_unless_present_any = ["info", "to-binary"])]
-    to_csv: bool,
-    /// Show information on partition table
-    #[clap(short, long, required_unless_present_any = ["to-binary", "to-csv"])]
-    info: bool,
+#[derive(Debug, Args)]
+pub struct FlashArgs {
+    /// Path to a binary (.bin) bootloader file
+    #[clap(long)]
+    pub bootloader: Option<PathBuf>,
+    /// Erase the OTA data partition
+    /// This is useful when using multiple OTA partitions and still wanting to
+    /// be able to reflash via cargo-espflash or espflash
+    #[clap(long)]
+    pub erase_otadata: bool,
+    /// Image format to flash
+    #[clap(long, possible_values = ImageFormatType::VARIANTS)]
+    pub format: Option<String>,
+    /// Open a serial monitor after flashing
+    #[clap(long)]
+    pub monitor: bool,
+    /// Path to a CSV file containing partition table
+    #[clap(long)]
+    pub partition_table: Option<PathBuf>,
+    /// Load the application to RAM instead of Flash
+    #[clap(long)]
+    pub ram: bool,
+}
+
+/// Operations for partitions tables
+#[derive(Debug, Args)]
+pub struct PartitionTableArgs {
+    /// Optional output file name, if unset will output to stdout
+    #[clap(short = 'o', long)]
+    output: Option<PathBuf>,
     /// Input partition table
     partition_table: PathBuf,
-    /// Optional output file name, if unset will output to stdout
-    #[clap(short, long)]
-    output: Option<PathBuf>,
+    /// Convert CSV parition table to binary representation
+    #[clap(long, conflicts_with = "to-csv")]
+    to_binary: bool,
+    /// Convert binary partition table to CSV representation
+    #[clap(long, conflicts_with = "to-binary")]
+    to_csv: bool,
 }
 
-#[derive(Clone, Debug, Parser)]
-pub struct WriteBinToFlashOpts {
-    /// Address at which to write the binary file
-    #[clap(value_parser = parse_u32)]
-    addr: u32,
-
-    /// File containing the binary data to write
-    bin_file: String,
-
-    #[clap(flatten)]
-    connect_opts: ConnectOpts,
+/// Save the image to disk instead of flashing to device
+#[derive(Debug, Args)]
+pub struct SaveImageArgs {
+    /// Custom bootloader for merging
+    #[clap(long)]
+    pub bootloader: Option<PathBuf>,
+    /// Chip to create an image for
+    #[clap(long, possible_values = Chip::VARIANTS)]
+    pub chip: Chip,
+    /// File name to save the generated image to
+    pub file: PathBuf,
+    /// Boolean flag to merge binaries into single binary
+    #[clap(long)]
+    pub merge: bool,
+    /// Custom partition table for merging
+    #[clap(long)]
+    pub partition_table: Option<PathBuf>,
+    /// Don't pad the image to the flash size
+    #[clap(long)]
+    pub skip_padding: bool,
 }
 
-fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
-    parse_int::parse(input)
-}
-
-pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
-    let port_info = get_serial_port_info(opts, config)?;
+pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
+    let port_info = get_serial_port_info(args, config)?;
 
     // Attempt to open the serial port and set its initial baud rate.
     println!("Serial port: {}", port_info.port_name);
@@ -150,20 +152,20 @@ pub fn connect(opts: &ConnectOpts, config: &Config) -> Result<Flasher> {
     Ok(Flasher::connect(
         serial,
         port_info,
-        opts.speed,
-        opts.use_stub,
+        args.baud,
+        args.use_stub,
     )?)
 }
 
-pub fn board_info(opts: ConnectOpts, config: Config) -> Result<()> {
-    let mut flasher = connect(&opts, &config)?;
+pub fn board_info(args: ConnectArgs, config: &Config) -> Result<()> {
+    let mut flasher = connect(&args, config)?;
     flasher.board_info()?;
 
     Ok(())
 }
 
-pub fn serial_monitor(opts: ConnectOpts, config: Config) -> Result<()> {
-    let flasher = connect(&opts, &config)?;
+pub fn serial_monitor(args: ConnectArgs, config: &Config) -> Result<()> {
+    let flasher = connect(&args, config)?;
     let pid = flasher.get_usb_pid()?;
 
     monitor(
@@ -363,35 +365,35 @@ pub fn flash_elf_image(
     Ok(())
 }
 
-pub fn partition_table(opts: PartitionTableOpts) -> Result<()> {
-    if opts.to_binary {
-        let input = fs::read(&opts.partition_table).into_diagnostic()?;
+pub fn partition_table(args: PartitionTableArgs) -> Result<()> {
+    if args.to_binary {
+        let input = fs::read(&args.partition_table).into_diagnostic()?;
         let part_table = PartitionTable::try_from_str(String::from_utf8(input).into_diagnostic()?)
             .into_diagnostic()?;
 
         // Use either stdout or a file if provided for the output.
-        let mut writer: Box<dyn Write> = if let Some(output) = opts.output {
+        let mut writer: Box<dyn Write> = if let Some(output) = args.output {
             Box::new(fs::File::create(output).into_diagnostic()?)
         } else {
             Box::new(std::io::stdout())
         };
         part_table.save_bin(&mut writer).into_diagnostic()?;
-    } else if opts.to_csv {
-        let input = fs::read(&opts.partition_table).into_diagnostic()?;
+    } else if args.to_csv {
+        let input = fs::read(&args.partition_table).into_diagnostic()?;
         let part_table = PartitionTable::try_from_bytes(input).into_diagnostic()?;
 
         // Use either stdout or a file if provided for the output.
-        let mut writer: Box<dyn Write> = if let Some(output) = opts.output {
+        let mut writer: Box<dyn Write> = if let Some(output) = args.output {
             Box::new(fs::File::create(output).into_diagnostic()?)
         } else {
             Box::new(std::io::stdout())
         };
         part_table.save_csv(&mut writer).into_diagnostic()?;
-    } else if opts.info {
-        let input = fs::read(&opts.partition_table).into_diagnostic()?;
+    } else {
+        let input = fs::read(&args.partition_table).into_diagnostic()?;
 
-        // Try getting the partition table from either the csv or the binary representation and
-        // fail otherwise.
+        // Try getting the partition table from either the csv or the binary
+        // representation and fail otherwise.
         let part_table = if let Ok(part_table) = PartitionTable::try_from(input).into_diagnostic() {
             part_table
         } else {
@@ -400,21 +402,6 @@ pub fn partition_table(opts: PartitionTableOpts) -> Result<()> {
 
         part_table.pretty_print();
     }
-
-    Ok(())
-}
-
-pub fn write_bin_to_flash(opts: WriteBinToFlashOpts) -> Result<()> {
-    let config = Config::load()?;
-    let mut flasher = connect(&opts.connect_opts, &config)?;
-    flasher.board_info()?;
-
-    let mut f = File::open(&opts.bin_file).into_diagnostic()?;
-    let size = f.metadata().into_diagnostic()?.len();
-    let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
-    f.read_to_end(&mut buffer).into_diagnostic()?;
-
-    flasher.write_bin_to_flash(opts.addr, &buffer)?;
 
     Ok(())
 }
