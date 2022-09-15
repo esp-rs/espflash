@@ -46,7 +46,7 @@ impl FromStr for FlashMode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display, EnumVariantNames)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display, EnumVariantNames)]
 #[repr(u8)]
 pub enum FlashFrequency {
     #[strum(serialize = "12M")]
@@ -79,22 +79,20 @@ impl FromStr for FlashFrequency {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use FlashFrequency::*;
 
-        let freq = match s.to_uppercase().as_str() {
-            "12M" => Flash12M,
-            "15M" => Flash15M,
-            "16M" => Flash16M,
-            "20M" => Flash20M,
-            "24M" => Flash24M,
-            "26M" => Flash26M,
-            "30M" => Flash30M,
-            "40M" => Flash40M,
-            "48M" => Flash48M,
-            "60M" => Flash60M,
-            "80M" => Flash80M,
-            _ => return Err(Error::InvalidFlashFrequency(s.to_string())),
-        };
-
-        Ok(freq)
+        match s.to_uppercase().as_str() {
+            "12M" => Ok(Flash12M),
+            "15M" => Ok(Flash15M),
+            "16M" => Ok(Flash16M),
+            "20M" => Ok(Flash20M),
+            "24M" => Ok(Flash24M),
+            "26M" => Ok(Flash26M),
+            "30M" => Ok(Flash30M),
+            "40M" => Ok(Flash40M),
+            "48M" => Ok(Flash48M),
+            "60M" => Ok(Flash60M),
+            "80M" => Ok(Flash80M),
+            _ => Err(Error::InvalidFlashFrequency(s.to_string())),
+        }
     }
 }
 

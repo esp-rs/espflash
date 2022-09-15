@@ -91,21 +91,21 @@ impl FromStr for FlashSize {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let size = match s.to_uppercase().as_str() {
-            "256KB" => FlashSize::Flash256Kb,
-            "512KB" => FlashSize::Flash512Kb,
-            "1MB" => FlashSize::Flash1Mb,
-            "2MB" => FlashSize::Flash2Mb,
-            "4MB" => FlashSize::Flash4Mb,
-            "8MB" => FlashSize::Flash8Mb,
-            "16MB" => FlashSize::Flash16Mb,
-            "32MB" => FlashSize::Flash32Mb,
-            "64MB" => FlashSize::Flash64Mb,
-            "128MB" => FlashSize::Flash128Mb,
-            _ => return Err(Error::InvalidFlashSize(s.to_string())),
-        };
+        use FlashSize::*;
 
-        Ok(size)
+        match s.to_uppercase().as_str() {
+            "256KB" => Ok(Flash256Kb),
+            "512KB" => Ok(Flash512Kb),
+            "1MB" => Ok(Flash1Mb),
+            "2MB" => Ok(Flash2Mb),
+            "4MB" => Ok(Flash4Mb),
+            "8MB" => Ok(Flash8Mb),
+            "16MB" => Ok(Flash16Mb),
+            "32MB" => Ok(Flash32Mb),
+            "64MB" => Ok(Flash64Mb),
+            "128MB" => Ok(Flash128Mb),
+            _ => Err(Error::InvalidFlashSize(s.to_string())),
+        }
     }
 }
 

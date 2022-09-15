@@ -151,7 +151,7 @@ impl SpiRegisters {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display, EnumVariantNames, EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumVariantNames)]
 pub enum Chip {
     #[strum(serialize = "ESP32")]
     Esp32,
@@ -171,13 +171,15 @@ impl FromStr for Chip {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use Chip::*;
+
         match s.to_lowercase().replace('-', "").as_str() {
-            "esp32" => Ok(Chip::Esp32),
-            "esp32c2" => Ok(Chip::Esp32c2),
-            "esp32c3" => Ok(Chip::Esp32c3),
-            "esp32s2" => Ok(Chip::Esp32s2),
-            "esp32s3" => Ok(Chip::Esp32s3),
-            "esp8266" => Ok(Chip::Esp8266),
+            "esp32" => Ok(Esp32),
+            "esp32c2" => Ok(Esp32c2),
+            "esp32c3" => Ok(Esp32c3),
+            "esp32s2" => Ok(Esp32s2),
+            "esp32s3" => Ok(Esp32s3),
+            "esp8266" => Ok(Esp8266),
             _ => Err(Error::UnrecognizedChipName),
         }
     }

@@ -18,6 +18,31 @@ mod esp8266;
 const ESP_MAGIC: u8 = 0xE9;
 const WP_PIN_DISABLED: u8 = 0xEE;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumVariantNames)]
+#[strum(serialize_all = "kebab-case")]
+pub enum ImageFormatType {
+    Esp8266,
+    IdfBoot,
+    DirectBoot,
+    McuBoot,
+}
+
+impl FromStr for ImageFormatType {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use ImageFormatType::*;
+
+        match s.to_lowercase().as_str() {
+            "esp8266" => Ok(Esp8266),
+            "idf-boot" => Ok(IdfBoot),
+            "direct-boot" => Ok(DirectBoot),
+            "mcu-boot" => Ok(McuBoot),
+            _ => Err(Error::UnknownImageFormat(s.to_string())),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Zeroable, Pod, Debug)]
 #[repr(C, packed)]
 struct EspCommonHeader {
