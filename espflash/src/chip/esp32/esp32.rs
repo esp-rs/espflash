@@ -4,9 +4,9 @@ use super::Esp32Params;
 use crate::{
     chip::{bytes_to_mac_addr, Chip, ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
-    elf::{FirmwareImage, FlashFrequency, FlashMode},
+    elf::FirmwareImage,
     error::UnsupportedImageFormatError,
-    flasher::FlashSize,
+    flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
     Error, PartitionTable,
 };

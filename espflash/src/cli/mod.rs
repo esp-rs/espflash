@@ -16,9 +16,9 @@ use strum::VariantNames;
 
 use crate::{
     cli::{monitor::monitor, serial::get_serial_port_info},
-    elf::{ElfFirmwareImage, FlashFrequency, FlashMode},
+    elf::ElfFirmwareImage,
     error::{Error, NoOtadataError},
-    flasher::FlashSize,
+    flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::ImageFormatType,
     partition_table, Chip, Flasher, ImageFormatId, InvalidPartitionTable, MissingPartitionTable,
     PartitionTable,

@@ -1,8 +1,8 @@
 pub use self::{
     chip::Chip,
     cli::config::Config,
-    elf::{FlashFrequency, FlashMode},
     error::{Error, InvalidPartitionTable, MissingPartitionTable},
+    flasher::{FlashFrequency, FlashMode},
     flasher::{FlashSize, Flasher},
     image_format::ImageFormatId,
     partition_table::PartitionTable,

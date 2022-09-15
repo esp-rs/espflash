@@ -4,9 +4,9 @@ use super::{bytes_to_mac_addr, ChipType};
 use crate::{
     chip::{ReadEFuse, SpiRegisters},
     connection::Connection,
-    elf::{FirmwareImage, FlashFrequency, FlashMode},
+    elf::FirmwareImage,
     error::UnsupportedImageFormatError,
-    flasher::FlashSize,
+    flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{Esp8266Format, ImageFormat, ImageFormatId},
     Chip, Error, PartitionTable,
 };

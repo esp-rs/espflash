@@ -9,10 +9,10 @@ pub use self::{
 };
 use crate::{
     connection::Connection,
-    elf::{FirmwareImage, FlashFrequency, FlashMode},
+    elf::FirmwareImage,
     error::ChipDetectError,
     flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget, MAX_RAM_BLOCK_SIZE},
-    flasher::{FlashSize, SpiAttachParams, FLASH_WRITE_SIZE},
+    flasher::{FlashFrequency, FlashMode, FlashSize, SpiAttachParams, FLASH_WRITE_SIZE},
     image_format::{ImageFormat, ImageFormatId},
     Error, PartitionTable,
 };
