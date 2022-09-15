@@ -123,7 +123,7 @@ fn flash(mut args: FlashArgs, config: &Config) -> Result<()> {
         args.connect_args.use_stub = true;
     }
 
-    let mut flasher = connect(&args.connect_args, &config)?;
+    let mut flasher = connect(&args.connect_args, config)?;
     flasher.board_info()?;
 
     // Read the ELF data from the build path and load it to the target.
@@ -199,7 +199,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
 }
 
 fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, &config)?;
+    let mut flasher = connect(&args.connect_args, config)?;
     flasher.board_info()?;
 
     let mut f = File::open(&args.bin_file).into_diagnostic()?;

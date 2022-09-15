@@ -1,14 +1,15 @@
+#[cfg(feature = "cli")]
+pub use self::cli::config::Config;
 pub use self::{
     chip::Chip,
-    cli::config::Config,
     error::{Error, InvalidPartitionTable, MissingPartitionTable},
-    flasher::{FlashFrequency, FlashMode},
-    flasher::{FlashSize, Flasher},
+    flasher::{FlashFrequency, FlashMode, FlashSize, Flasher},
     image_format::ImageFormatId,
     partition_table::PartitionTable,
 };
 
 pub mod chip;
+#[cfg(feature = "cli")]
 pub mod cli;
 pub mod command;
 pub mod connection;
@@ -30,6 +31,7 @@ pub mod logging {
     }
 }
 
+#[cfg(feature = "cli")]
 pub mod update {
     use std::time::Duration;
 
