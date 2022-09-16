@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "1.7.0"
+version = "1.7.1-dev"
 authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",
@@ -33,7 +33,7 @@ pkg-fmt = "zip"
 cargo_metadata = "0.15.0"
 cargo_toml = "0.11.6"
 clap = { version = "3.2.22", features = ["derive", "env"] }
-espflash = { version = "1.7.0", path = "../espflash" }
+espflash = { version = "=1.7.1-dev", path = "../espflash" }
 log = "0.4.17"
 miette = { version = "5.3.0", features = ["fancy"] }
 serde = { version = "1.0.144", features = ["derive"] }
