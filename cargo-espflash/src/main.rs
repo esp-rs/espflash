@@ -267,14 +267,6 @@ fn build(
         return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
     }
 
-    // The 'build-std' unstable cargo feature is required to enable
-    // cross-compilation for xtensa targets.
-    // If it has not been set then we cannot build the
-    // application.
-    if !cargo_config.has_build_std() && target.starts_with("xtensa-") {
-        return Err(Error::NoBuildStd.into());
-    };
-
     // Build the list of arguments to pass to 'cargo build'. We will always
     // explicitly state the target, as it must be provided as either a command-line
     // argument or in the cargo config file.
