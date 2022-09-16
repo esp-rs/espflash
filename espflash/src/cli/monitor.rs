@@ -87,6 +87,7 @@ pub fn monitor(
     mut serial: Box<dyn SerialPort>,
     elf: Option<&[u8]>,
     pid: u16,
+    baud: u32,
 ) -> serialport::Result<()> {
     println!("Commands:");
     println!("    CTRL+R    Reset chip");
@@ -95,7 +96,7 @@ pub fn monitor(
 
     // Explicitly set the baud rate when starting the serial monitor, to allow using
     // different rates for flashing.
-    serial.set_baud_rate(115_200)?;
+    serial.set_baud_rate(baud)?;
     serial.set_timeout(Duration::from_millis(5))?;
 
     let _raw_mode = RawModeGuard::new();
