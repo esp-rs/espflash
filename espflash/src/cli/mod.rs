@@ -41,6 +41,10 @@ pub struct ConnectOpts {
     #[clap(long)]
     pub speed: Option<u32>,
 
+    /// Baud rate at which to read console output
+    #[clap(long)]
+    pub monitor_speed: Option<u32>,
+
     /// Use RAM stub for loading
     #[clap(long)]
     pub use_stub: bool,
@@ -161,7 +165,14 @@ pub fn board_info(opts: ConnectOpts, config: Config) -> Result<()> {
 pub fn serial_monitor(opts: ConnectOpts, config: Config) -> Result<()> {
     let flasher = connect(&opts, &config)?;
     let pid = flasher.get_usb_pid()?;
-    monitor(flasher.into_serial(), None, pid).into_diagnostic()?;
+
+    monitor(
+        flasher.into_serial(),
+        None,
+        pid,
+        opts.monitor_speed.unwrap_or(115200),
+    )
+    .into_diagnostic()?;
 
     Ok(())
 }

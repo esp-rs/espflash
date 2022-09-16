@@ -43,6 +43,9 @@ OPTIONS:
         --monitor
             Open a serial monitor after flashing
 
+        --monitor-speed <MONITOR_SPEED>
+            Baud rate at which to read console output
+
         --partition-table <PARTITION_TABLE>
             Path to a CSV file containing partition table
 
