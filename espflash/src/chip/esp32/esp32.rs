@@ -18,7 +18,7 @@ pub const PARAMS: Esp32Params = Esp32Params::new(
     0x10000,
     0x3f0000,
     0,
-    include_bytes!("../../../../resources/bootloaders/esp32-bootloader.bin"),
+    include_bytes!("../../../resources/bootloaders/esp32-bootloader.bin"),
 );
 
 impl ChipType for Esp32 {
