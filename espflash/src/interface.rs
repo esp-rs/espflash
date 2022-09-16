@@ -10,8 +10,8 @@ use rppal::gpio::{Gpio, OutputPin};
 #[derive(thiserror::Error, Debug)]
 pub enum SerialConfigError {
     #[cfg(feature = "raspberry")]
-    #[error("You need to specify DTR when using an internal UART peripheral")]
-    MissingDtrForInternalUart,
+    #[error("You need to specify both DTR and RTS pins when using an internal UART peripheral")]
+    MissingDtrRtsForInternalUart,
 
     #[cfg(feature = "raspberry")]
     #[error("GPIO {0} is not available")]
@@ -46,9 +46,11 @@ impl Interface {
         let rts_gpio = opts.rts.or(config.rts);
         let dtr_gpio = opts.dtr.or(config.dtr);
 
-        if port_info.port_type == serialport::SerialPortType::Unknown && dtr_gpio.is_none() {
-            // Assume internal UART, which has no DTR pin.
-            return Err(SerialConfigError::MissingDtrForInternalUart);
+        if port_info.port_type == serialport::SerialPortType::Unknown
+            && (dtr_gpio.is_none() || rts_gpio.is_none())
+        {
+            // Assume internal UART, which has no DTR pin and usually no RTS either.
+            return Err(Error::from(SerialConfigError::MissingDtrRtsForInternalUart));
         }
 
         let mut gpios = Gpio::new().unwrap();
