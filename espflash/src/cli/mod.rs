@@ -172,7 +172,7 @@ pub fn serial_monitor(args: ConnectArgs, config: &Config) -> Result<()> {
         flasher.into_serial(),
         None,
         pid,
-        opts.monitor_speed.unwrap_or(115200),
+        args.monitor_baud.unwrap_or(115_200),
     )
     .into_diagnostic()?;
 

@@ -162,7 +162,7 @@ fn flash(mut args: FlashArgs, config: &Config) -> Result<()> {
             flasher.into_serial(),
             Some(&elf_data),
             pid,
-            opts.connect_opts.monitor_speed.unwrap_or(115200),
+            args.connect_args.monitor_baud.unwrap_or(115_200),
         )
         .into_diagnostic()?;
     }

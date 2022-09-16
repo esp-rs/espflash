@@ -20,7 +20,6 @@ pub enum ImageFormatType {
     Esp8266,
     IdfBoot,
     DirectBoot,
-    McuBoot,
 }
 
 impl FromStr for ImageFormatType {
@@ -33,7 +32,6 @@ impl FromStr for ImageFormatType {
             "esp8266" => Ok(Esp8266),
             "idf-boot" => Ok(IdfBoot),
             "direct-boot" => Ok(DirectBoot),
-            "mcu-boot" => Ok(McuBoot),
             _ => Err(Error::UnknownImageFormat(s.to_string())),
         }
     }

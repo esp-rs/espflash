@@ -168,9 +168,9 @@ fn flash(
         args.connect_args.use_stub = true;
     }
 
-    let mut flasher = connect(&args.connect_args, &config)?;
+    let mut flasher = connect(&args.connect_args, config)?;
 
-    let build_ctx = build(&args.build_args, &cargo_config, flasher.chip())
+    let build_ctx = build(&args.build_args, cargo_config, flasher.chip())
         .wrap_err("Failed to build project")?;
 
     // Print the board information once the project has successfully built. We do
@@ -225,7 +225,7 @@ fn flash(
             flasher.into_serial(),
             Some(&elf_data),
             pid,
-            opts.connect_opts.monitor_speed.unwrap_or(115200),
+            args.connect_args.monitor_baud.unwrap_or(115_200),
         )
         .into_diagnostic()?;
     }
@@ -399,7 +399,7 @@ fn save_image(
     cargo_config: &CargoConfig,
     metadata: &CargoEspFlashMeta,
 ) -> Result<()> {
-    let build_ctx = build(&args.build_args, &cargo_config, args.save_image_args.chip)?;
+    let build_ctx = build(&args.build_args, cargo_config, args.save_image_args.chip)?;
     let elf_data = fs::read(build_ctx.artifact_path).into_diagnostic()?;
 
     let bootloader = args
