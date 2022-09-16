@@ -7,26 +7,13 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Deserialize, Default)]
 pub struct CargoConfig {
     #[serde(default)]
-    unstable: Unstable,
-    #[serde(default)]
     build: Build,
 }
 
 impl CargoConfig {
-    pub fn has_build_std(&self) -> bool {
-        !self.unstable.build_std.is_empty()
-    }
-
     pub fn target(&self) -> Option<&str> {
         self.build.target.as_deref()
     }
-}
-
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct Unstable {
-    #[serde(default)]
-    build_std: Vec<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]

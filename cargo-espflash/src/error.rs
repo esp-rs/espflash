@@ -17,16 +17,6 @@ pub enum Error {
               or if you're in a cargo workspace, specify the binary package with `--package`.")
     )]
     NoArtifact,
-    #[error("'build-std' not configured")]
-    #[diagnostic(
-        code(cargo_espflash::build_std),
-        help(
-            "cargo currently requires the unstable 'build-std' feature, ensure \
-            that .cargo/config{{.toml}} has the appropriate options.\n  \
-            \tSee: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std"
-        )
-    )]
-    NoBuildStd,
     #[error("Multiple build artifacts found")]
     #[diagnostic(
         code(cargo_espflash::multiple_artifacts),
