@@ -268,10 +268,18 @@ fn build(
     }
 
     // The 'build-std' unstable cargo feature is required to enable
-    // cross-compilation for xtensa targets.
-    // If it has not been set then we cannot build the
-    // application.
-    if !cargo_config.has_build_std() && target.starts_with("xtensa-") {
+    // cross-compilation for Xtensa targets. If it has not been set then we
+    // cannot build the application, and the cause of the (numerous) build errors
+    // may not be immediately clear to the user.
+    let cfg_has_build_std = cargo_config.has_build_std();
+    let opts_has_build_std = build_options
+        .clone()
+        .unstable
+        .map(|ref v| v.iter().any(|s| s.contains("build-std")))
+        .unwrap_or_default();
+    let xtensa_target = target.starts_with("xtensa-");
+
+    if xtensa_target && !(cfg_has_build_std || opts_has_build_std) {
         return Err(Error::NoBuildStd.into());
     };
 
