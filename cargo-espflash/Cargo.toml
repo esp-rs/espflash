@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "1.6.0"
+version = "1.7.0"
 authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",
@@ -9,7 +9,7 @@ edition = "2021"
 rust-version = "1.59"
 description = "Cargo subcommand for flashing Espressif devices over serial"
 repository = "https://github.com/esp-rs/espflash"
-license = "MIT or Apache-2.0"
+license = "MIT OR Apache-2.0"
 keywords = [
     "cargo",
     "cli",
@@ -32,12 +32,12 @@ pkg-fmt = "zip"
 [dependencies]
 cargo_metadata = "0.15.0"
 cargo_toml = "0.11.6"
-clap = { version = "3.2.20", features = ["derive", "env"] }
-espflash = { version = "=1.6.1-dev", path = "../espflash" }
+clap = { version = "3.2.22", features = ["derive", "env"] }
+espflash = { version = "1.7.0", path = "../espflash" }
 log = "0.4.17"
 miette = { version = "5.3.0", features = ["fancy"] }
 serde = { version = "1.0.144", features = ["derive"] }
 strum = "0.24.1"
-thiserror = "1.0.34"
+thiserror = "1.0.35"
 tracing-subscriber = { version = "0.3.15", features = [ "env-filter" ] }
 toml = "0.5.9"

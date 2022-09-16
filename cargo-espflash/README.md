@@ -27,7 +27,7 @@ $ cargo binstall cargo-espflash
 ## Usage
 
 ```text
-cargo-espflash 1.6.0
+cargo-espflash 1.7.0
 
 USAGE:
     cargo espflash [OPTIONS] [SERIAL] [SUBCOMMAND]
@@ -36,8 +36,15 @@ ARGS:
     <SERIAL>    Serial port connected to target device
 
 OPTIONS:
+        --bin <BIN>
+            Binary to build and flash
+
         --bootloader <BOOTLOADER>
             Path to a binary (.bin) bootloader file
+
+        --erase-otadata
+            Erase the OTADATA partition This is useful when using multiple OTA partitions and still
+            wanting to be able to reflash via espflash
 
         --example <EXAMPLE>
             Example to build and flash
@@ -66,6 +73,9 @@ OPTIONS:
         --monitor
             Open a serial monitor after flashing
 
+        --monitor-speed <MONITOR_SPEED>
+            Baud rate at which to read console output
+
         --package <PACKAGE>
             Specify a (binary) package within a workspace to be built
 
@@ -90,6 +100,9 @@ OPTIONS:
 
         --target-dir <TARGET_DIR>
             Directory for all generated artifacts
+
+        --use-stub
+            Use RAM stub for loading
 
     -V, --version
             Print version information

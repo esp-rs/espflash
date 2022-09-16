@@ -23,7 +23,7 @@ $ cargo binstall espflash
 ## Usage
 
 ```text
-espflash 1.6.0
+espflash 1.7.0
 
 USAGE:
     espflash [OPTIONS] [ARGS] [SUBCOMMAND]
@@ -36,6 +36,10 @@ OPTIONS:
         --bootloader <BOOTLOADER>
             Path to a binary (.bin) bootloader file
 
+        --erase-otadata
+            Erase the OTADATA partition This is useful when using multiple OTA partitions and still
+            wanting to be able to reflash via espflash
+
     -f, --flash-freq <FREQUENCY>
             Flash frequency [possible values: 12M, 15M, 16M, 20M, 24M, 26M, 30M, 40M, 48M, 60M, 80M]
 
@@ -44,6 +48,9 @@ OPTIONS:
 
     -h, --help
             Print help information
+
+        --log-level <LOG_LEVEL>
+            Log level [env: LOG_LEVEL=] [default: info]
 
     -m, --flash-mode <MODE>
             Flash mode to use [possible values: QIO, QOUT, DIO, DOUT]
@@ -67,11 +74,15 @@ OPTIONS:
         --speed <SPEED>
             Baud rate at which to flash target device
 
+        --use-stub
+            Use RAM stub for loading
+
     -V, --version
             Print version information
 
 SUBCOMMANDS:
-    board-info            Display information about the connected board and exit without flashing
+    board-info            Display information about the connected board and exit without
+                              flashing
     help                  Print this message or the help of the given subcommand(s)
     partition-table       Operations for partitions tables
     save-image            Save the image to disk instead of flashing to device
