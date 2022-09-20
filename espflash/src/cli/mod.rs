@@ -113,10 +113,10 @@ pub struct SaveImageArgs {
     #[clap(long)]
     pub merge: bool,
     /// Custom partition table for merging
-    #[clap(long)]
+    #[clap(long, short = 'T', requires = "merge")]
     pub partition_table: Option<PathBuf>,
     /// Don't pad the image to the flash size
-    #[clap(long)]
+    #[clap(long, short = 'P', requires = "merge")]
     pub skip_padding: bool,
 }
 

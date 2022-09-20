@@ -254,8 +254,8 @@ fn build(
     // may not be immediately clear to the user.
     let cfg_has_build_std = cargo_config.has_build_std();
     let opts_has_build_std = build_options
-        .clone()
         .unstable
+        .clone()
         .map(|ref v| v.iter().any(|s| s.contains("build-std")))
         .unwrap_or_default();
     let xtensa_target = target.starts_with("xtensa-");
