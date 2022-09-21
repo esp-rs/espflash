@@ -4,8 +4,8 @@ use super::Esp32Params;
 use crate::{
     chip::{ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
-    elf::{FirmwareImage, FlashFrequency, FlashMode},
-    flasher::FlashSize,
+    elf::FirmwareImage,
+    flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{Esp32BootloaderFormat, Esp32DirectBootFormat, ImageFormat, ImageFormatId},
     Chip, Error, PartitionTable,
 };

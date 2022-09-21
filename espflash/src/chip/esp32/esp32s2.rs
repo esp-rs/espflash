@@ -4,10 +4,10 @@ use super::Esp32Params;
 use crate::{
     chip::{ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
-    elf::{FirmwareImage, FlashFrequency, FlashMode},
+    elf::FirmwareImage,
     error::UnsupportedImageFormatError,
     flash_target::MAX_RAM_BLOCK_SIZE,
-    flasher::{FlashSize, FLASH_WRITE_SIZE},
+    flasher::{FlashFrequency, FlashMode, FlashSize, FLASH_WRITE_SIZE},
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
     Chip, Error, PartitionTable,
 };

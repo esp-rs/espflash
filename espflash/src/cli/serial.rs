@@ -3,11 +3,11 @@ use dialoguer::{theme::ColorfulTheme, Confirm, Select};
 use miette::{IntoDiagnostic, Result};
 use serialport::{available_ports, SerialPortInfo, SerialPortType, UsbPortInfo};
 
-use super::{config::Config, ConnectOpts};
+use super::{config::Config, ConnectArgs};
 use crate::{cli::config::UsbDevice, error::Error};
 
 pub fn get_serial_port_info(
-    matches: &ConnectOpts,
+    matches: &ConnectArgs,
     config: &Config,
 ) -> Result<SerialPortInfo, Error> {
     // A serial port should be specified either as a command-line argument or in a
@@ -21,12 +21,13 @@ pub fn get_serial_port_info(
     // and PID match the configured values.
     //
     // The call to canonicalize() was originally added to resolve https://github.com/esp-rs/espflash/issues/177,
-    // however, canonicalize  doesn't work (on Windows) with "dummy" device paths like `COM4`.
-    // That's the reason we need to handle Windows/Posix differently.
+    // however, canonicalize  doesn't work (on Windows) with "dummy" device paths
+    // like `COM4`. That's the reason we need to handle Windows/Posix
+    // differently.
 
     let ports = detect_usb_serial_ports().unwrap_or_default();
 
-    if let Some(serial) = &matches.serial {
+    if let Some(serial) = &matches.port {
         #[cfg(not(target_os = "windows"))]
         let serial = std::fs::canonicalize(serial)?.to_string_lossy().to_string();
         find_serial_port(&ports, &serial)

@@ -10,8 +10,7 @@ use thiserror::Error;
 
 use crate::{
     command::CommandType,
-    elf::{FlashFrequency, FlashMode},
-    flasher::FlashSize,
+    flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::ImageFormatId,
     partition_table::{CoreType, SubType, Type},
     Chip,

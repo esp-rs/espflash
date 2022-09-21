@@ -4,10 +4,8 @@ use std::{
     fmt::{Debug, Formatter},
     mem::take,
     ops::AddAssign,
-    str::FromStr,
 };
 
-use strum_macros::{Display, EnumVariantNames};
 use xmas_elf::{
     program::Type,
     sections::{SectionData, ShType},
@@ -20,83 +18,6 @@ use crate::{
 };
 
 pub const ESP_CHECKSUM_MAGIC: u8 = 0xef;
-
-#[derive(Copy, Clone, Debug, EnumVariantNames)]
-#[strum(serialize_all = "UPPERCASE")]
-pub enum FlashMode {
-    Qio,
-    Qout,
-    Dio,
-    Dout,
-}
-
-impl FromStr for FlashMode {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mode = match s.to_uppercase().as_str() {
-            "QIO" => FlashMode::Qio,
-            "QOUT" => FlashMode::Qout,
-            "DIO" => FlashMode::Dio,
-            "DOUT" => FlashMode::Dout,
-            _ => return Err(Error::InvalidFlashMode(s.to_string())),
-        };
-
-        Ok(mode)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display, EnumVariantNames)]
-#[repr(u8)]
-pub enum FlashFrequency {
-    #[strum(serialize = "12M")]
-    Flash12M,
-    #[strum(serialize = "15M")]
-    Flash15M,
-    #[strum(serialize = "16M")]
-    Flash16M,
-    #[strum(serialize = "20M")]
-    Flash20M,
-    #[strum(serialize = "24M")]
-    Flash24M,
-    #[strum(serialize = "26M")]
-    Flash26M,
-    #[strum(serialize = "30M")]
-    Flash30M,
-    #[strum(serialize = "40M")]
-    Flash40M,
-    #[strum(serialize = "48M")]
-    Flash48M,
-    #[strum(serialize = "60M")]
-    Flash60M,
-    #[strum(serialize = "80M")]
-    Flash80M,
-}
-
-impl FromStr for FlashFrequency {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use FlashFrequency::*;
-
-        let freq = match s.to_uppercase().as_str() {
-            "12M" => Flash12M,
-            "15M" => Flash15M,
-            "16M" => Flash16M,
-            "20M" => Flash20M,
-            "24M" => Flash24M,
-            "26M" => Flash26M,
-            "30M" => Flash30M,
-            "40M" => Flash40M,
-            "48M" => Flash48M,
-            "60M" => Flash60M,
-            "80M" => Flash80M,
-            _ => return Err(Error::InvalidFlashFrequency(s.to_string())),
-        };
-
-        Ok(freq)
-    }
-}
 
 pub trait FirmwareImage<'a> {
     fn entry(&self) -> u32;

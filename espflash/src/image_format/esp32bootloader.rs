@@ -7,11 +7,11 @@ use super::encode_flash_frequency;
 use crate::{
     chip::Esp32Params,
     elf::{
-        merge_adjacent_segments, update_checksum, CodeSegment, FirmwareImage, FlashFrequency,
-        FlashMode, RomSegment, ESP_CHECKSUM_MAGIC,
+        merge_adjacent_segments, update_checksum, CodeSegment, FirmwareImage, RomSegment,
+        ESP_CHECKSUM_MAGIC,
     },
     error::{Error, FlashDetectError},
-    flasher::FlashSize,
+    flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC, WP_PIN_DISABLED},
     partition_table::{CoreType, Partition, Type},
     Chip, PartitionTable,

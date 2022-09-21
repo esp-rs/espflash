@@ -1,6 +1,6 @@
 [package]
 name = "espflash"
-version = "1.7.1-dev"
+version = "2.0.0-dev"
 authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",
@@ -28,17 +28,23 @@ pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.{ archive
 bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "zip"
 
+[[bin]]
+name = "espflash"
+path = "./src/bin/espflash.rs"
+required-features = ["cli"]
+
 [dependencies]
 base64 = "0.13.0"
 binread = "2.2.0"
 bytemuck = { version = "1.12.1", features = ["derive"] }
-clap = { version = "3.2.22", features = ["derive", "env"] }
+clap = { version = "3.2.22", features = ["derive", "env"], optional = true }
 comfy-table = "6.1.0"
-crossterm = "0.25.0"
+crossterm = { version = "0.25.0", optional = true }
 csv = "1.1.6"
-dialoguer = "0.10.2"
+dialoguer = { version = "0.10.2", optional = true }
 directories-next = "2.0.0"
 espmonitor = "0.10.0"
+env_logger = "0.9.0"
 flate2 = "1.0.24"
 indicatif = "0.17.1"
 log = "0.4.17"
@@ -52,12 +58,15 @@ serde-hex = "0.1.0"
 serde_json = "1.0.85"
 serde_plain = "1.0.0"
 serialport = "4.2.0"
-tracing-subscriber = { version = "0.3.15", features = [ "env-filter" ] }
 sha2 = "0.10.6"
 slip-codec = "0.3.3"
 strum = "0.24.1"
 strum_macros = "0.24.3"
 thiserror = "1.0.35"
 toml = "0.5.9"
-update-informer = "0.5.0"
+update-informer = { version = "0.5.0", optional = true }
 xmas-elf = "0.8.0"
+
+[features]
+default = ["cli"]
+cli = ["clap", "crossterm", "dialoguer", "update-informer"]
