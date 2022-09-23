@@ -1,7 +1,8 @@
+use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
+
 pub use self::{
     esp32::Esp32, esp32c2::Esp32c2, esp32c3::Esp32c3, esp32s2::Esp32s2, esp32s3::Esp32s3,
 };
-use crate::PartitionTable;
 
 #[allow(clippy::module_inception)]
 mod esp32;
@@ -50,13 +51,31 @@ impl Esp32Params {
     /// `flash_size` is used to scale app partition when present, otherwise the
     /// param defaults are used.
     pub fn default_partition_table(&self, flash_size: Option<u32>) -> PartitionTable {
-        PartitionTable::basic(
-            self.nvs_addr,
-            self.nvs_size,
-            self.phy_init_data_addr,
-            self.phy_init_data_size,
-            self.app_addr,
-            flash_size.map_or(self.app_size, |size| size - self.app_addr),
-        )
+        PartitionTable::new(vec![
+            Partition::new(
+                String::from("nvs"),
+                Type::Data,
+                SubType::Data(DataType::Nvs),
+                self.nvs_addr,
+                self.nvs_size,
+                false,
+            ),
+            Partition::new(
+                String::from("phy_init"),
+                Type::Data,
+                SubType::Data(DataType::Phy),
+                self.phy_init_data_addr,
+                self.phy_init_data_size,
+                false,
+            ),
+            Partition::new(
+                String::from("factory"),
+                Type::App,
+                SubType::App(AppType::Factory),
+                self.app_addr,
+                flash_size.map_or(self.app_size, |size| size - self.app_addr),
+                false,
+            ),
+        ])
     }
 }

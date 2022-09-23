@@ -1,5 +1,6 @@
 use std::{collections::HashMap, ops::Range, str::FromStr};
 
+use esp_idf_part::PartitionTable;
 use maplit::hashmap;
 use strum_macros::{Display, EnumIter, EnumVariantNames};
 
@@ -14,7 +15,7 @@ use crate::{
     flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget, MAX_RAM_BLOCK_SIZE},
     flasher::{FlashFrequency, FlashMode, FlashSize, SpiAttachParams, FLASH_WRITE_SIZE},
     image_format::{ImageFormat, ImageFormatId},
-    Error, PartitionTable,
+    Error,
 };
 
 mod esp32;

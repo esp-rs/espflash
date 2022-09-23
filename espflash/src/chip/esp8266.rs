@@ -1,5 +1,7 @@
 use std::ops::Range;
 
+use esp_idf_part::PartitionTable;
+
 use super::{bytes_to_mac_addr, ChipType};
 use crate::{
     chip::{ReadEFuse, SpiRegisters},
@@ -8,7 +10,7 @@ use crate::{
     error::UnsupportedImageFormatError,
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{Esp8266Format, ImageFormat, ImageFormatId},
-    Chip, Error, PartitionTable,
+    Chip, Error,
 };
 
 pub struct Esp8266;

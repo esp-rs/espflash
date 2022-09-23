@@ -1,6 +1,7 @@
 use std::{borrow::Cow, io::Write, iter::once};
 
 use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
+use esp_idf_part::{Partition, PartitionTable, Type};
 use sha2::{Digest, Sha256};
 
 use super::encode_flash_frequency;
@@ -13,8 +14,7 @@ use crate::{
     error::{Error, FlashDetectError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC, WP_PIN_DISABLED},
-    partition_table::{CoreType, Partition, Type},
-    Chip, PartitionTable,
+    Chip,
 };
 
 /// Image format for esp32 family chips using a 2nd stage bootloader
@@ -158,7 +158,7 @@ impl<'a> Esp32BootloaderFormat<'a> {
         // partition, and use any available "app" partitions if not present.
         let factory_partition = partition_table
             .find("factory")
-            .or_else(|| partition_table.find_by_type(Type::CoreType(CoreType::App)))
+            .or_else(|| partition_table.find_by_type(Type::App))
             .unwrap();
 
         Self::check_partition_stats(factory_partition, &data)?;
@@ -177,11 +177,11 @@ impl<'a> Esp32BootloaderFormat<'a> {
     }
 
     fn check_partition_stats(part: &Partition, data: &Vec<u8>) -> Result<(), Error> {
-        let perc = data.len() as f32 / part.size as f32 * 100.0;
+        let perc = data.len() as f32 / part.size() as f32 * 100.0;
         println!(
             "App/part. size:    {}/{} bytes, {:.2}%",
             data.len(),
-            part.size,
+            part.size(),
             perc
         );
 
@@ -205,7 +205,7 @@ impl<'a> ImageFormat<'a> for Esp32BootloaderFormat<'a> {
             })
             .chain(once(RomSegment {
                 addr: self.params.partition_addr,
-                data: self.partition_table.to_bytes().into(),
+                data: Cow::Owned(self.partition_table.to_bin().unwrap()),
             }))
             .chain(once(self.flash_segment.borrow())),
         )

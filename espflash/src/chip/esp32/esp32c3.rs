@@ -1,5 +1,7 @@
 use std::ops::Range;
 
+use esp_idf_part::PartitionTable;
+
 use super::Esp32Params;
 use crate::{
     chip::{ChipType, ReadEFuse, SpiRegisters},
@@ -8,7 +10,7 @@ use crate::{
     error::UnsupportedImageFormatError,
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{Esp32BootloaderFormat, Esp32DirectBootFormat, ImageFormat, ImageFormatId},
-    Chip, Error, PartitionTable,
+    Chip, Error,
 };
 
 pub struct Esp32c3;
