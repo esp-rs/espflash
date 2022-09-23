@@ -23,71 +23,24 @@ $ cargo binstall espflash
 ## Usage
 
 ```text
-espflash 1.7.0
+espflash 2.0.0-dev
+A command-line tool for flashing Espressif devices over serial
 
 USAGE:
-    espflash [OPTIONS] [ARGS] [SUBCOMMAND]
-
-ARGS:
-    <SERIAL>    Serial port connected to target device
-    <IMAGE>     ELF image to flash
+    espflash <SUBCOMMAND>
 
 OPTIONS:
-        --bootloader <BOOTLOADER>
-            Path to a binary (.bin) bootloader file
-
-        --erase-otadata
-            Erase the OTADATA partition This is useful when using multiple OTA partitions and still
-            wanting to be able to reflash via espflash
-
-    -f, --flash-freq <FREQUENCY>
-            Flash frequency [possible values: 12M, 15M, 16M, 20M, 24M, 26M, 30M, 40M, 48M, 60M, 80M]
-
-        --format <FORMAT>
-            Image format to flash [possible values: bootloader, direct-boot]
-
-    -h, --help
-            Print help information
-
-        --log-level <LOG_LEVEL>
-            Log level [env: LOG_LEVEL=] [default: info]
-
-    -m, --flash-mode <MODE>
-            Flash mode to use [possible values: QIO, QOUT, DIO, DOUT]
-
-        --monitor
-            Open a serial monitor after flashing
-
-        --monitor-speed <MONITOR_SPEED>
-            Baud rate at which to read console output
-
-        --partition-table <PARTITION_TABLE>
-            Path to a CSV file containing partition table
-
-        --ram
-            Load the application to RAM instead of Flash
-
-    -s, --flash-size <SIZE>
-            Flash size of the target [possible values: 256KB, 512KB, 1MB, 2MB, 4MB, 8MB, 16MB, 32MB,
-            64MB, 128MB]
-
-        --speed <SPEED>
-            Baud rate at which to flash target device
-
-        --use-stub
-            Use RAM stub for loading
-
-    -V, --version
-            Print version information
+    -h, --help       Print help information
+    -V, --version    Print version information
 
 SUBCOMMANDS:
-    board-info            Display information about the connected board and exit without
-                              flashing
-    help                  Print this message or the help of the given subcommand(s)
-    partition-table       Operations for partitions tables
-    save-image            Save the image to disk instead of flashing to device
-    serial-monitor        Open the serial monitor without flashing
-    write-bin-to-flash    Writes a binary file to a specific address in the chip's flash
+    board-info         Display information about the connected board and exit without flashing
+    flash              Flash an application to a target device
+    help               Print this message or the help of the given subcommand(s)
+    monitor            Open the serial monitor without flashing
+    partition-table    Operations for partitions tables
+    save-image         Save the image to disk instead of flashing to device
+    write-bin          Writes a binary file to a specific address in the chip's flash
 ```
 
 ## Configuration

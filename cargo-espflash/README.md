@@ -27,95 +27,23 @@ $ cargo binstall cargo-espflash
 ## Usage
 
 ```text
-cargo-espflash 1.7.0
+cargo-espflash 2.0.0-dev
+Cargo subcommand for flashing Espressif devices over serial
 
 USAGE:
-    cargo espflash [OPTIONS] [SERIAL] [SUBCOMMAND]
-
-ARGS:
-    <SERIAL>    Serial port connected to target device
+    cargo espflash <SUBCOMMAND>
 
 OPTIONS:
-        --bin <BIN>
-            Binary to build and flash
-
-        --bootloader <BOOTLOADER>
-            Path to a binary (.bin) bootloader file
-
-        --erase-otadata
-            Erase the OTADATA partition This is useful when using multiple OTA partitions and still
-            wanting to be able to reflash via espflash
-
-        --example <EXAMPLE>
-            Example to build and flash
-
-    -f, --flash-freq <FREQUENCY>
-            Flash frequency [possible values: 12M, 15M, 16M, 20M, 24M, 26M, 30M, 40M, 48M, 60M, 80M]
-
-        --features <FEATURES>
-            Comma delimited list of build features
-
-        --format <FORMAT>
-            Image format to flash [possible values: bootloader, direct-boot]
-
-        --frozen
-            Require Cargo.lock and cache are up to date
-
-    -h, --help
-            Print help information
-
-        --locked
-            Require Cargo.lock is up to date
-
-    -m, --flash-mode <MODE>
-            Flash mode to use [possible values: QIO, QOUT, DIO, DOUT]
-
-        --monitor
-            Open a serial monitor after flashing
-
-        --monitor-speed <MONITOR_SPEED>
-            Baud rate at which to read console output
-
-        --package <PACKAGE>
-            Specify a (binary) package within a workspace to be built
-
-        --partition-table <PARTITION_TABLE>
-            Path to a CSV file containing partition table
-
-        --ram
-            Load the application to RAM instead of Flash
-
-        --release
-            Build the application using the release profile
-
-    -s, --flash-size <SIZE>
-            Flash size of the target [possible values: 256KB, 512KB, 1MB, 2MB, 4MB, 8MB, 16MB, 32MB,
-            64MB, 128MB]
-
-        --speed <SPEED>
-            Baud rate at which to flash target device
-
-        --target <TARGET>
-            Target to build for
-
-        --target-dir <TARGET_DIR>
-            Directory for all generated artifacts
-
-        --use-stub
-            Use RAM stub for loading
-
-    -V, --version
-            Print version information
-
-    -Z <UNSTABLE>
-            Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details
+    -h, --help       Print help information
+    -V, --version    Print version information
 
 SUBCOMMANDS:
     board-info         Display information about the connected board and exit without flashing
+    flash              Flash an application to a target device
     help               Print this message or the help of the given subcommand(s)
+    monitor            Open the serial monitor without flashing
     partition-table    Operations for partitions tables
     save-image         Save the image to disk instead of flashing to device
-    serial-monitor     Open the serial monitor without flashing
 ```
 
 ## Configuration
