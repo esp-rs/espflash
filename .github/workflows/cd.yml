@@ -74,6 +74,15 @@ jobs:
 
       - uses: Swatinem/rust-cache@v1
 
+      - name: Replace target string
+        if: matrix.job.arch != ''
+        uses: mad9000/actions-find-and-replace-string@1
+        id: findandreplace
+        with:
+          source: ${{ matrix.job.target }}
+          find: "unknown-"
+          replace: ""
+
       - name: Build dependencies for armv7 and armv8
         if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch != ''
         run: |
@@ -103,15 +112,6 @@ jobs:
           sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
           sudo apt-get update
           sudo apt-get install musl-tools libudev-dev
-
-      - name: Replace target string
-        if: matrix.job.arch != ''
-        uses: mad9000/actions-find-and-replace-string@1
-        id: findandreplace
-        with:
-          source: ${{ matrix.job.target }}
-          find: "unknown-"
-          replace: ""
 
       - uses: actions-rs/cargo@v1
         if: ${{ matrix.job.arch == '' }}
