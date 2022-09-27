@@ -6,11 +6,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  PKG_CONFIG_ALLOW_SYSTEM_LIBS: 0
-  # Enable cross compilation for `pkg_config`.
-  PKG_CONFIG_DIR: /opt/
-  PKG_CONFIG_LIBDIR: /opt/usr/lib/pkgconfig:/opt/usr/share/pkgconfig
-  PKG_CONFIG_ALLOW_CROSS: 1
 
 jobs:
   publish-release:
@@ -105,6 +100,10 @@ jobs:
           sudo apt update
           sudo dpkg --add-architecture ${{ matrix.job.arch }}
           sudo apt-get install -y curl git libudev-dev musl-tools pkg-config "libudev1:${{ matrix.job.arch }}" "libgcc-s1:${{ matrix.job.arch }}" "libc6:${{ matrix.job.arch }}" "libudev-dev:${{ matrix.job.arch }}" gcc-arm-linux-gnueabihf pkg-config-arm-linux-gnueabihf gcc-aarch64-linux-gnu pkg-config-aarch64-linux-gnu
+          echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=0" >> $GITHUB_ENV
+          echo "PKG_CONFIG_DIR=/opt/" >> $GITHUB_ENV
+          echo "PKG_CONFIG_LIBDIR=/opt/usr/lib/pkgconfig:/opt/usr/share/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
 
       - name: Is armv8?
         if: ${{ matrix.job.arch == 'arm64' }}
