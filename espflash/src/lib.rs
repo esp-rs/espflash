@@ -19,7 +19,6 @@ pub mod flash_target;
 pub mod flasher;
 pub mod image_format;
 pub mod interface;
-pub mod stubs;
 
 pub mod logging {
     use env_logger::Env;

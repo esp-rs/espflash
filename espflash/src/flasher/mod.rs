@@ -6,6 +6,7 @@ use log::debug;
 use serialport::UsbPortInfo;
 use strum_macros::{Display, EnumVariantNames};
 
+use self::stubs::FlashStub;
 use crate::{
     chip::Chip,
     command::{Command, CommandType},
@@ -14,9 +15,10 @@ use crate::{
     error::{ConnectionError, FlashDetectError, ResultExt},
     image_format::ImageFormatId,
     interface::Interface,
-    stubs::FlashStub,
     Error,
 };
+
+mod stubs;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 

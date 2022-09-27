@@ -19,12 +19,12 @@ pub struct FlashStub {
 
 // Include stub objects in binary
 
-const STUB_32: &str = include_str!("../resources/stubs/stub_flasher_32.json");
-const STUB_32C2: &str = include_str!("../resources/stubs/stub_flasher_32c2.json");
-const STUB_32C3: &str = include_str!("../resources/stubs/stub_flasher_32c3.json");
-const STUB_32S2: &str = include_str!("../resources/stubs/stub_flasher_32s2.json");
-const STUB_32S3: &str = include_str!("../resources/stubs/stub_flasher_32s3.json");
-const STUB_8266: &str = include_str!("../resources/stubs/stub_flasher_8266.json");
+const STUB_32: &str = include_str!("../../resources/stubs/stub_flasher_32.json");
+const STUB_32C2: &str = include_str!("../../resources/stubs/stub_flasher_32c2.json");
+const STUB_32C3: &str = include_str!("../../resources/stubs/stub_flasher_32c3.json");
+const STUB_32S2: &str = include_str!("../../resources/stubs/stub_flasher_32s2.json");
+const STUB_32S3: &str = include_str!("../../resources/stubs/stub_flasher_32s3.json");
+const STUB_8266: &str = include_str!("../../resources/stubs/stub_flasher_8266.json");
 
 impl FlashStub {
     /// Fetch flash stub for the provided chip
