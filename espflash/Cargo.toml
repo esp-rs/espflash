@@ -1,6 +1,6 @@
 [package]
 name = "espflash"
-version = "2.0.0-dev"
+version = "1.7.21"
 authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",
@@ -8,7 +8,7 @@ authors = [
 edition = "2021"
 rust-version = "1.60"
 description = "A command-line tool for flashing Espressif devices over serial"
-repository = "https://github.com/SergioGasquez/espflash"
+repository = "https://github.com/esp-rs/espflash"
 license = "MIT OR Apache-2.0"
 keywords = [
     "cli",
