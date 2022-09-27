@@ -67,7 +67,7 @@ jobs:
       - name: Build dependencies and set environment
         if: matrix.job.runs_on == 'ubuntu-latest'
         run: |
-          if [[ -n "${{ matrix.job.arch }}" ]]; then
+          if [[ ${{ matrix.job.arch }} == '' ]]; then
             sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
             sudo apt-get update
             sudo apt-get install musl-tools libudev-dev
