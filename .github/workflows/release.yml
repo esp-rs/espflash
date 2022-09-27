@@ -71,7 +71,7 @@ jobs:
           find: "unknown-"
           replace: ""
 
-      - name: Build dependencies raspberry targets
+      - name: Build dependencies raspberry targets and set environment
         if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch != ''
         run: |
           sudo sed -i 's/azure\.//' /etc/apt/sources.list
