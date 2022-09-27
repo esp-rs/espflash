@@ -1,5 +1,7 @@
 use std::ops::Range;
 
+use esp_idf_part::PartitionTable;
+
 use super::Esp32Params;
 use crate::{
     chip::{ChipType, ReadEFuse, SpiRegisters},
@@ -9,7 +11,7 @@ use crate::{
     flash_target::MAX_RAM_BLOCK_SIZE,
     flasher::{FlashFrequency, FlashMode, FlashSize, FLASH_WRITE_SIZE},
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
-    Chip, Error, PartitionTable,
+    Chip, Error,
 };
 
 const MAX_USB_BLOCK_SIZE: usize = 0x800;

@@ -1,5 +1,6 @@
 use std::{collections::HashMap, ops::Range};
 
+use esp_idf_part::PartitionTable;
 use maplit::hashmap;
 
 use super::Esp32Params;
@@ -9,7 +10,7 @@ use crate::{
     elf::FirmwareImage,
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{Esp32BootloaderFormat, Esp32DirectBootFormat, ImageFormat, ImageFormatId},
-    Chip, Error, PartitionTable,
+    Chip, Error,
 };
 
 pub struct Esp32c2;

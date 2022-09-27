@@ -9,20 +9,20 @@ use std::{
 };
 
 use clap::Args;
-use config::Config;
+use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
+use esp_idf_part::{DataType, PartitionTable, SubType, Type};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{SerialPortType, UsbPortInfo};
 use strum::VariantNames;
 
+use self::{config::Config, monitor::monitor, serial::get_serial_port_info};
 use crate::{
-    cli::{monitor::monitor, serial::get_serial_port_info},
     elf::ElfFirmwareImage,
     error::NoOtadataError,
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::ImageFormatType,
     interface::Interface,
-    partition_table, Chip, Flasher, ImageFormatId, InvalidPartitionTable, MissingPartitionTable,
-    PartitionTable,
+    Chip, Flasher, ImageFormatId, MissingPartitionTable,
 };
 
 pub mod config;
@@ -228,8 +228,7 @@ pub fn save_elf_as_image(
                 .into_diagnostic()
                 .wrap_err("Failed to open partition table")?;
 
-            let table =
-                PartitionTable::try_from(data).wrap_err("Failed to parse partition table")?;
+            let table = PartitionTable::try_from(data).into_diagnostic()?;
 
             Some(table)
         } else {
@@ -332,7 +331,7 @@ pub fn flash_elf_image(
         let data = fs::read(path)
             .into_diagnostic()
             .wrap_err("Failed to open partition table")?;
-        let table = PartitionTable::try_from(data).wrap_err("Failed to parse partition table")?;
+        let table = PartitionTable::try_from(data).into_diagnostic()?;
 
         Some(table)
     } else {
@@ -345,13 +344,11 @@ pub fn flash_elf_image(
             None => return Err((MissingPartitionTable {}).into()),
         };
 
-        let otadata = match partition_table.find_by_subtype(
-            partition_table::Type::CoreType(partition_table::CoreType::Data),
-            partition_table::SubType::Data(partition_table::DataType::Ota),
-        ) {
-            Some(otadata) => otadata,
-            None => return Err((NoOtadataError {}).into()),
-        };
+        let otadata =
+            match partition_table.find_by_subtype(Type::Data, SubType::Data(DataType::Ota)) {
+                Some(otadata) => otadata,
+                None => return Err((NoOtadataError {}).into()),
+            };
 
         let offset = otadata.offset();
         let size = otadata.size();
@@ -377,9 +374,8 @@ pub fn flash_elf_image(
 
 pub fn partition_table(args: PartitionTableArgs) -> Result<()> {
     if args.to_binary {
-        let input = fs::read(&args.partition_table).into_diagnostic()?;
-        let part_table = PartitionTable::try_from_str(String::from_utf8(input).into_diagnostic()?)
-            .into_diagnostic()?;
+        let input = fs::read_to_string(&args.partition_table).into_diagnostic()?;
+        let table = PartitionTable::try_from_str(input).into_diagnostic()?;
 
         // Use either stdout or a file if provided for the output.
         let mut writer: Box<dyn Write> = if let Some(output) = args.output {
@@ -387,10 +383,13 @@ pub fn partition_table(args: PartitionTableArgs) -> Result<()> {
         } else {
             Box::new(std::io::stdout())
         };
-        part_table.save_bin(&mut writer).into_diagnostic()?;
+
+        writer
+            .write_all(&table.to_bin().into_diagnostic()?)
+            .into_diagnostic()?;
     } else if args.to_csv {
         let input = fs::read(&args.partition_table).into_diagnostic()?;
-        let part_table = PartitionTable::try_from_bytes(input).into_diagnostic()?;
+        let table = PartitionTable::try_from_bytes(input).into_diagnostic()?;
 
         // Use either stdout or a file if provided for the output.
         let mut writer: Box<dyn Write> = if let Some(output) = args.output {
@@ -398,20 +397,57 @@ pub fn partition_table(args: PartitionTableArgs) -> Result<()> {
         } else {
             Box::new(std::io::stdout())
         };
-        part_table.save_csv(&mut writer).into_diagnostic()?;
+
+        writer
+            .write_all(table.to_csv().into_diagnostic()?.as_bytes())
+            .into_diagnostic()?;
     } else {
         let input = fs::read(&args.partition_table).into_diagnostic()?;
+        let table = PartitionTable::try_from(input).into_diagnostic()?;
 
-        // Try getting the partition table from either the csv or the binary
-        // representation and fail otherwise.
-        let part_table = if let Ok(part_table) = PartitionTable::try_from(input).into_diagnostic() {
-            part_table
-        } else {
-            return Err((InvalidPartitionTable {}).into());
-        };
-
-        part_table.pretty_print();
+        pretty_print(table);
     }
 
     Ok(())
+}
+
+fn pretty_print(table: PartitionTable) {
+    let mut pretty = Table::new();
+
+    pretty
+        .load_preset(UTF8_FULL)
+        .apply_modifier(modifiers::UTF8_ROUND_CORNERS)
+        .set_header(vec![
+            Cell::new("Name")
+                .fg(Color::Green)
+                .add_attribute(Attribute::Bold),
+            Cell::new("Type")
+                .fg(Color::Cyan)
+                .add_attribute(Attribute::Bold),
+            Cell::new("SubType")
+                .fg(Color::Magenta)
+                .add_attribute(Attribute::Bold),
+            Cell::new("Offset")
+                .fg(Color::Red)
+                .add_attribute(Attribute::Bold),
+            Cell::new("Size")
+                .fg(Color::Yellow)
+                .add_attribute(Attribute::Bold),
+            Cell::new("Encrypted")
+                .fg(Color::DarkCyan)
+                .add_attribute(Attribute::Bold),
+        ]);
+
+    for p in table.partitions() {
+        pretty.add_row(vec![
+            Cell::new(&p.name()).fg(Color::Green),
+            Cell::new(&p.ty().to_string()).fg(Color::Cyan),
+            Cell::new(&p.subtype().to_string()).fg(Color::Magenta),
+            Cell::new(&format!("{:#x}", p.offset())).fg(Color::Red),
+            Cell::new(&format!("{:#x} ({}KiB)", p.size(), p.size() / 1024)).fg(Color::Yellow),
+            Cell::new(&p.encrypted()).fg(Color::DarkCyan),
+        ]);
+    }
+
+    println!("{pretty}");
 }

@@ -59,7 +59,7 @@ $ cargo binstall espflash
 
 ## Notes on Building
 
-Requires `rustc >= 1.59.0` in order to build either application from source. In addition to the Rust toolchain [libuv](https://libuv.org/) must also be present on your system; this can be installed via most popular package managers.
+Requires `rustc >= 1.60.0` in order to build either application from source. In addition to the Rust toolchain [libuv](https://libuv.org/) must also be present on your system; this can be installed via most popular package managers.
 
 #### macOS
 

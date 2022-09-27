@@ -2,10 +2,9 @@
 pub use self::cli::config::Config;
 pub use self::{
     chip::Chip,
-    error::{Error, InvalidPartitionTable, MissingPartitionTable},
+    error::{Error, MissingPartitionTable},
     flasher::{FlashFrequency, FlashMode, FlashSize, Flasher},
     image_format::ImageFormatId,
-    partition_table::PartitionTable,
 };
 
 pub mod chip;
@@ -20,7 +19,6 @@ pub mod flash_target;
 pub mod flasher;
 pub mod image_format;
 pub mod interface;
-pub mod partition_table;
 pub mod stubs;
 
 pub mod logging {

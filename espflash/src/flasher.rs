@@ -1,6 +1,7 @@
 use std::{borrow::Cow, str::FromStr, thread::sleep};
 
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
+use esp_idf_part::PartitionTable;
 use log::debug;
 use serialport::UsbPortInfo;
 use strum_macros::{Display, EnumVariantNames};
@@ -14,7 +15,7 @@ use crate::{
     image_format::ImageFormatId,
     interface::Interface,
     stubs::FlashStub,
-    Error, PartitionTable,
+    Error,
 };
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
