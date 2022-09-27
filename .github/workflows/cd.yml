@@ -84,7 +84,7 @@ jobs:
           replace: ""
 
       - name: Build dependencies ubuntu targets
-        if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch != ''
+        if: matrix.job.runs_on == 'ubuntu-latest'
         run: |
           if [[ ${{ matrix.job.arch }} == '' ]]; then
             sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
