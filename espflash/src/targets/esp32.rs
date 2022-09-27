@@ -2,14 +2,12 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::{
-    bytes_to_mac_addr, Chip, Esp32Params, Esp32Target, FlashTarget, ReadEFuse, SpiRegisters, Target,
-};
+use super::{bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
-    flasher::{FlashFrequency, FlashMode, FlashSize, SpiAttachParams},
+    flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
 };
 
@@ -147,10 +145,6 @@ impl Target for Esp32 {
         Ok(norm_xtal)
     }
 
-    fn flash_target(&self, spi_params: SpiAttachParams, use_stub: bool) -> Box<dyn FlashTarget> {
-        Box::new(Esp32Target::new(Chip::Esp32, spi_params, use_stub))
-    }
-
     fn get_flash_image<'a>(
         &self,
         image: &'a dyn FirmwareImage<'a>,
@@ -202,7 +196,7 @@ impl Target for Esp32 {
         }
     }
 
-    fn supported_targets(&self) -> &[&str] {
+    fn supported_build_targets(&self) -> &[&str] {
         &["xtensa-esp32-none-elf", "xtensa-esp32-espidf"]
     }
 }

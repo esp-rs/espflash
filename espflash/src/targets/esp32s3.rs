@@ -2,14 +2,12 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::{
-    bytes_to_mac_addr, Chip, Esp32Params, Esp32Target, FlashTarget, ReadEFuse, SpiRegisters, Target,
-};
+use super::{bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::Error,
-    flasher::{FlashFrequency, FlashMode, FlashSize, SpiAttachParams},
+    flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{Esp32BootloaderFormat, Esp32DirectBootFormat, ImageFormat, ImageFormatId},
 };
 
@@ -54,10 +52,6 @@ impl Target for Esp32s3 {
     fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
         // The ESP32-S3's XTAL has a fixed frequency of 40MHz.
         Ok(40)
-    }
-
-    fn flash_target(&self, spi_params: SpiAttachParams, use_stub: bool) -> Box<dyn FlashTarget> {
-        Box::new(Esp32Target::new(Chip::Esp32s3, spi_params, use_stub))
     }
 
     fn get_flash_image<'a>(
@@ -115,7 +109,7 @@ impl Target for Esp32s3 {
         &[ImageFormatId::Bootloader, ImageFormatId::DirectBoot]
     }
 
-    fn supported_targets(&self) -> &[&str] {
+    fn supported_build_targets(&self) -> &[&str] {
         &["xtensa-esp32s3-none-elf", "xtensa-esp32s3-espidf"]
     }
 }

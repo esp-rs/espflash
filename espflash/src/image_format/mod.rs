@@ -2,10 +2,10 @@ use std::str::FromStr;
 
 use bytemuck::{Pod, Zeroable};
 use serde::Deserialize;
-use strum_macros::{Display, EnumVariantNames, IntoStaticStr};
+use strum::{Display, EnumVariantNames, IntoStaticStr};
 
 pub use self::{esp32bootloader::*, esp32directboot::*, esp8266::*};
-use crate::{chip::Chip, elf::RomSegment, error::Error, flasher::FlashFrequency};
+use crate::{elf::RomSegment, error::Error, flasher::FlashFrequency, targets::Chip};
 
 mod esp32bootloader;
 mod esp32directboot;
@@ -92,7 +92,7 @@ impl FromStr for ImageFormatId {
 }
 
 pub(crate) fn encode_flash_frequency(chip: Chip, frequency: FlashFrequency) -> Result<u8, Error> {
-    let encodings = chip.flash_frequency_encodings();
+    let encodings = chip.into_target().flash_frequency_encodings();
     if let Some(&f) = encodings.get(&frequency) {
         Ok(f)
     } else {

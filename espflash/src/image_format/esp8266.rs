@@ -6,9 +6,9 @@ use super::encode_flash_frequency;
 use crate::{
     elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
     error::{Error, FlashDetectError},
-    flasher::FlashSize,
+    flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC},
-    Chip, FlashFrequency, FlashMode,
+    targets::Chip,
 };
 
 /// Image format for flashing to esp8266 chips

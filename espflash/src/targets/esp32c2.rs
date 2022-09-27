@@ -2,12 +2,12 @@ use std::{collections::HashMap, ops::Range};
 
 use esp_idf_part::PartitionTable;
 
-use super::{Chip, Esp32Params, Esp32Target, FlashTarget, ReadEFuse, SpiRegisters, Target};
+use super::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::Error,
-    flasher::{FlashFrequency, FlashMode, FlashSize, SpiAttachParams},
+    flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{Esp32BootloaderFormat, Esp32DirectBootFormat, ImageFormat, ImageFormatId},
 };
 
@@ -81,10 +81,6 @@ impl Target for Esp32c2 {
         HashMap::from(encodings)
     }
 
-    fn flash_target(&self, spi_params: SpiAttachParams, use_stub: bool) -> Box<dyn FlashTarget> {
-        Box::new(Esp32Target::new(Chip::Esp32c2, spi_params, use_stub))
-    }
-
     fn get_flash_image<'a>(
         &self,
         image: &'a dyn FirmwareImage<'a>,
@@ -129,7 +125,7 @@ impl Target for Esp32c2 {
         &[ImageFormatId::Bootloader, ImageFormatId::DirectBoot]
     }
 
-    fn supported_targets(&self) -> &[&str] {
+    fn supported_build_targets(&self) -> &[&str] {
         &[
             "riscv32imac-unknown-none-elf",
             "riscv32imc-esp-espidf",

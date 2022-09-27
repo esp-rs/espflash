@@ -13,8 +13,8 @@ use xmas_elf::{
 };
 
 use crate::{
-    chip::Chip,
     error::{ElfError, Error},
+    targets::Chip,
 };
 
 pub const ESP_CHECKSUM_MAGIC: u8 = 0xef;
@@ -27,14 +27,14 @@ pub trait FirmwareImage<'a> {
     fn rom_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
         Box::new(
             self.segments()
-                .filter(move |segment| chip.addr_is_flash(segment.addr)),
+                .filter(move |segment| chip.into_target().addr_is_flash(segment.addr)),
         )
     }
 
     fn ram_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
         Box::new(
             self.segments()
-                .filter(move |segment| !chip.addr_is_flash(segment.addr)),
+                .filter(move |segment| !chip.into_target().addr_is_flash(segment.addr)),
         )
     }
 }

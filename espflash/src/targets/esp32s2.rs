@@ -2,15 +2,12 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::{
-    Chip, Esp32Params, Esp32Target, FlashTarget, ReadEFuse, SpiRegisters, Target,
-    MAX_RAM_BLOCK_SIZE,
-};
+use super::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, MAX_RAM_BLOCK_SIZE};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
-    flasher::{FlashFrequency, FlashMode, FlashSize, SpiAttachParams, FLASH_WRITE_SIZE},
+    flasher::{FlashFrequency, FlashMode, FlashSize, FLASH_WRITE_SIZE},
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
 };
 
@@ -113,10 +110,6 @@ impl Target for Esp32s2 {
         Ok(40)
     }
 
-    fn flash_target(&self, spi_params: SpiAttachParams, use_stub: bool) -> Box<dyn FlashTarget> {
-        Box::new(Esp32Target::new(Chip::Esp32s2, spi_params, use_stub))
-    }
-
     fn flash_write_size(&self, connection: &mut Connection) -> Result<usize, Error> {
         Ok(if self.connection_is_usb_otg(connection)? {
             MAX_USB_BLOCK_SIZE
@@ -173,7 +166,7 @@ impl Target for Esp32s2 {
         }
     }
 
-    fn supported_targets(&self) -> &[&str] {
+    fn supported_build_targets(&self) -> &[&str] {
         &["xtensa-esp32s2-none-elf", "xtensa-esp32s2-espidf"]
     }
 }

@@ -103,6 +103,14 @@ impl Chip {
             _ => Box::new(Esp32Target::new(*self, spi_params, use_stub)),
         }
     }
+
+    pub fn ram_target(
+        &self,
+        entry: Option<u32>,
+        max_ram_block_size: usize,
+    ) -> Box<dyn FlashTarget> {
+        Box::new(RamTarget::new(entry, max_ram_block_size))
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -250,12 +258,6 @@ pub trait Target: ReadEFuse {
         HashMap::from(encodings)
     }
 
-    fn ram_target(&self, entry: Option<u32>, max_ram_block_size: usize) -> Box<dyn FlashTarget> {
-        Box::new(RamTarget::new(entry, max_ram_block_size))
-    }
-
-    fn flash_target(&self, spi_params: SpiAttachParams, use_stub: bool) -> Box<dyn FlashTarget>;
-
     fn flash_write_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
         Ok(FLASH_WRITE_SIZE)
     }
@@ -293,10 +295,10 @@ pub trait Target: ReadEFuse {
         &[ImageFormatId::Bootloader]
     }
 
-    fn supported_targets(&self) -> &[&str];
+    fn supported_build_targets(&self) -> &[&str];
 
-    fn supports_target(&self, target: &str) -> bool {
-        self.supported_targets().contains(&target)
+    fn supports_build_target(&self, target: &str) -> bool {
+        self.supported_build_targets().contains(&target)
     }
 }
 

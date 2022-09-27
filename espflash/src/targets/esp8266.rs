@@ -2,12 +2,12 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::{bytes_to_mac_addr, Chip, Esp8266Target, FlashTarget, ReadEFuse, SpiRegisters, Target};
+use super::{bytes_to_mac_addr, Chip, ReadEFuse, SpiRegisters, Target};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
-    flasher::{FlashFrequency, FlashMode, FlashSize, SpiAttachParams},
+    flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{Esp8266Format, ImageFormat, ImageFormatId},
 };
 
@@ -51,10 +51,6 @@ impl Target for Esp8266 {
         let norm_xtal = if est_xtal > 33 { 40 } else { 26 };
 
         Ok(norm_xtal)
-    }
-
-    fn flash_target(&self, _spi_params: SpiAttachParams, _use_stub: bool) -> Box<dyn FlashTarget> {
-        Box::new(Esp8266Target::new())
     }
 
     fn get_flash_image<'a>(
@@ -116,7 +112,7 @@ impl Target for Esp8266 {
         }
     }
 
-    fn supported_targets(&self) -> &[&str] {
+    fn supported_build_targets(&self) -> &[&str] {
         &["xtensa-esp8266-none-elf"]
     }
 }

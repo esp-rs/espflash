@@ -13,7 +13,7 @@ use crate::{
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::ImageFormatId,
     interface::SerialConfigError,
-    Chip,
+    targets::Chip,
 };
 
 #[derive(Error, Debug, Diagnostic)]
@@ -450,6 +450,7 @@ impl UnsupportedImageFormatError {
 
     fn supported_formats(&self) -> String {
         self.chip
+            .into_target()
             .supported_image_formats()
             .iter()
             .map(|format| format.into())

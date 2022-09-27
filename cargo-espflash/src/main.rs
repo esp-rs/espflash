@@ -9,14 +9,14 @@ use cargo_metadata::Message;
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image,
-        serial_monitor, ConnectArgs, FlashArgs as BaseFlashArgs, FlashConfigArgs,
-        PartitionTableArgs, SaveImageArgs as BaseSaveImageArgs,
+        board_info, config::Config, connect, flash_elf_image, monitor::monitor, partition_table,
+        save_elf_as_image, serial_monitor, ConnectArgs, FlashArgs as BaseFlashArgs,
+        FlashConfigArgs, PartitionTableArgs, SaveImageArgs as BaseSaveImageArgs,
     },
-    image_format::ImageFormatType,
+    image_format::{ImageFormatId, ImageFormatType},
     logging::initialize_logger,
+    targets::Chip,
     update::check_for_update,
-    Chip, Config, ImageFormatId,
 };
 use log::{debug, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};
@@ -244,7 +244,7 @@ fn build(
         .or_else(|| cargo_config.target())
         .ok_or_else(|| NoTargetError::new(Some(chip)))?;
 
-    if !chip.supports_target(target) {
+    if !chip.into_target().supports_build_target(target) {
         return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
     }
 
