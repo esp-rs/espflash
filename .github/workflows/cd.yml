@@ -64,6 +64,13 @@ jobs:
             extension: .exe
 
     steps:
+      - name: Change apt mirror and install dependencies
+        if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch == ''
+        run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install musl-tools libudev-dev
+
       - uses: actions/checkout@v2
 
       - uses: actions-rs/toolchain@v1
@@ -83,7 +90,7 @@ jobs:
           find: "unknown-"
           replace: ""
 
-      - name: Build dependencies for armv7 and armv8
+      - name: build dependencies
         if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch != ''
         run: |
           sudo sed -i 's/azure\.//' /etc/apt/sources.list
@@ -97,21 +104,18 @@ jobs:
           echo "PKG_CONFIG_DIR=/opt/" >> $GITHUB_ENV
           echo "PKG_CONFIG_LIBDIR=/opt/usr/lib/pkgconfig:/opt/usr/share/pkgconfig" >> $GITHUB_ENV
           echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-          if [[ ${{ matrix.job.arch }} == arm64 ]]; then
-            echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
-            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
-          fi
-          if [[ ${{ matrix.job.arch }} == armhf ]]; then
-            echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
-            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
-          fi
 
-      - name: Build dependencies for other ubuntu targets
-        if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch == ''
+      - name: Is armv8?
+        if: ${{ matrix.job.arch == 'arm64' }}
         run: |
-          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
-          sudo apt-get update
-          sudo apt-get install musl-tools libudev-dev
+          echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
+
+      - name: Is armv7?
+        if: ${{ matrix.job.arch == 'armhf' }}
+        run: |
+          echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig" >> $GITHUB_ENV
+          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
 
       - uses: actions-rs/cargo@v1
         if: ${{ matrix.job.arch == '' }}
