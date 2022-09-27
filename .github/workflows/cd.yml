@@ -14,10 +14,11 @@ env:
 
 jobs:
   publish-release:
-    name: Publishing for ${{ matrix.job.target }}
+    name: Publishing ${{ matrix.job.target }} for ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.runs_on }}
 
     strategy:
+      fail-fast: false
       matrix:
         crate: ["espflash", "cargo-espflash"]
         job:
