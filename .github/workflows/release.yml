@@ -113,11 +113,16 @@ jobs:
           command: build
           args: --release --all --target ${{ matrix.job.target }} --features=raspberry
 
-      - name: Update permissions
-        run: chmod 755 target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }}
+      # - name: Update permissions
+      #   run: chmod 755 target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }}
 
-      - name: Compress
+      - name: Compress (Unix)
+        if: ${{ matrix.job.runs_on != 'windows-latest' }}
         run: zip -j ${{ matrix.crate }}-${{ matrix.job.target }}.zip target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }}
+
+      - name: Compress (Windows)
+        if: ${{ matrix.job.runs_on == 'windows-latest' }}
+        run: Compress-Archive target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }} ${{ matrix.crate }}-${{ matrix.job.target }}.zip
 
       - uses: svenstaro/upload-release-action@v2
         with:
