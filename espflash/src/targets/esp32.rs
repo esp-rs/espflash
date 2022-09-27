@@ -2,49 +2,64 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::Esp32Params;
+use super::{
+    bytes_to_mac_addr, Chip, Esp32Params, Esp32Target, FlashTarget, ReadEFuse, SpiRegisters, Target,
+};
 use crate::{
-    chip::{bytes_to_mac_addr, Chip, ChipType, ReadEFuse, SpiRegisters},
     connection::Connection,
     elf::FirmwareImage,
-    error::UnsupportedImageFormatError,
-    flasher::{FlashFrequency, FlashMode, FlashSize},
+    error::{Error, UnsupportedImageFormatError},
+    flasher::{FlashFrequency, FlashMode, FlashSize, SpiAttachParams},
     image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
-    Error,
 };
+
+const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x00f0_1d83];
+
+const FLASH_RANGES: &[Range<u32>] = &[
+    0x400d_0000..0x4040_0000, // IROM
+    0x3f40_0000..0x3f80_0000, // DROM
+];
+
+const PARAMS: Esp32Params = Esp32Params::new(
+    0x1000,
+    0x1_0000,
+    0x3f_0000,
+    0,
+    include_bytes!("../../resources/bootloaders/esp32-bootloader.bin"),
+);
+
+const UART_CLKDIV_REG: u32 = 0x3ff4_0014;
+const UART_CLKDIV_MASK: u32 = 0xfffff;
+
+const XTAL_CLK_DIVIDER: u32 = 1;
 
 pub struct Esp32;
 
-pub const PARAMS: Esp32Params = Esp32Params::new(
-    0x1000,
-    0x10000,
-    0x3f0000,
-    0,
-    include_bytes!("../../../resources/bootloaders/esp32-bootloader.bin"),
-);
+impl Esp32 {
+    pub fn has_magic_value(value: u32) -> bool {
+        CHIP_DETECT_MAGIC_VALUES.contains(&value)
+    }
 
-impl ChipType for Esp32 {
-    const CHIP_DETECT_MAGIC_VALUES: &'static [u32] = &[0x00f01d83];
+    fn package_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let word3 = self.read_efuse(connection, 3)?;
 
-    const UART_CLKDIV_REG: u32 = 0x3ff40014;
+        let pkg_version = (word3 >> 9) & 0x7;
+        let pkg_version = pkg_version + (((word3 >> 2) & 0x1) << 3);
 
-    const SPI_REGISTERS: SpiRegisters = SpiRegisters {
-        base: 0x3ff42000,
-        usr_offset: 0x1c,
-        usr1_offset: 0x20,
-        usr2_offset: 0x24,
-        w0_offset: 0x80,
-        mosi_length_offset: Some(0x28),
-        miso_length_offset: Some(0x2c),
-    };
+        Ok(pkg_version)
+    }
+}
 
-    const FLASH_RANGES: &'static [Range<u32>] = &[
-        0x400d0000..0x40400000, // IROM
-        0x3F400000..0x3F800000, // DROM
-    ];
+impl ReadEFuse for Esp32 {
+    fn efuse_reg(&self) -> u32 {
+        0x3ff5_a000
+    }
+}
 
-    const SUPPORTED_TARGETS: &'static [&'static str] =
-        &["xtensa-esp32-none-elf", "xtensa-esp32-espidf"];
+impl Target for Esp32 {
+    fn addr_is_flash(&self, addr: u32) -> bool {
+        FLASH_RANGES.iter().any(|range| range.contains(&addr))
+    }
 
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
         let word3 = self.read_efuse(connection, 3)?;
@@ -104,16 +119,51 @@ impl ChipType for Esp32 {
         Ok(features)
     }
 
-    fn get_flash_segments<'a>(
+    fn chip_revision(&self, connection: &mut Connection) -> Result<Option<u32>, Error> {
+        let word3 = self.read_efuse(connection, 3)?;
+        let word5 = self.read_efuse(connection, 5)?;
+
+        let apb_ctrl_date = connection.read_reg(0x3ff6_607c)?;
+
+        let rev_bit0 = (word3 >> 15) & 0x1 != 0;
+        let rev_bit1 = (word5 >> 20) & 0x1 != 0;
+        let rev_bit2 = (apb_ctrl_date >> 31) & 0x1 != 0;
+
+        let revision = match (rev_bit0, rev_bit1, rev_bit2) {
+            (true, true, true) => 3,
+            (true, true, false) => 2,
+            (true, false, _) => 1,
+            (false, _, _) => 0,
+        };
+
+        Ok(Some(revision))
+    }
+
+    fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
+        let est_xtal = (connection.get_baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
+        let norm_xtal = if est_xtal > 33 { 40 } else { 26 };
+
+        Ok(norm_xtal)
+    }
+
+    fn flash_target(&self, spi_params: SpiAttachParams, use_stub: bool) -> Box<dyn FlashTarget> {
+        Box::new(Esp32Target::new(Chip::Esp32, spi_params, use_stub))
+    }
+
+    fn get_flash_image<'a>(
+        &self,
         image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-        image_format: ImageFormatId,
+        image_format: Option<ImageFormatId>,
         _chip_revision: Option<u32>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
+        let image_format = image_format.unwrap_or(ImageFormatId::Bootloader);
+
         match image_format {
             ImageFormatId::Bootloader => Ok(Box::new(Esp32BootloaderFormat::new(
                 image,
@@ -139,61 +189,20 @@ impl ChipType for Esp32 {
 
         Ok(bytes_to_mac_addr(bytes))
     }
-}
 
-impl ReadEFuse for Esp32 {
-    const EFUSE_REG_BASE: u32 = 0x3ff5a000;
-}
-
-impl Esp32 {
-    pub fn chip_revision(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let word3 = self.read_efuse(connection, 3)?;
-        let word5 = self.read_efuse(connection, 5)?;
-
-        let apb_ctrl_date = connection.read_reg(0x3FF6607C)?;
-
-        let rev_bit0 = (word3 >> 15) & 0x1 != 0;
-        let rev_bit1 = (word5 >> 20) & 0x1 != 0;
-        let rev_bit2 = (apb_ctrl_date >> 31) & 0x1 != 0;
-
-        let revision = match (rev_bit0, rev_bit1, rev_bit2) {
-            (true, true, true) => 3,
-            (true, true, false) => 2,
-            (true, false, _) => 1,
-            (false, _, _) => 0,
-        };
-
-        Ok(revision)
+    fn spi_registers(&self) -> SpiRegisters {
+        SpiRegisters {
+            base: 0x3ff4_2000,
+            usr_offset: 0x1c,
+            usr1_offset: 0x20,
+            usr2_offset: 0x24,
+            w0_offset: 0x80,
+            mosi_length_offset: Some(0x28),
+            miso_length_offset: Some(0x2c),
+        }
     }
 
-    fn package_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let word3 = self.read_efuse(connection, 3)?;
-
-        let pkg_version = (word3 >> 9) & 0x7;
-        let pkg_version = pkg_version + (((word3 >> 2) & 0x1) << 3);
-
-        Ok(pkg_version)
+    fn supported_targets(&self) -> &[&str] {
+        &["xtensa-esp32-none-elf", "xtensa-esp32-espidf"]
     }
-}
-
-#[test]
-fn test_esp32_rom() {
-    use std::fs::read;
-
-    use crate::elf::ElfFirmwareImage;
-
-    let input_bytes = read("./tests/data/esp32").unwrap();
-    let expected_bin = read("./tests/data/esp32.bin").unwrap();
-
-    let image = ElfFirmwareImage::try_from(input_bytes.as_slice()).unwrap();
-    let flash_image =
-        Esp32BootloaderFormat::new(&image, Chip::Esp32, PARAMS, None, None, None, None, None)
-            .unwrap();
-
-    let segments = flash_image.flash_segments().collect::<Vec<_>>();
-
-    assert_eq!(3, segments.len());
-    let buff = segments[2].data.as_ref();
-    assert_eq!(expected_bin.len(), buff.len());
-    assert_eq!(&expected_bin.as_slice(), &buff);
 }

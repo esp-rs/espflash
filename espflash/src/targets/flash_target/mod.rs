@@ -1,17 +1,12 @@
+use bytemuck::{Pod, Zeroable};
+
+pub(crate) use self::ram::MAX_RAM_BLOCK_SIZE;
+pub use self::{esp32::Esp32Target, esp8266::Esp8266Target, ram::RamTarget};
+use crate::{connection::Connection, elf::RomSegment, error::Error};
+
 mod esp32;
 mod esp8266;
 mod ram;
-
-use crate::connection::Connection;
-use crate::elf::RomSegment;
-use crate::error::Error;
-
-use bytemuck::{Pod, Zeroable};
-pub use esp32::Esp32Target;
-pub use esp8266::Esp8266Target;
-pub use ram::RamTarget;
-
-pub(crate) use ram::MAX_RAM_BLOCK_SIZE;
 
 pub trait FlashTarget {
     fn begin(&mut self, connection: &mut Connection) -> Result<(), Error>;

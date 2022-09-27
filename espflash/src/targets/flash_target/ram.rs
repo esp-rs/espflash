@@ -1,9 +1,12 @@
-use crate::command::{Command, CommandType};
-use crate::connection::Connection;
-use crate::elf::RomSegment;
-use crate::error::Error;
-use crate::flash_target::FlashTarget;
 use bytemuck::{Pod, Zeroable};
+
+use super::FlashTarget;
+use crate::{
+    command::{Command, CommandType},
+    connection::Connection,
+    elf::RomSegment,
+    error::Error,
+};
 
 pub(crate) const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 

@@ -1,14 +1,20 @@
-use crate::command::{Command, CommandType};
-use crate::connection::{Connection, USB_SERIAL_JTAG_PID};
-use crate::elf::RomSegment;
-use crate::error::Error;
-use crate::flash_target::FlashTarget;
-use crate::flasher::{SpiAttachParams, FLASH_SECTOR_SIZE};
-use crate::Chip;
-use flate2::write::{ZlibDecoder, ZlibEncoder};
-use flate2::Compression;
-use indicatif::{ProgressBar, ProgressStyle};
 use std::io::Write;
+
+use flate2::{
+    write::{ZlibDecoder, ZlibEncoder},
+    Compression,
+};
+use indicatif::{ProgressBar, ProgressStyle};
+
+use super::FlashTarget;
+use crate::{
+    command::{Command, CommandType},
+    connection::{Connection, USB_SERIAL_JTAG_PID},
+    elf::RomSegment,
+    error::Error,
+    flasher::{SpiAttachParams, FLASH_SECTOR_SIZE},
+    targets::Chip,
+};
 
 pub struct Esp32Target {
     chip: Chip,
@@ -40,8 +46,8 @@ impl FlashTarget for Esp32Target {
             })
         })?;
 
-        // TODO remove this when we use the stub, the stub should be taking care of this.
-        // TODO do we also need to disable rtc super wdt?
+        // TODO remove this when we use the stub, the stub should be taking care of
+        // this. TODO do we also need to disable rtc super wdt?
         if connection.get_usb_pid()? == USB_SERIAL_JTAG_PID {
             match self.chip {
                 Chip::Esp32c3 => {
@@ -91,10 +97,13 @@ impl FlashTarget for Esp32Target {
         segment: RomSegment,
     ) -> Result<(), Error> {
         let addr = segment.addr;
+
         let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
         encoder.write_all(&segment.data)?;
         let compressed = encoder.finish()?;
-        let flash_write_size = self.chip.flash_write_size(connection)?;
+
+        let target = self.chip.into_target();
+        let flash_write_size = target.flash_write_size(connection)?;
         let block_count = (compressed.len() + flash_write_size - 1) / flash_write_size;
         let erase_count = (segment.data.len() + FLASH_SECTOR_SIZE - 1) / FLASH_SECTOR_SIZE;
 

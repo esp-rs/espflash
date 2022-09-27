@@ -1,10 +1,13 @@
-use crate::command::{Command, CommandType};
-use crate::connection::Connection;
-use crate::elf::RomSegment;
-use crate::error::Error;
-use crate::flash_target::FlashTarget;
-use crate::flasher::{get_erase_size, FLASH_WRITE_SIZE};
 use indicatif::{ProgressBar, ProgressStyle};
+
+use super::FlashTarget;
+use crate::{
+    command::{Command, CommandType},
+    connection::Connection,
+    elf::RomSegment,
+    error::Error,
+    flasher::{get_erase_size, FLASH_WRITE_SIZE},
+};
 
 pub struct Esp8266Target;
 
