@@ -107,7 +107,7 @@ jobs:
           fi
 
       - name: Build dependencies for other ubuntu targets
-        if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch != ''
+        if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch == ''
         run: |
           sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
           sudo apt-get update
