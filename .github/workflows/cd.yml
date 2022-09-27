@@ -1,0 +1,145 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+env:
+  CARGO_TERM_COLOR: always
+  PKG_CONFIG_ALLOW_SYSTEM_LIBS: 0
+  # Enable cross compilation for `pkg_config`.
+  PKG_CONFIG_DIR: /opt/
+  PKG_CONFIG_LIBDIR: /opt/usr/lib/pkgconfig:/opt/usr/share/pkgconfig
+  PKG_CONFIG_ALLOW_CROSS: 1
+
+jobs:
+  publish-release:
+    name: Publishing for ${{ matrix.job.os }}
+    runs-on: ${{ matrix.job.os }}
+
+    strategy:
+      matrix:
+        crate: ["espflash", "cargo-espflash"]
+        job:
+          # Linux
+
+          - runs_on: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+            arch: armhf
+            extension: ""
+
+          - runs_on: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            arch: arm64
+            extension: ""
+
+          - runs_on: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            arch: ""
+            extension: ""
+
+          - runs_on: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            arch: ""
+            extension: ""
+
+          # macOS
+
+          - runs_on: macos-latest
+            target: aarch64-apple-darwin
+            arch: ""
+            extension: ""
+
+          - runs_on: macos-latest
+            target: x86_64-apple-darwin
+            arch: ""
+            extension: ""
+
+          # Windows
+
+          - runs_on: windows-latest
+            target: x86_64-pc-windows-gnu
+            arch: ""
+            extension: .exe
+
+          - runs_on: windows-latest
+            target: x86_64-pc-windows-msvc
+            arch: ""
+            extension: .exe
+
+    steps:
+      - name: Change apt mirror and install dependencies
+        if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch == ''
+        run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install musl-tools libudev-dev
+
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.job.target }}
+          override: true
+
+      - uses: Swatinem/rust-cache@v1
+
+      - name: Replace target string
+        if: matrix.job.arch != ''
+        uses: mad9000/actions-find-and-replace-string@1
+        id: findandreplace
+        with:
+          source: ${{ matrix.job.target }}
+          find: "unknown-"
+          replace: ""
+
+      - name: build dependencies
+        if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch != ''
+        run: |
+          sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo apt-get update
+          echo "deb [arch=${{ matrix.job.arch }}] http://ports.ubuntu.com/ubuntu-ports focal main universe" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{ matrix.job.arch }}] http://ports.ubuntu.com/ubuntu-ports focal-updates main universe" | sudo tee -a /etc/apt/sources.list
+          sudo apt update
+          sudo dpkg --add-architecture ${{ matrix.job.arch }}
+          sudo apt-get install -y curl git libudev-dev musl-tools pkg-config "libudev1:${{ matrix.job.arch }}" "libgcc-s1:${{ matrix.job.arch }}" "libc6:${{ matrix.job.arch }}" "libudev-dev:${{ matrix.job.arch }}" gcc-arm-linux-gnueabihf pkg-config-arm-linux-gnueabihf gcc-aarch64-linux-gnu pkg-config-aarch64-linux-gnu
+
+      - name: Is armv8?
+        if: ${{ matrix.job.arch == 'arm64' }}
+        run: |
+          echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
+
+      - name: Is armv7?
+        if: ${{ matrix.job.arch == 'armhf' }}
+        run: |
+          echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig" >> $GITHUB_ENV
+          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+
+      - uses: actions-rs/cargo@v1
+        if: ${{ matrix.job.arch == '' }}
+        with:
+          command: build
+          args: --release --all --target ${{ matrix.job.target }}
+
+      - uses: actions-rs/cargo@v1
+        if: ${{ matrix.job.arch != '' }}
+        with:
+          command: build
+          args: --release --all --target ${{ matrix.job.target }} --features=raspberry
+
+      - name: Update permissions
+        run: chmod +x target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }}
+
+      - uses: papeloto/action-zip@v1
+        with:
+          files: target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }}
+          recursive: true
+          dest: ${{ matrix.crate }}-${{ matrix.job.target }}.zip
+
+      - uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ matrix.crate }}-${{ matrix.job.target }}.zip
+          tag: ${{ github.ref }}
