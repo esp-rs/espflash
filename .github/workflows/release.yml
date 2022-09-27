@@ -114,7 +114,7 @@ jobs:
           args: --release --all --target ${{ matrix.job.target }} --features=raspberry
 
       - name: Update permissions
-        run: chmod a+x target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }}
+        run: chmod 755 target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }}
 
       - uses: papeloto/action-zip@v1
         with:
