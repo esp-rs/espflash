@@ -116,11 +116,8 @@ jobs:
       - name: Update permissions
         run: chmod 755 target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }}
 
-      - uses: papeloto/action-zip@v1
-        with:
-          files: target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }}
-          recursive: true
-          dest: ${{ matrix.crate }}-${{ matrix.job.target }}.zip
+      - name: Compress
+        run: zip -j ${{ matrix.crate }}-${{ matrix.job.target }}.zip target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }}
 
       - uses: svenstaro/upload-release-action@v2
         with:
