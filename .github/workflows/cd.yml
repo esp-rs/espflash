@@ -64,12 +64,34 @@ jobs:
             extension: .exe
 
     steps:
-      - name: Change apt mirror and install dependencies
-        if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch == ''
+      - name: Build dependencies and set environment
+        if: matrix.job.runs_on == 'ubuntu-latest'
         run: |
-          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
-          sudo apt-get update
-          sudo apt-get install musl-tools libudev-dev
+          if [[ -n "${{ matrix.job.arch }}" ]]; then
+            sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+            sudo apt-get update
+            sudo apt-get install musl-tools libudev-dev
+          else
+            sudo sed -i 's/azure\.//' /etc/apt/sources.list
+            sudo apt-get update
+            echo "deb [arch=${{ matrix.job.arch }}] http://ports.ubuntu.com/ubuntu-ports focal main universe" | sudo tee -a /etc/apt/sources.list
+            echo "deb [arch=${{ matrix.job.arch }}] http://ports.ubuntu.com/ubuntu-ports focal-updates main universe" | sudo tee -a /etc/apt/sources.list
+            sudo apt update
+            sudo dpkg --add-architecture ${{ matrix.job.arch }}
+            sudo apt-get install -y curl git libudev-dev musl-tools pkg-config "libudev1:${{ matrix.job.arch }}" "libgcc-s1:${{ matrix.job.arch }}" "libc6:${{ matrix.job.arch }}" "libudev-dev:${{ matrix.job.arch }}" gcc-arm-linux-gnueabihf pkg-config-arm-linux-gnueabihf gcc-aarch64-linux-gnu pkg-config-aarch64-linux-gnu
+            echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=0" >> $GITHUB_ENV
+            echo "PKG_CONFIG_DIR=/opt/" >> $GITHUB_ENV
+            echo "PKG_CONFIG_LIBDIR=/opt/usr/lib/pkgconfig:/opt/usr/share/pkgconfig" >> $GITHUB_ENV
+            echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+            if [[ ${{ matrix.job.arch }} == arm64 ]]; then
+              echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
+              echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
+            fi
+            if [[ ${{ matrix.job.arch }} == armhf ]]; then
+              echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
+              echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
+            fi
+          fi
 
       - uses: actions/checkout@v2
 
@@ -89,33 +111,6 @@ jobs:
           source: ${{ matrix.job.target }}
           find: "unknown-"
           replace: ""
-
-      - name: build dependencies
-        if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch != ''
-        run: |
-          sudo sed -i 's/azure\.//' /etc/apt/sources.list
-          sudo apt-get update
-          echo "deb [arch=${{ matrix.job.arch }}] http://ports.ubuntu.com/ubuntu-ports focal main universe" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=${{ matrix.job.arch }}] http://ports.ubuntu.com/ubuntu-ports focal-updates main universe" | sudo tee -a /etc/apt/sources.list
-          sudo apt update
-          sudo dpkg --add-architecture ${{ matrix.job.arch }}
-          sudo apt-get install -y curl git libudev-dev musl-tools pkg-config "libudev1:${{ matrix.job.arch }}" "libgcc-s1:${{ matrix.job.arch }}" "libc6:${{ matrix.job.arch }}" "libudev-dev:${{ matrix.job.arch }}" gcc-arm-linux-gnueabihf pkg-config-arm-linux-gnueabihf gcc-aarch64-linux-gnu pkg-config-aarch64-linux-gnu
-          echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=0" >> $GITHUB_ENV
-          echo "PKG_CONFIG_DIR=/opt/" >> $GITHUB_ENV
-          echo "PKG_CONFIG_LIBDIR=/opt/usr/lib/pkgconfig:/opt/usr/share/pkgconfig" >> $GITHUB_ENV
-          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-
-      - name: Is armv8?
-        if: ${{ matrix.job.arch == 'arm64' }}
-        run: |
-          echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
-
-      - name: Is armv7?
-        if: ${{ matrix.job.arch == 'armhf' }}
-        run: |
-          echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig" >> $GITHUB_ENV
-          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
 
       - uses: actions-rs/cargo@v1
         if: ${{ matrix.job.arch == '' }}
