@@ -14,8 +14,8 @@ env:
 
 jobs:
   publish-release:
-    name: Publishing for ${{ matrix.job.os }}
-    runs-on: ${{ matrix.job.os }}
+    name: Publishing for ${{ matrix.job.target }}
+    runs-on: ${{ matrix.job.runs_on }}
 
     strategy:
       matrix:
