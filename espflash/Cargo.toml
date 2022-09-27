@@ -8,7 +8,7 @@ authors = [
 edition = "2021"
 rust-version = "1.60"
 description = "A command-line tool for flashing Espressif devices over serial"
-repository = "https://github.com/esp-rs/espflash"
+repository = "https://github.com/SergioGasquez/espflash"
 license = "MIT OR Apache-2.0"
 keywords = [
     "cli",
