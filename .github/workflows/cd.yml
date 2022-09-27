@@ -64,6 +64,16 @@ jobs:
             extension: .exe
 
     steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.job.target }}
+          override: true
+
+      - uses: Swatinem/rust-cache@v1
+
       - name: Build dependencies for armv7 and armv8
         if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch != ''
         run: |
@@ -93,16 +103,6 @@ jobs:
           sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
           sudo apt-get update
           sudo apt-get install musl-tools libudev-dev
-
-      - uses: actions/checkout@v2
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.job.target }}
-          override: true
-
-      - uses: Swatinem/rust-cache@v1
 
       - name: Replace target string
         if: matrix.job.arch != ''
