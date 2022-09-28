@@ -13,13 +13,11 @@ pub mod cli;
 pub mod command;
 pub mod connection;
 pub mod elf;
-pub mod encoder;
 pub mod error;
 pub mod flash_target;
 pub mod flasher;
 pub mod image_format;
 pub mod interface;
-pub mod stubs;
 
 pub mod logging {
     use env_logger::Env;
