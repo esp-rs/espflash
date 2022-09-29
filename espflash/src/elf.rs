@@ -244,29 +244,3 @@ impl<'a> From<CodeSegment<'a>> for RomSegment<'a> {
         }
     }
 }
-
-pub fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
-    for byte in data {
-        checksum ^= *byte;
-    }
-
-    checksum
-}
-
-pub fn merge_adjacent_segments(mut segments: Vec<CodeSegment>) -> Vec<CodeSegment> {
-    segments.sort();
-
-    let mut merged: Vec<CodeSegment> = Vec::with_capacity(segments.len());
-    for segment in segments {
-        match merged.last_mut() {
-            Some(last) if last.addr + last.size() == segment.addr => {
-                *last += segment.data();
-            }
-            _ => {
-                merged.push(segment);
-            }
-        }
-    }
-
-    merged
-}

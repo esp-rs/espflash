@@ -2,16 +2,17 @@ use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
 
 use bytemuck::bytes_of;
 
-use super::encode_flash_frequency;
+use super::{
+    encode_flash_frequency, update_checksum, EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC,
+};
 use crate::{
-    elf::{update_checksum, CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
+    elf::{CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
     error::{Error, FlashDetectError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
-    image_format::{EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC},
     targets::Chip,
 };
 
-/// Image format for flashing to esp8266 chips
+/// Image format for flashing to the ESP8266
 pub struct Esp8266Format<'a> {
     irom_data: Option<RomSegment<'a>>,
     flash_segment: RomSegment<'a>,
@@ -35,15 +36,18 @@ impl<'a> Esp8266Format<'a> {
         );
 
         // Common header
-        let flash_size = flash_size.unwrap_or(FlashSize::Flash4Mb);
+        let flash_mode = flash_mode.unwrap_or(FlashMode::Dio) as u8;
         let flash_freq = flash_freq.unwrap_or(FlashFrequency::Flash40M);
+        let flash_size = flash_size.unwrap_or(FlashSize::Flash4Mb);
+        let flash_config =
+            encode_flash_size(flash_size)? + encode_flash_frequency(Chip::Esp8266, flash_freq)?;
+        let segment_count = image.ram_segments(Chip::Esp8266).count() as u8;
 
         let header = EspCommonHeader {
             magic: ESP_MAGIC,
-            segment_count: image.ram_segments(Chip::Esp8266).count() as u8,
-            flash_mode: flash_mode.unwrap_or(FlashMode::Dio) as u8,
-            flash_config: encode_flash_size(flash_size)?
-                + encode_flash_frequency(Chip::Esp8266, flash_freq)?,
+            segment_count,
+            flash_mode,
+            flash_config,
             entry: image.entry(),
         };
         common_data.write_all(bytes_of(&header))?;
@@ -54,21 +58,26 @@ impl<'a> Esp8266Format<'a> {
         for segment in image.ram_segments(Chip::Esp8266) {
             let data = segment.data();
             let padding = 4 - data.len() % 4;
+
             let segment_header = SegmentHeader {
                 addr: segment.addr,
                 length: (data.len() + padding) as u32,
             };
+
             total_len += size_of::<SegmentHeader>() as u32 + segment_header.length;
+
             common_data.write_all(bytes_of(&segment_header))?;
             common_data.write_all(data)?;
 
             let padding = &[0u8; 4][0..padding];
             common_data.write_all(padding)?;
+
             checksum = update_checksum(data, checksum);
         }
 
         let padding = 15 - (total_len % 16);
         let padding = &[0u8; 16][0..padding as usize];
+
         common_data.write_all(padding)?;
         common_data.write_all(&[checksum])?;
 
@@ -113,7 +122,7 @@ impl<'a> ImageFormat<'a> for Esp8266Format<'a> {
 fn merge_rom_segments<'a>(
     mut segments: impl Iterator<Item = CodeSegment<'a>>,
 ) -> Option<RomSegment<'a>> {
-    const IROM_MAP_START: u32 = 0x40200000;
+    const IROM_MAP_START: u32 = 0x4020_0000;
 
     let first = segments.next()?;
     let data = if let Some(second) = segments.next() {
