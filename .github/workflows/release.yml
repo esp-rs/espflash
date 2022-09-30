@@ -4,14 +4,10 @@ on:
   release:
     types: [created]
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
   publish-release:
     name: Publishing ${{ matrix.crate }} for ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.runs_on }}
-
     strategy:
       fail-fast: false
       matrix:
@@ -50,79 +46,5 @@ jobs:
           - runs_on: windows-latest
             target: x86_64-pc-windows-msvc
             extension: .exe
-
     steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.job.target }}
-          override: true
-
-      - uses: Swatinem/rust-cache@v1
-
-      - name: Replace target string
-        if: matrix.job.arch != ''
-        uses: mad9000/actions-find-and-replace-string@1
-        id: findandreplace
-        with:
-          source: ${{ matrix.job.target }}
-          find: "unknown-"
-          replace: ""
-
-      - name: Build dependencies raspberry targets and set environment
-        if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch != ''
-        run: |
-          sudo sed -i 's/azure\.//' /etc/apt/sources.list
-          sudo apt-get update
-          echo "deb [arch=${{ matrix.job.arch }}] http://ports.ubuntu.com/ubuntu-ports focal main universe" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=${{ matrix.job.arch }}] http://ports.ubuntu.com/ubuntu-ports focal-updates main universe" | sudo tee -a /etc/apt/sources.list
-          sudo apt update
-          sudo dpkg --add-architecture ${{ matrix.job.arch }}
-          sudo apt-get install -y curl git libudev-dev musl-tools pkg-config "libudev1:${{ matrix.job.arch }}" "libgcc-s1:${{ matrix.job.arch }}" "libc6:${{ matrix.job.arch }}" "libudev-dev:${{ matrix.job.arch }}" gcc-arm-linux-gnueabihf pkg-config-arm-linux-gnueabihf gcc-aarch64-linux-gnu pkg-config-aarch64-linux-gnu
-          echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=0" >> $GITHUB_ENV
-          echo "PKG_CONFIG_DIR=/opt/" >> $GITHUB_ENV
-          echo "PKG_CONFIG_LIBDIR=/opt/usr/lib/pkgconfig:/opt/usr/share/pkgconfig" >> $GITHUB_ENV
-          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-          if [[ ${{ matrix.job.arch }} == arm64 ]]; then
-            echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
-            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
-          fi
-          if [[ ${{ matrix.job.arch }} == armhf ]]; then
-            echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig" >> $GITHUB_ENV
-            echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
-          fi
-
-      - name: Build dependencies for other ubuntu targets
-        if: matrix.job.runs_on == 'ubuntu-latest' && matrix.job.arch == ''
-        run: |
-          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
-          sudo apt-get update
-          sudo apt-get install musl-tools libudev-dev
-
-      - uses: actions-rs/cargo@v1
-        if: ${{ matrix.job.arch == '' }}
-        with:
-          command: build
-          args: --release --all --target ${{ matrix.job.target }}
-
-      - uses: actions-rs/cargo@v1
-        if: ${{ matrix.job.arch != '' }}
-        with:
-          command: build
-          args: --release --all --target ${{ matrix.job.target }} --features=raspberry
-
-      - name: Compress (Unix)
-        if: ${{ matrix.job.runs_on != 'windows-latest' }}
-        run: zip -j ${{ matrix.crate }}-${{ matrix.job.target }}.zip target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }}
-
-      - name: Compress (Windows)
-        if: ${{ matrix.job.runs_on == 'windows-latest' }}
-        run: Compress-Archive target/${{ matrix.job.target }}/release/${{ matrix.crate }}${{ matrix.job.extension }} ${{ matrix.crate }}-${{ matrix.job.target }}.zip
-
-      - uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ matrix.crate }}-${{ matrix.job.target }}.zip
-          tag: ${{ github.ref }}
+      - uses: ./.github/workflows/package.yml
