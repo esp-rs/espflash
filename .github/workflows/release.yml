@@ -5,46 +5,60 @@ on:
     types: [created]
 
 jobs:
-  publish-release:
-    name: Publishing ${{ matrix.crate }} for ${{ matrix.job.target }}
-    runs-on: ${{ matrix.job.runs_on }}
-    strategy:
-      fail-fast: false
-      matrix:
-        crate: ["espflash", "cargo-espflash"]
-        job:
-          # Linux
+  # Linux
 
-          - runs_on: ubuntu-latest
-            target: armv7-unknown-linux-gnueabihf
-            arch: armhf
+  armv7-unknown-linux-gnueabihf:
+    uses: ./.github/workflows/package.yml
+    with:
+      runs_on: ubuntu-latest
+      target: armv7-unknown-linux-gnueabihf
+      arch: armhf
 
-          - runs_on: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            arch: arm64
+  aarch64-unknown-linux-gnu:
+    uses: ./.github/workflows/package.yml
+    with:
+      runs_on: ubuntu-latest
+      target: aarch64-unknown-linux-gnu
+      arch: arm64
 
-          - runs_on: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
+  x86_64-unknown-linux-gnu:
+    uses: ./.github/workflows/package.yml
+    with:
+      runs_on: ubuntu-latest
+      target: x86_64-unknown-linux-gnu
 
-          - runs_on: ubuntu-latest
-            target: x86_64-unknown-linux-musl
+  x86_64-unknown-linux-musl:
+    uses: ./.github/workflows/package.yml
+    with:
+      runs_on: ubuntu-latest
+      target: x86_64-unknown-linux-musl
 
-          # macOS
+  # macOS
 
-          - runs_on: macos-latest
-            target: aarch64-apple-darwin
+  aarch64-apple-darwin:
+    uses: ./.github/workflows/package.yml
+    with:
+      runs_on: macos-latest
+      target: aarch64-apple-darwin
 
-          - runs_on: macos-latest
-            target: x86_64-apple-darwin
+  x86_64-apple-darwin:
+    uses: ./.github/workflows/package.yml
+    with:
+      runs_on: macos-latest
+      target: x86_64-apple-darwin
 
-          # Windows
+  # Windows
 
-          - runs_on: windows-latest
-            target: x86_64-pc-windows-gnu
-            extension: .exe
+  x86_64-pc-windows-gnu:
+    uses: ./.github/workflows/package.yml
+    with:
+      runs_on: windows-latest
+      target: x86_64-pc-windows-gnu
+      extension: .exe
 
-          - runs_on: windows-latest
-            target: x86_64-pc-windows-msvc
-            extension: .exe
-    steps:
-      - uses: ./.github/workflows/package.yml
+  x86_64-pc-windows-msvc:
+    uses: ./.github/workflows/package.yml
+    with:
+      runs_on: windows-latest
+      target: x86_64-pc-windows-msvc
+      extension: .exe
