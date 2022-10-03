@@ -54,9 +54,6 @@ pub struct ConnectArgs {
     /// Baud rate at which to communicate with target device
     #[clap(short = 'b', long)]
     pub baud: Option<u32>,
-    /// Baud rate at which to read console output
-    #[clap(long, value_name = "BAUD")]
-    pub monitor_baud: Option<u32>,
     /// Serial port connected to target device
     #[clap(short = 'p', long)]
     pub port: Option<String>,
@@ -90,7 +87,7 @@ pub struct FlashConfigArgs {
 #[group(skip)]
 pub struct FlashArgs {
     /// Path to a binary (.bin) bootloader file
-    #[clap(long)]
+    #[clap(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Erase the OTA data partition
     /// This is useful when using multiple OTA partitions and still wanting to
@@ -103,8 +100,11 @@ pub struct FlashArgs {
     /// Open a serial monitor after flashing
     #[clap(long)]
     pub monitor: bool,
+    /// Baud rate at which to read console output
+    #[clap(long, requires = "monitor", value_name = "BAUD")]
+    pub monitor_baud: Option<u32>,
     /// Path to a CSV file containing partition table
-    #[clap(long)]
+    #[clap(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Load the application to RAM instead of Flash
     #[clap(long)]
@@ -118,6 +118,7 @@ pub struct PartitionTableArgs {
     #[clap(short = 'o', long, value_name = "FILE")]
     output: Option<PathBuf>,
     /// Input partition table
+    #[clap(value_name = "FILE")]
     partition_table: PathBuf,
     /// Convert CSV parition table to binary representation
     #[clap(long, conflicts_with = "to_csv")]
@@ -132,7 +133,7 @@ pub struct PartitionTableArgs {
 #[group(skip)]
 pub struct SaveImageArgs {
     /// Custom bootloader for merging
-    #[clap(long)]
+    #[clap(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Chip to create an image for
     #[clap(long, value_parser = clap_enum_variants!(Chip))]
@@ -143,7 +144,7 @@ pub struct SaveImageArgs {
     #[clap(long)]
     pub merge: bool,
     /// Custom partition table for merging
-    #[clap(long, short = 'T', requires = "merge")]
+    #[clap(long, short = 'T', requires = "merge", value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Don't pad the image to the flash size
     #[clap(long, short = 'P', requires = "merge")]
@@ -200,7 +201,7 @@ pub fn serial_monitor(args: ConnectArgs, config: &Config) -> Result<()> {
         flasher.into_interface(),
         None,
         pid,
-        args.monitor_baud.unwrap_or(115_200),
+        args.baud.unwrap_or(115_200),
     )
     .into_diagnostic()?;
 

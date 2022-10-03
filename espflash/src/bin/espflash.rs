@@ -9,10 +9,9 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        board_info, clap_enum_variants, config::Config, connect, flash_elf_image, monitor::monitor,
-        partition_table, save_elf_as_image, serial_monitor, ConnectArgs,
-        FlashArgs as BaseFlashArgs, FlashConfigArgs, PartitionTableArgs,
-        SaveImageArgs as BaseSaveImageArgs,
+        self, board_info, clap_enum_variants, config::Config, connect, flash_elf_image,
+        monitor::monitor, partition_table, save_elf_as_image, serial_monitor, ConnectArgs,
+        FlashConfigArgs, PartitionTableArgs,
     },
     image_format::{ImageFormatId, ImageFormatType},
     logging::initialize_logger,
@@ -52,7 +51,7 @@ struct FlashArgs {
     #[clap(flatten)]
     pub flash_config_args: FlashConfigArgs,
     #[clap(flatten)]
-    flash_args: BaseFlashArgs,
+    flash_args: cli::FlashArgs,
 }
 
 #[derive(Debug, Args)]
@@ -64,7 +63,7 @@ struct SaveImageArgs {
     #[clap(flatten)]
     pub flash_config_args: FlashConfigArgs,
     #[clap(flatten)]
-    save_image_args: BaseSaveImageArgs,
+    save_image_args: cli::SaveImageArgs,
 
     /// ELF image to flash
     image: PathBuf,
@@ -162,7 +161,7 @@ fn flash(mut args: FlashArgs, config: &Config) -> Result<()> {
             flasher.into_interface(),
             Some(&elf_data),
             pid,
-            args.connect_args.monitor_baud.unwrap_or(115_200),
+            args.flash_args.monitor_baud.unwrap_or(115_200),
         )
         .into_diagnostic()?;
     }

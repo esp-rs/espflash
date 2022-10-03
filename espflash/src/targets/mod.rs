@@ -30,18 +30,13 @@ mod esp8266;
 mod flash_target;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumVariantNames)]
+#[strum(serialize_all = "lowercase")]
 pub enum Chip {
-    #[strum(serialize = "ESP32")]
     Esp32,
-    #[strum(serialize = "ESP32-C2")]
     Esp32c2,
-    #[strum(serialize = "ESP32-C3")]
     Esp32c3,
-    #[strum(serialize = "ESP32-S2")]
     Esp32s2,
-    #[strum(serialize = "ESP32-S3")]
     Esp32s3,
-    #[strum(serialize = "ESP8266")]
     Esp8266,
 }
 
