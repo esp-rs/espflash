@@ -1,21 +1,21 @@
+name: Release
+
 on:
   release:
     types: [created]
-
-name: Release
 
 jobs:
   # Linux
 
   armv7-unknown-linux-gnueabihf:
-    uses: ./.github/workflows/rpi.yml
+    uses: ./.github/workflows/package.yml
     with:
       runs_on: ubuntu-latest
       target: armv7-unknown-linux-gnueabihf
       arch: armhf
 
   aarch64-unknown-linux-gnu:
-    uses: ./.github/workflows/rpi.yml
+    uses: ./.github/workflows/package.yml
     with:
       runs_on: ubuntu-latest
       target: aarch64-unknown-linux-gnu

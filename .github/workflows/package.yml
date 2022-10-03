@@ -10,56 +10,97 @@ on:
         required: true
         type: string
       extension:
+        required: false
+        default: ""
+        type: string
+      arch:
+        required: false
         default: ""
         type: string
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  build:
-    name: Build static binaries
+  publish-release:
     runs-on: ${{ inputs.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        crate: ["espflash", "cargo-espflash"]
 
     steps:
-      - name: Change apt mirror and install dependencies
-        if: ${{ inputs.runs_on == 'ubuntu-latest' }}
-        run: |
-          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
-          sudo apt-get update
-          sudo apt-get install musl-tools libudev-dev
-
       - uses: actions/checkout@v2
 
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ inputs.target }}
+          override: true
 
       - uses: Swatinem/rust-cache@v1
 
+      - name: Replace target string
+        if: inputs.arch != ''
+        uses: mad9000/actions-find-and-replace-string@1
+        id: findandreplace
+        with:
+          source: ${{ inputs.target }}
+          find: "unknown-"
+          replace: ""
+
+      - name: Build dependencies raspberry targets
+        if: inputs.runs_on == 'ubuntu-latest' && inputs.arch != ''
+        run: |
+          sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo apt-get update
+          echo "deb [arch=${{ inputs.arch }}] http://ports.ubuntu.com/ubuntu-ports focal main universe" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{ inputs.arch }}] http://ports.ubuntu.com/ubuntu-ports focal-updates main universe" | sudo tee -a /etc/apt/sources.list
+          sudo apt update
+          sudo dpkg --add-architecture ${{ inputs.arch }}
+          sudo apt-get install -y curl git libudev-dev musl-tools pkg-config "libudev1:${{ inputs.arch }}" "libgcc-s1:${{ inputs.arch }}" "libc6:${{ inputs.arch }}" "libudev-dev:${{ inputs.arch }}" gcc-arm-linux-gnueabihf pkg-config-arm-linux-gnueabihf gcc-aarch64-linux-gnu pkg-config-aarch64-linux-gnu
+          echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=0" >> $GITHUB_ENV
+          echo "PKG_CONFIG_DIR=/opt/" >> $GITHUB_ENV
+          echo "PKG_CONFIG_LIBDIR=/opt/usr/lib/pkgconfig:/opt/usr/share/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+          if [[ ${{ inputs.arch }} == arm64 ]]; then
+            echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
+            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
+          fi
+          if [[ ${{ inputs.arch }} == armhf ]]; then
+            echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig" >> $GITHUB_ENV
+            echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          fi
+
+      - name: Build dependencies for other ubuntu targets
+        if: inputs.runs_on == 'ubuntu-latest' && inputs.arch == ''
+        run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install musl-tools libudev-dev
+
       - uses: actions-rs/cargo@v1
+        if: ${{ inputs.arch == '' }}
         with:
           command: build
           args: --release --all --target ${{ inputs.target }}
 
-      - uses: papeloto/action-zip@v1
+      - uses: actions-rs/cargo@v1
+        if: ${{ inputs.arch != '' }}
         with:
-          files: target/${{ inputs.target }}/release/espflash${{ inputs.extension }}
-          recursive: true
-          dest: espflash-${{ inputs.target }}.zip
+          command: build
+          args: --release --all --target ${{ inputs.target }} --features=raspberry
 
-      - uses: papeloto/action-zip@v1
-        with:
-          files: target/${{ inputs.target }}/release/cargo-espflash${{ inputs.extension }}
-          recursive: true
-          dest: cargo-espflash-${{ inputs.target }}.zip
+      - name: Compress (Unix)
+        if: ${{ inputs.runs_on != 'windows-latest' }}
+        run: zip -j ${{ matrix.crate }}-${{ inputs.target }}.zip target/${{ inputs.target }}/release/${{ matrix.crate }}${{ inputs.extension }}
 
-      - uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: espflash-${{ inputs.target }}.zip
-          tag: ${{ github.ref }}
+      - name: Compress (Windows)
+        if: ${{ inputs.runs_on == 'windows-latest' }}
+        run: Compress-Archive target/${{ inputs.target }}/release/${{ matrix.crate }}${{ inputs.extension }} ${{ matrix.crate }}-${{ inputs.target }}.zip
 
       - uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: cargo-espflash-${{ inputs.target }}.zip
+          file: ${{ matrix.crate }}-${{ inputs.target }}.zip
           tag: ${{ github.ref }}
