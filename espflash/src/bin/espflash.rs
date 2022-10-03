@@ -9,9 +9,10 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        board_info, config::Config, connect, flash_elf_image, monitor::monitor, partition_table,
-        save_elf_as_image, serial_monitor, ConnectArgs, FlashArgs as BaseFlashArgs,
-        FlashConfigArgs, PartitionTableArgs, SaveImageArgs as BaseSaveImageArgs,
+        board_info, clap_enum_variants, config::Config, connect, flash_elf_image, monitor::monitor,
+        partition_table, save_elf_as_image, serial_monitor, ConnectArgs,
+        FlashArgs as BaseFlashArgs, FlashConfigArgs, PartitionTableArgs,
+        SaveImageArgs as BaseSaveImageArgs,
     },
     image_format::{ImageFormatId, ImageFormatType},
     logging::initialize_logger,
@@ -22,7 +23,7 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 use strum::VariantNames;
 
 #[derive(Debug, Parser)]
-#[clap(about, propagate_version = true, version)]
+#[clap(about, version, propagate_version = true)]
 struct Cli {
     #[clap(subcommand)]
     subcommand: Commands,
@@ -57,7 +58,7 @@ struct FlashArgs {
 #[derive(Debug, Args)]
 struct SaveImageArgs {
     /// Image format to flash
-    #[clap(long, possible_values = ImageFormatType::VARIANTS)]
+    #[clap(long, value_parser = clap_enum_variants!(ImageFormatType))]
     format: Option<String>,
 
     #[clap(flatten)]

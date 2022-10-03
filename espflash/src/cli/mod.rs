@@ -30,28 +30,44 @@ pub mod monitor;
 
 mod serial;
 
+// Since as of `clap@4.0.x` the `possible_values` attribute is no longer
+// present, we must use the more convoluted `value_parser` attribute instead.
+// Since this is a bit tedious, we'll use a helper macro to abstract away all
+// the cruft. It's important to note that this macro assumes the
+// `strum::EnumVariantNames` trait has been implemented for the provided type,
+// and that the provided type is in scope when calling this macro.
+//
+// See this comment for details:
+// https://github.com/clap-rs/clap/discussions/4264#discussioncomment-3737696
+#[macro_export]
+macro_rules! clap_enum_variants {
+    ($e: ty) => {{
+        use clap::builder::TypedValueParser;
+        clap::builder::PossibleValuesParser::new(<$e>::VARIANTS).map(|s| s.parse::<$e>().unwrap())
+    }};
+}
+
+pub use clap_enum_variants;
+
 #[derive(Debug, Args)]
 pub struct ConnectArgs {
     /// Baud rate at which to communicate with target device
     #[clap(short = 'b', long)]
     pub baud: Option<u32>,
     /// Baud rate at which to read console output
-    #[clap(long)]
+    #[clap(long, value_name = "BAUD")]
     pub monitor_baud: Option<u32>,
     /// Serial port connected to target device
     #[clap(short = 'p', long)]
     pub port: Option<String>,
-
     /// DTR pin to use for the internal UART hardware. Uses BCM numbering.
     #[cfg(feature = "raspberry")]
     #[cfg_attr(feature = "raspberry", clap(long))]
     pub dtr: Option<u8>,
-
     /// RTS pin to use for the internal UART hardware. Uses BCM numbering.
     #[cfg(feature = "raspberry")]
     #[cfg_attr(feature = "raspberry", clap(long))]
     pub rts: Option<u8>,
-
     /// Use RAM stub for loading
     #[clap(long)]
     pub use_stub: bool,
@@ -60,17 +76,18 @@ pub struct ConnectArgs {
 #[derive(Debug, Args)]
 pub struct FlashConfigArgs {
     /// Flash frequency
-    #[clap(short = 'f', long, possible_values = FlashFrequency::VARIANTS, value_name = "FREQ")]
+    #[clap(short = 'f', long, value_name = "FREQ", value_parser = clap_enum_variants!(FlashFrequency))]
     pub flash_freq: Option<FlashFrequency>,
     /// Flash mode to use
-    #[clap(short = 'm', long, possible_values = FlashMode::VARIANTS, value_name = "MODE")]
+    #[clap(short = 'm', long, value_name = "MODE", value_parser = clap_enum_variants!(FlashMode))]
     pub flash_mode: Option<FlashMode>,
     /// Flash size of the target
-    #[clap(short = 's', long, possible_values = FlashSize::VARIANTS, value_name = "SIZE")]
+    #[clap(short = 's', long, value_name = "SIZE", value_parser = clap_enum_variants!(FlashSize))]
     pub flash_size: Option<FlashSize>,
 }
 
 #[derive(Debug, Args)]
+#[group(skip)]
 pub struct FlashArgs {
     /// Path to a binary (.bin) bootloader file
     #[clap(long)]
@@ -81,7 +98,7 @@ pub struct FlashArgs {
     #[clap(long)]
     pub erase_otadata: bool,
     /// Image format to flash
-    #[clap(long, possible_values = ImageFormatType::VARIANTS)]
+    #[clap(long, value_parser = clap_enum_variants!(ImageFormatType))]
     pub format: Option<String>,
     /// Open a serial monitor after flashing
     #[clap(long)]
@@ -98,26 +115,27 @@ pub struct FlashArgs {
 #[derive(Debug, Args)]
 pub struct PartitionTableArgs {
     /// Optional output file name, if unset will output to stdout
-    #[clap(short = 'o', long)]
+    #[clap(short = 'o', long, value_name = "FILE")]
     output: Option<PathBuf>,
     /// Input partition table
     partition_table: PathBuf,
     /// Convert CSV parition table to binary representation
-    #[clap(long, conflicts_with = "to-csv")]
+    #[clap(long, conflicts_with = "to_csv")]
     to_binary: bool,
     /// Convert binary partition table to CSV representation
-    #[clap(long, conflicts_with = "to-binary")]
+    #[clap(long, conflicts_with = "to_binary")]
     to_csv: bool,
 }
 
 /// Save the image to disk instead of flashing to device
 #[derive(Debug, Args)]
+#[group(skip)]
 pub struct SaveImageArgs {
     /// Custom bootloader for merging
     #[clap(long)]
     pub bootloader: Option<PathBuf>,
     /// Chip to create an image for
-    #[clap(long, possible_values = Chip::VARIANTS)]
+    #[clap(long, value_parser = clap_enum_variants!(Chip))]
     pub chip: Chip,
     /// File name to save the generated image to
     pub file: PathBuf,
