@@ -1,11 +1,14 @@
 use std::io::Read;
 
-use crate::{cli::ConnectArgs, Config, Error};
 use miette::{Context, Result};
-use serialport::{FlowControl, SerialPort, SerialPortInfo};
-
 #[cfg(feature = "raspberry")]
 use rppal::gpio::{Gpio, OutputPin};
+use serialport::{FlowControl, SerialPort, SerialPortInfo};
+
+use crate::{
+    cli::{config::Config, ConnectArgs},
+    error::Error,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum SerialConfigError {
@@ -18,7 +21,8 @@ pub enum SerialConfigError {
     GpioUnavailable(u8),
 }
 
-/// Wrapper around SerialPort where platform-specific modifications can be implemented.
+/// Wrapper around SerialPort where platform-specific modifications can be
+/// implemented.
 pub struct Interface {
     pub serial_port: Box<dyn SerialPort>,
     #[cfg(feature = "raspberry")]
@@ -132,8 +136,8 @@ impl Interface {
     }
 }
 
-// Note(dbuga): this impl is necessary because using `dyn SerialPort` as `dyn Read`
-// requires trait_upcasting which isn't stable yet.
+// Note(dbuga): this impl is necessary because using `dyn SerialPort` as `dyn
+// Read` requires trait_upcasting which isn't stable yet.
 impl Read for Interface {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.serial_port.read(buf)

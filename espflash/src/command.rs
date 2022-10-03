@@ -1,9 +1,9 @@
-use crate::flasher::{checksum, SpiAttachParams, CHECKSUM_INIT};
+use std::{io::Write, mem::size_of, time::Duration};
+
 use bytemuck::{bytes_of, Pod, Zeroable};
-use std::io::Write;
-use std::mem::size_of;
-use std::time::Duration;
-use strum_macros::Display;
+use strum::Display;
+
+use crate::flasher::{checksum, SpiAttachParams, CHECKSUM_INIT};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 const ERASE_REGION_TIMEOUT_PER_MB: Duration = Duration::from_secs(30);

@@ -9,14 +9,13 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        board_info, connect, flash_elf_image, monitor::monitor, partition_table, save_elf_as_image,
-        serial_monitor, ConnectArgs, FlashArgs as BaseFlashArgs, FlashConfigArgs,
-        PartitionTableArgs, SaveImageArgs as BaseSaveImageArgs,
+        board_info, config::Config, connect, flash_elf_image, monitor::monitor, partition_table,
+        save_elf_as_image, serial_monitor, ConnectArgs, FlashArgs as BaseFlashArgs,
+        FlashConfigArgs, PartitionTableArgs, SaveImageArgs as BaseSaveImageArgs,
     },
     image_format::{ImageFormatId, ImageFormatType},
     logging::initialize_logger,
     update::check_for_update,
-    Config,
 };
 use log::{debug, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};

@@ -6,7 +6,6 @@ use sha2::{Digest, Sha256};
 
 use super::encode_flash_frequency;
 use crate::{
-    chip::Esp32Params,
     elf::{
         merge_adjacent_segments, update_checksum, CodeSegment, FirmwareImage, RomSegment,
         ESP_CHECKSUM_MAGIC,
@@ -14,7 +13,7 @@ use crate::{
     error::{Error, FlashDetectError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC, WP_PIN_DISABLED},
-    Chip,
+    targets::{Chip, Esp32Params},
 };
 
 /// Image format for esp32 family chips using a 2nd stage bootloader

@@ -3,7 +3,7 @@ use std::{
     iter::once,
 };
 
-use espflash::Chip;
+use espflash::targets::Chip;
 use miette::{Diagnostic, LabeledSpan, SourceCode, SourceOffset};
 use thiserror::Error;
 
@@ -141,7 +141,7 @@ impl UnsupportedTargetError {
 
 impl UnsupportedTargetError {
     fn supported_targets(&self) -> String {
-        self.chip.supported_targets().join(", ")
+        self.chip.into_target().supported_build_targets().join(", ")
     }
 }
 
@@ -164,7 +164,11 @@ impl Diagnostic for NoTargetError {
 
     fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
         Some(Box::new(match &self.chip {
-            Some(chip) => format!("Specify the target in `.cargo/config.toml`, the {} support the following targets: {}", chip, chip.supported_targets().join(", ")),
+            Some(chip) => format!(
+                "Specify the target in `.cargo/config.toml`, the {} support the following targets: {}",
+                chip,
+                chip.into_target().supported_build_targets().join(", ")
+            ),
             None => "Specify the target in `.cargo/config.toml`".into(),
         }
         ))

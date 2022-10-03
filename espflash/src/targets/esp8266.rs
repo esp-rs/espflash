@@ -2,55 +2,70 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::{bytes_to_mac_addr, ChipType};
+use super::{bytes_to_mac_addr, Chip, ReadEFuse, SpiRegisters, Target};
 use crate::{
-    chip::{ReadEFuse, SpiRegisters},
     connection::Connection,
     elf::FirmwareImage,
-    error::UnsupportedImageFormatError,
+    error::{Error, UnsupportedImageFormatError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{Esp8266Format, ImageFormat, ImageFormatId},
-    Chip, Error,
 };
+
+pub(crate) const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0xfff0_c101];
+
+pub(crate) const FLASH_RANGES: &[Range<u32>] = &[
+    0x40200000..0x40300000, // IROM
+];
+
+const UART_CLKDIV_REG: u32 = 0x6000_0014;
+const UART_CLKDIV_MASK: u32 = 0xfffff;
+
+const XTAL_CLK_DIVIDER: u32 = 1;
 
 pub struct Esp8266;
 
-impl ChipType for Esp8266 {
-    const CHIP_DETECT_MAGIC_VALUES: &'static [u32] = &[0xfff0c101];
+impl Esp8266 {
+    pub fn has_magic_value(value: u32) -> bool {
+        CHIP_DETECT_MAGIC_VALUES.contains(&value)
+    }
+}
 
-    const UART_CLKDIV_REG: u32 = 0x60000014;
-    const XTAL_CLK_DIVIDER: u32 = 2;
+impl ReadEFuse for Esp8266 {
+    fn efuse_reg(&self) -> u32 {
+        0x3ff0_0050
+    }
+}
 
-    const SPI_REGISTERS: SpiRegisters = SpiRegisters {
-        base: 0x60000200,
-        usr_offset: 0x1c,
-        usr1_offset: 0x20,
-        usr2_offset: 0x24,
-        w0_offset: 0x40,
-        mosi_length_offset: None,
-        miso_length_offset: None,
-    };
-
-    const FLASH_RANGES: &'static [Range<u32>] = &[
-        0x40200000..0x40300000, // IROM
-    ];
-
-    const SUPPORTED_TARGETS: &'static [&'static str] = &["xtensa-esp8266-none-elf"];
+impl Target for Esp8266 {
+    fn addr_is_flash(&self, addr: u32) -> bool {
+        FLASH_RANGES.iter().any(|range| range.contains(&addr))
+    }
 
     fn chip_features(&self, _connection: &mut Connection) -> Result<Vec<&str>, Error> {
         Ok(vec!["WiFi"])
     }
 
-    fn get_flash_segments<'a>(
+    fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
+        let est_xtal = (connection.get_baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
+        let norm_xtal = if est_xtal > 33 { 40 } else { 26 };
+
+        Ok(norm_xtal)
+    }
+
+    fn get_flash_image<'a>(
+        &self,
         image: &'a dyn FirmwareImage<'a>,
         _bootloader: Option<Vec<u8>>,
         _partition_table: Option<PartitionTable>,
-        image_format: ImageFormatId,
+        image_format: Option<ImageFormatId>,
         _chip_revision: Option<u32>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
+        let image_format = image_format.unwrap_or(ImageFormatId::Bootloader);
+
         match image_format {
             ImageFormatId::Bootloader => Ok(Box::new(Esp8266Format::new(
                 image, flash_mode, flash_size, flash_freq,
@@ -84,28 +99,20 @@ impl ChipType for Esp8266 {
 
         Ok(bytes_to_mac_addr(&bytes))
     }
-}
 
-impl ReadEFuse for Esp8266 {
-    const EFUSE_REG_BASE: u32 = 0x3ff00050;
-}
+    fn spi_registers(&self) -> SpiRegisters {
+        SpiRegisters {
+            base: 0x6000_0200,
+            usr_offset: 0x1c,
+            usr1_offset: 0x20,
+            usr2_offset: 0x24,
+            w0_offset: 0x40,
+            mosi_length_offset: None,
+            miso_length_offset: None,
+        }
+    }
 
-#[test]
-fn test_esp8266_rom() {
-    use std::fs::read;
-
-    use crate::elf::ElfFirmwareImage;
-
-    let input_bytes = read("./tests/data/esp8266").unwrap();
-    let expected_bin = read("./tests/data/esp8266.bin").unwrap();
-
-    let image = ElfFirmwareImage::try_from(input_bytes.as_slice()).unwrap();
-    let flash_image = Esp8266Format::new(&image, None, None, None).unwrap();
-
-    let segments = flash_image.flash_segments().collect::<Vec<_>>();
-
-    assert_eq!(1, segments.len());
-    let buff = segments[0].data.as_ref();
-    assert_eq!(expected_bin.len(), buff.len());
-    assert_eq!(expected_bin.as_slice(), buff);
+    fn supported_build_targets(&self) -> &[&str] {
+        &["xtensa-esp8266-none-elf"]
+    }
 }

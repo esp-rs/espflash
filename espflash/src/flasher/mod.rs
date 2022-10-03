@@ -4,18 +4,17 @@ use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use esp_idf_part::PartitionTable;
 use log::debug;
 use serialport::UsbPortInfo;
-use strum_macros::{Display, EnumVariantNames};
+use strum::{Display, EnumVariantNames};
 
 use self::stubs::FlashStub;
 use crate::{
-    chip::Chip,
     command::{Command, CommandType},
     connection::Connection,
     elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
-    error::{ConnectionError, FlashDetectError, ResultExt},
+    error::{ConnectionError, Error, FlashDetectError, ResultExt},
     image_format::ImageFormatId,
     interface::Interface,
-    Error,
+    targets::Chip,
 };
 
 mod stubs;
@@ -338,7 +337,9 @@ impl Flasher {
 
         let mut ram_target = self.chip.ram_target(
             Some(stub.entry()),
-            self.chip.max_ram_block_size(&mut self.connection)?,
+            self.chip
+                .into_target()
+                .max_ram_block_size(&mut self.connection)?,
         );
         ram_target.begin(&mut self.connection).flashing()?;
 
@@ -478,7 +479,7 @@ impl Flasher {
         assert!(read_bits < 32);
         assert!(data.len() < 64);
 
-        let spi_registers = self.chip.spi_registers();
+        let spi_registers = self.chip.into_target().spi_registers();
 
         let old_spi_usr = self.connection.read_reg(spi_registers.usr())?;
         let old_spi_usr2 = self.connection.read_reg(spi_registers.usr2())?;
@@ -571,10 +572,11 @@ impl Flasher {
     pub fn board_info(&mut self) -> Result<(), Error> {
         let chip = self.chip();
 
-        let maybe_revision = chip.chip_revision(self.connection())?;
-        let features = chip.chip_features(self.connection())?;
-        let freq = chip.crystal_freq(self.connection())?;
-        let mac = chip.mac_address(self.connection())?;
+        let target = chip.into_target();
+        let maybe_revision = target.chip_revision(self.connection())?;
+        let features = target.chip_features(self.connection())?;
+        let freq = target.crystal_freq(self.connection())?;
+        let mac = target.mac_address(self.connection())?;
 
         print!("Chip type:         {}", chip);
         match maybe_revision {
@@ -597,7 +599,9 @@ impl Flasher {
 
         let mut target = self.chip.ram_target(
             Some(image.entry()),
-            self.chip.max_ram_block_size(&mut self.connection)?,
+            self.chip
+                .into_target()
+                .max_ram_block_size(&mut self.connection)?,
         );
         target.begin(&mut self.connection).flashing()?;
 
@@ -636,12 +640,14 @@ impl Flasher {
         let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
         target.begin(&mut self.connection).flashing()?;
 
-        let flash_image = self.chip.get_flash_image(
+        let flash_image = self.chip.into_target().get_flash_image(
             &image,
             bootloader,
             partition_table,
             image_format,
-            self.chip.chip_revision(&mut self.connection)?,
+            self.chip
+                .into_target()
+                .chip_revision(&mut self.connection)?,
             flash_mode,
             flash_size.or(Some(self.flash_size)),
             flash_freq,

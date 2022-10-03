@@ -5,7 +5,7 @@ use std::{
 };
 
 use cargo_toml::Manifest;
-use espflash::ImageFormatId;
+use espflash::image_format::ImageFormatId;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::Deserialize;
 

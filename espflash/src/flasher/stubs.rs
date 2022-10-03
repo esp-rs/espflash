@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::Chip;
+use crate::targets::Chip;
 
 /// Flash stub object (deserialized from json as used by `esptool.py`)
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -66,7 +66,7 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use super::FlashStub;
-    use crate::Chip;
+    use crate::targets::Chip;
 
     #[test]
     fn check_stub_encodings() {

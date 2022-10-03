@@ -1,23 +1,13 @@
 #[cfg(feature = "cli")]
-pub use self::cli::config::Config;
-pub use self::{
-    chip::Chip,
-    error::{Error, MissingPartitionTable},
-    flasher::{FlashFrequency, FlashMode, FlashSize, Flasher},
-    image_format::ImageFormatId,
-};
-
-pub mod chip;
-#[cfg(feature = "cli")]
 pub mod cli;
 pub mod command;
 pub mod connection;
 pub mod elf;
 pub mod error;
-pub mod flash_target;
 pub mod flasher;
 pub mod image_format;
 pub mod interface;
+pub mod targets;
 
 pub mod logging {
     use env_logger::Env;

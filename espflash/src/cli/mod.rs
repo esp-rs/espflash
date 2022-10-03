@@ -18,11 +18,11 @@ use strum::VariantNames;
 use self::{config::Config, monitor::monitor, serial::get_serial_port_info};
 use crate::{
     elf::ElfFirmwareImage,
-    error::NoOtadataError,
-    flasher::{FlashFrequency, FlashMode, FlashSize},
-    image_format::ImageFormatType,
+    error::{MissingPartitionTable, NoOtadataError},
+    flasher::{FlashFrequency, FlashMode, FlashSize, Flasher},
+    image_format::{ImageFormatId, ImageFormatType},
     interface::Interface,
-    Chip, Flasher, ImageFormatId, MissingPartitionTable,
+    targets::Chip,
 };
 
 pub mod config;
@@ -237,7 +237,7 @@ pub fn save_elf_as_image(
 
         // To get a chip revision, the connection is needed
         // For simplicity, the revision None is used
-        let image = chip.get_flash_image(
+        let image = chip.into_target().get_flash_image(
             &image,
             bootloader,
             partition_table,
@@ -275,7 +275,7 @@ pub fn save_elf_as_image(
             file.write_all(&padding_bytes).into_diagnostic()?;
         }
     } else {
-        let flash_image = chip.get_flash_image(
+        let flash_image = chip.into_target().get_flash_image(
             &image,
             None,
             None,
