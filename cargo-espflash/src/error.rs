@@ -62,14 +62,17 @@ pub struct TomlError {
 #[derive(Debug)]
 pub enum MaybeTomlError {
     Toml(toml::de::Error),
-    Other(std::io::Error),
+    Io(std::io::Error),
+    Other(&'static str),
 }
 
 impl From<cargo_toml::Error> for MaybeTomlError {
     fn from(e: cargo_toml::Error) -> Self {
         match e {
             cargo_toml::Error::Parse(e) => MaybeTomlError::Toml(e),
-            cargo_toml::Error::Io(e) => MaybeTomlError::Other(e),
+            cargo_toml::Error::Io(e) => MaybeTomlError::Io(e),
+            cargo_toml::Error::Other(e) => MaybeTomlError::Other(e),
+            _ => todo!(), // `cargo_toml::Error` is marked as non-exhaustive
         }
     }
 }
