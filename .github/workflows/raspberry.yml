@@ -150,4 +150,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: ${{ matrix.job.cargo-command }}
-          args: ${{ matrix.job.args }} --features=raspberry
+          args: --features=raspberry ${{ matrix.job.args }}
