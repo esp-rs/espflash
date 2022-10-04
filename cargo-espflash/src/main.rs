@@ -63,34 +63,34 @@ enum Commands {
 #[derive(Debug, Args)]
 struct BuildArgs {
     /// Binary to build and flash
-    #[clap(long)]
+    #[arg(long)]
     pub bin: Option<String>,
     /// Example to build and flash
-    #[clap(long)]
+    #[arg(long)]
     pub example: Option<String>,
     /// Comma delimited list of build features
-    #[clap(long, use_value_delimiter = true)]
+    #[arg(long, use_value_delimiter = true)]
     pub features: Option<Vec<String>>,
     /// Require Cargo.lock and cache are up to date
-    #[clap(long)]
+    #[arg(long)]
     pub frozen: bool,
     /// Require Cargo.lock is up to date
-    #[clap(long)]
+    #[arg(long)]
     pub locked: bool,
     /// Specify a (binary) package within a workspace to be built
-    #[clap(long)]
+    #[arg(long)]
     pub package: Option<String>,
     /// Build the application using the release profile
-    #[clap(long)]
+    #[arg(long)]
     pub release: bool,
     /// Target to build for
-    #[clap(long)]
+    #[arg(long)]
     pub target: Option<String>,
     /// Directory for all generated artifacts
-    #[clap(long)]
+    #[arg(long)]
     pub target_dir: Option<String>,
     /// Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details
-    #[clap(short = 'Z')]
+    #[arg(short = 'Z')]
     pub unstable: Option<Vec<String>>,
 
     #[clap(flatten)]
@@ -111,7 +111,7 @@ struct FlashArgs {
 #[derive(Debug, Args)]
 struct SaveImageArgs {
     /// Image format to flash
-    #[clap(long, value_parser = clap_enum_variants!(ImageFormatType))]
+    #[arg(long, value_parser = clap_enum_variants!(ImageFormatType))]
     pub format: Option<String>,
 
     #[clap(flatten)]

@@ -57,7 +57,7 @@ struct FlashArgs {
 #[derive(Debug, Args)]
 struct SaveImageArgs {
     /// Image format to flash
-    #[clap(long, value_parser = clap_enum_variants!(ImageFormatType))]
+    #[arg(long, value_parser = clap_enum_variants!(ImageFormatType))]
     format: Option<String>,
 
     #[clap(flatten)]
@@ -73,7 +73,7 @@ struct SaveImageArgs {
 #[derive(Debug, Args)]
 struct WriteBinArgs {
     /// Address at which to write the binary file
-    #[clap(value_parser = parse_uint32)]
+    #[arg(value_parser = parse_uint32)]
     pub addr: u32,
     /// File containing the binary data to write
     pub bin_file: String,

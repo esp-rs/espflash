@@ -52,10 +52,10 @@ pub use clap_enum_variants;
 #[derive(Debug, Args)]
 pub struct ConnectArgs {
     /// Baud rate at which to communicate with target device
-    #[clap(short = 'b', long)]
+    #[arg(short = 'b', long)]
     pub baud: Option<u32>,
     /// Serial port connected to target device
-    #[clap(short = 'p', long)]
+    #[arg(short = 'p', long)]
     pub port: Option<String>,
     /// DTR pin to use for the internal UART hardware. Uses BCM numbering.
     #[cfg(feature = "raspberry")]
@@ -66,20 +66,20 @@ pub struct ConnectArgs {
     #[cfg_attr(feature = "raspberry", clap(long))]
     pub rts: Option<u8>,
     /// Use RAM stub for loading
-    #[clap(long)]
+    #[arg(long)]
     pub use_stub: bool,
 }
 
 #[derive(Debug, Args)]
 pub struct FlashConfigArgs {
     /// Flash frequency
-    #[clap(short = 'f', long, value_name = "FREQ", value_parser = clap_enum_variants!(FlashFrequency))]
+    #[arg(short = 'f', long, value_name = "FREQ", value_parser = clap_enum_variants!(FlashFrequency))]
     pub flash_freq: Option<FlashFrequency>,
     /// Flash mode to use
-    #[clap(short = 'm', long, value_name = "MODE", value_parser = clap_enum_variants!(FlashMode))]
+    #[arg(short = 'm', long, value_name = "MODE", value_parser = clap_enum_variants!(FlashMode))]
     pub flash_mode: Option<FlashMode>,
     /// Flash size of the target
-    #[clap(short = 's', long, value_name = "SIZE", value_parser = clap_enum_variants!(FlashSize))]
+    #[arg(short = 's', long, value_name = "SIZE", value_parser = clap_enum_variants!(FlashSize))]
     pub flash_size: Option<FlashSize>,
 }
 
@@ -87,27 +87,27 @@ pub struct FlashConfigArgs {
 #[group(skip)]
 pub struct FlashArgs {
     /// Path to a binary (.bin) bootloader file
-    #[clap(long, value_name = "FILE")]
+    #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Erase the OTA data partition
     /// This is useful when using multiple OTA partitions and still wanting to
     /// be able to reflash via cargo-espflash or espflash
-    #[clap(long)]
+    #[arg(long)]
     pub erase_otadata: bool,
     /// Image format to flash
-    #[clap(long, value_parser = clap_enum_variants!(ImageFormatType))]
+    #[arg(long, value_parser = clap_enum_variants!(ImageFormatType))]
     pub format: Option<String>,
     /// Open a serial monitor after flashing
-    #[clap(long)]
+    #[arg(long)]
     pub monitor: bool,
     /// Baud rate at which to read console output
-    #[clap(long, requires = "monitor", value_name = "BAUD")]
+    #[arg(long, requires = "monitor", value_name = "BAUD")]
     pub monitor_baud: Option<u32>,
     /// Path to a CSV file containing partition table
-    #[clap(long, value_name = "FILE")]
+    #[arg(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Load the application to RAM instead of Flash
-    #[clap(long)]
+    #[arg(long)]
     pub ram: bool,
 }
 
@@ -115,16 +115,16 @@ pub struct FlashArgs {
 #[derive(Debug, Args)]
 pub struct PartitionTableArgs {
     /// Optional output file name, if unset will output to stdout
-    #[clap(short = 'o', long, value_name = "FILE")]
+    #[arg(short = 'o', long, value_name = "FILE")]
     output: Option<PathBuf>,
     /// Input partition table
-    #[clap(value_name = "FILE")]
+    #[arg(value_name = "FILE")]
     partition_table: PathBuf,
     /// Convert CSV parition table to binary representation
-    #[clap(long, conflicts_with = "to_csv")]
+    #[arg(long, conflicts_with = "to_csv")]
     to_binary: bool,
     /// Convert binary partition table to CSV representation
-    #[clap(long, conflicts_with = "to_binary")]
+    #[arg(long, conflicts_with = "to_binary")]
     to_csv: bool,
 }
 
@@ -133,21 +133,21 @@ pub struct PartitionTableArgs {
 #[group(skip)]
 pub struct SaveImageArgs {
     /// Custom bootloader for merging
-    #[clap(long, value_name = "FILE")]
+    #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Chip to create an image for
-    #[clap(long, value_parser = clap_enum_variants!(Chip))]
+    #[arg(long, value_parser = clap_enum_variants!(Chip))]
     pub chip: Chip,
     /// File name to save the generated image to
     pub file: PathBuf,
     /// Boolean flag to merge binaries into single binary
-    #[clap(long)]
+    #[arg(long)]
     pub merge: bool,
     /// Custom partition table for merging
-    #[clap(long, short = 'T', requires = "merge", value_name = "FILE")]
+    #[arg(long, short = 'T', requires = "merge", value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Don't pad the image to the flash size
-    #[clap(long, short = 'P', requires = "merge")]
+    #[arg(long, short = 'P', requires = "merge")]
     pub skip_padding: bool,
 }
 
