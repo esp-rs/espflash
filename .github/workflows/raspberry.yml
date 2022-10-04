@@ -1,0 +1,153 @@
+name: Rasberry Pi
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      target:
+        required: true
+        type: string
+      arch:
+        required: false
+        default: ""
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish-release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        crate: ["espflash", "cargo-espflash"]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ inputs.target }}
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - name: Replace target string
+        uses: mad9000/actions-find-and-replace-string@1
+        id: findandreplace
+        with:
+          source: ${{ inputs.target }}
+          find: "unknown-"
+          replace: ""
+      - name: Build dependencies
+        run: |
+          sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo apt-get update
+          echo "deb [arch=${{ inputs.arch }}] http://ports.ubuntu.com/ubuntu-ports focal main universe" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{ inputs.arch }}] http://ports.ubuntu.com/ubuntu-ports focal-updates main universe" | sudo tee -a /etc/apt/sources.list
+          sudo apt update
+          sudo dpkg --add-architecture ${{ inputs.arch }}
+          sudo apt-get install -y curl git libudev-dev musl-tools pkg-config "libudev1:${{ inputs.arch }}" "libgcc-s1:${{ inputs.arch }}" "libc6:${{ inputs.arch }}" "libudev-dev:${{ inputs.arch }}" gcc-arm-linux-gnueabihf pkg-config-arm-linux-gnueabihf gcc-aarch64-linux-gnu pkg-config-aarch64-linux-gnu
+          echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=0" >> $GITHUB_ENV
+          echo "PKG_CONFIG_DIR=/opt/" >> $GITHUB_ENV
+          echo "PKG_CONFIG_LIBDIR=/opt/usr/lib/pkgconfig:/opt/usr/share/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+          if [[ ${{ inputs.arch }} == arm64 ]]; then
+            echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
+            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
+          fi
+          if [[ ${{ inputs.arch }} == armhf ]]; then
+            echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig" >> $GITHUB_ENV
+            echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          fi
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all --target ${{ inputs.target }} --features=raspberry
+      - name: Compress
+        run: zip -j ${{ matrix.crate }}-${{ inputs.target }}.zip target/${{ inputs.target }}/release/${{ matrix.crate }}${{ inputs.extension }}
+      - uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ matrix.crate }}-${{ inputs.target }}.zip
+          tag: ${{ github.ref }}
+
+  rust-ci:
+    if: github.event_name != 'workflow_dispatch'
+    name: "Rust CI: ${{ matrix.job.name }} - ${{ matrix.board.target }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        board:
+          - target: armv7-unknown-linux-gnueabihf
+            arch: armhf
+          - target: aarch64-unknown-linux-gnu
+            arch: arm64
+        job:
+          - name: Check
+            toolchain: stable
+            cargo-command: check
+          - name: Check MSRV
+            toolchain: "1.60"
+            cargo-command: check
+          - name: Unit Test
+            toolchain: stable
+            cargo-command: test
+            args: --lib
+          - name: Rustfmt
+            toolchain: stable
+            components: rustfmt
+            cargo-command: fmt
+            args: --all -- --check
+          - name: Clippy
+            toolchain: stable
+            components: clippy
+            cargo-command: clippy
+            args: -- -A clippy::too_many_arguments
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.job.toolchain }}
+          target: ${{ matrix.board.target }}
+          components: ${{ matrix.job.components }}
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - name: Replace target string
+        uses: mad9000/actions-find-and-replace-string@1
+        id: findandreplace
+        with:
+          source: ${{ matrix.board.target }}
+          find: "unknown-"
+          replace: ""
+      - name: Build dependencies
+        if: matrix.job.cargo-command  != 'fmt'
+        run: |
+          sudo sed -i 's/azure\.//' /etc/apt/sources.list
+          sudo apt-get update
+          echo "deb [arch=${{ matrix.board.arch }} http://ports.ubuntu.com/ubuntu-ports focal main universe" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{ matrix.board.arch }}] http://ports.ubuntu.com/ubuntu-ports focal-updates main universe" | sudo tee -a /etc/apt/sources.list
+          sudo apt update
+          sudo dpkg --add-architecture ${{ matrix.board.arch }}
+          sudo apt-get install -y curl git libudev-dev musl-tools pkg-config "libudev1:${{ matrix.board.arch }}" "libgcc-s1:${{ matrix.board.arch }}" "libc6:${{ matrix.board.arch }}" "libudev-dev:${{ matrix.board.arch }}" gcc-arm-linux-gnueabihf pkg-config-arm-linux-gnueabihf gcc-aarch64-linux-gnu pkg-config-aarch64-linux-gnu
+          echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=0" >> $GITHUB_ENV
+          echo "PKG_CONFIG_DIR=/opt/" >> $GITHUB_ENV
+          echo "PKG_CONFIG_LIBDIR=/opt/usr/lib/pkgconfig:/opt/usr/share/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+          if [[ ${{ matrix.board.arch }} == arm64 ]]; then
+            echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
+            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
+          fi
+          if [[ ${{ matrix.board.arch }} == armhf ]]; then
+            echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig" >> $GITHUB_ENV
+            echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          fi
+      - uses: actions-rs/cargo@v1
+        with:
+          command: ${{ matrix.job.cargo-command }}
+          args: ${{ matrix.job.args }} --features=raspberry
