@@ -82,7 +82,7 @@ impl FromStr for FlashFrequency {
 }
 
 #[derive(Copy, Clone, Debug, EnumVariantNames)]
-#[strum(serialize_all = "UPPERCASE")]
+#[strum(serialize_all = "lowercase")]
 pub enum FlashMode {
     Qio,
     Qout,
@@ -94,11 +94,11 @@ impl FromStr for FlashMode {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mode = match s.to_uppercase().as_str() {
-            "QIO" => FlashMode::Qio,
-            "QOUT" => FlashMode::Qout,
-            "DIO" => FlashMode::Dio,
-            "DOUT" => FlashMode::Dout,
+        let mode = match s.to_lowercase().as_str() {
+            "qio" => FlashMode::Qio,
+            "qout" => FlashMode::Qout,
+            "dio" => FlashMode::Dio,
+            "dout" => FlashMode::Dout,
             _ => return Err(Error::InvalidFlashMode(s.to_string())),
         };
 
@@ -109,25 +109,25 @@ impl FromStr for FlashMode {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Display, EnumVariantNames)]
 #[repr(u8)]
 pub enum FlashSize {
-    #[strum(serialize = "256KB")]
+    #[strum(serialize = "256K")]
     Flash256Kb = 0x12,
-    #[strum(serialize = "512KB")]
+    #[strum(serialize = "512K")]
     Flash512Kb = 0x13,
-    #[strum(serialize = "1MB")]
+    #[strum(serialize = "1M")]
     Flash1Mb = 0x14,
-    #[strum(serialize = "2MB")]
+    #[strum(serialize = "2M")]
     Flash2Mb = 0x15,
-    #[strum(serialize = "4MB")]
+    #[strum(serialize = "4M")]
     Flash4Mb = 0x16,
-    #[strum(serialize = "8MB")]
+    #[strum(serialize = "8M")]
     Flash8Mb = 0x17,
-    #[strum(serialize = "16MB")]
+    #[strum(serialize = "16M")]
     Flash16Mb = 0x18,
-    #[strum(serialize = "32MB")]
+    #[strum(serialize = "32M")]
     Flash32Mb = 0x19,
-    #[strum(serialize = "64MB")]
+    #[strum(serialize = "64M")]
     Flash64Mb = 0x1a,
-    #[strum(serialize = "128MB")]
+    #[strum(serialize = "128M")]
     Flash128Mb = 0x21,
 }
 

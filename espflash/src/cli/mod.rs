@@ -30,67 +30,84 @@ pub mod monitor;
 
 mod serial;
 
+// Since as of `clap@4.0.x` the `possible_values` attribute is no longer
+// present, we must use the more convoluted `value_parser` attribute instead.
+// Since this is a bit tedious, we'll use a helper macro to abstract away all
+// the cruft. It's important to note that this macro assumes the
+// `strum::EnumVariantNames` trait has been implemented for the provided type,
+// and that the provided type is in scope when calling this macro.
+//
+// See this comment for details:
+// https://github.com/clap-rs/clap/discussions/4264#discussioncomment-3737696
+#[macro_export]
+macro_rules! clap_enum_variants {
+    ($e: ty) => {{
+        use clap::builder::TypedValueParser;
+        clap::builder::PossibleValuesParser::new(<$e>::VARIANTS).map(|s| s.parse::<$e>().unwrap())
+    }};
+}
+
+pub use clap_enum_variants;
+
 #[derive(Debug, Args)]
 pub struct ConnectArgs {
     /// Baud rate at which to communicate with target device
-    #[clap(short = 'b', long)]
+    #[arg(short = 'b', long)]
     pub baud: Option<u32>,
-    /// Baud rate at which to read console output
-    #[clap(long)]
-    pub monitor_baud: Option<u32>,
     /// Serial port connected to target device
-    #[clap(short = 'p', long)]
+    #[arg(short = 'p', long)]
     pub port: Option<String>,
-
     /// DTR pin to use for the internal UART hardware. Uses BCM numbering.
     #[cfg(feature = "raspberry")]
     #[cfg_attr(feature = "raspberry", clap(long))]
     pub dtr: Option<u8>,
-
     /// RTS pin to use for the internal UART hardware. Uses BCM numbering.
     #[cfg(feature = "raspberry")]
     #[cfg_attr(feature = "raspberry", clap(long))]
     pub rts: Option<u8>,
-
     /// Use RAM stub for loading
-    #[clap(long)]
+    #[arg(long)]
     pub use_stub: bool,
 }
 
 #[derive(Debug, Args)]
 pub struct FlashConfigArgs {
     /// Flash frequency
-    #[clap(short = 'f', long, possible_values = FlashFrequency::VARIANTS, value_name = "FREQ")]
+    #[arg(short = 'f', long, value_name = "FREQ", value_parser = clap_enum_variants!(FlashFrequency))]
     pub flash_freq: Option<FlashFrequency>,
     /// Flash mode to use
-    #[clap(short = 'm', long, possible_values = FlashMode::VARIANTS, value_name = "MODE")]
+    #[arg(short = 'm', long, value_name = "MODE", value_parser = clap_enum_variants!(FlashMode))]
     pub flash_mode: Option<FlashMode>,
     /// Flash size of the target
-    #[clap(short = 's', long, possible_values = FlashSize::VARIANTS, value_name = "SIZE")]
+    #[arg(short = 's', long, value_name = "SIZE", value_parser = clap_enum_variants!(FlashSize))]
     pub flash_size: Option<FlashSize>,
 }
 
 #[derive(Debug, Args)]
+#[group(skip)]
 pub struct FlashArgs {
     /// Path to a binary (.bin) bootloader file
-    #[clap(long)]
+    #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Erase the OTA data partition
     /// This is useful when using multiple OTA partitions and still wanting to
     /// be able to reflash via cargo-espflash or espflash
-    #[clap(long)]
+    #[arg(long)]
     pub erase_otadata: bool,
     /// Image format to flash
-    #[clap(long, possible_values = ImageFormatType::VARIANTS)]
+    #[arg(long, value_parser = clap_enum_variants!(ImageFormatType))]
     pub format: Option<String>,
     /// Open a serial monitor after flashing
-    #[clap(long)]
+    #[arg(long)]
     pub monitor: bool,
+    /// Baud rate at which to read console output
+    #[arg(long, requires = "monitor", value_name = "BAUD")]
+    pub monitor_baud: Option<u32>,
     /// Path to a CSV file containing partition table
-    #[clap(long)]
+    #[arg(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Load the application to RAM instead of Flash
-    #[clap(long)]
+    #[arg(long)]
     pub ram: bool,
 }
 
@@ -98,37 +115,39 @@ pub struct FlashArgs {
 #[derive(Debug, Args)]
 pub struct PartitionTableArgs {
     /// Optional output file name, if unset will output to stdout
-    #[clap(short = 'o', long)]
+    #[arg(short = 'o', long, value_name = "FILE")]
     output: Option<PathBuf>,
     /// Input partition table
+    #[arg(value_name = "FILE")]
     partition_table: PathBuf,
     /// Convert CSV parition table to binary representation
-    #[clap(long, conflicts_with = "to-csv")]
+    #[arg(long, conflicts_with = "to_csv")]
     to_binary: bool,
     /// Convert binary partition table to CSV representation
-    #[clap(long, conflicts_with = "to-binary")]
+    #[arg(long, conflicts_with = "to_binary")]
     to_csv: bool,
 }
 
 /// Save the image to disk instead of flashing to device
 #[derive(Debug, Args)]
+#[group(skip)]
 pub struct SaveImageArgs {
     /// Custom bootloader for merging
-    #[clap(long)]
+    #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Chip to create an image for
-    #[clap(long, possible_values = Chip::VARIANTS)]
+    #[arg(long, value_parser = clap_enum_variants!(Chip))]
     pub chip: Chip,
     /// File name to save the generated image to
     pub file: PathBuf,
     /// Boolean flag to merge binaries into single binary
-    #[clap(long)]
+    #[arg(long)]
     pub merge: bool,
     /// Custom partition table for merging
-    #[clap(long, short = 'T', requires = "merge")]
+    #[arg(long, short = 'T', requires = "merge", value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Don't pad the image to the flash size
-    #[clap(long, short = 'P', requires = "merge")]
+    #[arg(long, short = 'P', requires = "merge")]
     pub skip_padding: bool,
 }
 
@@ -182,7 +201,7 @@ pub fn serial_monitor(args: ConnectArgs, config: &Config) -> Result<()> {
         flasher.into_interface(),
         None,
         pid,
-        args.monitor_baud.unwrap_or(115_200),
+        args.baud.unwrap_or(115_200),
     )
     .into_diagnostic()?;
 

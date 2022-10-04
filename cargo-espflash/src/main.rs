@@ -9,9 +9,9 @@ use cargo_metadata::Message;
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        board_info, config::Config, connect, flash_elf_image, monitor::monitor, partition_table,
-        save_elf_as_image, serial_monitor, ConnectArgs, FlashArgs as BaseFlashArgs,
-        FlashConfigArgs, PartitionTableArgs, SaveImageArgs as BaseSaveImageArgs,
+        self, board_info, clap_enum_variants, config::Config, connect, flash_elf_image,
+        monitor::monitor, partition_table, save_elf_as_image, serial_monitor, ConnectArgs,
+        FlashConfigArgs, PartitionTableArgs,
     },
     image_format::{ImageFormatId, ImageFormatType},
     logging::initialize_logger,
@@ -33,7 +33,7 @@ mod error;
 mod package_metadata;
 
 #[derive(Debug, Parser)]
-#[clap(bin_name = "cargo", propagate_version = true, version)]
+#[clap(version, bin_name = "cargo", propagate_version = true)]
 struct Cli {
     #[clap(subcommand)]
     subcommand: CargoSubcommand,
@@ -63,37 +63,34 @@ enum Commands {
 #[derive(Debug, Args)]
 struct BuildArgs {
     /// Binary to build and flash
-    #[clap(long)]
+    #[arg(long)]
     pub bin: Option<String>,
     /// Example to build and flash
-    #[clap(long)]
+    #[arg(long)]
     pub example: Option<String>,
     /// Comma delimited list of build features
-    #[clap(long, use_value_delimiter = true)]
+    #[arg(long, use_value_delimiter = true)]
     pub features: Option<Vec<String>>,
-    /// Image format to flash
-    #[clap(long, possible_values = ImageFormatType::VARIANTS)]
-    pub format: Option<String>,
     /// Require Cargo.lock and cache are up to date
-    #[clap(long)]
+    #[arg(long)]
     pub frozen: bool,
     /// Require Cargo.lock is up to date
-    #[clap(long)]
+    #[arg(long)]
     pub locked: bool,
     /// Specify a (binary) package within a workspace to be built
-    #[clap(long)]
+    #[arg(long)]
     pub package: Option<String>,
     /// Build the application using the release profile
-    #[clap(long)]
+    #[arg(long)]
     pub release: bool,
     /// Target to build for
-    #[clap(long)]
+    #[arg(long)]
     pub target: Option<String>,
     /// Directory for all generated artifacts
-    #[clap(long)]
+    #[arg(long)]
     pub target_dir: Option<String>,
     /// Unstable (nightly-only) flags to Cargo, see 'cargo -Z help' for details
-    #[clap(short = 'Z')]
+    #[arg(short = 'Z')]
     pub unstable: Option<Vec<String>>,
 
     #[clap(flatten)]
@@ -108,20 +105,24 @@ struct FlashArgs {
     #[clap(flatten)]
     connect_args: ConnectArgs,
     #[clap(flatten)]
-    flash_args: BaseFlashArgs,
+    flash_args: cli::FlashArgs,
 }
 
 #[derive(Debug, Args)]
 struct SaveImageArgs {
+    /// Image format to flash
+    #[arg(long, value_parser = clap_enum_variants!(ImageFormatType))]
+    pub format: Option<String>,
+
     #[clap(flatten)]
     build_args: BuildArgs,
     #[clap(flatten)]
-    save_image_args: BaseSaveImageArgs,
+    save_image_args: cli::SaveImageArgs,
 }
 
 fn main() -> Result<()> {
     miette::set_panic_hook();
-    initialize_logger(LevelFilter::Debug);
+    initialize_logger(LevelFilter::Info);
 
     // Attempt to parse any provided comand-line arguments, or print the help
     // message and terminate if the invocation is not correct.
@@ -199,7 +200,7 @@ fn flash(
             .or(build_ctx.partition_table_path.as_deref());
 
         let image_format = args
-            .build_args
+            .flash_args
             .format
             .as_deref()
             .map(ImageFormatId::from_str)
@@ -225,7 +226,7 @@ fn flash(
             flasher.into_interface(),
             Some(&elf_data),
             pid,
-            args.connect_args.monitor_baud.unwrap_or(115_200),
+            args.flash_args.monitor_baud.unwrap_or(115_200),
         )
         .into_diagnostic()?;
     }
@@ -419,7 +420,6 @@ fn save_image(
         .map(|p| p.to_path_buf());
 
     let image_format = args
-        .build_args
         .format
         .as_deref()
         .map(ImageFormatId::from_str)

@@ -9,9 +9,9 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        board_info, config::Config, connect, flash_elf_image, monitor::monitor, partition_table,
-        save_elf_as_image, serial_monitor, ConnectArgs, FlashArgs as BaseFlashArgs,
-        FlashConfigArgs, PartitionTableArgs, SaveImageArgs as BaseSaveImageArgs,
+        self, board_info, clap_enum_variants, config::Config, connect, flash_elf_image,
+        monitor::monitor, partition_table, save_elf_as_image, serial_monitor, ConnectArgs,
+        FlashConfigArgs, PartitionTableArgs,
     },
     image_format::{ImageFormatId, ImageFormatType},
     logging::initialize_logger,
@@ -22,7 +22,7 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 use strum::VariantNames;
 
 #[derive(Debug, Parser)]
-#[clap(about, propagate_version = true, version)]
+#[clap(about, version, propagate_version = true)]
 struct Cli {
     #[clap(subcommand)]
     subcommand: Commands,
@@ -51,19 +51,19 @@ struct FlashArgs {
     #[clap(flatten)]
     pub flash_config_args: FlashConfigArgs,
     #[clap(flatten)]
-    flash_args: BaseFlashArgs,
+    flash_args: cli::FlashArgs,
 }
 
 #[derive(Debug, Args)]
 struct SaveImageArgs {
     /// Image format to flash
-    #[clap(long, possible_values = ImageFormatType::VARIANTS)]
+    #[arg(long, value_parser = clap_enum_variants!(ImageFormatType))]
     format: Option<String>,
 
     #[clap(flatten)]
     pub flash_config_args: FlashConfigArgs,
     #[clap(flatten)]
-    save_image_args: BaseSaveImageArgs,
+    save_image_args: cli::SaveImageArgs,
 
     /// ELF image to flash
     image: PathBuf,
@@ -73,7 +73,7 @@ struct SaveImageArgs {
 #[derive(Debug, Args)]
 struct WriteBinArgs {
     /// Address at which to write the binary file
-    #[clap(value_parser = parse_uint32)]
+    #[arg(value_parser = parse_uint32)]
     pub addr: u32,
     /// File containing the binary data to write
     pub bin_file: String,
@@ -161,7 +161,7 @@ fn flash(mut args: FlashArgs, config: &Config) -> Result<()> {
             flasher.into_interface(),
             Some(&elf_data),
             pid,
-            args.connect_args.monitor_baud.unwrap_or(115_200),
+            args.flash_args.monitor_baud.unwrap_or(115_200),
         )
         .into_diagnostic()?;
     }
