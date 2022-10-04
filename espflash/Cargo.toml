@@ -34,6 +34,7 @@ path = "./src/bin/espflash.rs"
 required-features = ["cli"]
 
 [dependencies]
+addr2line = "0.18.0"
 base64 = "0.13.0"
 binread = "2.2.0"
 bytemuck = { version = "1.12.1", features = ["derive"] }
@@ -43,13 +44,14 @@ crossterm = { version = "0.25.0", optional = true }
 dialoguer = { version = "0.10.2", optional = true }
 directories-next = "2.0.0"
 esp-idf-part = "0.1.0"
-espmonitor = "0.10.0"
 env_logger = "0.9.1"
 flate2 = "1.0.24"
 indicatif = "0.17.1"
+lazy_static = "1.4.0"
 log = "0.4.17"
 miette = { version = "5.3.0", features = ["fancy"] }
 parse_int = "0.6.0"
+regex = "1.6.0"
 rppal = { version = "0.13.1", optional = true }
 serde = { version = "1.0.145", features = ["derive"] }
 serde-hex = "0.1.0"
