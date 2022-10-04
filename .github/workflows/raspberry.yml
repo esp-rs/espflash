@@ -91,13 +91,15 @@ jobs:
           - name: Check
             toolchain: stable
             cargo-command: check
+            args: --features=raspberry
           - name: Check MSRV
             toolchain: "1.60"
             cargo-command: check
+            args: --features=raspberry
           - name: Unit Test
             toolchain: stable
             cargo-command: test
-            args: --lib
+            args: --lib --features=raspberry
           - name: Rustfmt
             toolchain: stable
             components: rustfmt
@@ -150,4 +152,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: ${{ matrix.job.cargo-command }}
-          args: --features=raspberry ${{ matrix.job.args }}
+          args: ${{ matrix.job.args }}
