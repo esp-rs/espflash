@@ -1,3 +1,5 @@
+name: CI
+
 on:
   pull_request:
     branches:
@@ -5,7 +7,8 @@ on:
   push:
   workflow_dispatch:
 
-name: CI
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   check:
