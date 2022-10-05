@@ -20,9 +20,8 @@ mod line_endings;
 mod symbols;
 
 // Pattern to much a function address in serial output.
-// All function addresses begin with '0x4', followed by exactly 7 hex digits.
 lazy_static! {
-    static ref RE_FN_ADDR: Regex = Regex::new(r"0x4[[:xdigit:]]{7}").unwrap();
+    static ref RE_FN_ADDR: Regex = Regex::new(r"0x[[:xdigit:]]{8}").unwrap();
 }
 
 #[derive(Default)]
