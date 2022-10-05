@@ -24,38 +24,30 @@ jobs:
       fail-fast: false
       matrix:
         crate: ["espflash", "cargo-espflash"]
-
     steps:
       - uses: actions/checkout@v2
-
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ inputs.target }}
           override: true
-
       - uses: Swatinem/rust-cache@v1
-
       - name: Build dependencies for other ubuntu targets
         if: inputs.runs_on == 'ubuntu-latest'
         run: |
           sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
           sudo apt-get update
           sudo apt-get install musl-tools libudev-dev
-
       - uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --all --target ${{ inputs.target }}
-
       - name: Compress (Unix)
         if: ${{ inputs.runs_on != 'windows-latest' }}
         run: zip -j ${{ matrix.crate }}-${{ inputs.target }}.zip target/${{ inputs.target }}/release/${{ matrix.crate }}${{ inputs.extension }}
-
       - name: Compress (Windows)
         if: ${{ inputs.runs_on == 'windows-latest' }}
         run: Compress-Archive target/${{ inputs.target }}/release/${{ matrix.crate }}${{ inputs.extension }} ${{ matrix.crate }}-${{ inputs.target }}.zip
-
       - uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
