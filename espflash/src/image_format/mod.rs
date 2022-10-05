@@ -1,15 +1,19 @@
+//! Supported binary image formats
+
 use std::str::FromStr;
 
 use bytemuck::{Pod, Zeroable};
 use serde::Deserialize;
 use strum::{Display, EnumVariantNames, IntoStaticStr};
 
-pub use self::{esp32bootloader::*, esp32directboot::*, esp8266::*};
+pub use self::{
+    direct_boot::DirectBootFormat, esp8266::Esp8266Format, idf_bootloader::IdfBootloaderFormat,
+};
 use crate::{elf::RomSegment, error::Error, flasher::FlashFrequency, targets::Chip};
 
-mod esp32bootloader;
-mod esp32directboot;
+mod direct_boot;
 mod esp8266;
+mod idf_bootloader;
 
 const ESP_MAGIC: u8 = 0xE9;
 const WP_PIN_DISABLED: u8 = 0xEE;
@@ -37,7 +41,7 @@ impl FromStr for ImageFormatType {
     }
 }
 
-#[derive(Copy, Clone, Zeroable, Pod, Debug)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C, packed)]
 struct EspCommonHeader {
     magic: u8,
@@ -47,7 +51,7 @@ struct EspCommonHeader {
     entry: u32,
 }
 
-#[derive(Copy, Clone, Zeroable, Pod, Debug)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C, packed)]
 struct SegmentHeader {
     addr: u32,
@@ -98,4 +102,12 @@ pub(crate) fn encode_flash_frequency(chip: Chip, frequency: FlashFrequency) -> R
     } else {
         Err(Error::UnsupportedFlashFrequency { chip, frequency })
     }
+}
+
+pub(crate) fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
+    for byte in data {
+        checksum ^= *byte;
+    }
+
+    checksum
 }

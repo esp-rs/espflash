@@ -8,7 +8,7 @@ use crate::{
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
-    image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
+    image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatId},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x00f0_1d83];
@@ -159,7 +159,7 @@ impl Target for Esp32 {
         let image_format = image_format.unwrap_or(ImageFormatId::Bootloader);
 
         match image_format {
-            ImageFormatId::Bootloader => Ok(Box::new(Esp32BootloaderFormat::new(
+            ImageFormatId::Bootloader => Ok(Box::new(IdfBootloaderFormat::new(
                 image,
                 Chip::Esp32,
                 PARAMS,

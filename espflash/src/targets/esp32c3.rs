@@ -8,7 +8,7 @@ use crate::{
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
-    image_format::{Esp32BootloaderFormat, Esp32DirectBootFormat, ImageFormat, ImageFormatId},
+    image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatId},
 };
 
 pub(crate) const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
@@ -82,7 +82,7 @@ impl Target for Esp32c3 {
         let image_format = image_format.unwrap_or(ImageFormatId::Bootloader);
 
         match (image_format, chip_revision) {
-            (ImageFormatId::Bootloader, _) => Ok(Box::new(Esp32BootloaderFormat::new(
+            (ImageFormatId::Bootloader, _) => Ok(Box::new(IdfBootloaderFormat::new(
                 image,
                 Chip::Esp32c3,
                 PARAMS,
@@ -93,7 +93,7 @@ impl Target for Esp32c3 {
                 flash_freq,
             )?)),
             (ImageFormatId::DirectBoot, None | Some(3..)) => {
-                Ok(Box::new(Esp32DirectBootFormat::new(image, 0)?))
+                Ok(Box::new(DirectBootFormat::new(image, 0)?))
             }
             _ => Err(
                 UnsupportedImageFormatError::new(image_format, Chip::Esp32c3, chip_revision).into(),
