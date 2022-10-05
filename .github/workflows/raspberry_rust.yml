@@ -44,7 +44,7 @@ jobs:
             toolchain: stable
             components: clippy
             cargo-command: clippy
-            args: -- -A clippy::too_many_arguments
+            args: --features=raspberry -- -A clippy::too_many_arguments
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
