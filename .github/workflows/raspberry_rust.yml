@@ -35,11 +35,6 @@ jobs:
             toolchain: stable
             cargo-command: test
             args: --lib --features=raspberry
-          - name: Rustfmt
-            toolchain: stable
-            components: rustfmt
-            cargo-command: fmt
-            args: --all -- --check
           - name: Clippy
             toolchain: stable
             components: clippy
