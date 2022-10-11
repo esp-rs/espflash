@@ -10,6 +10,7 @@ use crossterm::{
     QueueableCommand,
 };
 use lazy_static::lazy_static;
+use log::error;
 use miette::{IntoDiagnostic, Result};
 use regex::Regex;
 
@@ -52,7 +53,7 @@ impl RawModeGuard {
 impl Drop for RawModeGuard {
     fn drop(&mut self) {
         if let Err(e) = disable_raw_mode() {
-            eprintln!("{:#}", e)
+            error!("{:#}", e)
         }
     }
 }

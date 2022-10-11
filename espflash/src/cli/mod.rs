@@ -11,6 +11,7 @@ use std::{
 use clap::Args;
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, PartitionTable, SubType, Type};
+use log::{debug, info};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{SerialPortType, UsbPortInfo};
 use strum::VariantNames;
@@ -155,18 +156,18 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
     let port_info = get_serial_port_info(args, config)?;
 
     // Attempt to open the serial port and set its initial baud rate.
-    println!("Serial port: {}", port_info.port_name);
-    println!("Connecting...\n");
+    info!("Serial port: '{}'", port_info.port_name);
+    info!("Connecting...");
 
     let interface = Interface::new(&port_info, args, config)
         .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
 
-    // NOTE: since `get_serial_port_info` filters out all non-USB serial ports, we
-    //       can just pretend the remaining types don't exist here.
+    // NOTE: since `get_serial_port_info` filters out all PCI Port and Bluetooth
+    //       serial ports, we can just pretend these types don't exist here.
     let port_info = match port_info.port_type {
         SerialPortType::UsbPort(info) => info,
         SerialPortType::Unknown => {
-            println!("Matched SerialPortType::Unknown");
+            debug!("Matched `SerialPortType::Unknown`");
             UsbPortInfo {
                 vid: 0,
                 pid: 0,
@@ -386,7 +387,7 @@ pub fn flash_elf_image(
         flash_size,
         flash_freq,
     )?;
-    println!("\nFlashing has completed!");
+    info!("Flashing has completed!");
 
     Ok(())
 }

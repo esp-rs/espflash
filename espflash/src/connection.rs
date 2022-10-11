@@ -2,6 +2,7 @@ use std::{io::BufWriter, thread::sleep, time::Duration};
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
 use bytemuck::{Pod, Zeroable};
+use log::info;
 use serialport::UsbPortInfo;
 use slip_codec::SlipDecoder;
 
@@ -51,18 +52,15 @@ impl Connection {
 
     pub fn begin(&mut self) -> Result<(), Error> {
         let mut extra_delay = false;
-        for i in 0..DEFAULT_CONNECT_ATTEMPTS {
+        for _ in 0..DEFAULT_CONNECT_ATTEMPTS {
             if self.connect_attempt(extra_delay).is_err() {
                 extra_delay = !extra_delay;
 
-                let delay_text = if extra_delay { "extra" } else { "default" };
-                println!("Unable to connect, retrying with {} delay...", delay_text);
+                info!(
+                    "Unable to connect, retrying with {} delay...",
+                    if extra_delay { "extra" } else { "default" }
+                );
             } else {
-                // Print a blank line if more than one connection attempt was made to visually
-                // separate the status text and whatever comes next.
-                if i > 0 {
-                    println!();
-                }
                 return Ok(());
             }
         }

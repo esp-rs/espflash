@@ -1,5 +1,8 @@
+use std::fs;
+
 use crossterm::style::Stylize;
 use dialoguer::{theme::ColorfulTheme, Confirm, Select};
+use log::{error, info};
 use miette::{IntoDiagnostic, Result};
 use serialport::{available_ports, SerialPortInfo, SerialPortType, UsbPortInfo};
 
@@ -20,20 +23,20 @@ pub fn get_serial_port_info(
     // also be prompted to select a port, unless there is only one found and its VID
     // and PID match the configured values.
     //
-    // The call to canonicalize() was originally added to resolve https://github.com/esp-rs/espflash/issues/177,
-    // however, canonicalize  doesn't work (on Windows) with "dummy" device paths
-    // like `COM4`. That's the reason we need to handle Windows/Posix
-    // differently.
+    // The call to canonicalize() was originally added to resolve
+    // https://github.com/esp-rs/espflash/issues/177, however, canonicalize
+    // doesn't work (on Windows) with "dummy" device paths like `COM4`. That's
+    // the reason we need to handle Windows/Posix differently.
 
     let ports = detect_usb_serial_ports().unwrap_or_default();
 
     if let Some(serial) = &matches.port {
         #[cfg(not(target_os = "windows"))]
-        let serial = std::fs::canonicalize(serial)?.to_string_lossy().to_string();
+        let serial = fs::canonicalize(serial)?.to_string_lossy().to_string();
         find_serial_port(&ports, &serial)
     } else if let Some(serial) = &config.connection.serial {
         #[cfg(not(target_os = "windows"))]
-        let serial = std::fs::canonicalize(serial)?.to_string_lossy().to_string();
+        let serial = fs::canonicalize(serial)?.to_string_lossy().to_string();
         find_serial_port(&ports, &serial)
     } else {
         let (port, matches) = select_serial_port(ports, config)?;
@@ -54,7 +57,7 @@ pub fn get_serial_port_info(
                             pid: usb_info.pid,
                         })
                     }) {
-                        eprintln!("Failed to save config {:#}", e);
+                        error!("Failed to save config {:#}", e);
                     }
                 }
             }
@@ -179,10 +182,9 @@ fn select_serial_port(
 
     if ports.len() > 1 {
         // Multiple serial ports detected
-        println!(
-            "Detected {} serial ports. Ports which match a known common dev board are highlighted.\n",
-            ports.len()
-        );
+        info!("Detected {} serial ports", ports.len());
+        info!("Ports which match a known common dev board are highlighted");
+        info!("Please select a port");
 
         let port_names = ports
             .iter()
