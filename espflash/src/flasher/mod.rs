@@ -2,7 +2,7 @@ use std::{borrow::Cow, str::FromStr, thread::sleep};
 
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use esp_idf_part::PartitionTable;
-use log::debug;
+use log::{debug, info, warn};
 use serialport::UsbPortInfo;
 use strum::{Display, EnumVariantNames};
 
@@ -305,7 +305,7 @@ impl Flasher {
 
         // Load flash stub if enabled
         if use_stub {
-            println!("Using flash stub");
+            info!("Using flash stub");
             flasher.load_stub()?;
         }
 
@@ -318,7 +318,7 @@ impl Flasher {
                 Chip::Esp8266 => (), // Not available
                 _ => {
                     if b > 115_200 {
-                        println!("WARN setting baud rate higher than 115200 can cause issues.");
+                        warn!("Setting baud rate higher than 115,200 can cause issues");
                         flasher.change_baud(b)?;
                     }
                 }
@@ -372,7 +372,7 @@ impl Flasher {
         debug!("Finish stub write");
         ram_target.finish(&mut self.connection, true).flashing()?;
 
-        debug!("Stub written...");
+        debug!("Stub written!");
 
         match self.connection.read(EXPECTED_STUB_HANDSHAKE.len())? {
             Some(resp) if resp == EXPECTED_STUB_HANDSHAKE.as_bytes() => Ok(()),
@@ -433,8 +433,8 @@ impl Flasher {
         let flash_size = match FlashSize::from(size_id) {
             Ok(size) => size,
             Err(_) => {
-                eprintln!(
-                    "Warning: could not detect flash size (FlashID=0x{:02X}, SizeID=0x{:02X}), defaulting to 4MB\n",
+                warn!(
+                    "Could not detect flash size (FlashID=0x{:02X}, SizeID=0x{:02X}), defaulting to 4MB\n",
                     flash_id,
                     size_id
                 );

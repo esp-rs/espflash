@@ -14,7 +14,9 @@ pub mod logging {
     use log::LevelFilter;
 
     pub fn initialize_logger(filter: LevelFilter) {
-        env_logger::Builder::from_env(Env::default().default_filter_or(filter.as_str())).init();
+        env_logger::Builder::from_env(Env::default().default_filter_or(filter.as_str()))
+            .format_target(false)
+            .init();
     }
 }
 
