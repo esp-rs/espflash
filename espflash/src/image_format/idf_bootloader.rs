@@ -2,6 +2,7 @@ use std::{borrow::Cow, io::Write, iter::once};
 
 use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use esp_idf_part::{Partition, PartitionTable, Type};
+use indicatif::HumanCount;
 use sha2::{Digest, Sha256};
 
 use super::{
@@ -240,8 +241,8 @@ fn check_partition_stats(part: &Partition, data: &Vec<u8>) -> Result<(), Error> 
     let perc = data.len() as f32 / part.size() as f32 * 100.0;
     println!(
         "App/part. size:    {}/{} bytes, {:.2}%",
-        data.len(),
-        part.size(),
+        HumanCount(data.len() as u64),
+        HumanCount(part.size() as u64),
         perc
     );
 
