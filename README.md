@@ -19,7 +19,7 @@ Please see the [cargo-espflash README] for more information.
 $ cargo espflash --release --example=blinky /dev/ttyUSB0
 ```
 
-[cargo-espflash readme]: https://github.com/esp-rs/espflash/blob/master/cargo-espflash/README.md
+[cargo-espflash readme]: https://github.com/esp-rs/espflash/blob/main/cargo-espflash/README.md
 
 ### espflash
 
@@ -33,10 +33,10 @@ Please see the [espflash README] for more information.
 $ espflash /dev/ttyUSB0 target/xtensa-esp32-none-elf/release/examples/blinky
 ```
 
-[espflash readme]: https://github.com/esp-rs/espflash/blob/master/espflash/README.md
+[espflash readme]: https://github.com/esp-rs/espflash/blob/main/espflash/README.md
 [esptool.py]: https://github.com/espressif/esptool
-[cargo-espflash]: https://github.com/esp-rs/espflash/tree/master/cargo-espflash
-[espflash]: https://github.com/esp-rs/espflash/tree/master/espflash
+[cargo-espflash]: https://github.com/esp-rs/espflash/tree/main/cargo-espflash
+[espflash]: https://github.com/esp-rs/espflash/tree/main/espflash
 
 ## Installation
 

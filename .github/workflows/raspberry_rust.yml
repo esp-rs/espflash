@@ -3,7 +3,7 @@ name: Rasberry Pi CI
 on:
   pull_request:
     branches:
-      - master
+      - main
   push:
   workflow_dispatch:
 
