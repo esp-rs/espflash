@@ -21,7 +21,7 @@ use crate::{
     elf::ElfFirmwareImage,
     error::{MissingPartitionTable, NoOtadataError},
     flasher::{FlashFrequency, FlashMode, FlashSize, Flasher},
-    image_format::{ImageFormatId, ImageFormatType},
+    image_format::ImageFormatId,
     interface::Interface,
     targets::Chip,
 };
@@ -96,8 +96,8 @@ pub struct FlashArgs {
     #[arg(long)]
     pub erase_otadata: bool,
     /// Image format to flash
-    #[arg(long, value_parser = clap_enum_variants!(ImageFormatType))]
-    pub format: Option<String>,
+    #[arg(long, value_parser = clap_enum_variants!(ImageFormatId))]
+    pub format: Option<ImageFormatId>,
     /// Open a serial monitor after flashing
     #[arg(long)]
     pub monitor: bool,

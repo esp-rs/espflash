@@ -3,7 +3,6 @@ use std::{
     io::Read,
     num::ParseIntError,
     path::PathBuf,
-    str::FromStr,
 };
 
 use clap::{Args, Parser, Subcommand};
@@ -13,7 +12,7 @@ use espflash::{
         monitor::monitor, partition_table, save_elf_as_image, serial_monitor, ConnectArgs,
         FlashConfigArgs, PartitionTableArgs,
     },
-    image_format::{ImageFormatId, ImageFormatType},
+    image_format::ImageFormatId,
     logging::initialize_logger,
     update::check_for_update,
 };
@@ -57,8 +56,8 @@ struct FlashArgs {
 #[derive(Debug, Args)]
 struct SaveImageArgs {
     /// Image format to flash
-    #[arg(long, value_parser = clap_enum_variants!(ImageFormatType))]
-    format: Option<String>,
+    #[arg(long, value_parser = clap_enum_variants!(ImageFormatId))]
+    format: Option<ImageFormatId>,
 
     #[clap(flatten)]
     pub flash_config_args: FlashConfigArgs,
@@ -134,19 +133,12 @@ fn flash(mut args: FlashArgs, config: &Config) -> Result<()> {
         let bootloader = args.flash_args.bootloader.as_deref();
         let partition_table = args.flash_args.partition_table.as_deref();
 
-        let image_format = args
-            .flash_args
-            .format
-            .as_deref()
-            .map(ImageFormatId::from_str)
-            .transpose()?;
-
         flash_elf_image(
             &mut flasher,
             &elf_data,
             bootloader,
             partition_table,
-            image_format,
+            args.flash_args.format,
             args.flash_config_args.flash_mode,
             args.flash_config_args.flash_size,
             args.flash_config_args.flash_freq,
@@ -174,17 +166,11 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
         .into_diagnostic()
         .wrap_err_with(|| format!("Failed to open image {}", args.image.display()))?;
 
-    let image_format = args
-        .format
-        .as_deref()
-        .map(ImageFormatId::from_str)
-        .transpose()?;
-
     save_elf_as_image(
         args.save_image_args.chip,
         &elf_data,
         args.save_image_args.file,
-        image_format,
+        args.format,
         args.flash_config_args.flash_mode,
         args.flash_config_args.flash_size,
         args.flash_config_args.flash_freq,
