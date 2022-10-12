@@ -5,7 +5,7 @@ use std::{
 };
 
 use cargo_toml::Manifest;
-use espflash::image_format::ImageFormatId;
+use espflash::image_format::ImageFormatKind;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::Deserialize;
 
@@ -15,7 +15,7 @@ use crate::error::{Error, TomlError};
 pub struct CargoEspFlashMeta {
     pub partition_table: Option<PathBuf>,
     pub bootloader: Option<PathBuf>,
-    pub format: Option<ImageFormatId>,
+    pub format: Option<ImageFormatKind>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]

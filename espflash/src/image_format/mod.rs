@@ -55,12 +55,12 @@ pub trait ImageFormat<'a>: Send {
 )]
 #[strum(serialize_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
-pub enum ImageFormatId {
+pub enum ImageFormatKind {
     Bootloader,
     DirectBoot,
 }
 
-impl FromStr for ImageFormatId {
+impl FromStr for ImageFormatKind {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

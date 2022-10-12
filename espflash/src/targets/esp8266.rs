@@ -8,7 +8,7 @@ use crate::{
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
-    image_format::{Esp8266Format, ImageFormat, ImageFormatId},
+    image_format::{Esp8266Format, ImageFormat, ImageFormatKind},
 };
 
 pub(crate) const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0xfff0_c101];
@@ -58,16 +58,16 @@ impl Target for Esp8266 {
         image: &'a dyn FirmwareImage<'a>,
         _bootloader: Option<Vec<u8>>,
         _partition_table: Option<PartitionTable>,
-        image_format: Option<ImageFormatId>,
+        image_format: Option<ImageFormatKind>,
         _chip_revision: Option<u32>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = image_format.unwrap_or(ImageFormatId::Bootloader);
+        let image_format = image_format.unwrap_or(ImageFormatKind::Bootloader);
 
         match image_format {
-            ImageFormatId::Bootloader => Ok(Box::new(Esp8266Format::new(
+            ImageFormatKind::Bootloader => Ok(Box::new(Esp8266Format::new(
                 image, flash_mode, flash_size, flash_freq,
             )?)),
             _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp8266, None).into()),

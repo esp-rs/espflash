@@ -12,7 +12,7 @@ use espflash::{
         monitor::monitor, partition_table, save_elf_as_image, serial_monitor, ConnectArgs,
         FlashConfigArgs, PartitionTableArgs,
     },
-    image_format::ImageFormatId,
+    image_format::ImageFormatKind,
     logging::initialize_logger,
     targets::Chip,
     update::check_for_update,
@@ -110,8 +110,8 @@ struct FlashArgs {
 #[derive(Debug, Args)]
 struct SaveImageArgs {
     /// Image format to flash
-    #[arg(long, value_parser = clap_enum_variants!(ImageFormatId))]
-    pub format: Option<ImageFormatId>,
+    #[arg(long, value_parser = clap_enum_variants!(ImageFormatKind))]
+    pub format: Option<ImageFormatKind>,
 
     #[clap(flatten)]
     build_args: BuildArgs,

@@ -18,7 +18,7 @@ use crate::{
     elf::FirmwareImage,
     error::{ChipDetectError, Error},
     flasher::{FlashFrequency, FlashMode, FlashSize, SpiAttachParams, FLASH_WRITE_SIZE},
-    image_format::{ImageFormat, ImageFormatId},
+    image_format::{ImageFormat, ImageFormatKind},
 };
 
 mod esp32;
@@ -262,7 +262,7 @@ pub trait Target: ReadEFuse {
         image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-        image_format: Option<ImageFormatId>,
+        image_format: Option<ImageFormatKind>,
         chip_revision: Option<u32>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
@@ -286,8 +286,8 @@ pub trait Target: ReadEFuse {
 
     fn spi_registers(&self) -> SpiRegisters;
 
-    fn supported_image_formats(&self) -> &[ImageFormatId] {
-        &[ImageFormatId::Bootloader]
+    fn supported_image_formats(&self) -> &[ImageFormatKind] {
+        &[ImageFormatKind::Bootloader]
     }
 
     fn supported_build_targets(&self) -> &[&str];

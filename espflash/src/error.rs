@@ -11,7 +11,7 @@ use thiserror::Error;
 use crate::{
     command::CommandType,
     flasher::{FlashFrequency, FlashMode, FlashSize},
-    image_format::ImageFormatId,
+    image_format::ImageFormatKind,
     interface::SerialConfigError,
     targets::Chip,
 };
@@ -69,7 +69,7 @@ pub enum Error {
     #[error("Unrecognized image format {0}")]
     #[diagnostic(
         code(espflash::unknown_format),
-        help("The following image formats are {}", ImageFormatId::VARIANTS.join(", "))
+        help("The following image formats are {}", ImageFormatKind::VARIANTS.join(", "))
     )]
     UnknownImageFormat(String),
     #[error("binary is not setup correct to support direct boot")]
@@ -396,7 +396,7 @@ impl From<u8> for FlashDetectError {
 
 #[derive(Debug)]
 pub struct UnsupportedImageFormatError {
-    format: ImageFormatId,
+    format: ImageFormatKind,
     chip: Chip,
     revision: Option<u32>,
 }
@@ -423,7 +423,7 @@ impl Diagnostic for UnsupportedImageFormatError {
     }
 
     fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
-        let str = if self.chip == Chip::Esp32c3 && self.format == ImageFormatId::DirectBoot {
+        let str = if self.chip == Chip::Esp32c3 && self.format == ImageFormatKind::DirectBoot {
             format!(
                 "The {}: only supports direct-boot starting with revision 3",
                 self.chip,
@@ -440,7 +440,7 @@ impl Diagnostic for UnsupportedImageFormatError {
 }
 
 impl UnsupportedImageFormatError {
-    pub fn new(format: ImageFormatId, chip: Chip, revision: Option<u32>) -> Self {
+    pub fn new(format: ImageFormatKind, chip: Chip, revision: Option<u32>) -> Self {
         UnsupportedImageFormatError {
             format,
             chip,

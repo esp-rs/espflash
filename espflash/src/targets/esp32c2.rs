@@ -8,7 +8,7 @@ use crate::{
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashFrequency, FlashMode, FlashSize},
-    image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatId},
+    image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
 };
 
 pub(crate) const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
@@ -86,16 +86,16 @@ impl Target for Esp32c2 {
         image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-        image_format: Option<ImageFormatId>,
+        image_format: Option<ImageFormatKind>,
         _chip_revision: Option<u32>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = image_format.unwrap_or(ImageFormatId::Bootloader);
+        let image_format = image_format.unwrap_or(ImageFormatKind::Bootloader);
 
         match image_format {
-            ImageFormatId::Bootloader => Ok(Box::new(IdfBootloaderFormat::new(
+            ImageFormatKind::Bootloader => Ok(Box::new(IdfBootloaderFormat::new(
                 image,
                 Chip::Esp32c2,
                 PARAMS,
@@ -105,7 +105,7 @@ impl Target for Esp32c2 {
                 flash_size,
                 flash_freq,
             )?)),
-            ImageFormatId::DirectBoot => Ok(Box::new(DirectBootFormat::new(image, 0)?)),
+            ImageFormatKind::DirectBoot => Ok(Box::new(DirectBootFormat::new(image, 0)?)),
         }
     }
 
@@ -121,8 +121,8 @@ impl Target for Esp32c2 {
         }
     }
 
-    fn supported_image_formats(&self) -> &[ImageFormatId] {
-        &[ImageFormatId::Bootloader, ImageFormatId::DirectBoot]
+    fn supported_image_formats(&self) -> &[ImageFormatKind] {
+        &[ImageFormatKind::Bootloader, ImageFormatKind::DirectBoot]
     }
 
     fn supported_build_targets(&self) -> &[&str] {
