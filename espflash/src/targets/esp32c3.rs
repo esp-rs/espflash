@@ -79,10 +79,10 @@ impl Target for Esp32c3 {
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = image_format.unwrap_or(ImageFormatKind::Bootloader);
+        let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
 
         match (image_format, chip_revision) {
-            (ImageFormatKind::Bootloader, _) => Ok(Box::new(IdfBootloaderFormat::new(
+            (ImageFormatKind::EspBootloader, _) => Ok(Box::new(IdfBootloaderFormat::new(
                 image,
                 Chip::Esp32c3,
                 PARAMS,
@@ -114,7 +114,7 @@ impl Target for Esp32c3 {
     }
 
     fn supported_image_formats(&self) -> &[ImageFormatKind] {
-        &[ImageFormatKind::Bootloader, ImageFormatKind::DirectBoot]
+        &[ImageFormatKind::EspBootloader, ImageFormatKind::DirectBoot]
     }
 
     fn supported_build_targets(&self) -> &[&str] {

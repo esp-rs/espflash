@@ -287,7 +287,7 @@ pub trait Target: ReadEFuse {
     fn spi_registers(&self) -> SpiRegisters;
 
     fn supported_image_formats(&self) -> &[ImageFormatKind] {
-        &[ImageFormatKind::Bootloader]
+        &[ImageFormatKind::EspBootloader]
     }
 
     fn supported_build_targets(&self) -> &[&str];

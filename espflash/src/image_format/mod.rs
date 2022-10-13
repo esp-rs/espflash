@@ -56,7 +56,7 @@ pub trait ImageFormat<'a>: Send {
 #[strum(serialize_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
 pub enum ImageFormatKind {
-    Bootloader,
+    EspBootloader,
     DirectBoot,
 }
 
@@ -65,7 +65,7 @@ impl FromStr for ImageFormatKind {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "bootloader" => Ok(Self::Bootloader),
+            "bootloader" => Ok(Self::EspBootloader),
             "direct-boot" => Ok(Self::DirectBoot),
             _ => Err(Error::UnknownImageFormat(s.into())),
         }

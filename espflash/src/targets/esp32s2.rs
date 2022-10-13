@@ -129,10 +129,10 @@ impl Target for Esp32s2 {
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = image_format.unwrap_or(ImageFormatKind::Bootloader);
+        let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
 
         match image_format {
-            ImageFormatKind::Bootloader => Ok(Box::new(IdfBootloaderFormat::new(
+            ImageFormatKind::EspBootloader => Ok(Box::new(IdfBootloaderFormat::new(
                 image,
                 Chip::Esp32s2,
                 PARAMS,

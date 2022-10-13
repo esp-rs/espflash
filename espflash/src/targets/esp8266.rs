@@ -64,10 +64,10 @@ impl Target for Esp8266 {
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = image_format.unwrap_or(ImageFormatKind::Bootloader);
+        let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
 
         match image_format {
-            ImageFormatKind::Bootloader => Ok(Box::new(Esp8266Format::new(
+            ImageFormatKind::EspBootloader => Ok(Box::new(Esp8266Format::new(
                 image, flash_mode, flash_size, flash_freq,
             )?)),
             _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp8266, None).into()),
