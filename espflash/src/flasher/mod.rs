@@ -12,7 +12,7 @@ use crate::{
     connection::Connection,
     elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
     error::{ConnectionError, Error, FlashDetectError, ResultExt},
-    image_format::ImageFormatId,
+    image_format::ImageFormatKind,
     interface::Interface,
     targets::Chip,
 };
@@ -630,7 +630,7 @@ impl Flasher {
         elf_data: &[u8],
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-        image_format: Option<ImageFormatId>,
+        image_format: Option<ImageFormatKind>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,

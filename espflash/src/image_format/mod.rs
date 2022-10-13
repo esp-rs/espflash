@@ -18,29 +18,6 @@ mod idf_bootloader;
 const ESP_MAGIC: u8 = 0xE9;
 const WP_PIN_DISABLED: u8 = 0xEE;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumVariantNames)]
-#[strum(serialize_all = "kebab-case")]
-pub enum ImageFormatType {
-    Esp8266,
-    IdfBoot,
-    DirectBoot,
-}
-
-impl FromStr for ImageFormatType {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use ImageFormatType::*;
-
-        match s.to_lowercase().as_str() {
-            "esp8266" => Ok(Esp8266),
-            "idf-boot" => Ok(IdfBoot),
-            "direct-boot" => Ok(DirectBoot),
-            _ => Err(Error::UnknownImageFormat(s.to_string())),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C, packed)]
 struct EspCommonHeader {
@@ -78,17 +55,17 @@ pub trait ImageFormat<'a>: Send {
 )]
 #[strum(serialize_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
-pub enum ImageFormatId {
-    Bootloader,
+pub enum ImageFormatKind {
+    EspBootloader,
     DirectBoot,
 }
 
-impl FromStr for ImageFormatId {
+impl FromStr for ImageFormatKind {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "bootloader" => Ok(Self::Bootloader),
+            "bootloader" => Ok(Self::EspBootloader),
             "direct-boot" => Ok(Self::DirectBoot),
             _ => Err(Error::UnknownImageFormat(s.into())),
         }

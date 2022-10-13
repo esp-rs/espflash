@@ -8,7 +8,7 @@ use crate::{
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
-    image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatId},
+    image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
 };
 
 pub(crate) const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
@@ -73,16 +73,16 @@ impl Target for Esp32c3 {
         image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-        image_format: Option<ImageFormatId>,
+        image_format: Option<ImageFormatKind>,
         chip_revision: Option<u32>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = image_format.unwrap_or(ImageFormatId::Bootloader);
+        let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
 
         match (image_format, chip_revision) {
-            (ImageFormatId::Bootloader, _) => Ok(Box::new(IdfBootloaderFormat::new(
+            (ImageFormatKind::EspBootloader, _) => Ok(Box::new(IdfBootloaderFormat::new(
                 image,
                 Chip::Esp32c3,
                 PARAMS,
@@ -92,7 +92,7 @@ impl Target for Esp32c3 {
                 flash_size,
                 flash_freq,
             )?)),
-            (ImageFormatId::DirectBoot, None | Some(3..)) => {
+            (ImageFormatKind::DirectBoot, None | Some(3..)) => {
                 Ok(Box::new(DirectBootFormat::new(image, 0)?))
             }
             _ => Err(
@@ -113,8 +113,8 @@ impl Target for Esp32c3 {
         }
     }
 
-    fn supported_image_formats(&self) -> &[ImageFormatId] {
-        &[ImageFormatId::Bootloader, ImageFormatId::DirectBoot]
+    fn supported_image_formats(&self) -> &[ImageFormatKind] {
+        &[ImageFormatKind::EspBootloader, ImageFormatKind::DirectBoot]
     }
 
     fn supported_build_targets(&self) -> &[&str] {

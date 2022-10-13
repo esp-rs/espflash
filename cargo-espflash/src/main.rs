@@ -2,7 +2,6 @@ use std::{
     fs,
     path::PathBuf,
     process::{exit, Command, ExitStatus, Stdio},
-    str::FromStr,
 };
 
 use cargo_metadata::Message;
@@ -13,7 +12,7 @@ use espflash::{
         monitor::monitor, partition_table, save_elf_as_image, serial_monitor, ConnectArgs,
         FlashConfigArgs, PartitionTableArgs,
     },
-    image_format::{ImageFormatId, ImageFormatType},
+    image_format::ImageFormatKind,
     logging::initialize_logger,
     targets::Chip,
     update::check_for_update,
@@ -111,8 +110,8 @@ struct FlashArgs {
 #[derive(Debug, Args)]
 struct SaveImageArgs {
     /// Image format to flash
-    #[arg(long, value_parser = clap_enum_variants!(ImageFormatType))]
-    pub format: Option<String>,
+    #[arg(long, value_parser = clap_enum_variants!(ImageFormatKind))]
+    pub format: Option<ImageFormatKind>,
 
     #[clap(flatten)]
     build_args: BuildArgs,
@@ -199,20 +198,12 @@ fn flash(
             .or(metadata.partition_table.as_deref())
             .or(build_ctx.partition_table_path.as_deref());
 
-        let image_format = args
-            .flash_args
-            .format
-            .as_deref()
-            .map(ImageFormatId::from_str)
-            .transpose()?
-            .or(metadata.format);
-
         flash_elf_image(
             &mut flasher,
             &elf_data,
             bootloader,
             partition_table,
-            image_format,
+            args.flash_args.format.or(metadata.format),
             args.build_args.flash_config_args.flash_mode,
             args.build_args.flash_config_args.flash_size,
             args.build_args.flash_config_args.flash_freq,
@@ -419,18 +410,11 @@ fn save_image(
         .or(build_ctx.partition_table_path.as_deref())
         .map(|p| p.to_path_buf());
 
-    let image_format = args
-        .format
-        .as_deref()
-        .map(ImageFormatId::from_str)
-        .transpose()?
-        .or(metadata.format);
-
     save_elf_as_image(
         args.save_image_args.chip,
         &elf_data,
         args.save_image_args.file,
-        image_format,
+        args.format.or(metadata.format),
         args.build_args.flash_config_args.flash_mode,
         args.build_args.flash_config_args.flash_size,
         args.build_args.flash_config_args.flash_freq,
