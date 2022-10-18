@@ -1,13 +1,14 @@
 #[cfg(feature = "cli")]
 pub mod cli;
-pub mod command;
 pub mod connection;
 pub mod elf;
 pub mod error;
 pub mod flasher;
 pub mod image_format;
-pub mod interface;
 pub mod targets;
+
+mod command;
+mod interface;
 
 pub mod logging {
     use env_logger::Env;
