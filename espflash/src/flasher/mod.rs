@@ -758,7 +758,7 @@ pub(crate) fn get_erase_size(offset: usize, size: usize) -> usize {
 
 pub(crate) const CHECKSUM_INIT: u8 = 0xEF;
 
-pub fn checksum(data: &[u8], mut checksum: u8) -> u8 {
+pub(crate) fn checksum(data: &[u8], mut checksum: u8) -> u8 {
     for byte in data {
         checksum ^= *byte;
     }
