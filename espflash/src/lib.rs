@@ -66,6 +66,7 @@ pub mod logging {
     use env_logger::Env;
     use log::LevelFilter;
 
+    /// Initialize the logger with the given [LevelFilter]
     pub fn initialize_logger(filter: LevelFilter) {
         env_logger::Builder::from_env(Env::default().default_filter_or(filter.as_str()))
             .format_target(false)
@@ -82,6 +83,7 @@ pub mod update {
     use log::info;
     use update_informer::{registry, Check};
 
+    /// Check crates.io for a new version of the application
     pub fn check_for_update(name: &str, version: &str) {
         // By setting the interval to 0 seconds we invalidate the cache with each
         // invocation and ensure we're getting up-to-date results

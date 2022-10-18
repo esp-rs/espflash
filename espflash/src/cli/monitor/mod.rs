@@ -70,6 +70,7 @@ impl Drop for RawModeGuard {
     }
 }
 
+/// Open a serial monitor on the given interface
 pub fn monitor(
     mut serial: Interface,
     elf: Option<&[u8]>,
