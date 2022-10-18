@@ -44,7 +44,10 @@
 //! [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
 //! [rppal]: https://docs.rs/rppal/latest/rppal/
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 #[cfg(feature = "cli")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod cli;
 pub mod connection;
 pub mod elf;
@@ -57,6 +60,8 @@ mod command;
 mod interface;
 
 /// Logging utilties
+#[cfg(feature = "cli")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod logging {
     use env_logger::Env;
     use log::LevelFilter;
@@ -70,6 +75,7 @@ pub mod logging {
 
 /// Check for updates
 #[cfg(feature = "cli")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod update {
     use std::time::Duration;
 
