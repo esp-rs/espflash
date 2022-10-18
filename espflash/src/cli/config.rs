@@ -1,3 +1,12 @@
+//! Command-line interface configuration
+//!
+//! Both [cargo-espflash] and [espflash] allow for the use of configuration
+//! files; the [Config] type handles the loading and saving of this
+//! configuration file.
+//!
+//! [cargo-espflash]: https://crates.io/crates/cargo-espflash
+//! [espflash]: https://crates.io/crates/espflash
+
 use directories_next::ProjectDirs;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};

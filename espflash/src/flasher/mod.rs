@@ -1,3 +1,9 @@
+//! Write a binary application to a target device
+//!
+//! The [Flasher] struct abstracts over various operations for writing a binary
+//! application to a target device. It additionally provides some operations to
+//! read information from the target device.
+
 use std::{borrow::Cow, str::FromStr, thread::sleep};
 
 use bytemuck::{Pod, Zeroable, __core::time::Duration};

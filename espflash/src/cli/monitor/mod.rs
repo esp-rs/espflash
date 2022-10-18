@@ -1,3 +1,15 @@
+//! Serial monitor utility
+//!
+//! While simple, this serial monitor does provide some nice features such as:
+//!
+//! - Keyboard shortcut for resetting the device (Ctrl-R)
+//! - Decoding of function addresses in serial output
+//!
+//! While some serial monitors buffer output until a newline is encountered,
+//! that is not the case here. With other monitors the output of a `print!()`
+//! call are not displayed until `println!()` is subsequently called, where as
+//! in our monitor the output is displayed immediately upon reading.
+
 use std::{
     io::{stdout, ErrorKind, Write},
     time::Duration,

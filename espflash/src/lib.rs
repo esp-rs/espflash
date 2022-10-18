@@ -1,3 +1,49 @@
+//! A library and application for flashing Espressif devices over Serial
+//!
+//! ## As an application
+//!
+//! [espflash] can be installed using `cargo install`, and additionally supports installation via [cargo-binstall]:
+//!
+//! ```bash
+//! $ cargo install espflash
+//! $ cargo binstall espflash
+//! ```
+//!
+//! Flashing via a Raspberry Pi's internal UART is also possible, however this
+//! functionality is gated behind the `raspberry` feature; if you would like to
+//! enable this simply enable the feature when installing:
+//!
+//! ```bash
+//! $ cargo install espflash --feature=raspberry
+//! ```
+//!
+//! Note that this feature can only be enabled on a Raspberry Pi, as it depends
+//! on the [rppal] package which will not build on most systems.
+//!
+//! ## As a library
+//!
+//! [espflash] can also be used as a library:
+//!
+//! ```toml
+//! espflash = { version = "2.0", default-features = false }
+//! ```
+//!
+//! We add `default-features` here to disable the `cli` feature, which is
+//! enabled by default; you likely will not need any of these types or functions
+//! in your application so there's no use pulling in the extra dependencies.
+//!
+//! Just like when using [espflash] as an application, you can enable the
+//! `raspberry` feature to allow your dependent application to use the Raspberry
+//! Pi's built-in UART:
+//!
+//! ```toml
+//! espflash = { version = "2.0", default-features = false, features = ["raspberry"] }
+//! ```
+//!
+//! [espflash]: https://crates.io/crates/espflash
+//! [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
+//! [rppal]: https://docs.rs/rppal/latest/rppal/
+
 #[cfg(feature = "cli")]
 pub mod cli;
 pub mod connection;
@@ -10,6 +56,7 @@ pub mod targets;
 mod command;
 mod interface;
 
+/// Logging utilties
 pub mod logging {
     use env_logger::Env;
     use log::LevelFilter;
@@ -21,6 +68,7 @@ pub mod logging {
     }
 }
 
+/// Check for updates
 #[cfg(feature = "cli")]
 pub mod update {
     use std::time::Duration;

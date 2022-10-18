@@ -1,4 +1,9 @@
 //! Supported binary image formats
+//!
+//! Since the ESP8266 is not supported by ESP-IDF, it has its own image format
+//! which must be used. All other devices support the ESP-IDF bootloader format.
+//! Certain devices additionall support direct boot, which needs its own unique
+//! image format.
 
 use std::str::FromStr;
 

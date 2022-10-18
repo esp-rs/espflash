@@ -1,6 +1,11 @@
-//! CLI utilities shared between espflash and cargo-espflash
+//! Types and functions for the command-line interface
 //!
-//! No stability guaranties apply
+//! The contents of this module are intended for use with the [cargo-espflash]
+//! and [espflash] command-line applications, and are likely not of much use
+//! otherwise.
+//!
+//! [cargo-espflash]: https://crates.io/crates/cargo-espflash
+//! [espflash]: https://crates.io/crates/espflash
 
 use std::{
     fs,

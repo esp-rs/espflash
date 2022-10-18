@@ -1,3 +1,5 @@
+//! ELF (Executable and Linkable Format) file operations
+
 use std::{
     borrow::Cow,
     cmp::Ordering,

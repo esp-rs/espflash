@@ -1,3 +1,9 @@
+//! Establish a connection with a target device
+//!
+//! The [Connection] struct abstracts over the serial connection and
+//! sending/decoding of commands, and provides higher-level operations with the
+//! device.
+
 use std::{io::BufWriter, thread::sleep, time::Duration};
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
