@@ -1,89 +1,94 @@
 # espflash
 
-Serial flasher utility for Espressif SoCs and modules.
+[![Crates.io](https://img.shields.io/crates/v/espflash?labelColor=1C2C2E&color=C96329&logo=Rust&style=flat-square)](https://crates.io/crates/espflash)
+[![docs.rs](https://img.shields.io/docsrs/espflash?labelColor=1C2C2E&color=C96329&logo=rust&style=flat-square)](https://docs.rs/espflash)
+![MSRV](https://img.shields.io/badge/MSRV-1.60-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
+![Crates.io](https://img.shields.io/crates/l/espflash?labelColor=1C2C2E&style=flat-square)
 
-Currently supports the **ESP32**, **ESP32-C3**, **ESP32-S2**, **ESP32-S3**, and **ESP8266**.
+A library and command-line tool for flashing Espressif devices over serial.
+
+Supports the **ESP32**, **ESP32-C2**, **ESP32-C3**, **ESP32-S2**, **ESP32-S3**, and **ESP8266**.
 
 ## Installation
 
-```shell
+If you are installing `espflash` from source (ie. using `cargo install`) then you must have `rustc>=1.60.0` installed on your system. Additionally [libuv] must be installed; this is available via most popular package managers.
+
+```bash
+$ # macOS
+$ brew install libuv
+$ # Debian/Ubuntu/etc.
+$ apt-get install libuv-dev
+$ # Fedora
+$ dnf install systemd-devel
+```
+
+To install:
+
+```bash
 $ cargo install espflash
 ```
 
-Alternatively, you can use [cargo-binstall] to install pre-compiled binaries on any supported system. Please check the [releases] to see which architectures and operating systems have pre-compiled binaries.
+Alternatively, you can use [cargo-binstall] to download pre-compiled artifacts from the [releases] and use them instead:
 
-```shell
-$ cargo install cargo-binstall
+```bash
 $ cargo binstall espflash
 ```
 
-[cargo-binstall]: https://github.com/ryankurte/cargo-binstall
+If you would like to flash from a Raspberry Pi using the built-in UART peripheral, you can enable the `raspberry` feature (note that this is not available if using [cargo-binstall]):
+
+```bash
+$ cargo install espflash --features=raspberry
+```
+
+[libuv]: (https://libuv.org/)
+[cargo-binstall]: (https://github.com/cargo-bins/cargo-binstall)
 [releases]: https://github.com/esp-rs/espflash/releases
 
 ## Usage
 
 ```text
-espflash 2.0.0-dev
-A command-line tool for flashing Espressif devices over serial
+A library and command-line tool for flashing Espressif devices
 
-USAGE:
-    espflash <SUBCOMMAND>
+Usage: espflash <COMMAND>
 
-OPTIONS:
-    -h, --help       Print help information
-    -V, --version    Print version information
+Commands:
+  board-info       Display information about the connected board and exit without flashing
+  flash            Flash an application to a target device
+  monitor          Open the serial monitor without flashing
+  partition-table  Operations for partitions tables
+  save-image       Save the image to disk instead of flashing to device
+  write-bin        Writes a binary file to a specific address in the chip's flash
+  help             Print this message or the help of the given subcommand(s)
 
-SUBCOMMANDS:
-    board-info         Display information about the connected board and exit without flashing
-    flash              Flash an application to a target device
-    help               Print this message or the help of the given subcommand(s)
-    monitor            Open the serial monitor without flashing
-    partition-table    Operations for partitions tables
-    save-image         Save the image to disk instead of flashing to device
-    write-bin          Writes a binary file to a specific address in the chip's flash
+Options:
+  -h, --help     Print help information
+  -V, --version  Print version information
 ```
 
-## Compile-time features
+### Cargo Runner
 
- - `raspberry`: enables configuring DTR and RTS GPIOs which are necessary to use a Raspberry Pi's
-   internal UART peripherals. This feature is optional (external USB <-> UART converters work
-   without it) and adds a dependency on [`rppal`](https://crates.io/crates/rppal).
+You can also use `espflash` as a Cargo runner by adding the following to your project's `.cargo/config.toml` file, for example:
+
+```toml
+[target.'cfg(any(target_arch = "riscv32", target_arch = "xtensa"))']
+runner = "espflash --baud=921600 --ram --monitor /dev/ttyUSB0"
+```
+
+With this configuration you can flash and monitor you application using `cargo run`.
 
 ## Configuration
 
-You can also specify the serial port and/or expected VID/PID values by setting them in the configuration file. This file is in different locations depending on your operating system:
+It's possible to specify a serial port and/or USB VID/PID values by setting them in a configuration file. The location of this file differs based on your operating system:
 
-| Operating System | Configuration Path                                                       |
-| :--------------- | :----------------------------------------------------------------------- |
-| **Linux:**       | `/home/alice/.config/espflash/espflash.toml`                             |
-| **Windows:**     | `C:\Users\Alice\AppData\Roaming\esp\espflash\espflash.toml`              |
-| **macOS:**       | `/Users/Alice/Library/Application Support/rs.esp.espflash/espflash.toml` |
-
-An example configuration file may look as follows (note that TOML does _not_ support hexadecimal literals):
-
-```toml
-[connection]
-serial = "/dev/ttyUSB0"
-
-[[usb_device]]
-vid = "303A"
-pid = "8000"
-```
+| Operating System | Configuration Path                                                |
+| :--------------- | :---------------------------------------------------------------- |
+| Linux            | `$HOME/.config/espflash/espflash.toml`                            |
+| macOS            | `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml` |
+| Windows          | `%APPDATA%\esp\espflash\espflash.toml`                            |
 
 ## WSL2
 
-It is not possible to flash `usb-serial-jtag` chips with `WSL2` because the reset also resets `serial-jtag-peripheral` which disconnects the chip from WSL2.
-
-## Use as a Cargo Runner
-
-You can also use `espflash` as a Cargo runner by adding the followin to your project's `.cargo/config` file:
-
-```
-[target.'cfg(all(target_arch = "xtensa", target_os = "none"))']
-runner = "espflash --ram /dev/ttyUSB0"
-```
-
-This then allows you to run your project using `cargo run`.
+It is not possible to flash chips using the built-in `USB_SERIAL_JTAG` when using WSL2, because the reset also resets `USB_SERIAL_JTAG` peripheral which then disconnects the chip from WSL2.
 
 ## License
 
