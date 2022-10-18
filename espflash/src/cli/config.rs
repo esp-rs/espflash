@@ -1,21 +1,24 @@
+//! Command-line interface configuration
+//!
+//! Both [cargo-espflash] and [espflash] allow for the use of configuration
+//! files; the [Config] type handles the loading and saving of this
+//! configuration file.
+//!
+//! [cargo-espflash]: https://crates.io/crates/cargo-espflash
+//! [espflash]: https://crates.io/crates/espflash
+
+use std::{
+    fs::{create_dir_all, read, write},
+    path::PathBuf,
+};
+
 use directories_next::ProjectDirs;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};
 use serde_hex::{Compact, SerHex};
 use serialport::UsbPortInfo;
-use std::fs::{create_dir_all, read, write};
-use std::path::PathBuf;
 
-#[derive(Debug, Deserialize, Serialize, Default, Clone)]
-pub struct Config {
-    #[serde(default)]
-    pub connection: Connection,
-    #[serde(default)]
-    pub usb_device: Vec<UsbDevice>,
-    #[serde(skip)]
-    save_path: PathBuf,
-}
-
+/// A configured, known serial connection
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Connection {
     pub serial: Option<String>,
@@ -25,6 +28,7 @@ pub struct Connection {
     pub dtr: Option<u8>,
 }
 
+/// A configured, known USB device
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct UsbDevice {
     #[serde(with = "SerHex::<Compact>")]
@@ -37,6 +41,17 @@ impl UsbDevice {
     pub fn matches(&self, port: &UsbPortInfo) -> bool {
         self.vid == port.vid && self.pid == port.pid
     }
+}
+
+/// Deserialized contents of a configuration file
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
+pub struct Config {
+    #[serde(default)]
+    pub connection: Connection,
+    #[serde(default)]
+    pub usb_device: Vec<UsbDevice>,
+    #[serde(skip)]
+    save_path: PathBuf,
 }
 
 impl Config {

@@ -1,6 +1,11 @@
-//! CLI utilities shared between espflash and cargo-espflash
+//! Types and functions for the command-line interface
 //!
-//! No stability guaranties apply
+//! The contents of this module are intended for use with the [cargo-espflash]
+//! and [espflash] command-line applications, and are likely not of much use
+//! otherwise.
+//!
+//! [cargo-espflash]: https://crates.io/crates/cargo-espflash
+//! [espflash]: https://crates.io/crates/espflash
 
 use std::{
     fs,
@@ -40,6 +45,7 @@ mod serial;
 //
 // See this comment for details:
 // https://github.com/clap-rs/clap/discussions/4264#discussioncomment-3737696
+#[doc(hidden)]
 #[macro_export]
 macro_rules! clap_enum_variants {
     ($e: ty) => {{
@@ -50,6 +56,7 @@ macro_rules! clap_enum_variants {
 
 pub use clap_enum_variants;
 
+/// Establish a connection with a target device
 #[derive(Debug, Args)]
 pub struct ConnectArgs {
     /// Baud rate at which to communicate with target device
@@ -71,6 +78,7 @@ pub struct ConnectArgs {
     pub use_stub: bool,
 }
 
+/// Configure communication with the target device's flash
 #[derive(Debug, Args)]
 pub struct FlashConfigArgs {
     /// Flash frequency
@@ -84,6 +92,7 @@ pub struct FlashConfigArgs {
     pub flash_size: Option<FlashSize>,
 }
 
+/// Flash an application to a target device
 #[derive(Debug, Args)]
 #[group(skip)]
 pub struct FlashArgs {
@@ -152,6 +161,7 @@ pub struct SaveImageArgs {
     pub skip_padding: bool,
 }
 
+/// Select a serial port and establish a connection with a target device
 pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
     let port_info = get_serial_port_info(args, config)?;
 
@@ -187,6 +197,7 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
     )?)
 }
 
+/// Connect to a target device and print information about its chip
 pub fn board_info(args: ConnectArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args, config)?;
     flasher.board_info()?;
@@ -194,6 +205,7 @@ pub fn board_info(args: ConnectArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Open a serial monitor
 pub fn serial_monitor(args: ConnectArgs, config: &Config) -> Result<()> {
     let flasher = connect(&args, config)?;
     let pid = flasher.get_usb_pid()?;
@@ -209,6 +221,7 @@ pub fn serial_monitor(args: ConnectArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Convert the provided firmware image from ELF to binary
 pub fn save_elf_as_image(
     chip: Chip,
     elf_data: &[u8],
@@ -321,6 +334,7 @@ pub fn save_elf_as_image(
     Ok(())
 }
 
+/// Write an ELF image to a target device's flash
 pub fn flash_elf_image(
     flasher: &mut Flasher,
     elf_data: &[u8],
@@ -392,6 +406,7 @@ pub fn flash_elf_image(
     Ok(())
 }
 
+/// Convert and display CSV and binary partition tables
 pub fn partition_table(args: PartitionTableArgs) -> Result<()> {
     if args.to_binary {
         let input = fs::read_to_string(&args.partition_table).into_diagnostic()?;

@@ -1,3 +1,5 @@
+//! Library and application errors
+
 use std::{
     fmt::{Display, Formatter},
     io,

@@ -1,3 +1,9 @@
+//! Establish a connection with a target device
+//!
+//! The [Connection] struct abstracts over the serial connection and
+//! sending/decoding of commands, and provides higher-level operations with the
+//! device.
+
 use std::{io::BufWriter, thread::sleep, time::Duration};
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
@@ -16,6 +22,7 @@ use crate::{
 const DEFAULT_CONNECT_ATTEMPTS: usize = 7;
 pub(crate) const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
+/// A response from a target device following a command
 #[derive(Debug, Copy, Clone, BinRead)]
 pub struct CommandResponse {
     pub resp: u8,
@@ -26,6 +33,7 @@ pub struct CommandResponse {
     pub error: u8,
 }
 
+/// An established connection with a target device
 pub struct Connection {
     serial: Interface,
     port_info: UsbPortInfo,
@@ -278,6 +286,7 @@ impl Connection {
     }
 }
 
+/// Reset the target device when flashing has completed
 pub fn reset_after_flash(serial: &mut Interface, pid: u16) -> Result<(), serialport::Error> {
     sleep(Duration::from_millis(100));
 

@@ -1,3 +1,11 @@
+//! Flashable target devices
+//!
+//! Different devices support different boot options; the ESP8266 does not use a
+//! second-stage bootloader, nor does direct boot (only supported by certain
+//! devices). All ESP32* devices support booting via the ESP-IDF bootloader.
+//! It's also possible to write an application to and boot from RAM, where a
+//! bootloader is obviously not required either.
+
 use std::{collections::HashMap, str::FromStr};
 
 use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};

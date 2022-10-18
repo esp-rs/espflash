@@ -1,3 +1,9 @@
+//! Write a binary application to a target device
+//!
+//! The [Flasher] struct abstracts over various operations for writing a binary
+//! application to a target device. It additionally provides some operations to
+//! read information from the target device.
+
 use std::{borrow::Cow, str::FromStr, thread::sleep};
 
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
@@ -31,6 +37,9 @@ const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
 
 const EXPECTED_STUB_HANDSHAKE: &str = "OHAI";
 
+/// Supported flash frequencies
+///
+/// Note that not all frequencies are supported by each target device.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display, EnumVariantNames)]
 #[repr(u8)]
 pub enum FlashFrequency {
@@ -81,6 +90,7 @@ impl FromStr for FlashFrequency {
     }
 }
 
+/// Supported flash modes
 #[derive(Copy, Clone, Debug, EnumVariantNames)]
 #[strum(serialize_all = "lowercase")]
 pub enum FlashMode {
@@ -106,6 +116,9 @@ impl FromStr for FlashMode {
     }
 }
 
+/// Supported flash sizes
+///
+/// Note that not all sizes are supported by each target device.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Display, EnumVariantNames)]
 #[repr(u8)]
 pub enum FlashSize {
@@ -187,6 +200,7 @@ impl FromStr for FlashSize {
     }
 }
 
+/// Parameters for attaching to a target devices SPI flash
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct SpiAttachParams {
@@ -265,6 +279,7 @@ struct EntryParams {
     entry: u32,
 }
 
+/// Connect to and flash a target device
 pub struct Flasher {
     /// Connection for flash operations
     connection: Connection,
