@@ -21,7 +21,6 @@ categories = [
     "development-tools",
     "embedded",
 ]
-exclude = ["tests/data"]
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.{ archive-format }"
