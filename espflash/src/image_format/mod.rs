@@ -20,6 +20,7 @@ mod direct_boot;
 mod esp8266;
 mod idf_bootloader;
 
+const ESP_CHECKSUM_MAGIC: u8 = 0xef;
 const ESP_MAGIC: u8 = 0xE9;
 const WP_PIN_DISABLED: u8 = 0xEE;
 
@@ -77,7 +78,7 @@ impl FromStr for ImageFormatKind {
     }
 }
 
-pub(crate) fn encode_flash_frequency(chip: Chip, frequency: FlashFrequency) -> Result<u8, Error> {
+fn encode_flash_frequency(chip: Chip, frequency: FlashFrequency) -> Result<u8, Error> {
     let encodings = chip.into_target().flash_frequency_encodings();
     if let Some(&f) = encodings.get(&frequency) {
         Ok(f)
@@ -86,7 +87,7 @@ pub(crate) fn encode_flash_frequency(chip: Chip, frequency: FlashFrequency) -> R
     }
 }
 
-pub(crate) fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
+fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
     for byte in data {
         checksum ^= *byte;
     }

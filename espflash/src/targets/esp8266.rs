@@ -11,9 +11,9 @@ use crate::{
     image_format::{Esp8266Format, ImageFormat, ImageFormatKind},
 };
 
-pub(crate) const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0xfff0_c101];
+const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0xfff0_c101];
 
-pub(crate) const FLASH_RANGES: &[Range<u32>] = &[
+const FLASH_RANGES: &[Range<u32>] = &[
     0x40200000..0x40300000, // IROM
 ];
 
