@@ -11,33 +11,35 @@ Supports the **ESP32**, **ESP32-C2**, **ESP32-C3**, **ESP32-S2**, **ESP32-S3**, 
 
 ## Installation
 
-If you are installing `espflash` from source (ie. using `cargo install`) then you must have `rustc>=1.60.0` installed on your system. Additionally [libuv] must be installed; this is available via most popular package managers.
+If you are installing `espflash` from source (ie. using `cargo install`) then you must have `rustc>=1.60.0` installed on your system.
+
+If you are running **macOS** or **Linux** then [libuv] must also be installed; this is available via most popular package managers. If you are running **Windows** you can ignore this step.
 
 ```bash
-$ # macOS
-$ brew install libuv
-$ # Debian/Ubuntu/etc.
-$ apt-get install libuv-dev
-$ # Fedora
-$ dnf install systemd-devel
+# macOS
+brew install libuv
+# Debian/Ubuntu/etc.
+apt-get install libuv-dev
+# Fedora
+dnf install systemd-devel
 ```
 
 To install:
 
 ```bash
-$ cargo install espflash
+cargo install espflash
 ```
 
 Alternatively, you can use [cargo-binstall] to download pre-compiled artifacts from the [releases] and use them instead:
 
 ```bash
-$ cargo binstall espflash
+cargo binstall espflash
 ```
 
 If you would like to flash from a Raspberry Pi using the built-in UART peripheral, you can enable the `raspberry` feature (note that this is not available if using [cargo-binstall]):
 
 ```bash
-$ cargo install espflash --features=raspberry
+cargo install espflash --features=raspberry
 ```
 
 [libuv]: (https://libuv.org/)
@@ -71,7 +73,7 @@ You can also use `espflash` as a Cargo runner by adding the following to your pr
 
 ```toml
 [target.'cfg(any(target_arch = "riscv32", target_arch = "xtensa"))']
-runner = "espflash --baud=921600 --ram --monitor /dev/ttyUSB0"
+runner = "espflash --baud=921600 --monitor /dev/ttyUSB0"
 ```
 
 With this configuration you can flash and monitor you application using `cargo run`.
