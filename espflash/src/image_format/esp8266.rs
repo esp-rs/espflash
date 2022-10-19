@@ -161,3 +161,26 @@ fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
         _ => Err(FlashDetectError::from(size as u8)),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use super::*;
+    use crate::elf::ElfFirmwareImage;
+
+    #[test]
+    fn test_esp8266_image_format() {
+        let input_bytes = fs::read("tests/resources/esp8266_hal_blinky").unwrap();
+        let expected_bin = fs::read("tests/resources/esp8266_hal_blinky.bin").unwrap();
+
+        let image = ElfFirmwareImage::try_from(input_bytes.as_slice()).unwrap();
+        let flash_image = Esp8266Format::new(&image, None, None, None).unwrap();
+
+        let segments = flash_image.flash_segments().collect::<Vec<_>>();
+        let buf = segments[0].data.as_ref();
+
+        assert_eq!(expected_bin.len(), buf.len());
+        assert_eq!(expected_bin.as_slice(), buf);
+    }
+}
