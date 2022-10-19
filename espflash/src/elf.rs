@@ -19,8 +19,6 @@ use crate::{
     targets::Chip,
 };
 
-pub const ESP_CHECKSUM_MAGIC: u8 = 0xef;
-
 pub trait FirmwareImage<'a> {
     fn entry(&self) -> u32;
     fn segments(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;

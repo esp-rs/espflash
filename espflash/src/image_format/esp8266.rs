@@ -3,10 +3,11 @@ use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
 use bytemuck::bytes_of;
 
 use super::{
-    encode_flash_frequency, update_checksum, EspCommonHeader, ImageFormat, SegmentHeader, ESP_MAGIC,
+    encode_flash_frequency, update_checksum, EspCommonHeader, ImageFormat, SegmentHeader,
+    ESP_CHECKSUM_MAGIC, ESP_MAGIC,
 };
 use crate::{
-    elf::{CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
+    elf::{CodeSegment, FirmwareImage, RomSegment},
     error::{Error, FlashDetectError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
     targets::Chip,

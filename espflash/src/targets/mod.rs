@@ -305,7 +305,7 @@ pub trait Target: ReadEFuse {
     }
 }
 
-pub(crate) fn bytes_to_mac_addr(bytes: &[u8]) -> String {
+fn bytes_to_mac_addr(bytes: &[u8]) -> String {
     bytes
         .iter()
         .map(|b| format!("{:02x}", b))

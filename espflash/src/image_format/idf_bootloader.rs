@@ -7,10 +7,10 @@ use sha2::{Digest, Sha256};
 
 use super::{
     encode_flash_frequency, update_checksum, EspCommonHeader, ImageFormat, SegmentHeader,
-    ESP_MAGIC, WP_PIN_DISABLED,
+    ESP_CHECKSUM_MAGIC, ESP_MAGIC, WP_PIN_DISABLED,
 };
 use crate::{
-    elf::{CodeSegment, FirmwareImage, RomSegment, ESP_CHECKSUM_MAGIC},
+    elf::{CodeSegment, FirmwareImage, RomSegment},
     error::{Error, FlashDetectError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
     targets::{Chip, Esp32Params},

@@ -25,17 +25,15 @@ use crate::{
 
 mod stubs;
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
-
+pub(crate) const CHECKSUM_INIT: u8 = 0xEF;
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
+
+const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
+const EXPECTED_STUB_HANDSHAKE: &str = "OHAI";
 const FLASH_BLOCK_SIZE: usize = 0x100;
 const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
-
-// register used for chip detect
-const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
-
-const EXPECTED_STUB_HANDSHAKE: &str = "OHAI";
 
 /// Supported flash frequencies
 ///
@@ -770,8 +768,6 @@ pub(crate) fn get_erase_size(offset: usize, size: usize) -> usize {
         (sector_count - head_sectors) * FLASH_SECTOR_SIZE
     }
 }
-
-pub(crate) const CHECKSUM_INIT: u8 = 0xEF;
 
 pub(crate) fn checksum(data: &[u8], mut checksum: u8) -> u8 {
     for byte in data {

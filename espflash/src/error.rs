@@ -263,7 +263,6 @@ impl From<SerialConfigError> for Error {
 }
 
 #[derive(Copy, Clone, Debug, Error, Diagnostic)]
-#[allow(dead_code)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum RomErrorKind {
@@ -309,7 +308,6 @@ impl From<u8> for RomErrorKind {
 }
 
 #[derive(Copy, Clone, Debug, Error, Diagnostic)]
-#[allow(dead_code)]
 #[non_exhaustive]
 #[error("Error while running {command} command")]
 pub struct RomError {

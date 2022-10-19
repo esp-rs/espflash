@@ -11,17 +11,17 @@ use crate::{
     image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
 };
 
-pub(crate) const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
+const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
     0x6f51_306f, // ECO0
     0x7c41_a06f, // ECO1
 ];
 
-pub(crate) const FLASH_RANGES: &[Range<u32>] = &[
+const FLASH_RANGES: &[Range<u32>] = &[
     0x4200_0000..0x4240_0000, // IROM
     0x3c00_0000..0x3c40_0000, // DROM
 ];
 
-pub(crate) const PARAMS: Esp32Params = Esp32Params::new(
+const PARAMS: Esp32Params = Esp32Params::new(
     0x0,
     0x1_0000,
     0x1f_0000,

@@ -13,7 +13,6 @@ const MEM_END_TIMEOUT: Duration = Duration::from_millis(50);
 const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 
 #[derive(Copy, Clone, Debug, Display)]
-#[allow(dead_code)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum CommandType {
