@@ -327,3 +327,38 @@ fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment, checksum: u8) -> Resu
 
     Ok(update_checksum(segment.data(), checksum))
 }
+
+#[cfg(test)]
+pub mod tests {
+    use std::fs;
+
+    use super::*;
+    use crate::elf::ElfFirmwareImage;
+
+    // Copied from: src/targets/esp32.rs
+    const PARAMS: Esp32Params = Esp32Params::new(
+        0x1000,
+        0x1_0000,
+        0x3f_0000,
+        0,
+        include_bytes!("../../resources/bootloaders/esp32-bootloader.bin"),
+    );
+
+    #[test]
+    fn test_idf_bootloader_format() {
+        let input_bytes = fs::read("tests/resources/esp32_hal_blinky").unwrap();
+        let expected_bin = fs::read("tests/resources/esp32_hal_blinky.bin").unwrap();
+
+        let image = ElfFirmwareImage::try_from(input_bytes.as_slice()).unwrap();
+        let flash_image =
+            IdfBootloaderFormat::new(&image, Chip::Esp32, PARAMS, None, None, None, None, None)
+                .unwrap();
+
+        let segments = flash_image.flash_segments().collect::<Vec<_>>();
+        assert_eq!(segments.len(), 3);
+
+        let buf = segments[2].data.as_ref();
+        assert_eq!(expected_bin.len(), buf.len());
+        assert_eq!(expected_bin.as_slice(), buf);
+    }
+}
