@@ -410,6 +410,15 @@ fn save_image(
         .or(build_ctx.partition_table_path.as_deref())
         .map(|p| p.to_path_buf());
 
+    // Since we have no `Flasher` instance and as such cannot print the board
+    // information, we will print whatever information we _do_ have.
+    println!("Chip type:         {}", args.save_image_args.chip);
+    if let Some(format) = args.format {
+        println!("Image format:      {:?}", format);
+    }
+    println!("Merge:             {}", args.save_image_args.merge);
+    println!("Skip padding:      {}", args.save_image_args.skip_padding);
+
     save_elf_as_image(
         args.save_image_args.chip,
         &elf_data,
