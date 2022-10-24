@@ -166,6 +166,15 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
         .into_diagnostic()
         .wrap_err_with(|| format!("Failed to open image {}", args.image.display()))?;
 
+    // Since we have no `Flasher` instance and as such cannot print the board
+    // information, we will print whatever information we _do_ have.
+    println!("Chip type:         {}", args.save_image_args.chip);
+    if let Some(format) = args.format {
+        println!("Image format:      {:?}", format);
+    }
+    println!("Merge:             {}", args.save_image_args.merge);
+    println!("Skip padding:      {}", args.save_image_args.skip_padding);
+
     save_elf_as_image(
         args.save_image_args.chip,
         &elf_data,
