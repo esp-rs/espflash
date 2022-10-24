@@ -37,14 +37,21 @@ mod esp32s3;
 mod esp8266;
 mod flash_target;
 
+/// Enumeration of all supported devices
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumVariantNames)]
 #[strum(serialize_all = "lowercase")]
 pub enum Chip {
+    /// ESP32
     Esp32,
+    /// ESP32-C2, ESP8684
     Esp32c2,
+    /// ESP32-C3, ESP8685
     Esp32c3,
+    /// ESP32-S2
     Esp32s2,
+    /// ESP32-S3
     Esp32s3,
+    /// ESP8266
     Esp8266,
 }
 

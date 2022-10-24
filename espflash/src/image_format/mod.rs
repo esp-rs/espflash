@@ -56,13 +56,16 @@ pub trait ImageFormat<'a>: Send {
         'a: 'b;
 }
 
+/// All supported firmware image formats
 #[derive(
     Debug, Copy, Clone, Eq, PartialEq, Display, IntoStaticStr, EnumVariantNames, Deserialize,
 )]
 #[strum(serialize_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
 pub enum ImageFormatKind {
+    /// Use the second-stage bootloader from ESP-IDF
     EspBootloader,
+    /// Use direct boot and do not use a second-stage bootloader at all
     DirectBoot,
 }
 
