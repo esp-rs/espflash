@@ -294,7 +294,7 @@ pub enum RomErrorKind {
     #[error("Bad data checksum")]
     #[diagnostic(code(espflash::rom::data_crc))]
     BadDataChecksum = 0xc1,
-    #[error("Bad block isze")]
+    #[error("Bad block size")]
     #[diagnostic(code(espflash::rom::block_size))]
     BadBlocksize = 0xc2,
     #[error("Invalid command")]
