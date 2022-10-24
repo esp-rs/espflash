@@ -29,8 +29,8 @@ pub struct CommandResponse {
     pub return_op: u8,
     pub return_length: u16,
     pub value: u32,
-    pub status: u8,
     pub error: u8,
+    pub status: u8,
 }
 
 /// An established connection with a target device
