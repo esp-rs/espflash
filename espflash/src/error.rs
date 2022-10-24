@@ -345,7 +345,7 @@ impl From<u8> for RomErrorKind {
             0xc7 => RomErrorKind::InflateError,
             0xc8 => RomErrorKind::NotEnoughData,
             0xc9 => RomErrorKind::TooMuchData,
-            
+
             _ => RomErrorKind::Other,
         }
     }

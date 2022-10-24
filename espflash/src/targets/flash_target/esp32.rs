@@ -114,7 +114,7 @@ impl FlashTarget for Esp32Target {
             CommandType::FlashDeflateBegin.timeout_for_size(erase_size),
             |connection| {
                 connection.command(Command::FlashDeflateBegin {
-                    size: erase_size,
+                    size: segment.data.len() as u32,
                     blocks: block_count as u32,
                     block_size: flash_write_size as u32,
                     offset: addr,
