@@ -226,7 +226,7 @@ impl Connection {
         for _ in 0..100 {
             match self.read_response().for_command(ty)? {
                 Some(response) if response.return_op == ty as u8 => {
-                    return if response.status == 1 {
+                    return if response.error != 0 {
                         let _error = self.flush();
                         Err(Error::RomError(RomError::new(
                             command.command_type(),
