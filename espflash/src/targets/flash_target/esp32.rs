@@ -16,6 +16,7 @@ use crate::{
     targets::Chip,
 };
 
+/// Applications running from an ESP32's (or variant's) flash
 pub struct Esp32Target {
     chip: Chip,
     spi_attach_params: SpiAttachParams,

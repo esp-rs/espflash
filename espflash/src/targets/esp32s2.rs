@@ -28,6 +28,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin"),
 );
 
+/// ESP32-S2 Target
 pub struct Esp32s2;
 
 impl Esp32s2 {

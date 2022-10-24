@@ -41,26 +41,37 @@ const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display, EnumVariantNames)]
 #[repr(u8)]
 pub enum FlashFrequency {
+    /// 12 MHz
     #[strum(serialize = "12M")]
     Flash12M,
+    /// 15 MHz
     #[strum(serialize = "15M")]
     Flash15M,
+    /// 16 MHz
     #[strum(serialize = "16M")]
     Flash16M,
+    /// 20 MHz
     #[strum(serialize = "20M")]
     Flash20M,
+    /// 24 MHz
     #[strum(serialize = "24M")]
     Flash24M,
+    /// 26 MHz
     #[strum(serialize = "26M")]
     Flash26M,
+    /// 30 MHz
     #[strum(serialize = "30M")]
     Flash30M,
+    /// 40 MHz
     #[strum(serialize = "40M")]
     Flash40M,
+    /// 48 MHz
     #[strum(serialize = "48M")]
     Flash48M,
+    /// 60 MHz
     #[strum(serialize = "60M")]
     Flash60M,
+    /// 80 MHz
     #[strum(serialize = "80M")]
     Flash80M,
 }
@@ -92,9 +103,13 @@ impl FromStr for FlashFrequency {
 #[derive(Copy, Clone, Debug, EnumVariantNames)]
 #[strum(serialize_all = "lowercase")]
 pub enum FlashMode {
+    /// Quad I/O (4 pins used for address & data)
     Qio,
+    /// Quad Output (4 pins used for data)
     Qout,
+    /// Dual I/O (2 pins used for address & data)
     Dio,
+    /// Dual Output (2 pins used for data)
     Dout,
 }
 
@@ -120,24 +135,34 @@ impl FromStr for FlashMode {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Display, EnumVariantNames)]
 #[repr(u8)]
 pub enum FlashSize {
+    /// 256 KB
     #[strum(serialize = "256K")]
     Flash256Kb = 0x12,
+    /// 512 KB
     #[strum(serialize = "512K")]
     Flash512Kb = 0x13,
+    /// 1 MB
     #[strum(serialize = "1M")]
     Flash1Mb = 0x14,
+    /// 2 MB
     #[strum(serialize = "2M")]
     Flash2Mb = 0x15,
+    /// 4 MB
     #[strum(serialize = "4M")]
     Flash4Mb = 0x16,
+    /// 8 MB
     #[strum(serialize = "8M")]
     Flash8Mb = 0x17,
+    /// 16 MB
     #[strum(serialize = "16M")]
     Flash16Mb = 0x18,
+    /// 32 MB
     #[strum(serialize = "32M")]
     Flash32Mb = 0x19,
+    /// 64 MB
     #[strum(serialize = "64M")]
     Flash64Mb = 0x1a,
+    /// 128 MB
     #[strum(serialize = "128M")]
     Flash128Mb = 0x21,
 }

@@ -37,14 +37,21 @@ mod esp32s3;
 mod esp8266;
 mod flash_target;
 
+/// Enumeration of all supported devices
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumVariantNames)]
 #[strum(serialize_all = "lowercase")]
 pub enum Chip {
+    /// ESP32
     Esp32,
+    /// ESP32-C2, ESP8684
     Esp32c2,
+    /// ESP32-C3, ESP8685
     Esp32c3,
+    /// ESP32-S2
     Esp32s2,
+    /// ESP32-S3
     Esp32s3,
+    /// ESP8266
     Esp8266,
 }
 
@@ -116,6 +123,7 @@ impl Chip {
     }
 }
 
+/// Device-specific parameters
 #[derive(Debug, Clone, Copy)]
 pub struct Esp32Params {
     pub boot_addr: u32,
@@ -185,6 +193,7 @@ impl Esp32Params {
     }
 }
 
+/// SPI register addresses
 pub struct SpiRegisters {
     base: u32,
     usr_offset: u32,
@@ -237,17 +246,23 @@ pub trait ReadEFuse {
     }
 }
 
+/// Operations for interacting with supported target devices
 pub trait Target: ReadEFuse {
+    /// Is the provided address `addr` in flash?
     fn addr_is_flash(&self, addr: u32) -> bool;
 
+    /// Enumerate the chip's features, read from eFuse
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error>;
 
+    /// Deterimine the chip's revision number, if it has one
     fn chip_revision(&self, _connection: &mut Connection) -> Result<Option<u32>, Error> {
         Ok(None)
     }
 
+    /// What is the crystal frequency?
     fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error>;
 
+    /// Numeric encodings for the flash frequencies supported by a chip
     fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
         use FlashFrequency::*;
 
@@ -261,10 +276,12 @@ pub trait Target: ReadEFuse {
         HashMap::from(encodings)
     }
 
+    /// Write size for flashing operations
     fn flash_write_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
         Ok(FLASH_WRITE_SIZE)
     }
 
+    /// Build an image from the provided data for flashing
     fn get_flash_image<'a>(
         &self,
         image: &'a dyn FirmwareImage<'a>,
@@ -277,6 +294,7 @@ pub trait Target: ReadEFuse {
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
 
+    /// What is the MAC address?
     fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
         let word5 = self.read_efuse(connection, 5)?;
         let word6 = self.read_efuse(connection, 6)?;
@@ -288,18 +306,23 @@ pub trait Target: ReadEFuse {
         Ok(bytes_to_mac_addr(bytes))
     }
 
+    /// Maximum RAM block size for writing
     fn max_ram_block_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
         Ok(MAX_RAM_BLOCK_SIZE)
     }
 
+    /// SPI register addresses for a chip
     fn spi_registers(&self) -> SpiRegisters;
 
+    /// Image formats supported by a chip
     fn supported_image_formats(&self) -> &[ImageFormatKind] {
         &[ImageFormatKind::EspBootloader]
     }
 
+    /// Build targets supported by a chip
     fn supported_build_targets(&self) -> &[&str];
 
+    /// Is the build target `target` supported by the chip?
     fn supports_build_target(&self, target: &str) -> bool {
         self.supported_build_targets().contains(&target)
     }

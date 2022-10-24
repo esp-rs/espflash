@@ -21,18 +21,23 @@ use serialport::UsbPortInfo;
 /// A configured, known serial connection
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Connection {
+    /// Name of the serial port used for communication
     pub serial: Option<String>,
-    #[cfg(feature = "raspberry")]
-    pub rts: Option<u8>,
+    /// Data Transmit Ready pin
     #[cfg(feature = "raspberry")]
     pub dtr: Option<u8>,
+    /// Ready To Send pin
+    #[cfg(feature = "raspberry")]
+    pub rts: Option<u8>,
 }
 
 /// A configured, known USB device
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct UsbDevice {
+    /// USB Vendor ID
     #[serde(with = "SerHex::<Compact>")]
     pub vid: u16,
+    /// USB Product ID
     #[serde(with = "SerHex::<Compact>")]
     pub pid: u16,
 }
@@ -46,8 +51,10 @@ impl UsbDevice {
 /// Deserialized contents of a configuration file
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Config {
+    /// Preferred serial port connection information
     #[serde(default)]
     pub connection: Connection,
+    /// Preferred USB devices
     #[serde(default)]
     pub usb_device: Vec<UsbDevice>,
     #[serde(skip)]

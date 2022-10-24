@@ -19,11 +19,18 @@ use crate::{
     targets::Chip,
 };
 
+/// Operations for working with firmware images
 pub trait FirmwareImage<'a> {
+    /// Firmware image entry point
     fn entry(&self) -> u32;
+
+    /// Firmware image segments
     fn segments(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
+
+    /// Firmware image segments, with their associated load addresses
     fn segments_with_load_addresses(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
 
+    /// Firmware image ROM segments
     fn rom_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
         Box::new(
             self.segments()
@@ -31,6 +38,7 @@ pub trait FirmwareImage<'a> {
         )
     }
 
+    /// Firmware image RAM segments
     fn ram_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
         Box::new(
             self.segments()
@@ -39,6 +47,7 @@ pub trait FirmwareImage<'a> {
     }
 }
 
+/// A firmware image built from an ELF file
 pub struct ElfFirmwareImage<'a> {
     elf: ElfFile<'a>,
 }
@@ -108,8 +117,9 @@ impl<'a> FirmwareImage<'a> for ElfFirmwareImage<'a> {
 }
 
 #[derive(Eq, Clone, Default)]
-/// A segment of code from the source elf
+/// A segment of code from the source ELF
 pub struct CodeSegment<'a> {
+    /// Base address of the code segment
     pub addr: u32,
     data: Cow<'a, [u8]>,
 }
@@ -220,7 +230,9 @@ impl Ord for CodeSegment<'_> {
 #[derive(Clone)]
 /// A segment of data to write to the flash
 pub struct RomSegment<'a> {
+    /// ROM address at which the segment begins
     pub addr: u32,
+    /// Segment data
     pub data: Cow<'a, [u8]>,
 }
 

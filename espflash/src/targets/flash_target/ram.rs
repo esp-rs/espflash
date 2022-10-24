@@ -17,6 +17,7 @@ struct EntryParams {
     entry: u32,
 }
 
+/// Applications running in the target device's RAM
 pub struct RamTarget {
     entry: Option<u32>,
     block_size: usize,
