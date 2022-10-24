@@ -41,6 +41,7 @@ struct SegmentHeader {
     length: u32,
 }
 
+/// Operations for working with firmware image formats
 pub trait ImageFormat<'a>: Send {
     /// Get the rom segments needed when flashing to device
     fn flash_segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>

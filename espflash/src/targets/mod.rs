@@ -244,17 +244,23 @@ pub trait ReadEFuse {
     }
 }
 
+/// Operations for interacting with supported target devices
 pub trait Target: ReadEFuse {
+    /// Is the provided address `addr` in flash?
     fn addr_is_flash(&self, addr: u32) -> bool;
 
+    /// Enumerate the chip's features, read from eFuse
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error>;
 
+    /// Deterimine the chip's revision number, if it has one
     fn chip_revision(&self, _connection: &mut Connection) -> Result<Option<u32>, Error> {
         Ok(None)
     }
 
+    /// What is the crystal frequency?
     fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error>;
 
+    /// Numeric encodings for the flash frequencies supported by a chip
     fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
         use FlashFrequency::*;
 
@@ -268,10 +274,12 @@ pub trait Target: ReadEFuse {
         HashMap::from(encodings)
     }
 
+    /// Write size for flashing operations
     fn flash_write_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
         Ok(FLASH_WRITE_SIZE)
     }
 
+    /// Build an image from the provided data for flashing
     fn get_flash_image<'a>(
         &self,
         image: &'a dyn FirmwareImage<'a>,
@@ -284,6 +292,7 @@ pub trait Target: ReadEFuse {
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
 
+    /// What is the MAC address?
     fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
         let word5 = self.read_efuse(connection, 5)?;
         let word6 = self.read_efuse(connection, 6)?;
@@ -295,18 +304,23 @@ pub trait Target: ReadEFuse {
         Ok(bytes_to_mac_addr(bytes))
     }
 
+    /// Maximum RAM block size for writing
     fn max_ram_block_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
         Ok(MAX_RAM_BLOCK_SIZE)
     }
 
+    /// SPI register addresses for a chip
     fn spi_registers(&self) -> SpiRegisters;
 
+    /// Image formats supported by a chip
     fn supported_image_formats(&self) -> &[ImageFormatKind] {
         &[ImageFormatKind::EspBootloader]
     }
 
+    /// Build targets supported by a chip
     fn supported_build_targets(&self) -> &[&str];
 
+    /// Is the build target `target` supported by the chip?
     fn supports_build_target(&self, target: &str) -> bool {
         self.supported_build_targets().contains(&target)
     }

@@ -19,11 +19,18 @@ use crate::{
     targets::Chip,
 };
 
+/// Operations for working with firmware images
 pub trait FirmwareImage<'a> {
+    /// Firmware image entry point
     fn entry(&self) -> u32;
+
+    /// Firmware image segments
     fn segments(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
+
+    /// Firmware image segments, with their associated load addresses
     fn segments_with_load_addresses(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
 
+    /// Firmware image ROM segments
     fn rom_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
         Box::new(
             self.segments()
@@ -31,6 +38,7 @@ pub trait FirmwareImage<'a> {
         )
     }
 
+    /// Firmware image RAM segments
     fn ram_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
         Box::new(
             self.segments()
