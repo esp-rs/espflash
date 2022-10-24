@@ -287,6 +287,38 @@ pub enum RomErrorKind {
     #[error("Malformed compressed data received")]
     #[diagnostic(code(espflash::rom::deflate))]
     DeflateError = 0x0b,
+
+    #[error("Bad data length")]
+    #[diagnostic(code(espflash::rom::data_len))]
+    BadDataLen = 0xc0,
+    #[error("Bad data checksum")]
+    #[diagnostic(code(espflash::rom::data_crc))]
+    BadDataChecksum = 0xc1,
+    #[error("Bad block isze")]
+    #[diagnostic(code(espflash::rom::block_size))]
+    BadBlocksize = 0xc2,
+    #[error("Invalid command")]
+    #[diagnostic(code(espflash::rom::cmd))]
+    InvalidCommand = 0xc3,
+    #[error("SPI operation failed")]
+    #[diagnostic(code(espflash::rom::spi))]
+    FailedSpiOp = 0xc4,
+    #[error("SPI unlock failed")]
+    #[diagnostic(code(espflash::rom::spi_unlock))]
+    FailedSpiUnlock = 0xc5,
+    #[error("Not in flash mode")]
+    #[diagnostic(code(espflash::rom::flash_mode))]
+    NotInFlashMode = 0xc6,
+    #[error("Error when uncompressing the data")]
+    #[diagnostic(code(espflash::rom::inflate))]
+    InflateError = 0xc7,
+    #[error("Didn't receive enough data")]
+    #[diagnostic(code(espflash::rom::not_enough))]
+    NotEnoughData = 0xc8,
+    #[error("Received too much data")]
+    #[diagnostic(code(espflash::rom::too_much_data))]
+    TooMuchData = 0xc9,
+
     #[error("Other")]
     #[diagnostic(code(espflash::rom::other))]
     Other = 0xff,
@@ -302,6 +334,18 @@ impl From<u8> for RomErrorKind {
             0x09 => RomErrorKind::FlashReadError,
             0x0a => RomErrorKind::FlashReadLengthError,
             0x0b => RomErrorKind::DeflateError,
+
+            0xc0 => RomErrorKind::BadDataLen,
+            0xc1 => RomErrorKind::BadDataChecksum,
+            0xc2 => RomErrorKind::BadBlocksize,
+            0xc3 => RomErrorKind::InvalidCommand,
+            0xc4 => RomErrorKind::FailedSpiOp,
+            0xc5 => RomErrorKind::FailedSpiUnlock,
+            0xc6 => RomErrorKind::NotInFlashMode,
+            0xc7 => RomErrorKind::InflateError,
+            0xc8 => RomErrorKind::NotEnoughData,
+            0xc9 => RomErrorKind::TooMuchData,
+            
             _ => RomErrorKind::Other,
         }
     }
