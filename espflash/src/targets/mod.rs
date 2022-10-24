@@ -123,6 +123,7 @@ impl Chip {
     }
 }
 
+/// Device-specific parameters
 #[derive(Debug, Clone, Copy)]
 pub struct Esp32Params {
     pub boot_addr: u32,
@@ -192,6 +193,7 @@ impl Esp32Params {
     }
 }
 
+/// SPI register addresses
 pub struct SpiRegisters {
     base: u32,
     usr_offset: u32,

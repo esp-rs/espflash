@@ -24,9 +24,12 @@ pub enum SerialConfigError {
 /// Wrapper around SerialPort where platform-specific modifications can be
 /// implemented.
 pub struct Interface {
+    /// Hardware serial port used for communication
     pub serial_port: Box<dyn SerialPort>,
+    /// Data Transmit Ready pin
     #[cfg(feature = "raspberry")]
     pub dtr: Option<OutputPin>,
+    /// Ready To Send pin
     #[cfg(feature = "raspberry")]
     pub rts: Option<OutputPin>,
 }

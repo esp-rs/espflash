@@ -9,6 +9,7 @@ use crate::{
     flasher::{get_erase_size, FLASH_WRITE_SIZE},
 };
 
+/// Applications running from an ESP8266's flash
 pub struct Esp8266Target;
 
 impl Esp8266Target {

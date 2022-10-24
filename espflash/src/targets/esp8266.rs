@@ -22,6 +22,7 @@ const UART_CLKDIV_MASK: u32 = 0xfffff;
 
 const XTAL_CLK_DIVIDER: u32 = 1;
 
+/// ESP8266 Target
 pub struct Esp8266;
 
 impl Esp8266 {

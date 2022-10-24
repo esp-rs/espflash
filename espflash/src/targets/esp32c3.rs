@@ -29,6 +29,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32c3-bootloader.bin"),
 );
 
+/// ESP32-C3 Target
 pub struct Esp32c3;
 
 impl Esp32c3 {
