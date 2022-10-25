@@ -223,6 +223,7 @@ dependencies = [
  "cargo_toml",
  "clap",
  "env_logger",
+ "esp-idf-part",
  "espflash",
  "log",
  "miette",

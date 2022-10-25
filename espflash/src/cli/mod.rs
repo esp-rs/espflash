@@ -13,9 +13,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::Args;
+use clap::{builder::ArgPredicate, Args};
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
-use esp_idf_part::{DataType, PartitionTable, SubType, Type};
+use esp_idf_part::{DataType, Partition, PartitionTable};
 use log::{debug, info};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{SerialPortType, UsbPortInfo};
@@ -24,7 +24,6 @@ use strum::VariantNames;
 use self::{config::Config, monitor::monitor, serial::get_serial_port_info};
 use crate::{
     elf::ElfFirmwareImage,
-    error::{MissingPartitionTable, NoOtadataError},
     flasher::{FlashFrequency, FlashMode, FlashSize, Flasher},
     image_format::ImageFormatKind,
     interface::Interface,
@@ -74,7 +73,7 @@ pub struct ConnectArgs {
     #[cfg_attr(feature = "raspberry", clap(long))]
     pub rts: Option<u8>,
     /// Use RAM stub for loading
-    #[arg(long)]
+    #[arg(long, default_value_ifs([("erase_parts", ArgPredicate::IsPresent, Some("true")), ("erase_data_parts", ArgPredicate::IsPresent, Some("true"))]))]
     pub use_stub: bool,
 }
 
@@ -99,11 +98,17 @@ pub struct FlashArgs {
     /// Path to a binary (.bin) bootloader file
     #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
-    /// Erase the OTA data partition
-    /// This is useful when using multiple OTA partitions and still wanting to
-    /// be able to reflash via cargo-espflash or espflash
-    #[arg(long)]
-    pub erase_otadata: bool,
+    /// Erase partitions by label
+    #[arg(
+        long,
+        requires = "partition_table",
+        value_name = "LABELS",
+        value_delimiter = ','
+    )]
+    pub erase_parts: Option<Vec<String>>,
+    /// Erase specified data partitions
+    #[arg(long, requires = "partition_table", value_name = "PARTS", value_parser = clap_enum_variants!(DataType), value_delimiter = ',')]
+    pub erase_data_parts: Option<Vec<DataType>>,
     /// Image format to flash
     #[arg(long, value_parser = clap_enum_variants!(ImageFormatKind))]
     pub format: Option<ImageFormatKind>,
@@ -339,12 +344,11 @@ pub fn flash_elf_image(
     flasher: &mut Flasher,
     elf_data: &[u8],
     bootloader: Option<&Path>,
-    partition_table: Option<&Path>,
+    partition_table: Option<PartitionTable>,
     image_format: Option<ImageFormatKind>,
     flash_mode: Option<FlashMode>,
     flash_size: Option<FlashSize>,
     flash_freq: Option<FlashFrequency>,
-    erase_otadata: bool,
 ) -> Result<()> {
     // If the '--bootloader' option is provided, load the binary file at the
     // specified path.
@@ -356,39 +360,6 @@ pub fn flash_elf_image(
     } else {
         None
     };
-
-    // If the '--partition-table' option is provided, load the partition table from
-    // the CSV or binary file at the specified path.
-    let partition_table = if let Some(path) = partition_table {
-        let path = fs::canonicalize(path).into_diagnostic()?;
-
-        let data = fs::read(path)
-            .into_diagnostic()
-            .wrap_err("Failed to open partition table")?;
-        let table = PartitionTable::try_from(data).into_diagnostic()?;
-
-        Some(table)
-    } else {
-        None
-    };
-
-    if erase_otadata {
-        let partition_table = match &partition_table {
-            Some(partition_table) => partition_table,
-            None => return Err((MissingPartitionTable {}).into()),
-        };
-
-        let otadata =
-            match partition_table.find_by_subtype(Type::Data, SubType::Data(DataType::Ota)) {
-                Some(otadata) => otadata,
-                None => return Err((NoOtadataError {}).into()),
-            };
-
-        let offset = otadata.offset();
-        let size = otadata.size();
-
-        flasher.erase_region(offset, size)?;
-    }
 
     // Load the ELF data, optionally using the provider bootloader/partition
     // table/image format, to the device's flash memory.
@@ -406,11 +377,24 @@ pub fn flash_elf_image(
     Ok(())
 }
 
+pub fn parse_partition_table(path: &Path) -> Result<PartitionTable> {
+    let data = fs::read(path)
+        .into_diagnostic()
+        .wrap_err("Failed to open partition table")?;
+    PartitionTable::try_from(data).into_diagnostic()
+}
+
+pub fn erase_partition(flasher: &mut Flasher, part: &Partition) -> Result<()> {
+    log::info!("Erasing {} ({:?})...", part.name(), part.subtype());
+    let offset = part.offset();
+    let size = part.size();
+    flasher.erase_region(offset, size).into_diagnostic()
+}
+
 /// Convert and display CSV and binary partition tables
 pub fn partition_table(args: PartitionTableArgs) -> Result<()> {
     if args.to_binary {
-        let input = fs::read_to_string(&args.partition_table).into_diagnostic()?;
-        let table = PartitionTable::try_from_str(input).into_diagnostic()?;
+        let table = parse_partition_table(&args.partition_table)?;
 
         // Use either stdout or a file if provided for the output.
         let mut writer: Box<dyn Write> = if let Some(output) = args.output {

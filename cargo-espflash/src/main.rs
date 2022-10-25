@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs,
     path::PathBuf,
     process::{exit, Command, ExitStatus, Stdio},
@@ -8,10 +9,11 @@ use cargo_metadata::Message;
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        self, board_info, clap_enum_variants, config::Config, connect, flash_elf_image,
-        monitor::monitor, partition_table, save_elf_as_image, serial_monitor, ConnectArgs,
-        FlashConfigArgs, PartitionTableArgs,
+        self, board_info, clap_enum_variants, config::Config, connect, erase_partition,
+        flash_elf_image, monitor::monitor, parse_partition_table, partition_table,
+        save_elf_as_image, serial_monitor, ConnectArgs, FlashConfigArgs, PartitionTableArgs,
     },
+    error::{MissingPartition, MissingPartitionTable},
     image_format::ImageFormatKind,
     logging::initialize_logger,
     targets::Chip,
@@ -157,17 +159,11 @@ struct BuildContext {
 }
 
 fn flash(
-    mut args: FlashArgs,
+    args: FlashArgs,
     config: &Config,
     cargo_config: &CargoConfig,
     metadata: &CargoEspFlashMeta,
 ) -> Result<()> {
-    // The `erase_otadata` argument requires `use_stub`, which is implicitly
-    // enabled here.
-    if args.flash_args.erase_otadata {
-        args.connect_args.use_stub = true;
-    }
-
     let mut flasher = connect(&args.connect_args, config)?;
 
     let build_ctx = build(&args.build_args, cargo_config, flasher.chip())
@@ -198,6 +194,54 @@ fn flash(
             .or(metadata.partition_table.as_deref())
             .or(build_ctx.partition_table_path.as_deref());
 
+        let partition_table = match partition_table {
+            Some(path) => Some(parse_partition_table(path)?),
+            None => None,
+        };
+
+        if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
+            let partition_table = match &partition_table {
+                Some(partition_table) => partition_table,
+                None => return Err((MissingPartitionTable {}).into()),
+            };
+
+            // Using a hashmap to deduplicate entries
+            let mut parts_to_erase = None;
+
+            // Look for any part with specific label
+            if let Some(part_labels) = args.flash_args.erase_parts {
+                for label in part_labels {
+                    let part = partition_table
+                        .find(label.as_str())
+                        .ok_or(MissingPartition::from(label))?;
+                    parts_to_erase
+                        .get_or_insert(HashMap::new())
+                        .insert(part.offset(), part);
+                }
+            }
+            // Look for any data partitions with specific data subtype
+            // There might be multiple partition of the same subtype, e.g. when using multiple FAT partitions
+            if let Some(partition_types) = args.flash_args.erase_data_parts {
+                for ty in partition_types {
+                    for part in partition_table.partitions() {
+                        if part.ty() == esp_idf_part::Type::Data
+                            && part.subtype() == esp_idf_part::SubType::Data(ty)
+                        {
+                            parts_to_erase
+                                .get_or_insert(HashMap::new())
+                                .insert(part.offset(), part);
+                        }
+                    }
+                }
+            }
+
+            if let Some(parts) = parts_to_erase {
+                parts
+                    .iter()
+                    .try_for_each(|(_, p)| erase_partition(&mut flasher, p))?;
+            }
+        }
+
         flash_elf_image(
             &mut flasher,
             &elf_data,
@@ -207,7 +251,6 @@ fn flash(
             args.build_args.flash_config_args.flash_mode,
             args.build_args.flash_config_args.flash_size,
             args.build_args.flash_config_args.flash_freq,
-            args.flash_args.erase_otadata,
         )?;
     }
 
