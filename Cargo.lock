@@ -577,9 +577,9 @@ dependencies = [
 
 [[package]]
 name = "esp-idf-part"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcfd669cf23fd4d1ecacfc717fdbd995fe536103bab915c8c9eeb95b619f819e"
+checksum = "f1e342bf53cd885a16dfe1850b06013b7c95046ce45114a4d09b4a17d8313439"
 dependencies = [
  "csv",
  "deku",
