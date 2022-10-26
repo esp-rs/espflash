@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fs::{self, File},
     io::Read,
     num::ParseIntError,
@@ -9,11 +8,10 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        self, board_info, clap_enum_variants, config::Config, connect, erase_partition,
+        self, board_info, clap_enum_variants, config::Config, connect, erase_partitions,
         flash_elf_image, monitor::monitor, parse_partition_table, partition_table,
         save_elf_as_image, serial_monitor, ConnectArgs, FlashConfigArgs, PartitionTableArgs,
     },
-    error::{MissingPartition, MissingPartitionTable},
     image_format::ImageFormatKind,
     logging::initialize_logger,
     update::check_for_update,
@@ -133,46 +131,12 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         };
 
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
-            let partition_table = match &partition_table {
-                Some(partition_table) => partition_table,
-                None => return Err((MissingPartitionTable {}).into()),
-            };
-
-            // Using a hashmap to deduplicate entries
-            let mut parts_to_erase = None;
-
-            // Look for any part with specific label
-            if let Some(part_labels) = args.flash_args.erase_parts {
-                for label in part_labels {
-                    let part = partition_table
-                        .find(label.as_str())
-                        .ok_or(MissingPartition::from(label))?;
-                    parts_to_erase
-                        .get_or_insert(HashMap::new())
-                        .insert(part.offset(), part);
-                }
-            }
-            // Look for any data partitions with specific data subtype
-            // There might be multiple partition of the same subtype, e.g. when using multiple FAT partitions
-            if let Some(partition_types) = args.flash_args.erase_data_parts {
-                for ty in partition_types {
-                    for part in partition_table.partitions() {
-                        if part.ty() == esp_idf_part::Type::Data
-                            && part.subtype() == esp_idf_part::SubType::Data(ty)
-                        {
-                            parts_to_erase
-                                .get_or_insert(HashMap::new())
-                                .insert(part.offset(), part);
-                        }
-                    }
-                }
-            }
-
-            if let Some(parts) = parts_to_erase {
-                parts
-                    .iter()
-                    .try_for_each(|(_, p)| erase_partition(&mut flasher, p))?;
-            }
+            erase_partitions(
+                &mut flasher,
+                partition_table.clone(),
+                args.flash_args.erase_parts,
+                args.flash_args.erase_data_parts,
+            )?;
         }
 
         flash_elf_image(
