@@ -395,13 +395,18 @@ impl<T> ResultExt for Result<T, Error> {
 }
 
 #[derive(Debug, Error, Diagnostic)]
-#[error("No otadata partition was found")]
+#[error("Missing partition")]
 #[diagnostic(
-    code(espflash::partition_table::no_otadata),
-    help("Partition table must contain an otadata partition when trying to erase it")
+    code(espflash::partition_table::missing_partition),
+    help("Partition table must contain the partition of type `{0}` that is going to be erased")
 )]
+pub struct MissingPartition(String);
 
-pub struct NoOtadataError;
+impl From<String> for MissingPartition {
+    fn from(part: String) -> Self {
+        MissingPartition(part)
+    }
+}
 
 #[derive(Debug, Error, Diagnostic)]
 #[error("Missing partition table")]
