@@ -57,3 +57,27 @@ impl<'a> ImageFormat<'a> for DirectBootFormat<'a> {
         Box::new(once(self.segment.borrow()))
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use std::fs;
+
+    use super::*;
+    use crate::elf::ElfFirmwareImage;
+
+    #[test]
+    fn test_direct_boot_format() {
+        let input_bytes = fs::read("tests/resources/esp32c3_hal_blinky_db").unwrap();
+        let expected_bin = fs::read("tests/resources/esp32c3_hal_blinky_db.bin").unwrap();
+
+        let image = ElfFirmwareImage::try_from(input_bytes.as_slice()).unwrap();
+        let flash_image = DirectBootFormat::new(&image, 0).unwrap();
+
+        let segments = flash_image.flash_segments().collect::<Vec<_>>();
+        assert_eq!(segments.len(), 1);
+
+        let buf = segments[0].data.as_ref();
+        assert_eq!(expected_bin.len(), buf.len());
+        assert_eq!(expected_bin.as_slice(), buf);
+    }
+}
