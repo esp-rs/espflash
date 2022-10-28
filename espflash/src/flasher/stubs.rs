@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::targets::Chip;
 
-/// Flash stub object (deserialized from json as used by `esptool.py`)
+/// Flash stub object (deserialized from TOML, converted from JSON as used by `esptool.py`)
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct FlashStub {
     /// Entry point (address)
@@ -19,12 +19,12 @@ pub struct FlashStub {
 
 // Include stub objects in binary
 
-const STUB_32: &str = include_str!("../../resources/stubs/stub_flasher_32.json");
-const STUB_32C2: &str = include_str!("../../resources/stubs/stub_flasher_32c2.json");
-const STUB_32C3: &str = include_str!("../../resources/stubs/stub_flasher_32c3.json");
-const STUB_32S2: &str = include_str!("../../resources/stubs/stub_flasher_32s2.json");
-const STUB_32S3: &str = include_str!("../../resources/stubs/stub_flasher_32s3.json");
-const STUB_8266: &str = include_str!("../../resources/stubs/stub_flasher_8266.json");
+const STUB_32: &str = include_str!("../../resources/stubs/stub_flasher_32.toml");
+const STUB_32C2: &str = include_str!("../../resources/stubs/stub_flasher_32c2.toml");
+const STUB_32C3: &str = include_str!("../../resources/stubs/stub_flasher_32c3.toml");
+const STUB_32S2: &str = include_str!("../../resources/stubs/stub_flasher_32s2.toml");
+const STUB_32S3: &str = include_str!("../../resources/stubs/stub_flasher_32s3.toml");
+const STUB_8266: &str = include_str!("../../resources/stubs/stub_flasher_8266.toml");
 
 impl FlashStub {
     /// Fetch flash stub for the provided chip
@@ -38,7 +38,7 @@ impl FlashStub {
             Chip::Esp8266 => STUB_8266,
         };
 
-        let stub: FlashStub = serde_json::from_str(s).unwrap();
+        let stub: FlashStub = toml::from_str(s).unwrap();
 
         stub
     }
