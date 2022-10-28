@@ -14,7 +14,6 @@ keywords = [
     "cli",
     "embedded",
     "esp",
-    "xtensa",
 ]
 categories = [
     "command-line-utilities",
@@ -37,11 +36,11 @@ required-features = ["cli"]
 
 [dependencies]
 addr2line = "0.18.0"
-base64 = "0.13.0"
+base64 = "0.13.1"
 binread = "2.2.0"
 bytemuck = { version = "1.12.1", features = ["derive"] }
-clap = { version = "4.0.14", features = ["derive"], optional = true }
-comfy-table = "6.1.0"
+clap = { version = "4.0.18", features = ["derive"], optional = true }
+comfy-table = "6.1.2"
 crossterm = { version = "0.25.0", optional = true }
 dialoguer = { version = "0.10.2", optional = true }
 directories-next = "2.0.0"
@@ -55,7 +54,7 @@ miette = { version = "5.3.0", features = ["fancy"] }
 parse_int = "0.6.0"
 regex = "1.6.0"
 rppal = { version = "0.13.1", optional = true }
-serde = { version = "1.0.145", features = ["derive"] }
+serde = { version = "1.0.147", features = ["derive"] }
 serde-hex = "0.1.0"
 serialport = "4.2.0"
 sha2 = "0.10.6"

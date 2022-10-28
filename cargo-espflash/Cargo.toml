@@ -15,7 +15,6 @@ keywords = [
     "cli",
     "embedded",
     "esp",
-    "xtensa",
 ]
 categories = [
     "command-line-utilities",
@@ -30,15 +29,15 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "zip"
 
 [dependencies]
-cargo_metadata = "0.15.0"
-cargo_toml = "0.12.2"
-clap = { version = "4.0.14", features = ["derive"] }
+cargo_metadata = "0.15.1"
+cargo_toml = "0.13.0"
+clap = { version = "4.0.18", features = ["derive"] }
 env_logger = "0.9.1"
 espflash = { version = "=2.0.0-dev", path = "../espflash" }
 esp-idf-part = "0.1.1"
 log = "0.4.17"
 miette = { version = "5.3.0", features = ["fancy"] }
-serde = { version = "1.0.145", features = ["derive"] }
+serde = { version = "1.0.147", features = ["derive"] }
 strum = "0.24.1"
 thiserror = "1.0.37"
 toml = "0.5.9"
