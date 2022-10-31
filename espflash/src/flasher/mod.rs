@@ -38,7 +38,7 @@ const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 /// Supported flash frequencies
 ///
 /// Note that not all frequencies are supported by each target device.
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display, EnumVariantNames)]
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Display, EnumVariantNames)]
 #[repr(u8)]
 pub enum FlashFrequency {
     /// 12 MHz
@@ -63,6 +63,7 @@ pub enum FlashFrequency {
     #[strum(serialize = "30M")]
     Flash30M,
     /// 40 MHz
+    #[default]
     #[strum(serialize = "40M")]
     Flash40M,
     /// 48 MHz
@@ -100,7 +101,7 @@ impl FromStr for FlashFrequency {
 }
 
 /// Supported flash modes
-#[derive(Copy, Clone, Debug, EnumVariantNames)]
+#[derive(Copy, Clone, Debug, Default, EnumVariantNames)]
 #[strum(serialize_all = "lowercase")]
 pub enum FlashMode {
     /// Quad I/O (4 pins used for address & data)
@@ -108,6 +109,7 @@ pub enum FlashMode {
     /// Quad Output (4 pins used for data)
     Qout,
     /// Dual I/O (2 pins used for address & data)
+    #[default]
     Dio,
     /// Dual Output (2 pins used for data)
     Dout,
@@ -132,7 +134,7 @@ impl FromStr for FlashMode {
 /// Supported flash sizes
 ///
 /// Note that not all sizes are supported by each target device.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Display, EnumVariantNames)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Display, EnumVariantNames)]
 #[repr(u8)]
 pub enum FlashSize {
     /// 256 KB
@@ -148,6 +150,7 @@ pub enum FlashSize {
     #[strum(serialize = "2M")]
     Flash2Mb = 0x15,
     /// 4 MB
+    #[default]
     #[strum(serialize = "4M")]
     Flash4Mb = 0x16,
     /// 8 MB
@@ -472,7 +475,7 @@ impl Flasher {
             Ok(size) => size,
             Err(_) => {
                 warn!(
-                    "Could not detect flash size (FlashID=0x{:02X}, SizeID=0x{:02X}), defaulting to 4MB\n",
+                    "Could not detect flash size (FlashID=0x{:02X}, SizeID=0x{:02X}), defaulting to 4MB",
                     flash_id,
                     size_id
                 );

@@ -37,9 +37,9 @@ impl<'a> Esp8266Format<'a> {
         );
 
         // Common header
-        let flash_mode = flash_mode.unwrap_or(FlashMode::Dio) as u8;
-        let flash_freq = flash_freq.unwrap_or(FlashFrequency::Flash40M);
-        let flash_size = flash_size.unwrap_or(FlashSize::Flash4Mb);
+        let flash_mode = flash_mode.unwrap_or_default() as u8;
+        let flash_freq = flash_freq.unwrap_or_default();
+        let flash_size = flash_size.unwrap_or_default();
         let flash_config =
             encode_flash_size(flash_size)? + encode_flash_frequency(Chip::Esp8266, flash_freq)?;
         let segment_count = image.ram_segments(Chip::Esp8266).count() as u8;

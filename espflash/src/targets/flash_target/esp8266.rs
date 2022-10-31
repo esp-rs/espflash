@@ -10,17 +10,12 @@ use crate::{
 };
 
 /// Applications running from an ESP8266's flash
+#[derive(Default)]
 pub struct Esp8266Target;
 
 impl Esp8266Target {
     pub fn new() -> Self {
         Esp8266Target
-    }
-}
-
-impl Default for Esp8266Target {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

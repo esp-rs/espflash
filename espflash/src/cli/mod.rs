@@ -309,13 +309,13 @@ pub fn save_elf_as_image(
             // Take flash_size as input parameter, if None, use default value of 4Mb
             let padding_bytes = vec![
                 0xffu8;
-                flash_size.unwrap_or(FlashSize::Flash4Mb).size() as usize
+                flash_size.unwrap_or_default().size() as usize
                     - file.metadata().into_diagnostic()?.len() as usize
             ];
             file.write_all(&padding_bytes).into_diagnostic()?;
         }
     } else {
-        let flash_image = chip.into_target().get_flash_image(
+        let image = chip.into_target().get_flash_image(
             &image,
             None,
             None,
@@ -325,7 +325,7 @@ pub fn save_elf_as_image(
             flash_size,
             flash_freq,
         )?;
-        let parts: Vec<_> = flash_image.ota_segments().collect();
+        let parts = image.ota_segments().collect::<Vec<_>>();
 
         match parts.as_slice() {
             [single] => fs::write(&image_path, &single.data).into_diagnostic()?,
