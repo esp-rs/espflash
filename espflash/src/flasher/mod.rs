@@ -681,7 +681,7 @@ impl Flasher {
         let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
         target.begin(&mut self.connection).flashing()?;
 
-        let flash_image = self.chip.into_target().get_flash_image(
+        let image = self.chip.into_target().get_flash_image(
             &image,
             bootloader,
             partition_table,
@@ -694,7 +694,10 @@ impl Flasher {
             flash_freq,
         )?;
 
-        for segment in flash_image.flash_segments() {
+        #[cfg(feature = "cli")]
+        crate::cli::display_image_size(image.app_size(), image.part_size());
+
+        for segment in image.flash_segments() {
             target
                 .write_segment(&mut self.connection, segment)
                 .flashing()?;

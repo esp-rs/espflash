@@ -17,6 +17,7 @@ use crate::{
 pub struct Esp8266Format<'a> {
     irom_data: Option<RomSegment<'a>>,
     flash_segment: RomSegment<'a>,
+    app_size: u32,
 }
 
 impl<'a> Esp8266Format<'a> {
@@ -87,9 +88,16 @@ impl<'a> Esp8266Format<'a> {
             data: Cow::Owned(common_data),
         };
 
+        let app_size = irom_data
+            .clone()
+            .map(|d| d.data.len() as u32)
+            .unwrap_or_default()
+            + flash_segment.data.len() as u32;
+
         Ok(Self {
             irom_data,
             flash_segment,
+            app_size,
         })
     }
 }
@@ -117,6 +125,14 @@ impl<'a> ImageFormat<'a> for Esp8266Format<'a> {
                 .map(RomSegment::borrow)
                 .chain(once(self.flash_segment.borrow())),
         )
+    }
+
+    fn app_size(&self) -> u32 {
+        self.app_size
+    }
+
+    fn part_size(&self) -> Option<u32> {
+        None
     }
 }
 

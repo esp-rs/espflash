@@ -55,6 +55,13 @@ pub trait ImageFormat<'a>: Send {
     fn ota_segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
     where
         'a: 'b;
+
+    /// The size of the application binary
+    fn app_size(&self) -> u32;
+
+    /// If applicable, the size of the application partition (if it can be
+    /// determined)
+    fn part_size(&self) -> Option<u32>;
 }
 
 /// All supported firmware image formats
