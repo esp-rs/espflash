@@ -27,6 +27,10 @@ jobs:
             toolchain: stable
             cargo-command: check
             args: --features=raspberry
+          - name: Check (lib)
+            toolchain: stable
+            cargo-command: check
+            args: --lib --no-default-features --features=raspberry
           - name: Check MSRV
             toolchain: "1.62"
             cargo-command: check
