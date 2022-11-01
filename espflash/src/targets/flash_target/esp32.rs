@@ -4,7 +4,6 @@ use flate2::{
     write::{ZlibDecoder, ZlibEncoder},
     Compression,
 };
-use indicatif::{ProgressBar, ProgressStyle};
 
 use super::FlashTarget;
 use crate::{
@@ -36,7 +35,7 @@ impl Esp32Target {
 impl FlashTarget for Esp32Target {
     fn begin(&mut self, connection: &mut Connection) -> Result<(), Error> {
         connection.with_timeout(CommandType::SpiAttach.timeout(), |connection| {
-            connection.command(if self.use_stub {
+            let command = if self.use_stub {
                 Command::SpiAttachStub {
                     spi_params: self.spi_attach_params,
                 }
@@ -44,26 +43,29 @@ impl FlashTarget for Esp32Target {
                 Command::SpiAttach {
                     spi_params: self.spi_attach_params,
                 }
-            })
+            };
+
+            connection.command(command)
         })?;
 
-        // TODO remove this when we use the stub, the stub should be taking care of
-        // this. TODO do we also need to disable rtc super wdt?
+        // TODO: Remove this when we use the stub, the stub should be taking care of
+        //       this.
+        // TODO: Do we also need to disable RTC super WDT?
         if connection.get_usb_pid()? == USB_SERIAL_JTAG_PID {
             match self.chip {
                 Chip::Esp32c3 => {
                     connection.command(Command::WriteReg {
-                        address: 0x600080a8,
-                        value: 0x50D83AA1u32,
+                        address: 0x6000_80a8,
+                        value: 0x50D8_3AA1,
                         mask: None,
                     })?; // WP disable
                     connection.command(Command::WriteReg {
-                        address: 0x60008090,
+                        address: 0x6000_8090,
                         value: 0x0,
                         mask: None,
-                    })?; // turn off RTC WDG
+                    })?; // turn off RTC WDT
                     connection.command(Command::WriteReg {
-                        address: 0x600080a8,
+                        address: 0x6000_80a8,
                         value: 0x0,
                         mask: None,
                     })?; // WP enable
@@ -71,14 +73,14 @@ impl FlashTarget for Esp32Target {
                 Chip::Esp32s3 => {
                     connection.command(Command::WriteReg {
                         address: 0x6000_80B0,
-                        value: 0x50D83AA1u32,
+                        value: 0x50D8_3AA1,
                         mask: None,
                     })?; // WP disable
                     connection.command(Command::WriteReg {
                         address: 0x6000_8098,
                         value: 0x0,
                         mask: None,
-                    })?; // turn off RTC WDG
+                    })?; // turn off RTC WDT
                     connection.command(Command::WriteReg {
                         address: 0x6000_80B0,
                         value: 0x0,
@@ -127,16 +129,6 @@ impl FlashTarget for Esp32Target {
 
         let chunks = compressed.chunks(flash_write_size);
 
-        let (_, chunk_size) = chunks.size_hint();
-        let chunk_size = chunk_size.unwrap_or(0) as u64;
-        let pb_chunk = ProgressBar::new(chunk_size);
-        pb_chunk.set_style(
-            ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] [{bar:40}] {pos:>7}/{len:7} {msg}")
-                .unwrap()
-                .progress_chars("=> "),
-        );
-
         // decode the chunks to see how much data the device will have to save
         let mut decoder = ZlibDecoder::new(Vec::new());
         let mut decoded_size = 0;
@@ -147,7 +139,6 @@ impl FlashTarget for Esp32Target {
             let size = decoder.get_ref().len() - decoded_size;
             decoded_size = decoder.get_ref().len();
 
-            pb_chunk.set_message(format!("segment 0x{:X} writing chunks", addr));
             connection.with_timeout(
                 CommandType::FlashDeflateData.timeout_for_size(size as u32),
                 |connection| {
@@ -160,10 +151,7 @@ impl FlashTarget for Esp32Target {
                     Ok(())
                 },
             )?;
-            pb_chunk.inc(1);
         }
-
-        pb_chunk.finish_with_message(format!("segment 0x{:X}", addr));
 
         Ok(())
     }
@@ -172,10 +160,11 @@ impl FlashTarget for Esp32Target {
         connection.with_timeout(CommandType::FlashDeflateEnd.timeout(), |connection| {
             connection.command(Command::FlashDeflateEnd { reboot: false })
         })?;
+
         if reboot {
-            connection.reset()
-        } else {
-            Ok(())
+            connection.reset()?;
         }
+
+        Ok(())
     }
 }

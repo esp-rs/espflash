@@ -47,7 +47,7 @@ directories-next = { version = "2.0.0", optional = true }
 esp-idf-part = "0.1.1"
 env_logger = { version = "0.9.1", optional = true }
 flate2 = "1.0.24"
-indicatif = "0.17.1"
+indicatif = { version = "0.17.1", optional = true }
 lazy_static = { version = "1.4.0", optional = true }
 log = "0.4.17"
 miette = { version = "5.3.0", features = ["fancy"] }
@@ -69,7 +69,7 @@ xmas-elf = "0.8.0"
 default = ["cli"]
 cli = [
     "dep:addr2line", "dep:clap", "dep:comfy-table", "dep:crossterm", "dep:dialoguer",
-    "dep:directories-next", "dep:env_logger", "dep:lazy_static", "dep:parse_int",
-    "dep:regex", "dep:serde-hex", "dep:update-informer"
+    "dep:directories-next", "dep:env_logger", "dep:indicatif", "dep:lazy_static",
+    "dep:parse_int", "dep:regex", "dep:serde-hex", "dep:update-informer"
 ]
 raspberry = ["dep:rppal"]
