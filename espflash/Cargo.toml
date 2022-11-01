@@ -35,27 +35,27 @@ path = "./src/bin/espflash.rs"
 required-features = ["cli"]
 
 [dependencies]
-addr2line = "0.18.0"
+addr2line = { version = "0.18.0", optional = true }
 base64 = "0.13.1"
 binread = "2.2.0"
 bytemuck = { version = "1.12.1", features = ["derive"] }
 clap = { version = "4.0.18", features = ["derive"], optional = true }
-comfy-table = "6.1.2"
+comfy-table = { version = "6.1.2", optional = true }
 crossterm = { version = "0.25.0", optional = true }
 dialoguer = { version = "0.10.2", optional = true }
-directories-next = "2.0.0"
+directories-next = { version = "2.0.0", optional = true }
 esp-idf-part = "0.1.1"
 env_logger = { version = "0.9.1", optional = true }
 flate2 = "1.0.24"
 indicatif = "0.17.1"
-lazy_static = "1.4.0"
+lazy_static = { version = "1.4.0", optional = true }
 log = "0.4.17"
 miette = { version = "5.3.0", features = ["fancy"] }
-parse_int = "0.6.0"
-regex = "1.6.0"
+parse_int = { version = "0.6.0", optional = true }
+regex = { version = "1.6.0", optional = true }
 rppal = { version = "0.13.1", optional = true }
 serde = { version = "1.0.147", features = ["derive"] }
-serde-hex = "0.1.0"
+serde-hex = { version = "0.1.0", optional = true }
 serialport = "4.2.0"
 sha2 = "0.10.6"
 slip-codec = "0.3.3"
@@ -67,5 +67,9 @@ xmas-elf = "0.8.0"
 
 [features]
 default = ["cli"]
-cli = ["dep:clap", "dep:crossterm", "dep:dialoguer", "dep:env_logger", "dep:update-informer"]
+cli = [
+    "dep:addr2line", "dep:clap", "dep:comfy-table", "dep:crossterm", "dep:dialoguer",
+    "dep:directories-next", "dep:env_logger", "dep:lazy_static", "dep:parse_int",
+    "dep:regex", "dep:serde-hex", "dep:update-informer"
+]
 raspberry = ["dep:rppal"]

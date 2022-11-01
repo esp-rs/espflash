@@ -31,6 +31,27 @@ jobs:
         with:
           command: check
 
+  check-lib:
+    name: Check (lib)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Change apt mirror and install dependencies
+        run: |
+          sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install musl-tools libudev-dev
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --lib --no-default-features
+
   msrv:
     name: Check MSRV
     runs-on: ubuntu-latest
