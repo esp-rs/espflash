@@ -176,7 +176,15 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
     info!("Serial port: '{}'", port_info.port_name);
     info!("Connecting...");
 
-    let interface = Interface::new(&port_info, args, config)
+    #[cfg(feature = "raspberry")]
+    let (dtr, rts) = (
+        args.dtr.or(config.connection.dtr),
+        args.rts.or(config.connection.rts),
+    );
+    #[cfg(not(feature = "raspberry"))]
+    let (dtr, rts) = (None, None);
+
+    let interface = Interface::new(&port_info, dtr, rts)
         .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
 
     // NOTE: since `get_serial_port_info` filters out all PCI Port and Bluetooth

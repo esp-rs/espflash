@@ -5,17 +5,13 @@ use miette::{Context, Result};
 use rppal::gpio::{Gpio, OutputPin};
 use serialport::{FlowControl, SerialPort, SerialPortInfo};
 
-use crate::{
-    cli::{config::Config, ConnectArgs},
-    error::Error,
-};
+use crate::error::Error;
 
 #[derive(thiserror::Error, Debug)]
 pub enum SerialConfigError {
     #[cfg(feature = "raspberry")]
     #[error("You need to specify both DTR and RTS pins when using an internal UART peripheral")]
     MissingDtrRtsForInternalUart,
-
     #[cfg(feature = "raspberry")]
     #[error("GPIO {0} is not available")]
     GpioUnavailable(u8),
@@ -55,14 +51,11 @@ impl Interface {
     #[cfg(feature = "raspberry")]
     pub(crate) fn new(
         port_info: &SerialPortInfo,
-        args: &ConnectArgs,
-        config: &Config,
+        dtr: Option<u8>,
+        rts: Option<u8>,
     ) -> Result<Self> {
-        let rts_gpio = args.rts.or(config.connection.rts);
-        let dtr_gpio = args.dtr.or(config.connection.dtr);
-
         if port_info.port_type == serialport::SerialPortType::Unknown
-            && (dtr_gpio.is_none() || rts_gpio.is_none())
+            && (dtr.is_none() || rts.is_none())
         {
             // Assume internal UART, which has no DTR pin and usually no RTS either.
             return Err(Error::from(SerialConfigError::MissingDtrRtsForInternalUart).into());
@@ -70,7 +63,7 @@ impl Interface {
 
         let gpios = Gpio::new().unwrap();
 
-        let rts = if let Some(gpio) = rts_gpio {
+        let rts = if let Some(gpio) = rts {
             match gpios.get(gpio) {
                 Ok(pin) => Some(pin.into_output()),
                 Err(_) => return Err(Error::from(SerialConfigError::GpioUnavailable(gpio)).into()),
@@ -79,7 +72,7 @@ impl Interface {
             None
         };
 
-        let dtr = if let Some(gpio) = dtr_gpio {
+        let dtr = if let Some(gpio) = dtr {
             match gpios.get(gpio) {
                 Ok(pin) => Some(pin.into_output()),
                 Err(_) => return Err(Error::from(SerialConfigError::GpioUnavailable(gpio)).into()),
@@ -98,8 +91,8 @@ impl Interface {
     #[cfg(not(feature = "raspberry"))]
     pub(crate) fn new(
         port_info: &SerialPortInfo,
-        _args: &ConnectArgs,
-        _config: &Config,
+        _dtr: Option<u8>,
+        _rts: Option<u8>,
     ) -> Result<Self> {
         Ok(Self {
             serial_port: open_port(port_info)?,
