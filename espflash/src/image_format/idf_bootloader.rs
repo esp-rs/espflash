@@ -1,8 +1,7 @@
 use std::{borrow::Cow, io::Write, iter::once};
 
 use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
-use esp_idf_part::{Partition, PartitionTable, Type};
-use indicatif::HumanCount;
+use esp_idf_part::{PartitionTable, Type};
 use sha2::{Digest, Sha256};
 
 use super::{
@@ -39,6 +38,8 @@ pub struct IdfBootloaderFormat<'a> {
     bootloader: Cow<'a, [u8]>,
     partition_table: PartitionTable,
     flash_segment: RomSegment<'a>,
+    app_size: u32,
+    part_size: u32,
 }
 
 impl<'a> IdfBootloaderFormat<'a> {
@@ -179,7 +180,14 @@ impl<'a> IdfBootloaderFormat<'a> {
             .or_else(|| partition_table.find_by_type(Type::App))
             .unwrap();
 
-        check_partition_stats(factory_partition, &data)?;
+        let app_size = data.len() as u32;
+        let part_size = factory_partition.size();
+
+        // The size of the application must not exceed the size of the factory
+        // partition.
+        if app_size as f32 / part_size as f32 > 1.0 {
+            return Err(Error::ElfTooBig);
+        }
 
         let flash_segment = RomSegment {
             addr: factory_partition.offset(),
@@ -191,6 +199,8 @@ impl<'a> IdfBootloaderFormat<'a> {
             bootloader,
             partition_table,
             flash_segment,
+            app_size,
+            part_size,
         })
     }
 }
@@ -219,6 +229,14 @@ impl<'a> ImageFormat<'a> for IdfBootloaderFormat<'a> {
     {
         Box::new(once(self.flash_segment.borrow()))
     }
+
+    fn app_size(&self) -> u32 {
+        self.app_size
+    }
+
+    fn part_size(&self) -> Option<u32> {
+        Some(self.part_size)
+    }
 }
 
 fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
@@ -235,22 +253,6 @@ fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
         Flash128Mb => Ok(0x21),
         _ => Err(FlashDetectError::from(size as u8)),
     }
-}
-
-fn check_partition_stats(part: &Partition, data: &Vec<u8>) -> Result<(), Error> {
-    let perc = data.len() as f32 / part.size() as f32 * 100.0;
-    println!(
-        "App/part. size:    {}/{} bytes, {:.2}%",
-        HumanCount(data.len() as u64),
-        HumanCount(part.size() as u64),
-        perc
-    );
-
-    if perc > 100.0 {
-        return Err(Error::ElfTooBig);
-    }
-
-    Ok(())
 }
 
 /// Actual alignment (in data bytes) required for a segment header: positioned

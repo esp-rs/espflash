@@ -56,6 +56,14 @@ impl<'a> ImageFormat<'a> for DirectBootFormat<'a> {
     {
         Box::new(once(self.segment.borrow()))
     }
+
+    fn app_size(&self) -> u32 {
+        self.segment.data.len() as u32
+    }
+
+    fn part_size(&self) -> Option<u32> {
+        None
+    }
 }
 
 #[cfg(test)]

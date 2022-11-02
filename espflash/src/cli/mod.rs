@@ -17,6 +17,7 @@ use std::{
 use clap::{builder::ArgPredicate, Args};
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
+use indicatif::HumanCount;
 use log::{debug, info};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{SerialPortType, UsbPortInfo};
@@ -296,6 +297,8 @@ pub fn save_elf_as_image(
             flash_freq,
         )?;
 
+        display_image_size(image.app_size(), image.part_size());
+
         let mut file = fs::OpenOptions::new()
             .write(true)
             .truncate(true)
@@ -317,13 +320,13 @@ pub fn save_elf_as_image(
             // Take flash_size as input parameter, if None, use default value of 4Mb
             let padding_bytes = vec![
                 0xffu8;
-                flash_size.unwrap_or(FlashSize::Flash4Mb).size() as usize
+                flash_size.unwrap_or_default().size() as usize
                     - file.metadata().into_diagnostic()?.len() as usize
             ];
             file.write_all(&padding_bytes).into_diagnostic()?;
         }
     } else {
-        let flash_image = chip.into_target().get_flash_image(
+        let image = chip.into_target().get_flash_image(
             &image,
             None,
             None,
@@ -333,8 +336,10 @@ pub fn save_elf_as_image(
             flash_size,
             flash_freq,
         )?;
-        let parts: Vec<_> = flash_image.ota_segments().collect();
 
+        display_image_size(image.app_size(), image.part_size());
+
+        let parts = image.ota_segments().collect::<Vec<_>>();
         match parts.as_slice() {
             [single] => fs::write(&image_path, &single.data).into_diagnostic()?,
             parts => {
@@ -347,6 +352,20 @@ pub fn save_elf_as_image(
     }
 
     Ok(())
+}
+
+pub(crate) fn display_image_size(app_size: u32, part_size: Option<u32>) {
+    if let Some(part_size) = part_size {
+        let percent = app_size as f32 / part_size as f32 * 100.0;
+        println!(
+            "App/part. size:    {}/{} bytes, {:.2}%",
+            HumanCount(app_size as u64),
+            HumanCount(part_size as u64),
+            percent
+        );
+    } else {
+        println!("App size:          {} bytes", HumanCount(app_size as u64));
+    }
 }
 
 /// Write an ELF image to a target device's flash
@@ -425,7 +444,8 @@ pub fn erase_partitions(
     }
 
     // Look for any data partitions with specific data subtype
-    // There might be multiple partition of the same subtype, e.g. when using multiple FAT partitions
+    // There might be multiple partition of the same subtype, e.g. when using
+    // multiple FAT partitions
     if let Some(partition_types) = erase_data_parts {
         for ty in partition_types {
             for part in partition_table.partitions() {
