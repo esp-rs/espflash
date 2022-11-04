@@ -394,6 +394,7 @@ impl Flasher {
                     addr: text_addr,
                     data: Cow::Borrowed(&text),
                 },
+                None,
             )
             .flashing()?;
 
@@ -407,6 +408,7 @@ impl Flasher {
                     addr: data_addr,
                     data: Cow::Borrowed(&data),
                 },
+                None,
             )
             .flashing()?;
 
@@ -637,6 +639,9 @@ impl Flasher {
     /// Note that this will not touch the flash on the device
     pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
+        if image.rom_segments(self.chip).next().is_some() {
+            return Err(Error::ElfNotRamLoadable);
+        }
 
         let mut target = self.chip.ram_target(
             Some(image.entry()),
@@ -646,19 +651,21 @@ impl Flasher {
         );
         target.begin(&mut self.connection).flashing()?;
 
-        if image.rom_segments(self.chip).next().is_some() {
-            return Err(Error::ElfNotRamLoadable);
-        }
-
         for segment in image.ram_segments(self.chip) {
+            // Only display progress bars when the "cli" feature is enabled.
+            let progress_cb = if cfg!(feature = "cli") {
+                use crate::cli::{build_progress_bar_callback, progress_bar};
+
+                let progress = progress_bar(format!("segment 0x{:X}", segment.addr), None);
+                let progress_cb = build_progress_bar_callback(progress);
+
+                Some(progress_cb)
+            } else {
+                None
+            };
+
             target
-                .write_segment(
-                    &mut self.connection,
-                    RomSegment {
-                        addr: segment.addr,
-                        data: Cow::Borrowed(segment.data()),
-                    },
-                )
+                .write_segment(&mut self.connection, segment.into(), progress_cb)
                 .flashing()?;
         }
 
@@ -694,12 +701,25 @@ impl Flasher {
             flash_freq,
         )?;
 
+        // When the "cli" feature is enabled, display the image size information.
         #[cfg(feature = "cli")]
         crate::cli::display_image_size(image.app_size(), image.part_size());
 
         for segment in image.flash_segments() {
+            // Only display progress bars when the "cli" feature is enabled.
+            let progress_cb = if cfg!(feature = "cli") {
+                use crate::cli::{build_progress_bar_callback, progress_bar};
+
+                let progress = progress_bar(format!("segment 0x{:X}", segment.addr), None);
+                let progress_cb = build_progress_bar_callback(progress);
+
+                Some(progress_cb)
+            } else {
+                None
+            };
+
             target
-                .write_segment(&mut self.connection, segment)
+                .write_segment(&mut self.connection, segment, progress_cb)
                 .flashing()?;
         }
 
@@ -709,15 +729,22 @@ impl Flasher {
     }
 
     /// Load an bin image to flash at a specific address
-    pub fn write_bin_to_flash(&mut self, addr: u32, data: &[u8]) -> Result<(), Error> {
-        let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
-        target.begin(&mut self.connection).flashing()?;
+    pub fn write_bin_to_flash(
+        &mut self,
+        addr: u32,
+        data: &[u8],
+        progress_cb: Option<Box<dyn Fn(usize, usize)>>,
+    ) -> Result<(), Error> {
         let segment = RomSegment {
             addr,
             data: Cow::from(data),
         };
-        target.write_segment(&mut self.connection, segment)?;
+
+        let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
+        target.begin(&mut self.connection).flashing()?;
+        target.write_segment(&mut self.connection, segment, progress_cb)?;
         target.finish(&mut self.connection, true).flashing()?;
+
         Ok(())
     }
 
