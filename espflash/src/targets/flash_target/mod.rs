@@ -18,6 +18,7 @@ pub trait FlashTarget {
         &mut self,
         connection: &mut Connection,
         segment: RomSegment,
+        progress_cb: Option<Box<dyn Fn(usize, usize)>>,
     ) -> Result<(), Error>;
 
     /// Complete the flashing operation

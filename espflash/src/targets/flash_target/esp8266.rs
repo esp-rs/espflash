@@ -34,6 +34,7 @@ impl FlashTarget for Esp8266Target {
         &mut self,
         connection: &mut Connection,
         segment: RomSegment,
+        progress_cb: Option<Box<dyn Fn(usize, usize)>>,
     ) -> Result<(), Error> {
         let addr = segment.addr;
         let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;
@@ -54,6 +55,7 @@ impl FlashTarget for Esp8266Target {
         )?;
 
         let chunks = segment.data.chunks(FLASH_WRITE_SIZE);
+        let num_chunks = chunks.len();
 
         for (i, block) in chunks.enumerate() {
             connection.command(Command::FlashData {
@@ -62,6 +64,10 @@ impl FlashTarget for Esp8266Target {
                 pad_byte: 0xff,
                 data: block,
             })?;
+
+            if let Some(ref cb) = progress_cb {
+                cb(i + 1, num_chunks);
+            }
         }
 
         Ok(())
