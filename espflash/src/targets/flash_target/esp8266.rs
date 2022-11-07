@@ -1,5 +1,3 @@
-use indicatif::{ProgressBar, ProgressStyle};
-
 use super::FlashTarget;
 use crate::{
     command::{Command, CommandType},
@@ -28,6 +26,7 @@ impl FlashTarget for Esp8266Target {
             offset: 0,
             supports_encryption: false,
         })?;
+
         Ok(())
     }
 
@@ -35,6 +34,7 @@ impl FlashTarget for Esp8266Target {
         &mut self,
         connection: &mut Connection,
         segment: RomSegment,
+        progress_cb: Option<Box<dyn Fn(usize, usize)>>,
     ) -> Result<(), Error> {
         let addr = segment.addr;
         let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;
@@ -55,29 +55,20 @@ impl FlashTarget for Esp8266Target {
         )?;
 
         let chunks = segment.data.chunks(FLASH_WRITE_SIZE);
-
-        let (_, chunk_size) = chunks.size_hint();
-        let chunk_size = chunk_size.unwrap_or(0) as u64;
-        let pb_chunk = ProgressBar::new(chunk_size);
-        pb_chunk.set_style(
-            ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] [{bar:40}] {pos:>7}/{len:7} {msg}")
-                .unwrap()
-                .progress_chars("=> "),
-        );
+        let num_chunks = chunks.len();
 
         for (i, block) in chunks.enumerate() {
-            pb_chunk.set_message(format!("segment 0x{:X} writing chunks", addr));
             connection.command(Command::FlashData {
                 sequence: i as u32,
                 pad_to: FLASH_WRITE_SIZE,
                 pad_byte: 0xff,
                 data: block,
             })?;
-            pb_chunk.inc(1);
-        }
 
-        pb_chunk.finish_with_message(format!("segment 0x{:X}", addr));
+            if let Some(ref cb) = progress_cb {
+                cb(i + 1, num_chunks);
+            }
+        }
 
         Ok(())
     }
@@ -86,10 +77,11 @@ impl FlashTarget for Esp8266Target {
         connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
             connection.write_command(Command::FlashEnd { reboot: false })
         })?;
+
         if reboot {
-            connection.reset()
-        } else {
-            Ok(())
+            connection.reset()?;
         }
+
+        Ok(())
     }
 }

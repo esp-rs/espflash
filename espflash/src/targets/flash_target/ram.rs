@@ -44,6 +44,7 @@ impl FlashTarget for RamTarget {
         &mut self,
         connection: &mut Connection,
         segment: RomSegment,
+        progress_cb: Option<Box<dyn Fn(usize, usize)>>,
     ) -> Result<(), Error> {
         let padding = 4 - segment.data.len() % 4;
         let block_count = (segment.data.len() + padding + self.block_size - 1) / self.block_size;
@@ -56,14 +57,22 @@ impl FlashTarget for RamTarget {
             supports_encryption: false,
         })?;
 
-        for (i, block) in segment.data.chunks(self.block_size).enumerate() {
+        let chunks = segment.data.chunks(self.block_size);
+        let num_chunks = chunks.len();
+
+        for (i, block) in chunks.enumerate() {
             connection.command(Command::MemData {
                 sequence: i as u32,
                 pad_to: 4,
                 pad_byte: 0,
                 data: block,
             })?;
+
+            if let Some(ref cb) = progress_cb {
+                cb(i + 1, num_chunks);
+            }
         }
+
         Ok(())
     }
 
@@ -77,6 +86,7 @@ impl FlashTarget for RamTarget {
                 })
             })?;
         }
+
         Ok(())
     }
 }

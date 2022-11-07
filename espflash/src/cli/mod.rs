@@ -8,6 +8,7 @@
 //! [espflash]: https://crates.io/crates/espflash
 
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fs,
     io::Write,
@@ -17,7 +18,7 @@ use std::{
 use clap::{builder::ArgPredicate, Args};
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
-use indicatif::HumanCount;
+use indicatif::{style::ProgressStyle, HumanCount, ProgressBar, ProgressDrawTarget};
 use log::{debug, info};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{SerialPortType, UsbPortInfo};
@@ -167,6 +168,57 @@ pub struct SaveImageArgs {
     /// Don't pad the image to the flash size
     #[arg(long, short = 'P', requires = "merge")]
     pub skip_padding: bool,
+}
+
+/// Create a new [ProgressBar] with some message and styling applied
+pub fn progress_bar<S>(msg: S, len: Option<u64>) -> ProgressBar
+where
+    S: Into<Cow<'static, str>>,
+{
+    // If no length was provided, or the provided length is 0, we will initially
+    // hide the progress bar. This is done to avoid drawing a full-width progress
+    // bar before we've determined the length.
+    let draw_target = match len {
+        Some(len) if len > 0 => ProgressDrawTarget::stderr(),
+        _ => ProgressDrawTarget::hidden(),
+    };
+
+    let progress = ProgressBar::with_draw_target(len, draw_target)
+        .with_message(msg)
+        .with_style(
+            ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] [{bar:40}] {pos:>7}/{len:7} {msg}")
+                .unwrap()
+                .progress_chars("=> "),
+        );
+
+    progress
+}
+
+/// Create a callback function for the provided [ProgressBar]
+pub fn build_progress_bar_callback(pb: ProgressBar) -> Box<dyn Fn(usize, usize)> {
+    // This is a bit of an odd callback function, as it handles the entire lifecycle
+    // of the progress bar.
+    Box::new(move |current: usize, total: usize| {
+        // If the length has not yet been set, set it and then change the draw target to
+        // make the progress bar visible.
+        match pb.length() {
+            Some(0) | None => {
+                pb.set_length(total as u64);
+                pb.set_draw_target(ProgressDrawTarget::stderr());
+            }
+            _ => {}
+        }
+
+        // Set the new position of the progress bar.
+        pb.set_position(current as u64);
+
+        // If we have reached the end, make sure to finish the progress bar to ensure
+        // proper output on the terminal.
+        if current == total {
+            pb.finish();
+        }
+    })
 }
 
 /// Select a serial port and establish a connection with a target device

@@ -8,9 +8,10 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        self, board_info, clap_enum_variants, config::Config, connect, erase_partitions,
-        flash_elf_image, monitor::monitor, parse_partition_table, partition_table,
-        save_elf_as_image, serial_monitor, ConnectArgs, FlashConfigArgs, PartitionTableArgs,
+        self, board_info, build_progress_bar_callback, clap_enum_variants, config::Config, connect,
+        erase_partitions, flash_elf_image, monitor::monitor, parse_partition_table,
+        partition_table, progress_bar, save_elf_as_image, serial_monitor, ConnectArgs,
+        FlashConfigArgs, PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -206,7 +207,10 @@ fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
     f.read_to_end(&mut buffer).into_diagnostic()?;
 
-    flasher.write_bin_to_flash(args.addr, &buffer)?;
+    let progress = progress_bar(format!("segment 0x{:X}", args.addr), None);
+    let progress_cb = Some(build_progress_bar_callback(progress));
+
+    flasher.write_bin_to_flash(args.addr, &buffer, progress_cb)?;
 
     Ok(())
 }
