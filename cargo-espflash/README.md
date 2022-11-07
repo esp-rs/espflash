@@ -6,7 +6,7 @@
 
 Cross-compiler and Cargo extension for flashing Espressif devices over serial.
 
-Supports the **ESP32**, **ESP32-C2**, **ESP32-C3**, **ESP32-S2**, **ESP32-S3**, and **ESP8266**.
+Supports the **ESP32**, **ESP32-C2/C3**, **ESP32-S2/S3**, and **ESP8266**.
 
 ## Installation
 
@@ -86,9 +86,11 @@ It's possible to specify a serial port and/or USB VID/PID values by setting them
 | macOS            | `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml` |
 | Windows          | `%APPDATA%\esp\espflash\espflash.toml`                            |
 
-## WSL2
+## Windows Subsystem for Linux
 
-It is not possible to flash chips using the built-in `USB_SERIAL_JTAG` when using WSL2, because the reset also resets `USB_SERIAL_JTAG` peripheral which then disconnects the chip from WSL2.
+It is not currently possible to use `cargo-espflash` from within WSL1.
+
+It is not possible to flash chips using the built-in `USB_SERIAL_JTAG` when using WSL2, because the reset also resets `USB_SERIAL_JTAG` peripheral which then disconnects the chip from WSL2. Chips _can_ be flashed via UART using WSL2, however.
 
 ## License
 
