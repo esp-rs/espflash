@@ -1,3 +1,9 @@
+//! Serial port wrapper to support platform-specific functionality
+//!
+//! Since we support flashing using a Raspberry Pi's built-in UART, we must be
+//! able to abstract over the differences between this setup and when using a
+//! serial port as one normally would, ie.) via USB.
+
 use std::io::Read;
 
 use miette::{Context, Result};
@@ -7,6 +13,7 @@ use serialport::{FlowControl, SerialPort, SerialPortInfo};
 
 use crate::error::Error;
 
+/// Errors relating to the configuration of a serial port
 #[derive(thiserror::Error, Debug)]
 pub enum SerialConfigError {
     #[cfg(feature = "raspberry")]

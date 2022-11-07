@@ -54,10 +54,10 @@ pub mod elf;
 pub mod error;
 pub mod flasher;
 pub mod image_format;
+pub mod interface;
 pub mod targets;
 
 mod command;
-mod interface;
 
 /// Logging utilties
 #[cfg(feature = "cli")]
