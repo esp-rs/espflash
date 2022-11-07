@@ -10,7 +10,7 @@ use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use esp_idf_part::PartitionTable;
 use log::{debug, info, warn};
 use serialport::UsbPortInfo;
-use strum::{Display, EnumVariantNames};
+use strum::{Display, EnumIter, EnumVariantNames};
 
 use self::stubs::FlashStub;
 use crate::{
@@ -134,7 +134,7 @@ impl FromStr for FlashMode {
 /// Supported flash sizes
 ///
 /// Note that not all sizes are supported by each target device.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Display, EnumVariantNames)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Display, EnumVariantNames, EnumIter)]
 #[repr(u8)]
 pub enum FlashSize {
     /// 256 KB
@@ -208,21 +208,15 @@ impl FromStr for FlashSize {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use FlashSize::*;
-
-        match s.to_uppercase().as_str() {
-            "256KB" => Ok(Flash256Kb),
-            "512KB" => Ok(Flash512Kb),
-            "1MB" => Ok(Flash1Mb),
-            "2MB" => Ok(Flash2Mb),
-            "4MB" => Ok(Flash4Mb),
-            "8MB" => Ok(Flash8Mb),
-            "16MB" => Ok(Flash16Mb),
-            "32MB" => Ok(Flash32Mb),
-            "64MB" => Ok(Flash64Mb),
-            "128MB" => Ok(Flash128Mb),
-            _ => Err(Error::InvalidFlashSize(s.to_string())),
-        }
+        use strum::{IntoEnumIterator, VariantNames};
+        let upper = s.to_uppercase();
+        FlashSize::VARIANTS
+            .iter()
+            .copied()
+            .zip(FlashSize::iter())
+            .find(|(name, _)| *name == upper)
+            .map(|(_, variant)| variant)
+            .ok_or_else(|| Error::InvalidFlashSize(s.to_string()))
     }
 }
 
