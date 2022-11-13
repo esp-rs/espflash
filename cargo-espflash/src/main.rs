@@ -10,7 +10,8 @@ use espflash::{
     cli::{
         self, board_info, clap_enum_variants, config::Config, connect, erase_partitions,
         flash_elf_image, monitor::monitor, parse_partition_table, partition_table,
-        save_elf_as_image, serial_monitor, ConnectArgs, FlashConfigArgs, PartitionTableArgs,
+        save_elf_as_image, serial_monitor, ConnectArgs, FlashConfigArgs, MonitorArgs,
+        PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -53,8 +54,7 @@ enum Commands {
     BoardInfo(ConnectArgs),
     /// Flash an application to a target device
     Flash(FlashArgs),
-    /// Open the serial monitor without flashing
-    Monitor(ConnectArgs),
+    Monitor(MonitorArgs),
     PartitionTable(PartitionTableArgs),
     SaveImage(SaveImageArgs),
 }
