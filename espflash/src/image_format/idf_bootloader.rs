@@ -186,7 +186,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // The size of the application must not exceed the size of the factory
         // partition.
         if app_size as f32 / part_size as f32 > 1.0 {
-            return Err(Error::ElfTooBig);
+            return Err(Error::ElfTooBig(app_size, part_size));
         }
 
         let flash_segment = RomSegment {
