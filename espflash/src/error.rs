@@ -39,8 +39,10 @@ pub enum Error {
         help("Either build the binary to be all in ram or remove the `--ram` option to load the image to flash")
     )]
     ElfNotRamLoadable,
-    #[error("Supplied elf image is too big and doesn't fit configured app partition")]
-    ElfTooBig,
+    #[error(
+        "Supplied elf image of {0}B is too big and doesn't fit configured app partition of {1}B"
+    )]
+    ElfTooBig(u32, u32),
     #[error("The bootloader returned an error")]
     #[diagnostic(transparent)]
     RomError(#[from] RomError),
