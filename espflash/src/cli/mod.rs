@@ -170,6 +170,16 @@ pub struct SaveImageArgs {
     pub skip_padding: bool,
 }
 
+/// Open the serial monitor without flashing
+#[derive(Debug, Args)]
+pub struct MonitorArgs {
+    /// Optional file name of the ELF image to load the symbols from
+    #[arg(short = 'e', long, value_name = "FILE")]
+    elf: Option<PathBuf>,
+    #[clap(flatten)]
+    connect_args: ConnectArgs,
+}
+
 /// Create a new [ProgressBar] with some message and styling applied
 pub fn progress_bar<S>(msg: S, len: Option<u64>) -> ProgressBar
 where
@@ -274,15 +284,24 @@ pub fn board_info(args: ConnectArgs, config: &Config) -> Result<()> {
 }
 
 /// Open a serial monitor
-pub fn serial_monitor(args: ConnectArgs, config: &Config) -> Result<()> {
-    let flasher = connect(&args, config)?;
+pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
+    let flasher = connect(&args.connect_args, config)?;
     let pid = flasher.get_usb_pid()?;
+
+    let elf = if let Some(elf_path) = args.elf {
+        let path = fs::canonicalize(elf_path).into_diagnostic()?;
+        let data = fs::read(path).into_diagnostic()?;
+
+        Some(data)
+    } else {
+        None
+    };
 
     monitor(
         flasher.into_interface(),
-        None,
+        elf.as_deref(),
         pid,
-        args.baud.unwrap_or(115_200),
+        args.connect_args.baud.unwrap_or(115_200),
     )
     .into_diagnostic()?;
 
