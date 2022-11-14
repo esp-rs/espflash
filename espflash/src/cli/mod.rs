@@ -117,7 +117,7 @@ pub struct FlashArgs {
     #[arg(long, value_parser = clap_enum_variants!(ImageFormatKind))]
     pub format: Option<ImageFormatKind>,
     /// Open a serial monitor after flashing
-    #[arg(long)]
+    #[arg(short = 'M', long)]
     pub monitor: bool,
     /// Baud rate at which to read console output
     #[arg(long, requires = "monitor", value_name = "BAUD")]
