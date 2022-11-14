@@ -148,7 +148,12 @@ fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
         .filter(|port_info| {
             matches!(
                 &port_info.port_type,
-                SerialPortType::UsbPort(..) | SerialPortType::Unknown
+                SerialPortType::UsbPort(..) |
+                // Allow PciPort. The user may want to use it.
+                // The port might have been misdetected by the system as PCI.
+                SerialPortType::PciPort |
+                // Good luck.
+                SerialPortType::Unknown
             )
         })
         .collect::<Vec<_>>();
@@ -231,7 +236,7 @@ fn select_serial_port(
         let port_name = port.port_name.clone();
         let port_info = match &port.port_type {
             SerialPortType::UsbPort(info) => info,
-            SerialPortType::Unknown => &UsbPortInfo {
+            SerialPortType::PciPort | SerialPortType::Unknown => &UsbPortInfo {
                 vid: 0,
                 pid: 0,
                 serial_number: None,

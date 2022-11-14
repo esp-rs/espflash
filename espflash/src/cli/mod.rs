@@ -254,8 +254,8 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
     //       serial ports, we can just pretend these types don't exist here.
     let port_info = match port_info.port_type {
         SerialPortType::UsbPort(info) => info,
-        SerialPortType::Unknown => {
-            debug!("Matched `SerialPortType::Unknown`");
+        SerialPortType::PciPort | SerialPortType::Unknown => {
+            debug!("Matched `SerialPortType::PciPort or ::Unknown`");
             UsbPortInfo {
                 vid: 0,
                 pid: 0,
