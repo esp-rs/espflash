@@ -133,19 +133,18 @@ fn main() -> Result<()> {
     // displayed.
     check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
-    // Load any user configuraiton and/or package metadata, if present.
+    // Load any user configuration, if present.
     let config = Config::load().unwrap();
     let cargo_config = parse_cargo_config(".")?;
-    let metadata = CargoEspFlashMeta::load("Cargo.toml")?;
 
     // Execute the correct action based on the provided subcommand and its
     // associated arguments.
     match args {
         Commands::BoardInfo(args) => board_info(args, &config),
-        Commands::Flash(args) => flash(args, &config, &cargo_config, &metadata),
+        Commands::Flash(args) => flash(args, &config, &cargo_config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
-        Commands::SaveImage(args) => save_image(args, &cargo_config, &metadata),
+        Commands::SaveImage(args) => save_image(args, &cargo_config),
     }
 }
 
@@ -156,14 +155,10 @@ struct BuildContext {
     pub partition_table_path: Option<PathBuf>,
 }
 
-fn flash(
-    args: FlashArgs,
-    config: &Config,
-    cargo_config: &CargoConfig,
-    metadata: &CargoEspFlashMeta,
-) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config)?;
+fn flash(args: FlashArgs, config: &Config, cargo_config: &CargoConfig) -> Result<()> {
+    let metadata = CargoEspFlashMeta::load(&args.build_args.package)?;
 
+    let mut flasher = connect(&args.connect_args, config)?;
     let build_ctx = build(&args.build_args, cargo_config, flasher.chip())
         .wrap_err("Failed to build project")?;
 
@@ -393,11 +388,9 @@ fn build(
     Ok(build_ctx)
 }
 
-fn save_image(
-    args: SaveImageArgs,
-    cargo_config: &CargoConfig,
-    metadata: &CargoEspFlashMeta,
-) -> Result<()> {
+fn save_image(args: SaveImageArgs, cargo_config: &CargoConfig) -> Result<()> {
+    let metadata = CargoEspFlashMeta::load(&args.build_args.package)?;
+
     let build_ctx = build(&args.build_args, cargo_config, args.save_image_args.chip)?;
     let elf_data = fs::read(build_ctx.artifact_path).into_diagnostic()?;
 
