@@ -7,9 +7,31 @@ use espflash::targets::Chip;
 use miette::{Diagnostic, LabeledSpan, SourceCode, SourceOffset};
 use thiserror::Error;
 
-#[derive(Error, Debug, Diagnostic)]
+#[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 pub enum Error {
+    #[error("Specified bootloader table is not a bin file")]
+    #[diagnostic(code(cargo_espflash::invalid_bootloader_path))]
+    InvalidBootloaderPath,
+
+    #[error("Specified partition table is not a csv file")]
+    #[diagnostic(code(cargo_espflash::invalid_partition_table_path))]
+    InvalidPartitionTablePath,
+
+    #[error("The current workspace is invalid, and could not be loaded")]
+    #[diagnostic(
+        code(cargo_espflash::invalid_workspace),
+        help("Ensure that a valid Cargo.toml file is in the executing directory")
+    )]
+    InvalidWorkspace,
+
+    #[error("Multiple build artifacts found")]
+    #[diagnostic(
+        code(cargo_espflash::multiple_artifacts),
+        help("Please specify which artifact to flash using --bin")
+    )]
+    MultipleArtifacts,
+
     #[error("No executable artifact found")]
     #[diagnostic(
         code(cargo_espflash::no_artifact),
@@ -17,9 +39,10 @@ pub enum Error {
               or if you're in a cargo workspace, specify the binary package with `--package`.")
     )]
     NoArtifact,
+
     #[error("'build-std' not configured")]
     #[diagnostic(
-        code(cargo_espflash::build_std),
+        code(cargo_espflash::no_build_std),
         help(
             "cargo currently requires the unstable 'build-std' feature, ensure \
             that .cargo/config{{.toml}} has the appropriate options.\n  \
@@ -27,68 +50,40 @@ pub enum Error {
         )
     )]
     NoBuildStd,
-    #[error("Multiple build artifacts found")]
+
+    #[error("No package could be located in the current workspace")]
     #[diagnostic(
-        code(cargo_espflash::multiple_artifacts),
-        help("Please specify which artifact to flash using --bin")
+        code(cargo_espflash::no_package),
+        help("Ensure that you are executing from a valid package, or that the specified package name\
+              exists in the current workspace.")
     )]
-    MultipleArtifacts,
-    #[error("Specified partition table is not a csv file")]
-    #[diagnostic(code(cargo_espflash::partition_table_path))]
-    InvalidPartitionTablePath,
-    #[error("Specified bootloader table is not a bin file")]
-    #[diagnostic(code(cargo_espflash::bootloader_path))]
-    InvalidBootloaderPath,
+    NoPackage,
+
     #[error("No Cargo.toml found in the current directory")]
     #[diagnostic(
         code(cargo_espflash::no_project),
         help("Ensure that you're running the command from within a cargo project")
     )]
     NoProject,
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    UnsupportedTarget(UnsupportedTargetError),
+
     #[error(transparent)]
     #[diagnostic(transparent)]
     NoTarget(#[from] NoTargetError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    UnsupportedTarget(UnsupportedTargetError),
 }
 
 #[derive(Debug)]
 pub struct TomlError {
-    err: MaybeTomlError,
+    err: toml::de::Error,
     source: String,
 }
 
-#[derive(Debug)]
-pub enum MaybeTomlError {
-    Toml(toml::de::Error),
-    Io(std::io::Error),
-    Other(&'static str),
-}
-
-impl From<cargo_toml::Error> for MaybeTomlError {
-    fn from(e: cargo_toml::Error) -> Self {
-        match e {
-            cargo_toml::Error::Parse(e) => MaybeTomlError::Toml(e),
-            cargo_toml::Error::Io(e) => MaybeTomlError::Io(e),
-            cargo_toml::Error::Other(e) => MaybeTomlError::Other(e),
-            _ => todo!(), // `cargo_toml::Error` is marked as non-exhaustive
-        }
-    }
-}
-
-impl From<toml::de::Error> for MaybeTomlError {
-    fn from(e: toml::de::Error) -> Self {
-        MaybeTomlError::Toml(e)
-    }
-}
-
 impl TomlError {
-    pub fn new(err: impl Into<MaybeTomlError>, source: String) -> Self {
-        TomlError {
-            err: err.into(),
-            source,
-        }
+    pub fn new(err: toml::de::Error, source: String) -> Self {
+        Self { err, source }
     }
 }
 
@@ -98,7 +93,7 @@ impl Display for TomlError {
     }
 }
 
-// no `source` on purpose to prevent duplicating the message
+// NOTE: no `source` on purpose to prevent duplicating the message
 impl std::error::Error for TomlError {}
 
 impl Diagnostic for TomlError {
@@ -107,22 +102,18 @@ impl Diagnostic for TomlError {
     }
 
     fn labels(&self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + '_>> {
-        match &self.err {
-            MaybeTomlError::Toml(err) => {
-                let (line, col) = err.line_col()?;
-                let offset = SourceOffset::from_location(&self.source, line + 1, col + 1);
-                Some(Box::new(once(LabeledSpan::new(
-                    Some(err.to_string()),
-                    offset.offset(),
-                    0,
-                ))))
-            }
-            _ => None,
-        }
+        let (line, col) = self.err.line_col()?;
+        let offset = SourceOffset::from_location(&self.source, line + 1, col + 1);
+
+        Some(Box::new(once(LabeledSpan::new(
+            Some(self.err.to_string()),
+            offset.offset(),
+            0,
+        ))))
     }
 }
 
-#[derive(Error, Debug, Diagnostic)]
+#[derive(Debug, Diagnostic, Error)]
 #[error("Target {target} is not supported by the {chip}")]
 #[diagnostic(
     code(cargo_espflash::unsupported_target),
@@ -134,8 +125,8 @@ pub struct UnsupportedTargetError {
 }
 
 impl UnsupportedTargetError {
-    pub fn new(target: &str, chip: Chip) -> UnsupportedTargetError {
-        UnsupportedTargetError {
+    pub fn new(target: &str, chip: Chip) -> Self {
+        Self {
             target: target.into(),
             chip,
         }
@@ -156,7 +147,7 @@ pub struct NoTargetError {
 
 impl NoTargetError {
     pub fn new(chip: Option<Chip>) -> Self {
-        NoTargetError { chip }
+        Self { chip }
     }
 }
 
