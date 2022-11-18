@@ -32,12 +32,8 @@ pub fn get_serial_port_info(
     let ports = detect_usb_serial_ports().unwrap_or_default();
 
     if let Some(serial) = &matches.port {
-        #[cfg(not(target_os = "windows"))]
-        let serial = fs::canonicalize(serial)?.to_string_lossy().to_string();
         find_serial_port(&ports, &serial)
     } else if let Some(serial) = &config.connection.serial {
-        #[cfg(not(target_os = "windows"))]
-        let serial = fs::canonicalize(serial)?.to_string_lossy().to_string();
         find_serial_port(&ports, &serial)
     } else {
         let (port, matches) = select_serial_port(ports, config)?;
@@ -72,14 +68,19 @@ pub fn get_serial_port_info(
 /// Given a vector of `SerialPortInfo` structs, attempt to find and return one
 /// whose `port_name` field matches the provided `name` argument.
 fn find_serial_port(ports: &[SerialPortInfo], name: &str) -> Result<SerialPortInfo, Error> {
+    #[cfg(not(target_os = "windows"))]
+    let name = fs::canonicalize(name)?;
+    #[cfg(not(target_os = "windows"))]
+    let name = name.to_string_lossy();
+
     let port_info = ports
         .iter()
-        .find(|port| port.port_name.to_lowercase() == name.to_lowercase());
+        .find(|port| port.port_name.eq_ignore_ascii_case(name.as_ref()));
 
     if let Some(port) = port_info {
         Ok(port.to_owned())
     } else {
-        Err(Error::SerialNotFound(name.to_owned()))
+        Err(Error::SerialNotFound(name.to_string()))
     }
 }
 
