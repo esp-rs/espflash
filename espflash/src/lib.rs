@@ -59,6 +59,8 @@ pub mod targets;
 
 mod command;
 
+pub use esp_idf_part;
+
 /// Logging utilties
 #[cfg(feature = "cli")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
