@@ -1,3 +1,4 @@
+#[cfg(not(target_os = "windows"))]
 use std::fs;
 
 use crossterm::style::Stylize;

@@ -7,7 +7,6 @@
 use std::{io::BufWriter, thread::sleep, time::Duration};
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
-use bytemuck::{Pod, Zeroable};
 use log::info;
 use serialport::UsbPortInfo;
 use slip_codec::SlipDecoder;
@@ -38,15 +37,6 @@ pub struct Connection {
     serial: Interface,
     port_info: UsbPortInfo,
     decoder: SlipDecoder,
-}
-
-#[derive(Zeroable, Pod, Copy, Clone, Debug)]
-#[repr(C)]
-struct WriteRegParams {
-    addr: u32,
-    value: u32,
-    mask: u32,
-    delay_us: u32,
 }
 
 impl Connection {
