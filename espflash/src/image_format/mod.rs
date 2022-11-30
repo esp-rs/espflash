@@ -82,7 +82,7 @@ impl FromStr for ImageFormatKind {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "bootloader" => Ok(Self::EspBootloader),
+            "esp-bootloader" => Ok(Self::EspBootloader),
             "direct-boot" => Ok(Self::DirectBoot),
             _ => Err(Error::UnknownImageFormat(s.into())),
         }
