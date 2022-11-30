@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Range};
 
 use esp_idf_part::PartitionTable;
 
-use super::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
+use super::{bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
@@ -50,18 +50,15 @@ impl Target for Esp32c2 {
     }
 
     fn chip_features(&self, _connection: &mut Connection) -> Result<Vec<&str>, Error> {
-        Ok(vec!["WiFi"])
+        Ok(vec!["WiFi", "BLE"])
     }
 
-    fn chip_revision(&self, connection: &mut Connection) -> Result<Option<u32>, Error> {
-        let block1_addr = self.efuse_reg() + 0x44;
-        let num_word = 3;
-        let pos = 18;
+    fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        Ok(self.read_efuse(connection, 17)? >> 20 & 0x3)
+    }
 
-        let value = connection.read_reg(block1_addr + (num_word * 0x4))?;
-        let value = (value & (0x7 << pos)) >> pos;
-
-        Ok(Some(value))
+    fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        Ok(self.read_efuse(connection, 17)? >> 16 & 0xf)
     }
 
     fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
@@ -88,7 +85,7 @@ impl Target for Esp32c2 {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: Option<ImageFormatKind>,
-        _chip_revision: Option<u32>,
+        _chip_revision: Option<(u32, u32)>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
@@ -108,6 +105,18 @@ impl Target for Esp32c2 {
             )?)),
             ImageFormatKind::DirectBoot => Ok(Box::new(DirectBootFormat::new(image, 0)?)),
         }
+    }
+
+    /// What is the MAC address?
+    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
+        let word5 = self.read_efuse(connection, 16)?;
+        let word6 = self.read_efuse(connection, 17)?;
+
+        let bytes = ((word6 as u64) << 32) | word5 as u64;
+        let bytes = bytes.to_be_bytes();
+        let bytes = &bytes[2..];
+
+        Ok(bytes_to_mac_addr(bytes))
     }
 
     fn spi_registers(&self) -> SpiRegisters {

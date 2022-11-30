@@ -131,6 +131,9 @@ https://github.com/espressif/esp32c3-direct-boot-example"
         chip: Chip,
         frequency: FlashFrequency,
     },
+    #[error("The {chip} does not support {feature}")]
+    #[diagnostic(code(espflash::unsupported_feature))]
+    UnsupportedFeature { chip: Chip, feature: String },
 }
 
 #[derive(Error, Debug, Diagnostic)]
@@ -449,7 +452,7 @@ impl From<u8> for FlashDetectError {
 pub struct UnsupportedImageFormatError {
     format: ImageFormatKind,
     chip: Chip,
-    revision: Option<u32>,
+    revision: Option<(u32, u32)>,
 }
 
 impl Display for UnsupportedImageFormatError {
@@ -459,9 +462,11 @@ impl Display for UnsupportedImageFormatError {
             "Image format {} is not supported by the {}",
             self.format, self.chip
         )?;
-        if let Some(revision) = self.revision {
-            write!(f, " revision {}", revision)?;
+
+        if let Some((major, minor)) = self.revision {
+            write!(f, " revision v{major}.{minor}")?;
         }
+
         Ok(())
     }
 }
@@ -491,7 +496,7 @@ impl Diagnostic for UnsupportedImageFormatError {
 }
 
 impl UnsupportedImageFormatError {
-    pub fn new(format: ImageFormatKind, chip: Chip, revision: Option<u32>) -> Self {
+    pub fn new(format: ImageFormatKind, chip: Chip, revision: Option<(u32, u32)>) -> Self {
         UnsupportedImageFormatError {
             format,
             chip,

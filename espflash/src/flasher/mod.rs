@@ -608,22 +608,25 @@ impl Flasher {
     /// Read and print any information we can about the connected board
     pub fn board_info(&mut self) -> Result<(), Error> {
         let chip = self.chip();
-
         let target = chip.into_target();
-        let maybe_revision = target.chip_revision(self.connection())?;
+
         let features = target.chip_features(self.connection())?;
         let freq = target.crystal_freq(self.connection())?;
         let mac = target.mac_address(self.connection())?;
 
-        print!("Chip type:         {}", chip);
-        match maybe_revision {
-            Some(revision) => println!(" (revision {})", revision),
-            None => println!(),
+        // The ESP8266 does not have readable major/minor revision numbers, so we have
+        // nothing to print if targeting it.
+        print!("Chip type:         {chip}");
+        if chip != Chip::Esp8266 {
+            let (major, minor) = target.chip_revision(self.connection())?;
+            println!(" (revision v{major}.{minor})");
+        } else {
+            println!("");
         }
-        println!("Crystal frequency: {}MHz", freq);
+        println!("Crystal frequency: {freq}MHz");
         println!("Flash size:        {}", self.flash_size);
         println!("Features:          {}", features.join(", "));
-        println!("MAC address:       {}", mac);
+        println!("MAC address:       {mac}");
 
         Ok(())
     }
@@ -687,9 +690,11 @@ impl Flasher {
             bootloader,
             partition_table,
             image_format,
-            self.chip
-                .into_target()
-                .chip_revision(&mut self.connection)?,
+            Some(
+                self.chip
+                    .into_target()
+                    .chip_revision(&mut self.connection)?,
+            ),
             flash_mode,
             flash_size.or(Some(self.flash_size)),
             flash_freq,
