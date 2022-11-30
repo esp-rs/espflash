@@ -118,24 +118,25 @@ impl Target for Esp32 {
         Ok(features)
     }
 
-    fn chip_revision(&self, connection: &mut Connection) -> Result<Option<u32>, Error> {
-        let word3 = self.read_efuse(connection, 3)?;
-        let word5 = self.read_efuse(connection, 5)?;
+    fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let apb_ctl_date = connection.read_reg(0x3FF6_607C)?;
 
-        let apb_ctrl_date = connection.read_reg(0x3ff6_607c)?;
+        let rev_bit0 = (self.read_efuse(connection, 3)? >> 15) & 0x1;
+        let rev_bit1 = (self.read_efuse(connection, 5)? >> 20) & 0x1;
+        let rev_bit2 = (apb_ctl_date >> 31) & 0x1;
 
-        let rev_bit0 = (word3 >> 15) & 0x1 != 0;
-        let rev_bit1 = (word5 >> 20) & 0x1 != 0;
-        let rev_bit2 = (apb_ctrl_date >> 31) & 0x1 != 0;
+        let combine_value = (rev_bit2 << 2) | (rev_bit1 << 1) | rev_bit0;
 
-        let revision = match (rev_bit0, rev_bit1, rev_bit2) {
-            (true, true, true) => 3,
-            (true, true, false) => 2,
-            (true, false, _) => 1,
-            (false, _, _) => 0,
-        };
+        match combine_value {
+            1 => Ok(1),
+            3 => Ok(2),
+            7 => Ok(3),
+            _ => Ok(0),
+        }
+    }
 
-        Ok(Some(revision))
+    fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        Ok((self.read_efuse(connection, 5)? >> 24) & 0x3)
     }
 
     fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
@@ -152,7 +153,7 @@ impl Target for Esp32 {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: Option<ImageFormatKind>,
-        _chip_revision: Option<u32>,
+        _chip_revision: Option<(u32, u32)>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,

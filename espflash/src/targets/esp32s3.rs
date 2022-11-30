@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::{bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
+use super::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
@@ -33,11 +33,19 @@ impl Esp32s3 {
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }
+
+    fn blk_version_major(&self, connection: &mut Connection) -> Result<u32, Error> {
+        Ok(self.read_efuse(connection, 96)? & 0x3)
+    }
+
+    fn blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
+        Ok(self.read_efuse(connection, 20)? >> 24 & 0x7)
+    }
 }
 
 impl ReadEFuse for Esp32s3 {
     fn efuse_reg(&self) -> u32 {
-        0x6000_7030
+        0x6000_7000
     }
 }
 
@@ -48,6 +56,29 @@ impl Target for Esp32s3 {
 
     fn chip_features(&self, _connection: &mut Connection) -> Result<Vec<&str>, Error> {
         Ok(vec!["WiFi", "BLE"])
+    }
+
+    fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let major = self.read_efuse(connection, 22)? >> 24 & 0x3;
+
+        // Workaround: The major version field was allocated to other purposes when
+        // block version is v1.1. Luckily only chip v0.0 have this kind of block version
+        // and efuse usage.
+        if self.minor_chip_version(connection)? == 0
+            && self.blk_version_major(connection)? == 1
+            && self.blk_version_minor(connection)? == 1
+        {
+            Ok(0)
+        } else {
+            Ok(major)
+        }
+    }
+
+    fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let hi = self.read_efuse(connection, 22)? >> 23 & 0x1;
+        let lo = self.read_efuse(connection, 20)? >> 18 & 0x7;
+
+        Ok((hi << 3) + lo)
     }
 
     fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
@@ -61,7 +92,7 @@ impl Target for Esp32s3 {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: Option<ImageFormatKind>,
-        _chip_revision: Option<u32>,
+        _chip_revision: Option<(u32, u32)>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
@@ -81,17 +112,6 @@ impl Target for Esp32s3 {
             )?)),
             ImageFormatKind::DirectBoot => Ok(Box::new(DirectBootFormat::new(image, 0x400)?)),
         }
-    }
-
-    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let word5 = self.read_efuse(connection, 5)?;
-        let word6 = self.read_efuse(connection, 6)?;
-
-        let bytes = ((word6 as u64) << 32) | word5 as u64;
-        let bytes = bytes.to_be_bytes();
-        let bytes = &bytes[2..];
-
-        Ok(bytes_to_mac_addr(bytes))
     }
 
     fn spi_registers(&self) -> SpiRegisters {

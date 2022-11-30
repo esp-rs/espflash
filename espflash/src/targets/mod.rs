@@ -254,10 +254,17 @@ pub trait Target: ReadEFuse {
     /// Enumerate the chip's features, read from eFuse
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error>;
 
-    /// Deterimine the chip's revision number, if it has one
-    fn chip_revision(&self, _connection: &mut Connection) -> Result<Option<u32>, Error> {
-        Ok(None)
+    /// Deterimine the chip's revision number
+    fn chip_revision(&self, connection: &mut Connection) -> Result<(u32, u32), Error> {
+        let major = self.major_chip_version(connection)?;
+        let minor = self.minor_chip_version(connection)?;
+
+        Ok((major, minor))
     }
+
+    fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error>;
+
+    fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error>;
 
     /// What is the crystal frequency?
     fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error>;
@@ -288,7 +295,7 @@ pub trait Target: ReadEFuse {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: Option<ImageFormatKind>,
-        chip_revision: Option<u32>,
+        chip_revision: Option<(u32, u32)>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
@@ -296,8 +303,8 @@ pub trait Target: ReadEFuse {
 
     /// What is the MAC address?
     fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let word5 = self.read_efuse(connection, 5)?;
-        let word6 = self.read_efuse(connection, 6)?;
+        let word5 = self.read_efuse(connection, 17)?;
+        let word6 = self.read_efuse(connection, 18)?;
 
         let bytes = ((word6 as u64) << 32) | word5 as u64;
         let bytes = bytes.to_be_bytes();

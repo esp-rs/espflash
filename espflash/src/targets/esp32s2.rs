@@ -40,21 +40,21 @@ impl Esp32s2 {
     }
 
     fn get_block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let blk2_word4 = self.read_efuse(connection, 15)?;
+        let blk2_word4 = self.read_efuse(connection, 27)?;
         let block2_version = (blk2_word4 >> 4) & 0x7;
 
         Ok(block2_version)
     }
 
     fn get_flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let blk1_word3 = self.read_efuse(connection, 8)?;
+        let blk1_word3 = self.read_efuse(connection, 20)?;
         let flash_version = (blk1_word3 >> 21) & 0xf;
 
         Ok(flash_version)
     }
 
     fn get_psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let blk1_word3 = self.read_efuse(connection, 8)?;
+        let blk1_word3 = self.read_efuse(connection, 20)?;
         let psram_version = (blk1_word3 >> 28) & 0xf;
 
         Ok(psram_version)
@@ -67,7 +67,7 @@ impl Esp32s2 {
 
 impl ReadEFuse for Esp32s2 {
     fn efuse_reg(&self) -> u32 {
-        0x3f41_a030
+        0x3f41_a000
     }
 }
 
@@ -106,6 +106,17 @@ impl Target for Esp32s2 {
         Ok(features)
     }
 
+    fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        Ok(self.read_efuse(connection, 20)? >> 18 & 0x3)
+    }
+
+    fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let hi = self.read_efuse(connection, 20)? >> 20 & 0x1;
+        let lo = self.read_efuse(connection, 21)? >> 4 & 0x7;
+
+        Ok((hi << 3) + lo)
+    }
+
     fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
         // The ESP32-S2's XTAL has a fixed frequency of 40MHz.
         Ok(40)
@@ -125,7 +136,7 @@ impl Target for Esp32s2 {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: Option<ImageFormatKind>,
-        _chip_revision: Option<u32>,
+        _chip_revision: Option<(u32, u32)>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,

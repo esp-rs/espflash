@@ -46,6 +46,20 @@ impl Target for Esp8266 {
         Ok(vec!["WiFi"])
     }
 
+    fn major_chip_version(&self, _connection: &mut Connection) -> Result<u32, Error> {
+        Err(Error::UnsupportedFeature {
+            chip: Chip::Esp8266,
+            feature: "reading the major chip version".into(),
+        })
+    }
+
+    fn minor_chip_version(&self, _connection: &mut Connection) -> Result<u32, Error> {
+        Err(Error::UnsupportedFeature {
+            chip: Chip::Esp8266,
+            feature: "reading the minor chip version".into(),
+        })
+    }
+
     fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
         let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
         let est_xtal = (connection.get_baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
@@ -60,7 +74,7 @@ impl Target for Esp8266 {
         _bootloader: Option<Vec<u8>>,
         _partition_table: Option<PartitionTable>,
         image_format: Option<ImageFormatKind>,
-        _chip_revision: Option<u32>,
+        _chip_revision: Option<(u32, u32)>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,

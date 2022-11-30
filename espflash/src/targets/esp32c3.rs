@@ -40,7 +40,7 @@ impl Esp32c3 {
 
 impl ReadEFuse for Esp32c3 {
     fn efuse_reg(&self) -> u32 {
-        0x6000_8830
+        0x6000_8800
     }
 }
 
@@ -50,18 +50,18 @@ impl Target for Esp32c3 {
     }
 
     fn chip_features(&self, _connection: &mut Connection) -> Result<Vec<&str>, Error> {
-        Ok(vec!["WiFi"])
+        Ok(vec!["WiFi", "BLE"])
     }
 
-    fn chip_revision(&self, connection: &mut Connection) -> Result<Option<u32>, Error> {
-        let block1_addr = self.efuse_reg() + 0x14;
-        let num_word = 3;
-        let pos = 18;
+    fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        Ok(self.read_efuse(connection, 22)? >> 24 & 0x3)
+    }
 
-        let value = connection.read_reg(block1_addr + (num_word * 0x4))?;
-        let value = (value & (0x7 << pos)) >> pos;
+    fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let hi = self.read_efuse(connection, 22)? >> 23 & 0x1;
+        let lo = self.read_efuse(connection, 20)? >> 18 & 0x7;
 
-        Ok(Some(value))
+        Ok((hi << 3) + lo)
     }
 
     fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
@@ -75,7 +75,7 @@ impl Target for Esp32c3 {
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
         image_format: Option<ImageFormatKind>,
-        chip_revision: Option<u32>,
+        chip_revision: Option<(u32, u32)>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
@@ -93,7 +93,7 @@ impl Target for Esp32c3 {
                 flash_size,
                 flash_freq,
             )?)),
-            (ImageFormatKind::DirectBoot, None | Some(3..)) => {
+            (ImageFormatKind::DirectBoot, None | Some((3.., _))) => {
                 Ok(Box::new(DirectBootFormat::new(image, 0)?))
             }
             _ => Err(
