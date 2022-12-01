@@ -1,6 +1,6 @@
 [package]
 name = "espflash"
-version = "2.0.0-rc.1"
+version = "2.0.0-rc.2"
 authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",
@@ -35,26 +35,26 @@ path = "./src/bin/espflash.rs"
 required-features = ["cli"]
 
 [dependencies]
-addr2line = { version = "0.18.0", optional = true }
+addr2line = { version = "0.19.0", optional = true }
 base64 = "0.13.1"
 binread = "2.2.0"
 bytemuck = { version = "1.12.3", features = ["derive"] }
-clap = { version = "4.0.25", features = ["derive"], optional = true }
-comfy-table = { version = "6.1.2", optional = true }
+clap = { version = "4.0.29", features = ["derive"], optional = true }
+comfy-table = { version = "6.1.3", optional = true }
 crossterm = { version = "0.25.0", optional = true }
 dialoguer = { version = "0.10.2", optional = true }
 directories-next = { version = "2.0.0", optional = true }
 esp-idf-part = "0.1.2"
-env_logger = { version = "0.9.3", optional = true }
-flate2 = "1.0.24"
+env_logger = { version = "0.10.0", optional = true }
+flate2 = "1.0.25"
 indicatif = { version = "0.17.2", optional = true }
 lazy_static = { version = "1.4.0", optional = true }
 log = "0.4.17"
-miette = { version = "5.4.1", features = ["fancy"] }
+miette = { version = "5.5.0", features = ["fancy"] }
 parse_int = { version = "0.6.0", optional = true }
 regex = { version = "1.7.0", optional = true }
-rppal = { version = "0.14.0", optional = true }
-serde = { version = "1.0.147", features = ["derive"] }
+rppal = { version = "0.14.1", optional = true }
+serde = { version = "1.0.148", features = ["derive"] }
 serde-hex = { version = "0.1.0", optional = true }
 serialport = "4.2.0"
 sha2 = "0.10.6"

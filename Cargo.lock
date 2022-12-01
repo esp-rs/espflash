@@ -29,19 +29,19 @@ version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9ecd88a8c8378ca913a680cd98f0f13ac67383d35993f86c90a70e3f137816b"
 dependencies = [
- "gimli",
+ "gimli 0.26.2",
 ]
 
 [[package]]
 name = "addr2line"
-version = "0.18.0"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ca9b76e919fd83ccfb509f51b28c333c0e03f2221616e347a129215cec4e4a9"
+checksum = "a76fd60b23679b7d19bd066031410fb7e458ccc5e958eb5c325888ce4baedc97"
 dependencies = [
  "cpp_demangle",
  "fallible-iterator",
- "gimli",
- "object",
+ "gimli 0.27.0",
+ "object 0.30.0",
  "rustc-demangle",
  "smallvec 1.10.0",
 ]
@@ -121,7 +121,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "miniz_oxide 0.5.4",
- "object",
+ "object 0.29.0",
  "rustc-demangle",
 ]
 
@@ -263,7 +263,7 @@ dependencies = [
  "crates-io",
  "curl",
  "curl-sys",
- "env_logger",
+ "env_logger 0.9.3",
  "filetime",
  "flate2",
  "fwdansi",
@@ -310,12 +310,12 @@ dependencies = [
 
 [[package]]
 name = "cargo-espflash"
-version = "2.0.0-rc.1"
+version = "2.0.0-rc.2"
 dependencies = [
  "cargo",
  "cargo_metadata",
  "clap 4.0.29",
- "env_logger",
+ "env_logger 0.10.0",
  "esp-idf-part",
  "espflash",
  "log",
@@ -525,9 +525,9 @@ checksum = "5827cebf4670468b8772dd191856768aedcb1b0278a04f989f7766351917b9dc"
 
 [[package]]
 name = "cpp_demangle"
-version = "0.3.5"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eeaa953eaad386a53111e47172c2fedba671e5684c8dd601a5f474f4f118710f"
+checksum = "b446fd40bcc17eddd6a4a78f24315eb90afdb3334999ddfd4909985c47722442"
 dependencies = [
  "cfg-if",
 ]
@@ -819,6 +819,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_logger"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85cdab6a89accf66733ad5a1693a4dcced6aeff64602b634530dd73c1f3ee9f0"
+dependencies = [
+ "humantime",
+ "is-terminal",
+ "log",
+ "regex",
+ "termcolor",
+]
+
+[[package]]
 name = "errno"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -858,9 +871,9 @@ dependencies = [
 
 [[package]]
 name = "espflash"
-version = "2.0.0-rc.1"
+version = "2.0.0-rc.2"
 dependencies = [
- "addr2line 0.18.0",
+ "addr2line 0.19.0",
  "base64",
  "binread",
  "bytemuck",
@@ -869,7 +882,7 @@ dependencies = [
  "crossterm",
  "dialoguer",
  "directories-next",
- "env_logger",
+ "env_logger 0.10.0",
  "esp-idf-part",
  "flate2",
  "indicatif",
@@ -1001,6 +1014,12 @@ name = "gimli"
 version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22030e2c5a68ec659fde1e949a745124b48e6fa8b045b7ed5bd1fe4ccc5c4e5d"
+
+[[package]]
+name = "gimli"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dec7af912d60cdbd3677c1af9352ebae6fb8394d165568a2234df0fa00f87793"
 dependencies = [
  "fallible-iterator",
  "stable_deref_trait",
@@ -1523,6 +1542,15 @@ name = "object"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21158b2c33aa6d4561f1c0a6ea283ca92bc54802a93b263e910746d679a7eb53"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "object"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "239da7f290cfa979f43f85a8efeee9a8a76d0827c356d37f9d3d7254d6b537fb"
 dependencies = [
  "flate2",
  "memchr",
@@ -2190,9 +2218,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.104"
+version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ae548ec36cf198c0ef7710d3c230987c2d6d7bd98ad6edc0274462724c585ce"
+checksum = "60b9b43d45702de4c839cb9b51d9f529c5dd26a4aff255b42b1ebc03e88ee908"
 dependencies = [
  "proc-macro2",
  "quote",

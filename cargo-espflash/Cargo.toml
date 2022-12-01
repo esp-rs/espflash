@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "2.0.0-rc.1"
+version = "2.0.0-rc.2"
 authors = [
     "Robin Appelman <robin@icewind.nl>",
     "Jesse Braham <jesse@beta7.io>",
@@ -30,14 +30,14 @@ pkg-fmt = "zip"
 
 [dependencies]
 cargo = { version = "0.66.0", features = ["vendored-openssl"] }
-cargo_metadata = "0.15.1"
-clap = { version = "4.0.25", features = ["derive"] }
-env_logger = "0.9.3"
+cargo_metadata = "0.15.2"
+clap = { version = "4.0.29", features = ["derive"] }
+env_logger = "0.10.0"
 esp-idf-part = "0.1.2"
-espflash = { version = "=2.0.0-rc.1", path = "../espflash" }
+espflash = { version = "=2.0.0-rc.2", path = "../espflash" }
 log = "0.4.17"
-miette = { version = "5.4.1", features = ["fancy"] }
-serde = { version = "1.0.147", features = ["derive"] }
+miette = { version = "5.5.0", features = ["fancy"] }
+serde = { version = "1.0.148", features = ["derive"] }
 strum = "0.24.1"
 thiserror = "1.0.37"
 toml = "0.5.9"
