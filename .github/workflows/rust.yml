@@ -13,7 +13,7 @@ env:
 jobs:
   check:
     name: Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Change apt mirror and install dependencies
         run: |
@@ -33,7 +33,7 @@ jobs:
 
   check-lib:
     name: Check (lib)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Change apt mirror and install dependencies
         run: |
@@ -54,7 +54,7 @@ jobs:
 
   msrv:
     name: Check MSRV
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Change apt mirror and install dependencies
         run: |
@@ -74,7 +74,7 @@ jobs:
 
   test-lib:
     name: Unit Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Change apt mirror and install dependencies
         run: |
@@ -95,7 +95,7 @@ jobs:
 
   fmt:
     name: Rustfmt
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -112,7 +112,7 @@ jobs:
 
   clippy:
     name: Clippy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Change apt mirror and install dependencies
         run: |

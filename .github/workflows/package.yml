@@ -33,7 +33,7 @@ jobs:
           override: true
       - uses: Swatinem/rust-cache@v1
       - name: Build dependencies for other ubuntu targets
-        if: inputs.runs_on == 'ubuntu-latest'
+        if: inputs.runs_on == 'ubuntu-20.04'
         run: |
           sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
           sudo apt-get update
