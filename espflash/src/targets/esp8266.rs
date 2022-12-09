@@ -20,7 +20,7 @@ const FLASH_RANGES: &[Range<u32>] = &[
 const UART_CLKDIV_REG: u32 = 0x6000_0014;
 const UART_CLKDIV_MASK: u32 = 0xfffff;
 
-const XTAL_CLK_DIVIDER: u32 = 1;
+const XTAL_CLK_DIVIDER: u32 = 2;
 
 /// ESP8266 Target
 pub struct Esp8266;
