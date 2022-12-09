@@ -348,13 +348,13 @@ impl Flasher {
 
         // Now that we have established a connection and detected the chip and flash
         // size, we can set the baud rate of the connection to the configured value.
-        if let Some(b) = speed {
+        if let Some(baud) = speed {
             match flasher.chip {
                 Chip::Esp8266 => (), // Not available
                 _ => {
-                    if b > 115_200 {
+                    if baud > 115_200 {
                         warn!("Setting baud rate higher than 115,200 can cause issues");
-                        flasher.change_baud(b)?;
+                        flasher.change_baud(baud)?;
                     }
                 }
             }
@@ -776,16 +776,29 @@ impl Flasher {
             false => 0,
         };
 
+        let target = self.chip.into_target();
+        let xtal_freq = target.crystal_freq(&mut self.connection)?;
+
+        // Probably this is just a temporary solution until the next chip revision.
+        //
+        // The ROM code thinks it uses a 40 MHz XTAL. Recompute the baud rate in order
+        // to trick the ROM code to set the correct baud rate for a 26 MHz XTAL.
+        let mut new_baud = speed;
+        if self.chip == Chip::Esp32c2 && !self.use_stub && xtal_freq == 26 {
+            new_baud = new_baud * 40 / 26;
+        }
+
         self.connection
             .with_timeout(CommandType::ChangeBaud.timeout(), |connection| {
                 connection.command(Command::ChangeBaud {
-                    new_baud: speed,
+                    new_baud,
                     prior_baud,
                 })
             })?;
         self.connection.set_baud(speed)?;
-        std::thread::sleep(Duration::from_secs_f32(0.05));
+        sleep(Duration::from_secs_f32(0.05));
         self.connection.flush()?;
+
         Ok(())
     }
 
