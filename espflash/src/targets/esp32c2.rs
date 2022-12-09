@@ -29,6 +29,11 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32c2-bootloader.bin"),
 );
 
+const UART_CLKDIV_REG: u32 = 0x6000_0014;
+const UART_CLKDIV_MASK: u32 = 0xfffff;
+
+const XTAL_CLK_DIVIDER: u32 = 1;
+
 /// ESP32-C2 Target
 pub struct Esp32c2;
 
@@ -61,9 +66,12 @@ impl Target for Esp32c2 {
         Ok(self.read_efuse(connection, 17)? >> 16 & 0xf)
     }
 
-    fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
-        // The ESP32-C2's XTAL has a fixed frequency of 40MHz.
-        Ok(40)
+    fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
+        let est_xtal = (connection.get_baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
+        let norm_xtal = if est_xtal > 33 { 40 } else { 26 };
+
+        Ok(norm_xtal)
     }
 
     fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
