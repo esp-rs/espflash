@@ -285,7 +285,7 @@ pub fn board_info(args: ConnectArgs, config: &Config) -> Result<()> {
 
 /// Open a serial monitor
 pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
-    let flasher = connect(&args.connect_args, config)?;
+    let mut flasher = connect(&args.connect_args, config)?;
     let pid = flasher.get_usb_pid()?;
 
     let elf = if let Some(elf_path) = args.elf {
@@ -297,11 +297,24 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         None
     };
 
+    let chip = flasher.chip();
+    let target = chip.into_target();
+
+    // The 26MHz ESP32-C2's need to be treated as a special case.
+    let default_baud = if chip == Chip::Esp32c2
+        && !args.connect_args.use_stub
+        && target.crystal_freq(&mut flasher.connection())? == 26
+    {
+        74_880
+    } else {
+        115_200
+    };
+
     monitor(
         flasher.into_interface(),
         elf.as_deref(),
         pid,
-        args.connect_args.baud.unwrap_or(115_200),
+        args.connect_args.baud.unwrap_or(default_baud),
     )
     .into_diagnostic()?;
 

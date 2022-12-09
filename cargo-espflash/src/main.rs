@@ -215,11 +215,25 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     if args.flash_args.monitor {
         let pid = flasher.get_usb_pid()?;
+
+        let chip = flasher.chip();
+        let target = chip.into_target();
+
+        // The 26MHz ESP32-C2's need to be treated as a special case.
+        let default_baud = if chip == Chip::Esp32c2
+            && !args.connect_args.use_stub
+            && target.crystal_freq(&mut flasher.connection())? == 26
+        {
+            74_880
+        } else {
+            115_200
+        };
+
         monitor(
             flasher.into_interface(),
             Some(&elf_data),
             pid,
-            args.flash_args.monitor_baud.unwrap_or(115_200),
+            args.flash_args.monitor_baud.unwrap_or(default_baud),
         )
         .into_diagnostic()?;
     }
