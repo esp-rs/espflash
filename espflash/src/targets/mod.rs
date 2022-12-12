@@ -16,6 +16,7 @@ pub use self::{
     esp32::Esp32,
     esp32c2::Esp32c2,
     esp32c3::Esp32c3,
+    esp32c6::Esp32c6,
     esp32s2::Esp32s2,
     esp32s3::Esp32s3,
     esp8266::Esp8266,
@@ -32,6 +33,7 @@ use crate::{
 mod esp32;
 mod esp32c2;
 mod esp32c3;
+mod esp32c6;
 mod esp32s2;
 mod esp32s3;
 mod esp8266;
@@ -47,6 +49,8 @@ pub enum Chip {
     Esp32c2,
     /// ESP32-C3, ESP8685
     Esp32c3,
+    /// ESP32-C6
+    Esp32c6,
     /// ESP32-S2
     Esp32s2,
     /// ESP32-S3
@@ -65,6 +69,7 @@ impl FromStr for Chip {
             "esp32" => Ok(Esp32),
             "esp32c2" => Ok(Esp32c2),
             "esp32c3" => Ok(Esp32c3),
+            "esp32c6" => Ok(Esp32c6),
             "esp32s2" => Ok(Esp32s2),
             "esp32s3" => Ok(Esp32s3),
             "esp8266" => Ok(Esp8266),
@@ -81,6 +86,8 @@ impl Chip {
             Ok(Chip::Esp32c2)
         } else if Esp32c3::has_magic_value(magic) {
             Ok(Chip::Esp32c3)
+        } else if Esp32c6::has_magic_value(magic) {
+            Ok(Chip::Esp32c6)
         } else if Esp32s2::has_magic_value(magic) {
             Ok(Chip::Esp32s2)
         } else if Esp32s3::has_magic_value(magic) {
@@ -97,6 +104,7 @@ impl Chip {
             Chip::Esp32 => Box::new(Esp32),
             Chip::Esp32c2 => Box::new(Esp32c2),
             Chip::Esp32c3 => Box::new(Esp32c3),
+            Chip::Esp32c6 => Box::new(Esp32c6),
             Chip::Esp32s2 => Box::new(Esp32s2),
             Chip::Esp32s3 => Box::new(Esp32s3),
             Chip::Esp8266 => Box::new(Esp8266),
