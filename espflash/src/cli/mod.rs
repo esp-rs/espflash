@@ -63,7 +63,7 @@ pub use clap_enum_variants;
 #[derive(Debug, Args)]
 pub struct ConnectArgs {
     /// Baud rate at which to communicate with target device
-    #[arg(short = 'b', long)]
+    #[arg(short = 'b', long, env = "ESPFLASH_BAUD")]
     pub baud: Option<u32>,
     /// Serial port connected to target device
     #[arg(short = 'p', long)]
