@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 #[cfg(not(target_os = "windows"))]
 use std::fs;
 
@@ -176,16 +177,16 @@ const KNOWN_DEVICES: &[UsbDevice] = &[
 ];
 
 fn select_serial_port(
-    ports: Vec<SerialPortInfo>,
+    mut ports: Vec<SerialPortInfo>,
     config: &Config,
 ) -> Result<(SerialPortInfo, bool), Error> {
-    let device_matches = |info| {
+    fn device_matches(config: &Config, info: &UsbPortInfo) -> bool {
         config
             .usb_device
             .iter()
             .chain(KNOWN_DEVICES.iter())
             .any(|dev| dev.matches(info))
-    };
+    }
 
     if ports.len() > 1 {
         // Multiple serial ports detected
@@ -193,11 +194,27 @@ fn select_serial_port(
         info!("Ports which match a known common dev board are highlighted");
         info!("Please select a port");
 
+        ports.sort_by(|a, b| {
+            let a_matches = match &a.port_type {
+                SerialPortType::UsbPort(info) => device_matches(config, info),
+                _ => false,
+            };
+            let b_matches = match &b.port_type {
+                SerialPortType::UsbPort(info) => device_matches(config, info),
+                _ => false,
+            };
+            match (a_matches, b_matches) {
+                (true, true) | (false, false) => Ordering::Equal,
+                (true, false) => Ordering::Less,
+                (false, true) => Ordering::Greater,
+            }
+        });
+
         let port_names = ports
             .iter()
             .map(|port_info| match &port_info.port_type {
                 SerialPortType::UsbPort(info) => {
-                    let formatted = if device_matches(info) {
+                    let formatted = if device_matches(config, info) {
                         port_info.port_name.as_str().bold()
                     } else {
                         port_info.port_name.as_str().reset()
@@ -222,7 +239,7 @@ fn select_serial_port(
         match ports.get(index) {
             Some(port_info) => {
                 let matches = if let SerialPortType::UsbPort(usb_info) = &port_info.port_type {
-                    device_matches(usb_info)
+                    device_matches(config, usb_info)
                 } else {
                     false
                 };
@@ -248,7 +265,7 @@ fn select_serial_port(
             _ => unreachable!(),
         };
 
-        if device_matches(port_info) {
+        if device_matches(config, port_info) {
             Ok((port.to_owned(), true))
         } else if confirm_port(&port_name, port_info)? {
             Ok((port.to_owned(), false))
