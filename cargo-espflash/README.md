@@ -65,6 +65,14 @@ Options:
   -V, --version  Print version information
 ```
 
+## Bootloader and Partition Table
+
+`cargo-espflash` is able to detect if the package being built and flashed depends on [esp-idf-sys]; if it does, then the bootloader and partition table built by the `esp-idf-sys` build script will be used, otherwise the bundled bootloader and partition tables will be used instead.
+
+If the `--bootloader` and/or `--partition-table` options are provided then these will be used regardless of whether or not the package depends on `esp-idf-sys`.
+
+[esp-idf-sys]: https://github.com/esp-rs/esp-idf-sys
+
 ## Package Metadata
 
 You're able to specify paths to bootloader and partition table files ands image format in your package's Cargo metadata for per-project configuration:
