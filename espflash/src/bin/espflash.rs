@@ -106,7 +106,7 @@ fn main() -> Result<()> {
     // Execute the correct action based on the provided subcommand and its
     // associated arguments.
     match args {
-        Commands::BoardInfo(args) => board_info(args, &config),
+        Commands::BoardInfo(args) => board_info(&args, &config),
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
@@ -117,7 +117,7 @@ fn main() -> Result<()> {
 
 fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config)?;
-    flasher.board_info()?;
+    board_info(&args.connect_args, config)?;
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(&args.image).into_diagnostic()?;
@@ -213,7 +213,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
 
 fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config)?;
-    flasher.board_info()?;
+    board_info(&args.connect_args, config)?;
 
     let mut f = File::open(&args.bin_file).into_diagnostic()?;
     let size = f.metadata().into_diagnostic()?.len();
