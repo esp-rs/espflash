@@ -299,6 +299,23 @@ struct EntryParams {
     entry: u32,
 }
 
+/// Information about the connected device
+#[derive(Debug, Clone)]
+pub struct DeviceInfo {
+    /// The chip being used
+    pub chip: Chip,
+    /// The revision of the chip
+    pub revision: Option<(u32, u32)>,
+    /// The crystal frequency of the chip
+    pub crystal_frequency: u32,
+    /// The total available flash size
+    pub flash_size: FlashSize,
+    /// Device features
+    pub features: Vec<String>,
+    /// MAC address
+    pub mac_address: String,
+}
+
 /// Connect to and flash a target device
 pub struct Flasher {
     /// Connection for flash operations
@@ -605,30 +622,37 @@ impl Flasher {
         self.chip
     }
 
-    /// Read and print any information we can about the connected board
-    pub fn board_info(&mut self) -> Result<(), Error> {
+    /// Read and print any information we can about the connected device
+    pub fn device_info(&mut self) -> Result<DeviceInfo, Error> {
         let chip = self.chip();
         let target = chip.into_target();
 
-        let features = target.chip_features(self.connection())?;
-        let freq = target.crystal_freq(self.connection())?;
-        let mac = target.mac_address(self.connection())?;
-
         // The ESP8266 does not have readable major/minor revision numbers, so we have
-        // nothing to print if targeting it.
-        print!("Chip type:         {chip}");
-        if chip != Chip::Esp8266 {
-            let (major, minor) = target.chip_revision(self.connection())?;
-            println!(" (revision v{major}.{minor})");
+        // nothing to return if targeting it.
+        let revision = if chip != Chip::Esp8266 {
+            Some(target.chip_revision(self.connection())?)
         } else {
-            println!("");
-        }
-        println!("Crystal frequency: {freq}MHz");
-        println!("Flash size:        {}", self.flash_size);
-        println!("Features:          {}", features.join(", "));
-        println!("MAC address:       {mac}");
+            None
+        };
 
-        Ok(())
+        let crystal_frequency = target.crystal_freq(self.connection())?;
+        let features = target
+            .chip_features(self.connection())?
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let mac_address = target.mac_address(self.connection())?;
+
+        let info = DeviceInfo {
+            chip,
+            revision,
+            crystal_frequency,
+            flash_size: self.flash_size,
+            features,
+            mac_address,
+        };
+
+        Ok(info)
     }
 
     /// Load an elf image to ram and execute it

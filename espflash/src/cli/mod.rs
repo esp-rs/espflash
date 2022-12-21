@@ -276,9 +276,20 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
 }
 
 /// Connect to a target device and print information about its chip
-pub fn board_info(args: ConnectArgs, config: &Config) -> Result<()> {
+pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args, config)?;
-    flasher.board_info()?;
+    let info = flasher.device_info()?;
+
+    print!("Chip type:         {}", info.chip);
+    if let Some((major, minor)) = info.revision {
+        println!(" (revision v{major}.{minor})");
+    } else {
+        println!("");
+    }
+    println!("Crystal frequency: {}MHz", info.crystal_frequency);
+    println!("Flash size:        {}", info.flash_size);
+    println!("Features:          {}", info.features.join(", "));
+    println!("MAC address:       {}", info.mac_address);
 
     Ok(())
 }

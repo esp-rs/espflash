@@ -139,7 +139,7 @@ fn main() -> Result<()> {
     // Execute the correct action based on the provided subcommand and its
     // associated arguments.
     match args {
-        Commands::BoardInfo(args) => board_info(args, &config),
+        Commands::BoardInfo(args) => board_info(&args, &config),
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
@@ -165,7 +165,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     // Print the board information once the project has successfully built. We do
     // here rather than upon connection to show the Cargo output prior to the board
     // information, rather than breaking up cargo-espflash's output.
-    flasher.board_info()?;
+    board_info(&args.connect_args, config)?;
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(build_ctx.artifact_path).into_diagnostic()?;
