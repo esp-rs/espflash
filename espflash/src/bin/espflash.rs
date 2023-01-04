@@ -10,8 +10,8 @@ use espflash::{
     cli::{
         self, board_info, build_progress_bar_callback, clap_enum_variants, config::Config, connect,
         erase_partitions, flash_elf_image, monitor::monitor, parse_partition_table,
-        partition_table, progress_bar, save_elf_as_image, serial_monitor, ConnectArgs,
-        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        partition_table, print_board_info, progress_bar, save_elf_as_image, serial_monitor,
+        ConnectArgs, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -117,7 +117,7 @@ fn main() -> Result<()> {
 
 fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config)?;
-    board_info(&args.connect_args, config)?;
+    print_board_info(&mut flasher)?;
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(&args.image).into_diagnostic()?;

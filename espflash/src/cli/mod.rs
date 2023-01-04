@@ -278,6 +278,13 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
 /// Connect to a target device and print information about its chip
 pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args, config)?;
+    print_board_info(&mut flasher)?;
+
+    Ok(())
+}
+
+/// Print information about a chip
+pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
     let info = flasher.device_info()?;
 
     print!("Chip type:         {}", info.chip);
