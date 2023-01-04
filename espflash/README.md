@@ -73,7 +73,7 @@ You can also use `espflash` as a Cargo runner by adding the following to your pr
 
 ```toml
 [target.'cfg(any(target_arch = "riscv32", target_arch = "xtensa"))']
-runner = "espflash --baud=921600 --monitor /dev/ttyUSB0"
+runner = "espflash flash --baud=921600 --monitor /dev/ttyUSB0"
 ```
 
 With this configuration you can flash and monitor you application using `cargo run`.
