@@ -119,6 +119,10 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config)?;
     print_board_info(&mut flasher)?;
 
+    let chip = flasher.chip();
+    let target = chip.into_target();
+    let target_xtal_freq = target.crystal_freq(&mut flasher.connection())?;
+
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(&args.image).into_diagnostic()?;
 
@@ -155,18 +159,13 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     if args.flash_args.monitor {
         let pid = flasher.get_usb_pid()?;
 
-        let chip = flasher.chip();
-        let target = chip.into_target();
-
         // The 26MHz ESP32-C2's need to be treated as a special case.
-        let default_baud = if chip == Chip::Esp32c2
-            && !args.connect_args.use_stub
-            && target.crystal_freq(&mut flasher.connection())? == 26
-        {
-            74_880
-        } else {
-            115_200
-        };
+        let default_baud =
+            if chip == Chip::Esp32c2 && !args.connect_args.use_stub && target_xtal_freq == 26 {
+                74_880
+            } else {
+                115_200
+            };
 
         monitor(
             flasher.into_interface(),
