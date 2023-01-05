@@ -10,8 +10,8 @@ use espflash::{
     cli::{
         self, board_info, clap_enum_variants, config::Config, connect, erase_partitions,
         flash_elf_image, monitor::monitor, parse_partition_table, partition_table,
-        save_elf_as_image, serial_monitor, ConnectArgs, FlashConfigArgs, MonitorArgs,
-        PartitionTableArgs,
+        print_board_info, save_elf_as_image, serial_monitor, ConnectArgs, FlashConfigArgs,
+        MonitorArgs, PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -159,13 +159,14 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let cargo_config = CargoConfig::load(&metadata.workspace_root, &metadata.package_root);
 
     let mut flasher = connect(&args.connect_args, config)?;
-    let build_ctx = build(&args.build_args, &cargo_config, flasher.chip())
-        .wrap_err("Failed to build project")?;
+    print_board_info(&mut flasher)?;
 
-    // Print the board information once the project has successfully built. We do
-    // here rather than upon connection to show the Cargo output prior to the board
-    // information, rather than breaking up cargo-espflash's output.
-    board_info(&args.connect_args, config)?;
+    let chip = flasher.chip();
+    let target = chip.into_target();
+    let target_xtal_freq = target.crystal_freq(&mut flasher.connection())?;
+
+    let build_ctx =
+        build(&args.build_args, &cargo_config, chip).wrap_err("Failed to build project")?;
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(build_ctx.artifact_path).into_diagnostic()?;
@@ -216,18 +217,13 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     if args.flash_args.monitor {
         let pid = flasher.get_usb_pid()?;
 
-        let chip = flasher.chip();
-        let target = chip.into_target();
-
         // The 26MHz ESP32-C2's need to be treated as a special case.
-        let default_baud = if chip == Chip::Esp32c2
-            && !args.connect_args.use_stub
-            && target.crystal_freq(&mut flasher.connection())? == 26
-        {
-            74_880
-        } else {
-            115_200
-        };
+        let default_baud =
+            if chip == Chip::Esp32c2 && !args.connect_args.use_stub && target_xtal_freq == 26 {
+                74_880
+            } else {
+                115_200
+            };
 
         monitor(
             flasher.into_interface(),
