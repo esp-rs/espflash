@@ -22,7 +22,6 @@ use indicatif::{style::ProgressStyle, HumanCount, ProgressBar, ProgressDrawTarge
 use log::{debug, info};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{SerialPortType, UsbPortInfo};
-use strum::VariantNames;
 
 use self::{config::Config, monitor::monitor, serial::get_serial_port_info};
 use crate::{
@@ -38,26 +37,6 @@ pub mod config;
 pub mod monitor;
 
 mod serial;
-
-// Since as of `clap@4.0.x` the `possible_values` attribute is no longer
-// present, we must use the more convoluted `value_parser` attribute instead.
-// Since this is a bit tedious, we'll use a helper macro to abstract away all
-// the cruft. It's important to note that this macro assumes the
-// `strum::EnumVariantNames` trait has been implemented for the provided type,
-// and that the provided type is in scope when calling this macro.
-//
-// See this comment for details:
-// https://github.com/clap-rs/clap/discussions/4264#discussioncomment-3737696
-#[doc(hidden)]
-#[macro_export]
-macro_rules! clap_enum_variants {
-    ($e: ty) => {{
-        use clap::builder::TypedValueParser;
-        clap::builder::PossibleValuesParser::new(<$e>::VARIANTS).map(|s| s.parse::<$e>().unwrap())
-    }};
-}
-
-pub use clap_enum_variants;
 
 /// Establish a connection with a target device
 #[derive(Debug, Args)]
@@ -85,13 +64,13 @@ pub struct ConnectArgs {
 #[derive(Debug, Args)]
 pub struct FlashConfigArgs {
     /// Flash frequency
-    #[arg(short = 'f', long, value_name = "FREQ", value_parser = clap_enum_variants!(FlashFrequency))]
+    #[arg(short = 'f', long, value_name = "FREQ", value_enum)]
     pub flash_freq: Option<FlashFrequency>,
     /// Flash mode to use
-    #[arg(short = 'm', long, value_name = "MODE", value_parser = clap_enum_variants!(FlashMode))]
+    #[arg(short = 'm', long, value_name = "MODE", value_enum)]
     pub flash_mode: Option<FlashMode>,
     /// Flash size of the target
-    #[arg(short = 's', long, value_name = "SIZE", value_parser = clap_enum_variants!(FlashSize))]
+    #[arg(short = 's', long, value_name = "SIZE", value_enum)]
     pub flash_size: Option<FlashSize>,
 }
 
@@ -111,10 +90,16 @@ pub struct FlashArgs {
     )]
     pub erase_parts: Option<Vec<String>>,
     /// Erase specified data partitions
-    #[arg(long, requires = "partition_table", value_name = "PARTS", value_parser = clap_enum_variants!(DataType), value_delimiter = ',')]
+    #[arg(
+        long,
+        requires = "partition_table",
+        value_name = "PARTS",
+        value_enum,
+        value_delimiter = ','
+    )]
     pub erase_data_parts: Option<Vec<DataType>>,
     /// Image format to flash
-    #[arg(long, value_parser = clap_enum_variants!(ImageFormatKind))]
+    #[arg(long, value_enum)]
     pub format: Option<ImageFormatKind>,
     /// Open a serial monitor after flashing
     #[arg(short = 'M', long)]
@@ -155,7 +140,7 @@ pub struct SaveImageArgs {
     #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Chip to create an image for
-    #[arg(long, value_parser = clap_enum_variants!(Chip))]
+    #[arg(long, value_enum)]
     pub chip: Chip,
     /// File name to save the generated image to
     pub file: PathBuf,

@@ -38,6 +38,7 @@ const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 /// Supported flash frequencies
 ///
 /// Note that not all frequencies are supported by each target device.
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Display, EnumVariantNames)]
 #[repr(u8)]
 pub enum FlashFrequency {
@@ -101,6 +102,7 @@ impl FromStr for FlashFrequency {
 }
 
 /// Supported flash modes
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Copy, Clone, Debug, Default, EnumVariantNames)]
 #[strum(serialize_all = "lowercase")]
 pub enum FlashMode {
@@ -134,6 +136,7 @@ impl FromStr for FlashMode {
 /// Supported flash sizes
 ///
 /// Note that not all sizes are supported by each target device.
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Display, EnumVariantNames, EnumIter)]
 #[repr(u8)]
 pub enum FlashSize {

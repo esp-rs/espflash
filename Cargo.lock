@@ -328,7 +328,6 @@ dependencies = [
  "log",
  "miette",
  "serde",
- "strum",
  "thiserror",
  "toml",
 ]
