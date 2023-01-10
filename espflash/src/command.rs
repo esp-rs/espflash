@@ -13,8 +13,8 @@ const MEM_END_TIMEOUT: Duration = Duration::from_millis(50);
 const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 
 #[derive(Copy, Clone, Debug, Display)]
-#[repr(u8)]
 #[non_exhaustive]
+#[repr(u8)]
 pub enum CommandType {
     Unknown = 0,
     FlashBegin = 0x02,
@@ -70,6 +70,7 @@ impl CommandType {
 }
 
 #[derive(Copy, Clone, Debug)]
+#[non_exhaustive]
 pub enum Command<'a> {
     FlashBegin {
         size: u32,

@@ -40,6 +40,7 @@ const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 /// Note that not all frequencies are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Display, EnumVariantNames)]
+#[non_exhaustive]
 #[repr(u8)]
 pub enum FlashFrequency {
     /// 12 MHz
@@ -70,6 +71,7 @@ pub enum FlashFrequency {
 /// Supported flash modes
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Copy, Clone, Debug, Default, EnumVariantNames)]
+#[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
 pub enum FlashMode {
     /// Quad I/O (4 pins used for address & data)
@@ -88,6 +90,7 @@ pub enum FlashMode {
 /// Note that not all sizes are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Display, EnumVariantNames, EnumIter)]
+#[non_exhaustive]
 #[repr(u8)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum FlashSize {

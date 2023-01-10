@@ -69,6 +69,7 @@ pub trait ImageFormat<'a>: Send {
 #[derive(
     Debug, Copy, Clone, Eq, PartialEq, Display, IntoStaticStr, EnumVariantNames, Deserialize,
 )]
+#[non_exhaustive]
 #[strum(serialize_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
 pub enum ImageFormatKind {

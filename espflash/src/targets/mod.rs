@@ -42,6 +42,7 @@ mod flash_target;
 /// Enumeration of all supported devices
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumVariantNames)]
+#[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
 pub enum Chip {
     /// ESP32
