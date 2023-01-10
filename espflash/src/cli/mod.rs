@@ -15,7 +15,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::{builder::ArgPredicate, Args};
+use clap::Args;
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar, ProgressDrawTarget};
@@ -55,9 +55,9 @@ pub struct ConnectArgs {
     #[cfg(feature = "raspberry")]
     #[cfg_attr(feature = "raspberry", clap(long))]
     pub rts: Option<u8>,
-    /// Use RAM stub for loading
-    #[arg(long, default_value_ifs([("erase_parts", ArgPredicate::IsPresent, Some("true")), ("erase_data_parts", ArgPredicate::IsPresent, Some("true"))]))]
-    pub use_stub: bool,
+    /// Do not use the RAM stub for loading
+    #[arg(long)]
+    pub no_stub: bool,
 }
 
 /// Configure communication with the target device's flash
@@ -254,7 +254,7 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
         interface,
         port_info,
         args.baud,
-        args.use_stub,
+        !args.no_stub,
     )?)
 }
 
@@ -303,7 +303,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
 
     // The 26MHz ESP32-C2's need to be treated as a special case.
     let default_baud = if chip == Chip::Esp32c2
-        && !args.connect_args.use_stub
+        && args.connect_args.no_stub
         && target.crystal_freq(flasher.connection())? == 26
     {
         74_880
