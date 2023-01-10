@@ -133,7 +133,7 @@ fn main() -> Result<()> {
     check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     // Load any user configuration, if present.
-    let config = Config::load().unwrap();
+    let config = Config::load()?;
 
     // Execute the correct action based on the provided subcommand and its
     // associated arguments.
@@ -158,8 +158,6 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let cargo_config = CargoConfig::load(&metadata.workspace_root, &metadata.package_root);
 
     let mut flasher = connect(&args.connect_args, config)?;
-    print_board_info(&mut flasher)?;
-
     let chip = flasher.chip();
     let target = chip.into_target();
     let target_xtal_freq = target.crystal_freq(flasher.connection())?;
@@ -169,6 +167,8 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(build_ctx.artifact_path).into_diagnostic()?;
+
+    print_board_info(&mut flasher)?;
 
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data)?;
@@ -186,6 +186,13 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             .as_deref()
             .or(metadata.partition_table.as_deref())
             .or(build_ctx.partition_table_path.as_deref());
+
+        if let Some(path) = &bootloader {
+            println!("Bootloader:        {}", path.display());
+        }
+        if let Some(path) = &partition_table {
+            println!("Partition table:   {}", path.display());
+        }
 
         let partition_table = match partition_table {
             Some(path) => Some(parse_partition_table(path)?),
@@ -428,6 +435,12 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
     }
     println!("Merge:             {}", args.save_image_args.merge);
     println!("Skip padding:      {}", args.save_image_args.skip_padding);
+    if let Some(path) = &args.save_image_args.bootloader {
+        println!("Bootloader:        {}", path.display());
+    }
+    if let Some(path) = &args.save_image_args.partition_table {
+        println!("Partition table:   {}", path.display());
+    }
 
     save_elf_as_image(
         args.save_image_args.chip,

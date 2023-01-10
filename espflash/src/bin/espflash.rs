@@ -100,7 +100,7 @@ fn main() -> Result<()> {
     check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     // Load any user configuraiton, if present.
-    let config = Config::load().unwrap();
+    let config = Config::load()?;
 
     // Execute the correct action based on the provided subcommand and its
     // associated arguments.
@@ -129,7 +129,16 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         flasher.load_elf_to_ram(&elf_data)?;
     } else {
         let bootloader = args.flash_args.bootloader.as_deref();
-        let partition_table = match args.flash_args.partition_table.as_deref() {
+        let partition_table = args.flash_args.partition_table.as_deref();
+
+        if let Some(path) = bootloader {
+            println!("Bootloader:        {}", path.display());
+        }
+        if let Some(path) = partition_table {
+            println!("Partition table:   {}", path.display());
+        }
+
+        let partition_table = match partition_table {
             Some(path) => Some(parse_partition_table(path)?),
             None => None,
         };
@@ -191,6 +200,12 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
     }
     println!("Merge:             {}", args.save_image_args.merge);
     println!("Skip padding:      {}", args.save_image_args.skip_padding);
+    if let Some(path) = &args.save_image_args.bootloader {
+        println!("Bootloader:        {}", path.display());
+    }
+    if let Some(path) = &args.save_image_args.partition_table {
+        println!("Partition table:   {}", path.display());
+    }
 
     save_elf_as_image(
         args.save_image_args.chip,
