@@ -15,6 +15,7 @@ use crate::error::Error;
 
 /// Errors relating to the configuration of a serial port
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum SerialConfigError {
     #[cfg(feature = "raspberry")]
     #[error("You need to specify both DTR and RTS pins when using an internal UART peripheral")]
