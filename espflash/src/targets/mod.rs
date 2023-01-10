@@ -40,6 +40,7 @@ mod esp8266;
 mod flash_target;
 
 /// Enumeration of all supported devices
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumVariantNames)]
 #[strum(serialize_all = "lowercase")]
 pub enum Chip {
@@ -281,12 +282,7 @@ pub trait Target: ReadEFuse {
     fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
         use FlashFrequency::*;
 
-        let encodings = [
-            (Flash20M, 0x2),
-            (Flash26M, 0x1),
-            (Flash40M, 0x0),
-            (Flash80M, 0xf),
-        ];
+        let encodings = [(_20Mhz, 0x2), (_26Mhz, 0x1), (_40Mhz, 0x0), (_80Mhz, 0xf)];
 
         HashMap::from(encodings)
     }

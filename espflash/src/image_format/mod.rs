@@ -65,6 +65,7 @@ pub trait ImageFormat<'a>: Send {
 }
 
 /// All supported firmware image formats
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(
     Debug, Copy, Clone, Eq, PartialEq, Display, IntoStaticStr, EnumVariantNames, Deserialize,
 )]

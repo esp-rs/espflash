@@ -8,10 +8,10 @@ use cargo_metadata::Message;
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        self, board_info, clap_enum_variants, config::Config, connect, erase_partitions,
-        flash_elf_image, monitor::monitor, parse_partition_table, partition_table,
-        print_board_info, save_elf_as_image, serial_monitor, ConnectArgs, FlashConfigArgs,
-        MonitorArgs, PartitionTableArgs,
+        self, board_info, config::Config, connect, erase_partitions, flash_elf_image,
+        monitor::monitor, parse_partition_table, partition_table, print_board_info,
+        save_elf_as_image, serial_monitor, ConnectArgs, FlashConfigArgs, MonitorArgs,
+        PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -20,7 +20,6 @@ use espflash::{
 };
 use log::{debug, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};
-use strum::VariantNames;
 
 use crate::{
     cargo_config::CargoConfig,
@@ -110,7 +109,7 @@ struct FlashArgs {
 #[derive(Debug, Args)]
 struct SaveImageArgs {
     /// Image format to flash
-    #[arg(long, value_parser = clap_enum_variants!(ImageFormatKind))]
+    #[arg(long, value_enum)]
     pub format: Option<ImageFormatKind>,
 
     #[clap(flatten)]
@@ -163,7 +162,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     let chip = flasher.chip();
     let target = chip.into_target();
-    let target_xtal_freq = target.crystal_freq(&mut flasher.connection())?;
+    let target_xtal_freq = target.crystal_freq(flasher.connection())?;
 
     let build_ctx =
         build(&args.build_args, &cargo_config, chip).wrap_err("Failed to build project")?;
@@ -321,7 +320,7 @@ fn build(
     let output = Command::new("cargo")
         .arg("build")
         .args(args)
-        .args(&["--message-format", "json-diagnostic-rendered-ansi"])
+        .args(["--message-format", "json-diagnostic-rendered-ansi"])
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .spawn()

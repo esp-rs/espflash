@@ -8,10 +8,10 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        self, board_info, build_progress_bar_callback, clap_enum_variants, config::Config, connect,
-        erase_partitions, flash_elf_image, monitor::monitor, parse_partition_table,
-        partition_table, print_board_info, progress_bar, save_elf_as_image, serial_monitor,
-        ConnectArgs, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        self, board_info, build_progress_bar_callback, config::Config, connect, erase_partitions,
+        flash_elf_image, monitor::monitor, parse_partition_table, partition_table,
+        print_board_info, progress_bar, save_elf_as_image, serial_monitor, ConnectArgs,
+        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -20,7 +20,6 @@ use espflash::{
 };
 use log::{debug, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};
-use strum::VariantNames;
 
 #[derive(Debug, Parser)]
 #[clap(about, version, propagate_version = true)]
@@ -57,7 +56,7 @@ struct FlashArgs {
 #[derive(Debug, Args)]
 struct SaveImageArgs {
     /// Image format to flash
-    #[arg(long, value_parser = clap_enum_variants!(ImageFormatKind))]
+    #[arg(long, value_enum)]
     format: Option<ImageFormatKind>,
 
     #[clap(flatten)]
@@ -121,7 +120,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     let chip = flasher.chip();
     let target = chip.into_target();
-    let target_xtal_freq = target.crystal_freq(&mut flasher.connection())?;
+    let target_xtal_freq = target.crystal_freq(flasher.connection())?;
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(&args.image).into_diagnostic()?;
