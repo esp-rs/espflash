@@ -11,7 +11,7 @@ use crate::{
     connection::{Connection, USB_SERIAL_JTAG_PID},
     elf::RomSegment,
     error::Error,
-    flasher::{SpiAttachParams, FLASH_SECTOR_SIZE},
+    flasher::{ProgressCallbacks, SpiAttachParams, FLASH_SECTOR_SIZE},
     targets::Chip,
 };
 
@@ -98,7 +98,7 @@ impl FlashTarget for Esp32Target {
         &mut self,
         connection: &mut Connection,
         segment: RomSegment,
-        progress_cb: Option<Box<dyn Fn(usize, usize)>>,
+        progress: &mut Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let addr = segment.addr;
 
@@ -131,6 +131,8 @@ impl FlashTarget for Esp32Target {
         let chunks = compressed.chunks(flash_write_size);
         let num_chunks = chunks.len();
 
+        progress.as_mut().map(|cb| cb.init(addr, num_chunks));
+
         // decode the chunks to see how much data the device will have to save
         let mut decoder = ZlibDecoder::new(Vec::new());
         let mut decoded_size = 0;
@@ -154,10 +156,10 @@ impl FlashTarget for Esp32Target {
                 },
             )?;
 
-            if let Some(ref cb) = progress_cb {
-                cb(i + 1, num_chunks);
-            }
+            progress.as_mut().map(|cb| cb.update(i + 1));
         }
+
+        progress.as_mut().map(|cb| cb.finish());
 
         Ok(())
     }

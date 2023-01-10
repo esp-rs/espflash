@@ -8,7 +8,6 @@
 //! [espflash]: https://crates.io/crates/espflash
 
 use std::{
-    borrow::Cow,
     collections::HashMap,
     fs,
     io::Write,
@@ -18,7 +17,7 @@ use std::{
 use clap::Args;
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
-use indicatif::{style::ProgressStyle, HumanCount, ProgressBar, ProgressDrawTarget};
+use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
 use log::{debug, info};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{SerialPortType, UsbPortInfo};
@@ -27,7 +26,7 @@ use self::{config::Config, monitor::monitor, serial::get_serial_port_info};
 use crate::{
     elf::ElfFirmwareImage,
     error::{MissingPartition, MissingPartitionTable},
-    flasher::{FlashFrequency, FlashMode, FlashSize, Flasher},
+    flasher::{FlashFrequency, FlashMode, FlashSize, Flasher, ProgressCallbacks},
     image_format::ImageFormatKind,
     interface::Interface,
     targets::Chip,
@@ -163,55 +162,6 @@ pub struct MonitorArgs {
     elf: Option<PathBuf>,
     #[clap(flatten)]
     connect_args: ConnectArgs,
-}
-
-/// Create a new [ProgressBar] with some message and styling applied
-pub fn progress_bar<S>(msg: S, len: Option<u64>) -> ProgressBar
-where
-    S: Into<Cow<'static, str>>,
-{
-    // If no length was provided, or the provided length is 0, we will initially
-    // hide the progress bar. This is done to avoid drawing a full-width progress
-    // bar before we've determined the length.
-    let draw_target = match len {
-        Some(len) if len > 0 => ProgressDrawTarget::stderr(),
-        _ => ProgressDrawTarget::hidden(),
-    };
-
-    ProgressBar::with_draw_target(len, draw_target)
-        .with_message(msg)
-        .with_style(
-            ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] [{bar:40}] {pos:>7}/{len:7} {msg}")
-                .unwrap()
-                .progress_chars("=> "),
-        )
-}
-
-/// Create a callback function for the provided [ProgressBar]
-pub fn build_progress_bar_callback(pb: ProgressBar) -> Box<dyn Fn(usize, usize)> {
-    // This is a bit of an odd callback function, as it handles the entire lifecycle
-    // of the progress bar.
-    Box::new(move |current: usize, total: usize| {
-        // If the length has not yet been set, set it and then change the draw target to
-        // make the progress bar visible.
-        match pb.length() {
-            Some(0) | None => {
-                pb.set_length(total as u64);
-                pb.set_draw_target(ProgressDrawTarget::stderr());
-            }
-            _ => {}
-        }
-
-        // Set the new position of the progress bar.
-        pb.set_position(current as u64);
-
-        // If we have reached the end, make sure to finish the progress bar to ensure
-        // proper output on the terminal.
-        if current == total {
-            pb.finish();
-        }
-    })
 }
 
 /// Select a serial port and establish a connection with a target device
@@ -453,6 +403,39 @@ pub(crate) fn display_image_size(app_size: u32, part_size: Option<u32>) {
     }
 }
 
+/// Progress callback implementations for use in `cargo-espflash` and `espflash`
+#[derive(Default)]
+pub struct EspflashProgress {
+    pb: Option<ProgressBar>,
+}
+
+impl ProgressCallbacks for EspflashProgress {
+    fn init(&mut self, addr: u32, len: usize) {
+        let pb = ProgressBar::new(len as u64)
+            .with_message(format!("{addr:#X}"))
+            .with_style(
+                ProgressStyle::default_bar()
+                    .template("[{elapsed_precise}] [{bar:40}] {pos:>7}/{len:7} {msg}")
+                    .unwrap()
+                    .progress_chars("=> "),
+            );
+
+        self.pb = Some(pb);
+    }
+
+    fn update(&mut self, current: usize) {
+        if let Some(ref pb) = self.pb {
+            pb.set_position(current as u64);
+        }
+    }
+
+    fn finish(&mut self) {
+        if let Some(ref pb) = self.pb {
+            pb.finish();
+        }
+    }
+}
+
 /// Write an ELF image to a target device's flash
 pub fn flash_elf_image(
     flasher: &mut Flasher,
@@ -485,6 +468,7 @@ pub fn flash_elf_image(
         flash_mode,
         flash_size,
         flash_freq,
+        Some(&mut EspflashProgress::default()),
     )?;
     info!("Flashing has completed!");
 

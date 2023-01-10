@@ -263,6 +263,16 @@ pub struct DeviceInfo {
     pub mac_address: String,
 }
 
+/// Progress update callbacks
+pub trait ProgressCallbacks {
+    /// Initialize some progress report
+    fn init(&mut self, addr: u32, total: usize);
+    /// Update some progress report
+    fn update(&mut self, current: usize);
+    /// Finish some prgoress report
+    fn finish(&mut self);
+}
+
 /// Connect to and flash a target device
 pub struct Flasher {
     /// Connection for flash operations
@@ -352,7 +362,7 @@ impl Flasher {
                     addr: text_addr,
                     data: Cow::Borrowed(&text),
                 },
-                None,
+                &mut None,
             )
             .flashing()?;
 
@@ -366,7 +376,7 @@ impl Flasher {
                     addr: data_addr,
                     data: Cow::Borrowed(&data),
                 },
-                None,
+                &mut None,
             )
             .flashing()?;
 
@@ -605,7 +615,11 @@ impl Flasher {
     /// Load an elf image to ram and execute it
     ///
     /// Note that this will not touch the flash on the device
-    pub fn load_elf_to_ram(&mut self, elf_data: &[u8]) -> Result<(), Error> {
+    pub fn load_elf_to_ram(
+        &mut self,
+        elf_data: &[u8],
+        mut progress: Option<&mut dyn ProgressCallbacks>,
+    ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
         if image.rom_segments(self.chip).next().is_some() {
             return Err(Error::ElfNotRamLoadable);
@@ -620,20 +634,8 @@ impl Flasher {
         target.begin(&mut self.connection).flashing()?;
 
         for segment in image.ram_segments(self.chip) {
-            // Only display progress bars when the "cli" feature is enabled.
-            let progress_cb = if cfg!(feature = "cli") {
-                use crate::cli::{build_progress_bar_callback, progress_bar};
-
-                let progress = progress_bar(format!("segment 0x{:X}", segment.addr), None);
-                let progress_cb = build_progress_bar_callback(progress);
-
-                Some(progress_cb)
-            } else {
-                None
-            };
-
             target
-                .write_segment(&mut self.connection, segment.into(), progress_cb)
+                .write_segment(&mut self.connection, segment.into(), &mut progress)
                 .flashing()?;
         }
 
@@ -650,6 +652,7 @@ impl Flasher {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
+        mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
 
@@ -676,20 +679,8 @@ impl Flasher {
         crate::cli::display_image_size(image.app_size(), image.part_size());
 
         for segment in image.flash_segments() {
-            // Only display progress bars when the "cli" feature is enabled.
-            let progress_cb = if cfg!(feature = "cli") {
-                use crate::cli::{build_progress_bar_callback, progress_bar};
-
-                let progress = progress_bar(format!("segment 0x{:X}", segment.addr), None);
-                let progress_cb = build_progress_bar_callback(progress);
-
-                Some(progress_cb)
-            } else {
-                None
-            };
-
             target
-                .write_segment(&mut self.connection, segment, progress_cb)
+                .write_segment(&mut self.connection, segment, &mut progress)
                 .flashing()?;
         }
 
@@ -703,7 +694,7 @@ impl Flasher {
         &mut self,
         addr: u32,
         data: &[u8],
-        progress_cb: Option<Box<dyn Fn(usize, usize)>>,
+        mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let segment = RomSegment {
             addr,
@@ -712,7 +703,7 @@ impl Flasher {
 
         let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
         target.begin(&mut self.connection).flashing()?;
-        target.write_segment(&mut self.connection, segment, progress_cb)?;
+        target.write_segment(&mut self.connection, segment, &mut progress)?;
         target.finish(&mut self.connection, true).flashing()?;
 
         Ok(())
@@ -727,6 +718,7 @@ impl Flasher {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
+        progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         self.load_elf_to_flash_with_format(
             elf_data,
@@ -736,6 +728,7 @@ impl Flasher {
             flash_mode,
             flash_size,
             flash_freq,
+            progress,
         )
     }
 

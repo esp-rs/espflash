@@ -8,10 +8,10 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        self, board_info, build_progress_bar_callback, config::Config, connect, erase_partitions,
-        flash_elf_image, monitor::monitor, parse_partition_table, partition_table,
-        print_board_info, progress_bar, save_elf_as_image, serial_monitor, ConnectArgs,
-        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        self, board_info, config::Config, connect, erase_partitions, flash_elf_image,
+        monitor::monitor, parse_partition_table, partition_table, print_board_info,
+        save_elf_as_image, serial_monitor, ConnectArgs, EspflashProgress, FlashConfigArgs,
+        MonitorArgs, PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -126,7 +126,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let elf_data = fs::read(&args.image).into_diagnostic()?;
 
     if args.flash_args.ram {
-        flasher.load_elf_to_ram(&elf_data)?;
+        flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
         let bootloader = args.flash_args.bootloader.as_deref();
         let partition_table = match args.flash_args.partition_table.as_deref() {
@@ -218,10 +218,7 @@ fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
     f.read_to_end(&mut buffer).into_diagnostic()?;
 
-    let progress = progress_bar(format!("segment 0x{:X}", args.addr), None);
-    let progress_cb = Some(build_progress_bar_callback(progress));
-
-    flasher.write_bin_to_flash(args.addr, &buffer, progress_cb)?;
+    flasher.write_bin_to_flash(args.addr, &buffer, Some(&mut EspflashProgress::default()))?;
 
     Ok(())
 }
