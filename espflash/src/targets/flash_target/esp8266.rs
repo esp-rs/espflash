@@ -4,7 +4,7 @@ use crate::{
     connection::Connection,
     elf::RomSegment,
     error::Error,
-    flasher::{get_erase_size, FLASH_WRITE_SIZE},
+    flasher::{get_erase_size, ProgressCallbacks, FLASH_WRITE_SIZE},
 };
 
 /// Applications running from an ESP8266's flash
@@ -34,7 +34,7 @@ impl FlashTarget for Esp8266Target {
         &mut self,
         connection: &mut Connection,
         segment: RomSegment,
-        progress_cb: Option<Box<dyn Fn(usize, usize)>>,
+        progress: &mut Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let addr = segment.addr;
         let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;
@@ -57,6 +57,8 @@ impl FlashTarget for Esp8266Target {
         let chunks = segment.data.chunks(FLASH_WRITE_SIZE);
         let num_chunks = chunks.len();
 
+        progress.as_mut().map(|cb| cb.init(addr, num_chunks));
+
         for (i, block) in chunks.enumerate() {
             connection.command(Command::FlashData {
                 sequence: i as u32,
@@ -65,10 +67,10 @@ impl FlashTarget for Esp8266Target {
                 data: block,
             })?;
 
-            if let Some(ref cb) = progress_cb {
-                cb(i + 1, num_chunks);
-            }
+            progress.as_mut().map(|cb| cb.update(i + 1));
         }
+
+        progress.as_mut().map(|cb| cb.finish());
 
         Ok(())
     }

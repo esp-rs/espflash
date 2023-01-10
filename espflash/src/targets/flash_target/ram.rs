@@ -6,6 +6,7 @@ use crate::{
     connection::Connection,
     elf::RomSegment,
     error::Error,
+    flasher::ProgressCallbacks,
 };
 
 pub(crate) const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
@@ -44,8 +45,10 @@ impl FlashTarget for RamTarget {
         &mut self,
         connection: &mut Connection,
         segment: RomSegment,
-        progress_cb: Option<Box<dyn Fn(usize, usize)>>,
+        progress: &mut Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
+        let addr = segment.addr;
+
         let padding = 4 - segment.data.len() % 4;
         let block_count = (segment.data.len() + padding + self.block_size - 1) / self.block_size;
 
@@ -53,12 +56,14 @@ impl FlashTarget for RamTarget {
             size: segment.data.len() as u32,
             blocks: block_count as u32,
             block_size: self.block_size as u32,
-            offset: segment.addr,
+            offset: addr,
             supports_encryption: false,
         })?;
 
         let chunks = segment.data.chunks(self.block_size);
         let num_chunks = chunks.len();
+
+        progress.as_mut().map(|cb| cb.init(addr, num_chunks));
 
         for (i, block) in chunks.enumerate() {
             connection.command(Command::MemData {
@@ -68,10 +73,10 @@ impl FlashTarget for RamTarget {
                 data: block,
             })?;
 
-            if let Some(ref cb) = progress_cb {
-                cb(i + 1, num_chunks);
-            }
+            progress.as_mut().map(|cb| cb.update(i + 1));
         }
+
+        progress.as_mut().map(|cb| cb.finish());
 
         Ok(())
     }

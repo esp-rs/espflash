@@ -10,8 +10,8 @@ use espflash::{
     cli::{
         self, board_info, config::Config, connect, erase_partitions, flash_elf_image,
         monitor::monitor, parse_partition_table, partition_table, print_board_info,
-        save_elf_as_image, serial_monitor, ConnectArgs, FlashConfigArgs, MonitorArgs,
-        PartitionTableArgs,
+        save_elf_as_image, serial_monitor, ConnectArgs, EspflashProgress, FlashConfigArgs,
+        MonitorArgs, PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -171,7 +171,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     print_board_info(&mut flasher)?;
 
     if args.flash_args.ram {
-        flasher.load_elf_to_ram(&elf_data)?;
+        flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
         let bootloader = args
             .flash_args
