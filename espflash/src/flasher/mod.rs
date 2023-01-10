@@ -43,62 +43,28 @@ const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 #[repr(u8)]
 pub enum FlashFrequency {
     /// 12 MHz
-    #[strum(serialize = "12M")]
-    Flash12M,
+    _12Mhz,
     /// 15 MHz
-    #[strum(serialize = "15M")]
-    Flash15M,
+    _15Mhz,
     /// 16 MHz
-    #[strum(serialize = "16M")]
-    Flash16M,
+    _16Mhz,
     /// 20 MHz
-    #[strum(serialize = "20M")]
-    Flash20M,
+    _20Mhz,
     /// 24 MHz
-    #[strum(serialize = "24M")]
-    Flash24M,
+    _24Mhz,
     /// 26 MHz
-    #[strum(serialize = "26M")]
-    Flash26M,
+    _26Mhz,
     /// 30 MHz
-    #[strum(serialize = "30M")]
-    Flash30M,
+    _30Mhz,
     /// 40 MHz
     #[default]
-    #[strum(serialize = "40M")]
-    Flash40M,
+    _40Mhz,
     /// 48 MHz
-    #[strum(serialize = "48M")]
-    Flash48M,
+    _48Mhz,
     /// 60 MHz
-    #[strum(serialize = "60M")]
-    Flash60M,
+    _60Mhz,
     /// 80 MHz
-    #[strum(serialize = "80M")]
-    Flash80M,
-}
-
-impl FromStr for FlashFrequency {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use FlashFrequency::*;
-
-        match s.to_uppercase().as_str() {
-            "12M" => Ok(Flash12M),
-            "15M" => Ok(Flash15M),
-            "16M" => Ok(Flash16M),
-            "20M" => Ok(Flash20M),
-            "24M" => Ok(Flash24M),
-            "26M" => Ok(Flash26M),
-            "30M" => Ok(Flash30M),
-            "40M" => Ok(Flash40M),
-            "48M" => Ok(Flash48M),
-            "60M" => Ok(Flash60M),
-            "80M" => Ok(Flash80M),
-            _ => Err(Error::InvalidFlashFrequency(s.to_string())),
-        }
-    }
+    _80Mhz,
 }
 
 /// Supported flash modes
@@ -117,75 +83,50 @@ pub enum FlashMode {
     Dout,
 }
 
-impl FromStr for FlashMode {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mode = match s.to_lowercase().as_str() {
-            "qio" => FlashMode::Qio,
-            "qout" => FlashMode::Qout,
-            "dio" => FlashMode::Dio,
-            "dout" => FlashMode::Dout,
-            _ => return Err(Error::InvalidFlashMode(s.to_string())),
-        };
-
-        Ok(mode)
-    }
-}
-
 /// Supported flash sizes
 ///
 /// Note that not all sizes are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Display, EnumVariantNames, EnumIter)]
 #[repr(u8)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum FlashSize {
     /// 256 KB
-    #[strum(serialize = "256K")]
-    Flash256Kb = 0x12,
+    _256Kb = 0x12,
     /// 512 KB
-    #[strum(serialize = "512K")]
-    Flash512Kb = 0x13,
+    _512Kb = 0x13,
     /// 1 MB
-    #[strum(serialize = "1M")]
-    Flash1Mb = 0x14,
+    _1Mb = 0x14,
     /// 2 MB
-    #[strum(serialize = "2M")]
-    Flash2Mb = 0x15,
+    _2Mb = 0x15,
     /// 4 MB
     #[default]
-    #[strum(serialize = "4M")]
-    Flash4Mb = 0x16,
+    _4Mb = 0x16,
     /// 8 MB
-    #[strum(serialize = "8M")]
-    Flash8Mb = 0x17,
+    _8Mb = 0x17,
     /// 16 MB
-    #[strum(serialize = "16M")]
-    Flash16Mb = 0x18,
+    _16Mb = 0x18,
     /// 32 MB
-    #[strum(serialize = "32M")]
-    Flash32Mb = 0x19,
+    _32Mb = 0x19,
     /// 64 MB
-    #[strum(serialize = "64M")]
-    Flash64Mb = 0x1a,
+    _64Mb = 0x1a,
     /// 128 MB
-    #[strum(serialize = "128M")]
-    Flash128Mb = 0x21,
+    _128Mb = 0x21,
 }
 
 impl FlashSize {
     fn from(value: u8) -> Result<FlashSize, Error> {
         match value {
-            0x12 => Ok(FlashSize::Flash256Kb),
-            0x13 => Ok(FlashSize::Flash512Kb),
-            0x14 => Ok(FlashSize::Flash1Mb),
-            0x15 => Ok(FlashSize::Flash2Mb),
-            0x16 => Ok(FlashSize::Flash4Mb),
-            0x17 => Ok(FlashSize::Flash8Mb),
-            0x18 => Ok(FlashSize::Flash16Mb),
-            0x19 => Ok(FlashSize::Flash32Mb),
-            0x1a => Ok(FlashSize::Flash64Mb),
-            0x21 => Ok(FlashSize::Flash128Mb),
+            0x12 => Ok(FlashSize::_256Kb),
+            0x13 => Ok(FlashSize::_512Kb),
+            0x14 => Ok(FlashSize::_1Mb),
+            0x15 => Ok(FlashSize::_2Mb),
+            0x16 => Ok(FlashSize::_4Mb),
+            0x17 => Ok(FlashSize::_8Mb),
+            0x18 => Ok(FlashSize::_16Mb),
+            0x19 => Ok(FlashSize::_32Mb),
+            0x1a => Ok(FlashSize::_64Mb),
+            0x21 => Ok(FlashSize::_128Mb),
             _ => Err(Error::UnsupportedFlash(FlashDetectError::from(value))),
         }
     }
@@ -193,16 +134,16 @@ impl FlashSize {
     /// Returns the flash size in bytes
     pub fn size(self) -> u32 {
         match self {
-            FlashSize::Flash256Kb => 0x0040000,
-            FlashSize::Flash512Kb => 0x0080000,
-            FlashSize::Flash1Mb => 0x0100000,
-            FlashSize::Flash2Mb => 0x0200000,
-            FlashSize::Flash4Mb => 0x0400000,
-            FlashSize::Flash8Mb => 0x0800000,
-            FlashSize::Flash16Mb => 0x1000000,
-            FlashSize::Flash32Mb => 0x2000000,
-            FlashSize::Flash64Mb => 0x4000000,
-            FlashSize::Flash128Mb => 0x8000000,
+            FlashSize::_256Kb => 0x0040000,
+            FlashSize::_512Kb => 0x0080000,
+            FlashSize::_1Mb => 0x0100000,
+            FlashSize::_2Mb => 0x0200000,
+            FlashSize::_4Mb => 0x0400000,
+            FlashSize::_8Mb => 0x0800000,
+            FlashSize::_16Mb => 0x1000000,
+            FlashSize::_32Mb => 0x2000000,
+            FlashSize::_64Mb => 0x4000000,
+            FlashSize::_128Mb => 0x8000000,
         }
     }
 }
@@ -353,7 +294,7 @@ impl Flasher {
         let mut flasher = Flasher {
             connection,
             chip,
-            flash_size: FlashSize::Flash4Mb,
+            flash_size: FlashSize::_4Mb,
             spi_params: SpiAttachParams::default(),
             use_stub,
         };
@@ -495,7 +436,7 @@ impl Flasher {
                     flash_id,
                     size_id
                 );
-                FlashSize::Flash4Mb
+                FlashSize::_4Mb
             }
         };
 

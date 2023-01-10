@@ -243,14 +243,14 @@ fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
     use FlashSize::*;
 
     match size {
-        Flash1Mb => Ok(0x00),
-        Flash2Mb => Ok(0x10),
-        Flash4Mb => Ok(0x20),
-        Flash8Mb => Ok(0x30),
-        Flash16Mb => Ok(0x40),
-        Flash32Mb => Ok(0x19),
-        Flash64Mb => Ok(0x1a),
-        Flash128Mb => Ok(0x21),
+        _1Mb => Ok(0x00),
+        _2Mb => Ok(0x10),
+        _4Mb => Ok(0x20),
+        _8Mb => Ok(0x30),
+        _16Mb => Ok(0x40),
+        _32Mb => Ok(0x19),
+        _64Mb => Ok(0x1a),
+        _128Mb => Ok(0x21),
         _ => Err(FlashDetectError::from(size as u8)),
     }
 }
