@@ -178,16 +178,14 @@ where
         _ => ProgressDrawTarget::hidden(),
     };
 
-    let progress = ProgressBar::with_draw_target(len, draw_target)
+    ProgressBar::with_draw_target(len, draw_target)
         .with_message(msg)
         .with_style(
             ProgressStyle::default_bar()
                 .template("[{elapsed_precise}] [{bar:40}] {pos:>7}/{len:7} {msg}")
                 .unwrap()
                 .progress_chars("=> "),
-        );
-
-    progress
+        )
 }
 
 /// Create a callback function for the provided [ProgressBar]
@@ -262,7 +260,7 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
 
 /// Connect to a target device and print information about its chip
 pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args, config)?;
+    let mut flasher = connect(args, config)?;
     print_board_info(&mut flasher)?;
 
     Ok(())
@@ -276,7 +274,7 @@ pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
     if let Some((major, minor)) = info.revision {
         println!(" (revision v{major}.{minor})");
     } else {
-        println!("");
+        println!();
     }
     println!("Crystal frequency: {}MHz", info.crystal_frequency);
     println!("Flash size:        {}", info.flash_size);
@@ -306,7 +304,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     // The 26MHz ESP32-C2's need to be treated as a special case.
     let default_baud = if chip == Chip::Esp32c2
         && !args.connect_args.use_stub
-        && target.crystal_freq(&mut flasher.connection())? == 26
+        && target.crystal_freq(flasher.connection())? == 26
     {
         74_880
     } else {
@@ -522,7 +520,7 @@ pub fn erase_partitions(
         for label in part_labels {
             let part = partition_table
                 .find(label.as_str())
-                .ok_or(MissingPartition::from(label))?;
+                .ok_or_else(|| MissingPartition::from(label))?;
 
             parts_to_erase
                 .get_or_insert(HashMap::new())
@@ -633,12 +631,12 @@ fn pretty_print(table: PartitionTable) {
 
     for p in table.partitions() {
         pretty.add_row(vec![
-            Cell::new(&p.name()).fg(Color::Green),
-            Cell::new(&p.ty().to_string()).fg(Color::Cyan),
-            Cell::new(&p.subtype().to_string()).fg(Color::Magenta),
-            Cell::new(&format!("{:#x}", p.offset())).fg(Color::Red),
-            Cell::new(&format!("{:#x} ({}KiB)", p.size(), p.size() / 1024)).fg(Color::Yellow),
-            Cell::new(&p.encrypted()).fg(Color::DarkCyan),
+            Cell::new(p.name()).fg(Color::Green),
+            Cell::new(p.ty().to_string()).fg(Color::Cyan),
+            Cell::new(p.subtype().to_string()).fg(Color::Magenta),
+            Cell::new(format!("{:#x}", p.offset())).fg(Color::Red),
+            Cell::new(format!("{:#x} ({}KiB)", p.size(), p.size() / 1024)).fg(Color::Yellow),
+            Cell::new(p.encrypted()).fg(Color::DarkCyan),
         ]);
     }
 

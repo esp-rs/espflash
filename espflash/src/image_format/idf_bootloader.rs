@@ -134,7 +134,7 @@ impl<'a> IdfBootloaderFormat<'a> {
 
                     let pad_header = SegmentHeader {
                         addr: 0,
-                        length: pad_len as u32,
+                        length: pad_len,
                     };
                     data.write_all(bytes_of(&pad_header))?;
 
@@ -158,7 +158,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         }
 
         let padding = 15 - (data.len() % 16);
-        let padding = &[0u8; 16][0..padding as usize];
+        let padding = &[0u8; 16][0..padding];
         data.write_all(padding)?;
 
         data.write_all(&[checksum])?;

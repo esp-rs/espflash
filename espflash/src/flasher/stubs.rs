@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 
 use crate::targets::Chip;
@@ -52,13 +53,13 @@ impl FlashStub {
 
     /// Fetch text start address and bytes
     pub fn text(&self) -> (u32, Vec<u8>) {
-        let v = base64::decode(&self.text).unwrap();
+        let v = general_purpose::STANDARD.decode(&self.text).unwrap();
         (self.text_start, v)
     }
 
     /// Fetch data start address and bytes
     pub fn data(&self) -> (u32, Vec<u8>) {
-        let v = base64::decode(&self.data).unwrap();
+        let v = general_purpose::STANDARD.decode(&self.data).unwrap();
         (self.data_start, v)
     }
 }

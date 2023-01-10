@@ -162,7 +162,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     let chip = flasher.chip();
     let target = chip.into_target();
-    let target_xtal_freq = target.crystal_freq(&mut flasher.connection())?;
+    let target_xtal_freq = target.crystal_freq(flasher.connection())?;
 
     let build_ctx =
         build(&args.build_args, &cargo_config, chip).wrap_err("Failed to build project")?;
@@ -320,7 +320,7 @@ fn build(
     let output = Command::new("cargo")
         .arg("build")
         .args(args)
-        .args(&["--message-format", "json-diagnostic-rendered-ansi"])
+        .args(["--message-format", "json-diagnostic-rendered-ansi"])
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .spawn()

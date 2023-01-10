@@ -33,9 +33,9 @@ pub fn get_serial_port_info(
     let ports = detect_usb_serial_ports().unwrap_or_default();
 
     if let Some(serial) = &matches.port {
-        find_serial_port(&ports, &serial)
+        find_serial_port(&ports, serial)
     } else if let Some(serial) = &config.connection.serial {
-        find_serial_port(&ports, &serial)
+        find_serial_port(&ports, serial)
     } else {
         let (port, matches) = select_serial_port(ports, config)?;
 

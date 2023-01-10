@@ -120,7 +120,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     let chip = flasher.chip();
     let target = chip.into_target();
-    let target_xtal_freq = target.crystal_freq(&mut flasher.connection())?;
+    let target_xtal_freq = target.crystal_freq(flasher.connection())?;
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(&args.image).into_diagnostic()?;

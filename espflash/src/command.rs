@@ -205,7 +205,7 @@ impl<'a> Command<'a> {
                 data_command(writer, data, pad_to, pad_byte, sequence)?;
             }
             Command::FlashEnd { reboot } => {
-                write_basic(writer, &[if reboot { 0 } else { 1 }], 0)?;
+                write_basic(writer, &[u8::from(!reboot)], 0)?;
             }
             Command::MemBegin {
                 size,
@@ -242,7 +242,7 @@ impl<'a> Command<'a> {
                     entry: u32,
                 }
                 let params = EntryParams {
-                    no_entry: if reboot { 1 } else { 0 },
+                    no_entry: u32::from(reboot),
                     entry,
                 };
                 write_basic(writer, bytes_of(&params), 0)?;
@@ -325,7 +325,7 @@ impl<'a> Command<'a> {
                 data_command(writer, data, pad_to, pad_byte, sequence)?;
             }
             Command::FlashDeflateEnd { reboot } => {
-                write_basic(writer, &[if reboot { 0 } else { 1 }], 0)?;
+                write_basic(writer, &[u8::from(!reboot)], 0)?;
             }
             Command::FlashDetect => {
                 write_basic(writer, &[], 0)?;
