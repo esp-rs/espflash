@@ -468,7 +468,7 @@ pub fn flash_elf_image(
         flash_mode,
         flash_size,
         flash_freq,
-        &mut EspflashProgress::default(),
+        EspflashProgress::default(),
     )?;
     info!("Flashing has completed!");
 

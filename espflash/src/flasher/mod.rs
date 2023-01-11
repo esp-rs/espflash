@@ -629,7 +629,7 @@ impl Flasher {
     pub fn load_elf_to_ram(
         &mut self,
         elf_data: &[u8],
-        progress: &mut dyn ProgressCallbacks,
+        mut progress: impl ProgressCallbacks,
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
         if image.rom_segments(self.chip).next().is_some() {
@@ -646,7 +646,7 @@ impl Flasher {
 
         for segment in image.ram_segments(self.chip) {
             target
-                .write_segment(&mut self.connection, segment.into(), progress)
+                .write_segment(&mut self.connection, segment.into(), &mut progress)
                 .flashing()?;
         }
 
@@ -663,7 +663,7 @@ impl Flasher {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
-        progress: &mut dyn ProgressCallbacks,
+        mut progress: impl ProgressCallbacks,
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
 
@@ -691,7 +691,7 @@ impl Flasher {
 
         for segment in image.flash_segments() {
             target
-                .write_segment(&mut self.connection, segment, progress)
+                .write_segment(&mut self.connection, segment, &mut progress)
                 .flashing()?;
         }
 
@@ -705,7 +705,7 @@ impl Flasher {
         &mut self,
         addr: u32,
         data: &[u8],
-        progress: &mut dyn ProgressCallbacks,
+        mut progress: impl ProgressCallbacks,
     ) -> Result<(), Error> {
         let segment = RomSegment {
             addr,
@@ -714,7 +714,7 @@ impl Flasher {
 
         let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
         target.begin(&mut self.connection).flashing()?;
-        target.write_segment(&mut self.connection, segment, progress)?;
+        target.write_segment(&mut self.connection, segment, &mut progress)?;
         target.finish(&mut self.connection, true).flashing()?;
 
         Ok(())
@@ -729,7 +729,7 @@ impl Flasher {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
-        progress: &mut dyn ProgressCallbacks,
+        progress: impl ProgressCallbacks,
     ) -> Result<(), Error> {
         self.load_elf_to_flash_with_format(
             elf_data,

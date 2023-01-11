@@ -171,7 +171,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     print_board_info(&mut flasher)?;
 
     if args.flash_args.ram {
-        flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
+        flasher.load_elf_to_ram(&elf_data, EspflashProgress::default())?;
     } else {
         let bootloader = args
             .flash_args
