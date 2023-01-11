@@ -34,7 +34,7 @@ impl FlashTarget for Esp8266Target {
         &mut self,
         connection: &mut Connection,
         segment: RomSegment,
-        progress: &mut Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
         let addr = segment.addr;
         let block_count = (segment.data.len() + FLASH_WRITE_SIZE - 1) / FLASH_WRITE_SIZE;
@@ -57,7 +57,7 @@ impl FlashTarget for Esp8266Target {
         let chunks = segment.data.chunks(FLASH_WRITE_SIZE);
         let num_chunks = chunks.len();
 
-        progress.as_mut().map(|cb| cb.init(addr, num_chunks));
+        progress.init(addr, num_chunks);
 
         for (i, block) in chunks.enumerate() {
             connection.command(Command::FlashData {
@@ -67,10 +67,10 @@ impl FlashTarget for Esp8266Target {
                 data: block,
             })?;
 
-            progress.as_mut().map(|cb| cb.update(i + 1));
+            progress.update(i + 1);
         }
 
-        progress.as_mut().map(|cb| cb.finish());
+        progress.finish();
 
         Ok(())
     }

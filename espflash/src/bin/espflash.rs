@@ -126,7 +126,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let elf_data = fs::read(&args.image).into_diagnostic()?;
 
     if args.flash_args.ram {
-        flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
+        flasher.load_elf_to_ram(&elf_data, &mut EspflashProgress::default())?;
     } else {
         let bootloader = args.flash_args.bootloader.as_deref();
         let partition_table = args.flash_args.partition_table.as_deref();
@@ -233,7 +233,7 @@ fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
     f.read_to_end(&mut buffer).into_diagnostic()?;
 
-    flasher.write_bin_to_flash(args.addr, &buffer, Some(&mut EspflashProgress::default()))?;
+    flasher.write_bin_to_flash(args.addr, &buffer, &mut EspflashProgress::default())?;
 
     Ok(())
 }

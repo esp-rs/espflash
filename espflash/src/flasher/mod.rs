@@ -273,6 +273,17 @@ pub trait ProgressCallbacks {
     fn finish(&mut self);
 }
 
+/// Progress update callbacks that do nothing.
+pub struct NoProgress;
+
+impl ProgressCallbacks for NoProgress {
+    fn init(&mut self, _addr: u32, _total: usize) {}
+
+    fn update(&mut self, _current: usize) {}
+
+    fn finish(&mut self) {}
+}
+
 /// Connect to and flash a target device
 pub struct Flasher {
     /// Connection for flash operations
@@ -362,7 +373,7 @@ impl Flasher {
                     addr: text_addr,
                     data: Cow::Borrowed(&text),
                 },
-                &mut None,
+                &mut NoProgress,
             )
             .flashing()?;
 
@@ -376,7 +387,7 @@ impl Flasher {
                     addr: data_addr,
                     data: Cow::Borrowed(&data),
                 },
-                &mut None,
+                &mut NoProgress,
             )
             .flashing()?;
 
@@ -618,7 +629,7 @@ impl Flasher {
     pub fn load_elf_to_ram(
         &mut self,
         elf_data: &[u8],
-        mut progress: Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
         if image.rom_segments(self.chip).next().is_some() {
@@ -635,7 +646,7 @@ impl Flasher {
 
         for segment in image.ram_segments(self.chip) {
             target
-                .write_segment(&mut self.connection, segment.into(), &mut progress)
+                .write_segment(&mut self.connection, segment.into(), progress)
                 .flashing()?;
         }
 
@@ -652,7 +663,7 @@ impl Flasher {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
-        mut progress: Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
 
@@ -680,7 +691,7 @@ impl Flasher {
 
         for segment in image.flash_segments() {
             target
-                .write_segment(&mut self.connection, segment, &mut progress)
+                .write_segment(&mut self.connection, segment, progress)
                 .flashing()?;
         }
 
@@ -694,7 +705,7 @@ impl Flasher {
         &mut self,
         addr: u32,
         data: &[u8],
-        mut progress: Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
         let segment = RomSegment {
             addr,
@@ -703,7 +714,7 @@ impl Flasher {
 
         let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
         target.begin(&mut self.connection).flashing()?;
-        target.write_segment(&mut self.connection, segment, &mut progress)?;
+        target.write_segment(&mut self.connection, segment, progress)?;
         target.finish(&mut self.connection, true).flashing()?;
 
         Ok(())
@@ -718,7 +729,7 @@ impl Flasher {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
-        progress: Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
         self.load_elf_to_flash_with_format(
             elf_data,

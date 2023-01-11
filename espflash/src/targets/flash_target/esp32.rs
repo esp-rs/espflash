@@ -98,7 +98,7 @@ impl FlashTarget for Esp32Target {
         &mut self,
         connection: &mut Connection,
         segment: RomSegment,
-        progress: &mut Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
         let addr = segment.addr;
 
@@ -131,7 +131,7 @@ impl FlashTarget for Esp32Target {
         let chunks = compressed.chunks(flash_write_size);
         let num_chunks = chunks.len();
 
-        progress.as_mut().map(|cb| cb.init(addr, num_chunks));
+        progress.init(addr, num_chunks);
 
         // decode the chunks to see how much data the device will have to save
         let mut decoder = ZlibDecoder::new(Vec::new());
@@ -156,10 +156,10 @@ impl FlashTarget for Esp32Target {
                 },
             )?;
 
-            progress.as_mut().map(|cb| cb.update(i + 1));
+            progress.update(i + 1);
         }
 
-        progress.as_mut().map(|cb| cb.finish());
+        progress.finish();
 
         Ok(())
     }

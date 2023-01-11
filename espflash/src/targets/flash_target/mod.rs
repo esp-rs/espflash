@@ -18,7 +18,7 @@ pub trait FlashTarget {
         &mut self,
         connection: &mut Connection,
         segment: RomSegment,
-        progress: &mut Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error>;
 
     /// Complete the flashing operation

@@ -45,7 +45,7 @@ impl FlashTarget for RamTarget {
         &mut self,
         connection: &mut Connection,
         segment: RomSegment,
-        progress: &mut Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
         let addr = segment.addr;
 
@@ -63,7 +63,7 @@ impl FlashTarget for RamTarget {
         let chunks = segment.data.chunks(self.block_size);
         let num_chunks = chunks.len();
 
-        progress.as_mut().map(|cb| cb.init(addr, num_chunks));
+        progress.init(addr, num_chunks);
 
         for (i, block) in chunks.enumerate() {
             connection.command(Command::MemData {
@@ -73,10 +73,10 @@ impl FlashTarget for RamTarget {
                 data: block,
             })?;
 
-            progress.as_mut().map(|cb| cb.update(i + 1));
+            progress.update(i + 1);
         }
 
-        progress.as_mut().map(|cb| cb.finish());
+        progress.finish();
 
         Ok(())
     }
