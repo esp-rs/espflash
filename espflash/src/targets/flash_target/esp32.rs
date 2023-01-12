@@ -131,7 +131,9 @@ impl FlashTarget for Esp32Target {
         let chunks = compressed.chunks(flash_write_size);
         let num_chunks = chunks.len();
 
-        progress.as_mut().map(|cb| cb.init(addr, num_chunks));
+        if let Some(cb) = progress.as_mut() {
+            cb.init(addr, num_chunks)
+        }
 
         // decode the chunks to see how much data the device will have to save
         let mut decoder = ZlibDecoder::new(Vec::new());
@@ -156,10 +158,14 @@ impl FlashTarget for Esp32Target {
                 },
             )?;
 
-            progress.as_mut().map(|cb| cb.update(i + 1));
+            if let Some(cb) = progress.as_mut() {
+                cb.update(i + 1)
+            }
         }
 
-        progress.as_mut().map(|cb| cb.finish());
+        if let Some(cb) = progress.as_mut() {
+            cb.finish()
+        }
 
         Ok(())
     }

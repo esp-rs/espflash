@@ -63,7 +63,9 @@ impl FlashTarget for RamTarget {
         let chunks = segment.data.chunks(self.block_size);
         let num_chunks = chunks.len();
 
-        progress.as_mut().map(|cb| cb.init(addr, num_chunks));
+        if let Some(cb) = progress.as_mut() {
+            cb.init(addr, num_chunks)
+        }
 
         for (i, block) in chunks.enumerate() {
             connection.command(Command::MemData {
@@ -73,10 +75,14 @@ impl FlashTarget for RamTarget {
                 data: block,
             })?;
 
-            progress.as_mut().map(|cb| cb.update(i + 1));
+            if let Some(cb) = progress.as_mut() {
+                cb.update(i + 1)
+            }
         }
 
-        progress.as_mut().map(|cb| cb.finish());
+        if let Some(cb) = progress.as_mut() {
+            cb.finish()
+        }
 
         Ok(())
     }
