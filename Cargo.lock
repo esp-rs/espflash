@@ -317,7 +317,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-espflash"
-version = "2.0.0-rc.2"
+version = "2.0.0-rc.3"
 dependencies = [
  "cargo",
  "cargo_metadata",
@@ -861,7 +861,7 @@ dependencies = [
 
 [[package]]
 name = "espflash"
-version = "2.0.0-rc.2"
+version = "2.0.0-rc.3"
 dependencies = [
  "addr2line",
  "base64 0.21.0",
@@ -1513,9 +1513,9 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "object"
-version = "0.30.1"
+version = "0.30.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d864c91689fdc196779b98dba0aceac6118594c2df6ee5d943eb6a8df4d107a"
+checksum = "2b8c786513eb403643f2a88c244c2aaa270ef2153f55094587d0c48a3cf22a83"
 dependencies = [
  "flate2",
  "memchr",
@@ -1627,9 +1627,9 @@ dependencies = [
 
 [[package]]
 name = "parking_lot_core"
-version = "0.9.5"
+version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ff9f3fef3968a3ec5945535ed654cb38ff72d7495a25619e2247fb15a2ed9ba"
+checksum = "ba1ef8814b5c993410bb3adfad7a5ed269563e4a2f90c41f5d85be7fb47133bf"
 dependencies = [
  "cfg-if",
  "libc",
