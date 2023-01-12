@@ -1,3 +1,5 @@
+//! Send commands to a target device
+
 use std::{io::Write, mem::size_of, time::Duration};
 
 use bytemuck::{bytes_of, Pod, Zeroable};
