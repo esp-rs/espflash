@@ -47,13 +47,6 @@ jobs:
 
   # Windows
 
-  x86_64-pc-windows-gnu:
-    uses: ./.github/workflows/package.yml
-    with:
-      runs_on: windows-latest
-      target: x86_64-pc-windows-gnu
-      extension: .exe
-
   x86_64-pc-windows-msvc:
     uses: ./.github/workflows/package.yml
     with:
