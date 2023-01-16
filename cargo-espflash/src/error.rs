@@ -10,11 +10,11 @@ use thiserror::Error;
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 pub enum Error {
-    #[error("Specified bootloader table is not a bin file")]
+    #[error("Specified bootloader path is not a .bin file")]
     #[diagnostic(code(cargo_espflash::invalid_bootloader_path))]
     InvalidBootloaderPath,
 
-    #[error("Specified partition table is not a csv file")]
+    #[error("Specified partition table path is not a .bin or .csv file")]
     #[diagnostic(code(cargo_espflash::invalid_partition_table_path))]
     InvalidPartitionTablePath,
 
@@ -28,15 +28,15 @@ pub enum Error {
     #[error("Multiple build artifacts found")]
     #[diagnostic(
         code(cargo_espflash::multiple_artifacts),
-        help("Please specify which artifact to flash using --bin")
+        help("Please specify which artifact to flash using `--bin`")
     )]
     MultipleArtifacts,
 
     #[error("No executable artifact found")]
     #[diagnostic(
         code(cargo_espflash::no_artifact),
-        help("If you're trying to run an example you need to specify it using the `--example` argument\n\
-              or if you're in a cargo workspace, specify the binary package with `--package`.")
+        help("If you're trying to run an example you need to specify it using the `--example` argument.\n\
+              If you're in a Cargo workspace, specify the binary package with `--package`.")
     )]
     NoArtifact,
 
@@ -44,7 +44,7 @@ pub enum Error {
     #[diagnostic(
         code(cargo_espflash::no_build_std),
         help(
-            "cargo currently requires the unstable 'build-std' feature, ensure \
+            "Cargo currently requires the unstable 'build-std' feature, ensure \
             that .cargo/config{{.toml}} has the appropriate options.\n  \
             \tSee: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std"
         )
@@ -54,7 +54,7 @@ pub enum Error {
     #[error("No package could be located in the current workspace")]
     #[diagnostic(
         code(cargo_espflash::no_package),
-        help("Ensure that you are executing from a valid package, or that the specified package name\
+        help("Ensure that you are executing from a valid package, and that the specified package name\
               exists in the current workspace.")
     )]
     NoPackage,
@@ -62,19 +62,12 @@ pub enum Error {
     #[error("No Cargo.toml found in the current directory")]
     #[diagnostic(
         code(cargo_espflash::no_project),
-        help("Ensure that you're running the command from within a cargo project")
+        help("Ensure that you're running the command from within a Cargo project")
     )]
     NoProject,
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    NoTarget(#[from] NoTargetError),
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    UnsupportedTarget(UnsupportedTargetError),
 }
 
+/// TOML deserialization error
 #[derive(Debug)]
 pub struct TomlError {
     err: toml::de::Error,
@@ -88,13 +81,10 @@ impl TomlError {
 }
 
 impl Display for TomlError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "Failed to parse toml")
     }
 }
-
-// NOTE: no `source` on purpose to prevent duplicating the message
-impl std::error::Error for TomlError {}
 
 impl Diagnostic for TomlError {
     fn source_code(&self) -> Option<&dyn SourceCode> {
@@ -113,6 +103,10 @@ impl Diagnostic for TomlError {
     }
 }
 
+// NOTE: no `source` on purpose to prevent duplicating the message
+impl std::error::Error for TomlError {}
+
+/// Unsupported target error
 #[derive(Debug, Diagnostic, Error)]
 #[error("Target {target} is not supported by the {chip}")]
 #[diagnostic(
@@ -131,14 +125,13 @@ impl UnsupportedTargetError {
             chip,
         }
     }
-}
 
-impl UnsupportedTargetError {
     fn supported_targets(&self) -> String {
         self.chip.into_target().supported_build_targets().join(", ")
     }
 }
 
+/// No target error
 #[derive(Debug, Error)]
 #[error("No target specified in cargo configuration")]
 pub struct NoTargetError {

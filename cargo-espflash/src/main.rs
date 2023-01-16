@@ -255,7 +255,7 @@ fn build(
         .ok_or_else(|| NoTargetError::new(Some(chip)))?;
 
     if !chip.into_target().supports_build_target(target) {
-        return Err(Error::UnsupportedTarget(UnsupportedTargetError::new(target, chip)).into());
+        return Err(UnsupportedTargetError::new(target, chip).into());
     }
 
     // The 'build-std' unstable cargo feature is required to enable
