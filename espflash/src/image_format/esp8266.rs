@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     elf::{CodeSegment, FirmwareImage, RomSegment},
-    error::{Error, FlashDetectError},
+    error::Error,
     flasher::{FlashFrequency, FlashMode, FlashSize},
     targets::Chip,
 };
@@ -163,7 +163,7 @@ fn merge_rom_segments<'a>(
     })
 }
 
-fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
+fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
     use FlashSize::*;
 
     match size {
@@ -174,7 +174,7 @@ fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
         _4Mb => Ok(0x40),
         _8Mb => Ok(0x80),
         _16Mb => Ok(0x90),
-        _ => Err(FlashDetectError::from(size as u8)),
+        _ => Err(Error::UnsupportedFlash(size as u8)),
     }
 }
 

@@ -38,8 +38,9 @@ impl PackageMetadata {
         let metadata = Self::load_metadata(&workspace, &package)?;
 
         if let Some(table) = &metadata.partition_table {
-            if table.extension() != Some(OsStr::new("csv")) {
-                return Err(Error::InvalidPartitionTablePath.into());
+            match table.extension() {
+                Some(ext) if ext == "bin" || ext == "csv" => {}
+                _ => return Err(Error::InvalidPartitionTablePath.into()),
             }
         }
 

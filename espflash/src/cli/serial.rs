@@ -234,7 +234,7 @@ fn select_serial_port(
             .items(&port_names)
             .default(0)
             .interact_opt()?
-            .ok_or(Error::Canceled)?;
+            .ok_or(Error::Cancelled)?;
 
         match ports.get(index) {
             Some(port_info) => {
@@ -288,5 +288,5 @@ fn confirm_port(port_name: &str, port_info: &UsbPortInfo) -> Result<bool, Error>
             }
         })
         .interact_opt()?
-        .ok_or(Error::Canceled)
+        .ok_or(Error::Cancelled)
 }
