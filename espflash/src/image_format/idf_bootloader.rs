@@ -10,7 +10,7 @@ use super::{
 };
 use crate::{
     elf::{CodeSegment, FirmwareImage, RomSegment},
-    error::{Error, FlashDetectError},
+    error::Error,
     flasher::{FlashFrequency, FlashMode, FlashSize},
     targets::{Chip, Esp32Params},
 };
@@ -239,7 +239,7 @@ impl<'a> ImageFormat<'a> for IdfBootloaderFormat<'a> {
     }
 }
 
-fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
+fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
     use FlashSize::*;
 
     match size {
@@ -251,7 +251,7 @@ fn encode_flash_size(size: FlashSize) -> Result<u8, FlashDetectError> {
         _32Mb => Ok(0x19),
         _64Mb => Ok(0x1a),
         _128Mb => Ok(0x21),
-        _ => Err(FlashDetectError::from(size as u8)),
+        _ => Err(Error::UnsupportedFlash(size as u8)),
     }
 }
 

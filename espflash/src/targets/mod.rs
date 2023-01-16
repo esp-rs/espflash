@@ -25,7 +25,7 @@ pub use self::{
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
-    error::{ChipDetectError, Error},
+    error::Error,
     flasher::{FlashFrequency, FlashMode, FlashSize, SpiAttachParams, FLASH_WRITE_SIZE},
     image_format::{ImageFormat, ImageFormatKind},
 };
@@ -62,7 +62,7 @@ pub enum Chip {
 }
 
 impl Chip {
-    pub fn from_magic(magic: u32) -> Result<Self, ChipDetectError> {
+    pub fn from_magic(magic: u32) -> Result<Self, Error> {
         if Esp32::has_magic_value(magic) {
             Ok(Chip::Esp32)
         } else if Esp32c2::has_magic_value(magic) {
@@ -78,7 +78,7 @@ impl Chip {
         } else if Esp8266::has_magic_value(magic) {
             Ok(Chip::Esp8266)
         } else {
-            Err(ChipDetectError::from(magic))
+            Err(Error::ChipDetectError(magic))
         }
     }
 

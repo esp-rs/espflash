@@ -17,7 +17,7 @@ use crate::{
     command::{Command, CommandType},
     connection::Connection,
     elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
-    error::{ConnectionError, Error, FlashDetectError, ResultExt},
+    error::{ConnectionError, Error, ResultExt},
     image_format::ImageFormatKind,
     interface::Interface,
     targets::Chip,
@@ -130,7 +130,7 @@ impl FlashSize {
             0x19 => Ok(FlashSize::_32Mb),
             0x1a => Ok(FlashSize::_64Mb),
             0x21 => Ok(FlashSize::_128Mb),
-            _ => Err(Error::UnsupportedFlash(FlashDetectError::from(value))),
+            _ => Err(Error::UnsupportedFlash(value)),
         }
     }
 

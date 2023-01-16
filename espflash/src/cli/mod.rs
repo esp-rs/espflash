@@ -493,7 +493,7 @@ pub fn erase_partitions(
 ) -> Result<()> {
     let partition_table = match &partition_table {
         Some(partition_table) => partition_table,
-        None => return Err((MissingPartitionTable {}).into()),
+        None => return Err(MissingPartitionTable.into()),
     };
 
     // Using a hashmap to deduplicate entries
