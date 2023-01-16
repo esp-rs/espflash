@@ -6,10 +6,10 @@
 //! It's also possible to write an application to and boot from RAM, where a
 //! bootloader is obviously not required either.
 
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
 use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
-use strum::{Display, EnumIter, EnumVariantNames};
+use strum::{Display, EnumIter, EnumString, EnumVariantNames};
 
 use self::flash_target::MAX_RAM_BLOCK_SIZE;
 pub use self::{
@@ -41,7 +41,7 @@ mod flash_target;
 
 /// Enumeration of all supported devices
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumVariantNames)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, EnumVariantNames)]
 #[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
 pub enum Chip {
@@ -59,25 +59,6 @@ pub enum Chip {
     Esp32s3,
     /// ESP8266
     Esp8266,
-}
-
-impl FromStr for Chip {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use Chip::*;
-
-        match s.to_lowercase().replace('-', "").as_str() {
-            "esp32" => Ok(Esp32),
-            "esp32c2" => Ok(Esp32c2),
-            "esp32c3" => Ok(Esp32c3),
-            "esp32c6" => Ok(Esp32c6),
-            "esp32s2" => Ok(Esp32s2),
-            "esp32s3" => Ok(Esp32s3),
-            "esp8266" => Ok(Esp8266),
-            _ => Err(Error::UnrecognizedChipName),
-        }
-    }
 }
 
 impl Chip {
