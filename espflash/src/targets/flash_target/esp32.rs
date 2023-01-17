@@ -48,49 +48,6 @@ impl FlashTarget for Esp32Target {
             connection.command(command)
         })?;
 
-        // TODO: Remove this when we use the stub, the stub should be taking care of
-        //       this.
-        // TODO: Do we also need to disable RTC super WDT?
-        if connection.get_usb_pid()? == USB_SERIAL_JTAG_PID {
-            match self.chip {
-                Chip::Esp32c3 => {
-                    connection.command(Command::WriteReg {
-                        address: 0x6000_80a8,
-                        value: 0x50D8_3AA1,
-                        mask: None,
-                    })?; // WP disable
-                    connection.command(Command::WriteReg {
-                        address: 0x6000_8090,
-                        value: 0x0,
-                        mask: None,
-                    })?; // turn off RTC WDT
-                    connection.command(Command::WriteReg {
-                        address: 0x6000_80a8,
-                        value: 0x0,
-                        mask: None,
-                    })?; // WP enable
-                }
-                Chip::Esp32s3 => {
-                    connection.command(Command::WriteReg {
-                        address: 0x6000_80B0,
-                        value: 0x50D8_3AA1,
-                        mask: None,
-                    })?; // WP disable
-                    connection.command(Command::WriteReg {
-                        address: 0x6000_8098,
-                        value: 0x0,
-                        mask: None,
-                    })?; // turn off RTC WDT
-                    connection.command(Command::WriteReg {
-                        address: 0x6000_80B0,
-                        value: 0x0,
-                        mask: None,
-                    })?; // WP enable
-                }
-                _ => {}
-            }
-        }
-
         Ok(())
     }
 
