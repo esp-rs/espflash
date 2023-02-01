@@ -32,7 +32,7 @@ jobs:
             cargo-command: check
             args: --lib --no-default-features --features=raspberry
           - name: Check MSRV
-            toolchain: "1.63"
+            toolchain: "1.66"
             cargo-command: check
             args: --features=raspberry
           - name: Unit Test

@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/espflash?labelColor=1C2C2E&color=C96329&logo=Rust&style=flat-square)](https://crates.io/crates/espflash)
 [![docs.rs](https://img.shields.io/docsrs/espflash?labelColor=1C2C2E&color=C96329&logo=rust&style=flat-square)](https://docs.rs/espflash)
-![MSRV](https://img.shields.io/badge/MSRV-1.63-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
+![MSRV](https://img.shields.io/badge/MSRV-1.66-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
 ![Crates.io](https://img.shields.io/crates/l/espflash?labelColor=1C2C2E&style=flat-square)
 
 A library and command-line tool for flashing Espressif devices over serial.
@@ -11,7 +11,7 @@ Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-S2/S3**, and **ESP8266**.
 
 ## Installation
 
-If you are installing `espflash` from source (ie. using `cargo install`) then you must have `rustc>=1.63.0` installed on your system.
+If you are installing `espflash` from source (ie. using `cargo install`) then you must have `rustc>=1.66.0` installed on your system.
 
 If you are running **macOS** or **Linux** then [libuv] must also be installed; this is available via most popular package managers. If you are running **Windows** you can ignore this step.
 

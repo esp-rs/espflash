@@ -6,7 +6,7 @@ authors = [
     "Jesse Braham <jesse@beta7.io>",
 ]
 edition = "2021"
-rust-version = "1.63"
+rust-version = "1.66"
 description = "A command-line tool for flashing Espressif devices over serial"
 repository = "https://github.com/esp-rs/espflash"
 license = "MIT OR Apache-2.0"
