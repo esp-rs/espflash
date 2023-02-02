@@ -45,15 +45,13 @@ jobs:
             cargo-command: clippy
             args: --features=raspberry -- -A clippy::too_many_arguments
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@v1
         with:
-          profile: minimal
           toolchain: ${{ matrix.job.toolchain }}
           target: ${{ matrix.board.target }}
           components: ${{ matrix.job.components }}
-          override: true
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - name: Replace target string
         uses: mad9000/actions-find-and-replace-string@1
         id: findandreplace

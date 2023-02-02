@@ -25,13 +25,12 @@ jobs:
       matrix:
         crate: ["espflash", "cargo-espflash"]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: stable
           target: ${{ inputs.target }}
-          override: true
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - name: Build dependencies for other ubuntu targets
         if: inputs.runs_on == 'ubuntu-20.04'
         run: |
