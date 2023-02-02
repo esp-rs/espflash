@@ -37,10 +37,7 @@ jobs:
           sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/' /etc/apt/sources.list
           sudo apt-get update
           sudo apt-get install musl-tools libudev-dev
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --all --target ${{ inputs.target }}
+      - run: cargo build --release --all --target ${{ inputs.target }}
       - name: Compress (Unix)
         if: ${{ inputs.runs_on != 'windows-latest' }}
         run: zip -j ${{ matrix.crate }}-${{ inputs.target }}.zip target/${{ inputs.target }}/release/${{ matrix.crate }}${{ inputs.extension }}
