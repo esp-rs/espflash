@@ -23,13 +23,9 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: stable
-          override: true
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
+      - run: cargo check
 
   check-lib:
     name: Check (lib)
@@ -45,12 +41,8 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-          override: true
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --lib --no-default-features
+      - run: cargo check --lib --no-default-features
 
   msrv:
     name: Check MSRV
@@ -66,11 +58,8 @@ jobs:
         with:
           profile: minimal
           toolchain: "1.63"
-          override: true
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
+      - run: cargo check
 
   test-lib:
     name: Unit Test
@@ -84,14 +73,9 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: stable
-          override: true
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --lib
+      - run: cargo test --lib
 
   fmt:
     name: Rustfmt
@@ -105,10 +89,7 @@ jobs:
           override: true
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - run: cargo fmt --all -- --check
 
   clippy:
     name: Clippy
@@ -122,13 +103,8 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: stable
-          override: true
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          # `too_many_arguments` is relatively arbitrary
-          args: -- -A clippy::too_many_arguments
+      # `too_many_arguments` is relatively arbitrary
+      - run: cargo clippy -- -A clippy::too_many_arguments
