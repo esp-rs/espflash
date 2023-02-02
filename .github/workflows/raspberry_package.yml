@@ -22,15 +22,14 @@ jobs:
       matrix:
         crate: ["espflash", "cargo-espflash"]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: stable
           target: ${{ inputs.target }}
-          override: true
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - name: Replace target string
-        uses: mad9000/actions-find-and-replace-string@1
+        uses: mad9000/actions-find-and-replace-string@3
         id: findandreplace
         with:
           source: ${{ inputs.target }}
@@ -57,10 +56,7 @@ jobs:
             echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig" >> $GITHUB_ENV
             echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
           fi
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --all --target ${{ inputs.target }} --features=raspberry
+      - run: cargo build --release --all --target ${{ inputs.target }} --features=raspberry
       - name: Compress
         run: zip -j ${{ matrix.crate }}-${{ inputs.target }}.zip target/${{ inputs.target }}/release/${{ matrix.crate }}${{ inputs.extension }}
       - uses: svenstaro/upload-release-action@v2
