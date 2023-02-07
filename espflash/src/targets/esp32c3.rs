@@ -93,7 +93,7 @@ impl Target for Esp32c3 {
                 flash_size,
                 flash_freq,
             )?)),
-            (ImageFormatKind::DirectBoot, None | Some((3.., _))) => {
+            (ImageFormatKind::DirectBoot, None | Some((0.., 3..))) => {
                 Ok(Box::new(DirectBootFormat::new(image, 0)?))
             }
             _ => Err(
