@@ -57,11 +57,7 @@ fn open_port(port_info: &SerialPortInfo) -> Result<Box<dyn SerialPort>> {
 
 impl Interface {
     #[cfg(feature = "raspberry")]
-    pub(crate) fn new(
-        port_info: &SerialPortInfo,
-        dtr: Option<u8>,
-        rts: Option<u8>,
-    ) -> Result<Self> {
+    pub fn new(port_info: &SerialPortInfo, dtr: Option<u8>, rts: Option<u8>) -> Result<Self> {
         if port_info.port_type == serialport::SerialPortType::Unknown
             && (dtr.is_none() || rts.is_none())
         {
@@ -97,11 +93,7 @@ impl Interface {
     }
 
     #[cfg(not(feature = "raspberry"))]
-    pub(crate) fn new(
-        port_info: &SerialPortInfo,
-        _dtr: Option<u8>,
-        _rts: Option<u8>,
-    ) -> Result<Self> {
+    pub fn new(port_info: &SerialPortInfo, _dtr: Option<u8>, _rts: Option<u8>) -> Result<Self> {
         Ok(Self {
             serial_port: open_port(port_info)?,
         })
