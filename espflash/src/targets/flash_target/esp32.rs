@@ -8,7 +8,7 @@ use flate2::{
 use super::FlashTarget;
 use crate::{
     command::{Command, CommandType},
-    connection::{Connection, USB_SERIAL_JTAG_PID},
+    connection::Connection,
     elf::RomSegment,
     error::Error,
     flasher::{ProgressCallbacks, SpiAttachParams, FLASH_SECTOR_SIZE},
