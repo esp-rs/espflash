@@ -97,7 +97,12 @@ impl Target for Esp32c3 {
                 Ok(Box::new(DirectBootFormat::new(image, 0)?))
             }
             _ => Err(
-                UnsupportedImageFormatError::new(image_format, Chip::Esp32c3, chip_revision).into(),
+                UnsupportedImageFormatError::new(image_format, Chip::Esp32c3, chip_revision)
+                    .with_context(format!(
+                        "The {} only supports direct-boot starting with revision 3 (v0.3)",
+                        Chip::Esp32c3,
+                    ))
+                    .into(),
             ),
         }
     }
