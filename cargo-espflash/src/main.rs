@@ -157,13 +157,16 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let metadata = PackageMetadata::load(&args.build_args.package)?;
     let cargo_config = CargoConfig::load(&metadata.workspace_root, &metadata.package_root);
 
+    let flasher = connect(&args.connect_args, config)?;
+    let chip = flasher.chip();
+
+    let build_ctx =
+        build(&args.build_args, &cargo_config, chip).wrap_err("Failed to build project")?;
+
     let mut flasher = connect(&args.connect_args, config)?;
     let chip = flasher.chip();
     let target = chip.into_target();
     let target_xtal_freq = target.crystal_freq(flasher.connection())?;
-
-    let build_ctx =
-        build(&args.build_args, &cargo_config, chip).wrap_err("Failed to build project")?;
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(build_ctx.artifact_path).into_diagnostic()?;
