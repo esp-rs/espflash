@@ -161,6 +161,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let chip = flasher.chip();
     let target = chip.into_target();
     let target_xtal_freq = target.crystal_freq(flasher.connection())?;
+    flasher.disable_watchdog()?;
 
     let build_ctx =
         build(&args.build_args, &cargo_config, chip).wrap_err("Failed to build project")?;
