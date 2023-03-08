@@ -401,6 +401,7 @@ pub struct UnsupportedImageFormatError {
     format: ImageFormatKind,
     chip: Chip,
     revision: Option<(u32, u32)>,
+    context: Option<String>,
 }
 
 impl UnsupportedImageFormatError {
@@ -409,6 +410,7 @@ impl UnsupportedImageFormatError {
             format,
             chip,
             revision,
+            context: None,
         }
     }
 
@@ -420,6 +422,12 @@ impl UnsupportedImageFormatError {
             .map(|format| format.into())
             .collect::<Vec<&'static str>>()
             .join(", ")
+    }
+
+    pub fn with_context(mut self, ctx: String) -> Self {
+        self.context.replace(ctx);
+
+        self
     }
 }
 
@@ -447,19 +455,15 @@ impl Diagnostic for UnsupportedImageFormatError {
     }
 
     fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
-        let str = if self.chip == Chip::Esp32c3 && self.format == ImageFormatKind::DirectBoot {
-            format!(
-                "The {} only supports direct-boot starting with revision 3",
-                self.chip,
-            )
+        if let Some(ref ctx) = self.context {
+            Some(Box::new(ctx))
         } else {
-            format!(
+            Some(Box::new(format!(
                 "The following image formats are supported by the {}: {}",
                 self.chip,
                 self.supported_formats()
-            )
-        };
-        Some(Box::new(str))
+            )))
+        }
     }
 }
 
