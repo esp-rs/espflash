@@ -337,7 +337,6 @@ impl Flasher {
         Ok(flasher)
     }
 
-
     pub fn disable_watchdog(&mut self) -> Result<(), Error> {
         let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
         target.begin(&mut self.connection).flashing()?;
