@@ -30,16 +30,19 @@ const PARAMS: Esp32Params = Esp32Params::new(
 pub struct Esp32s3;
 
 impl Esp32s3 {
-    pub fn has_magic_value(value: u32) -> bool {
-        CHIP_DETECT_MAGIC_VALUES.contains(&value)
-    }
-
+    /// Return the major BLK version based on eFuses
     fn blk_version_major(&self, connection: &mut Connection) -> Result<u32, Error> {
         Ok(self.read_efuse(connection, 96)? & 0x3)
     }
 
+    /// Return the minor BLK version based on eFuses
     fn blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
         Ok(self.read_efuse(connection, 20)? >> 24 & 0x7)
+    }
+
+    /// Check if the magic value contains the specified value
+    pub fn has_magic_value(value: u32) -> bool {
+        CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }
 }
 

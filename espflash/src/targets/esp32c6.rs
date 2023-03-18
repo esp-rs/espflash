@@ -30,6 +30,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
 pub struct Esp32c6;
 
 impl Esp32c6 {
+    /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }

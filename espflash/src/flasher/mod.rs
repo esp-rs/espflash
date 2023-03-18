@@ -118,6 +118,7 @@ pub enum FlashSize {
 }
 
 impl FlashSize {
+    /// Create a `FlashSize` from an `u8`
     fn from(value: u8) -> Result<FlashSize, Error> {
         match value {
             0x12 => Ok(FlashSize::_256Kb),
@@ -134,7 +135,7 @@ impl FlashSize {
         }
     }
 
-    /// Returns the flash size in bytes
+    /// Return the flash size in bytes
     pub fn size(self) -> u32 {
         match self {
             FlashSize::_256Kb => 0x0040000,
@@ -153,7 +154,7 @@ impl FlashSize {
 
 impl FromStr for FlashSize {
     type Err = Error;
-
+    /// Create a `FlashSize` from a string
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use strum::{IntoEnumIterator, VariantNames};
         let upper = s.to_uppercase();
@@ -189,6 +190,7 @@ impl SpiAttachParams {
         }
     }
 
+    // Default SPI parameters for ESP32-PICO-D4
     pub const fn esp32_pico_d4() -> Self {
         SpiAttachParams {
             clk: 6,
@@ -199,6 +201,7 @@ impl SpiAttachParams {
         }
     }
 
+    /// Encode the parameters into a byte array
     pub fn encode(self, stub: bool) -> Vec<u8> {
         let packed = ((self.hd as u32) << 24)
             | ((self.cs as u32) << 18)

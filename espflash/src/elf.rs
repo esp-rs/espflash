@@ -163,14 +163,17 @@ impl<'a> CodeSegment<'a> {
         }
     }
 
+    /// Return the size of the segment
     pub fn size(&self) -> u32 {
         self.data.len() as u32
     }
 
+    /// Return the data of the segment
     pub fn data(&self) -> &[u8] {
         self.data.as_ref()
     }
 
+    /// Pad the segment to the given alignment
     pub fn pad_align(&mut self, align: usize) {
         let padding = (align - self.data.len() % align) % align;
         if padding > 0 {

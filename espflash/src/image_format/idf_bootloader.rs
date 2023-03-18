@@ -18,6 +18,7 @@ use crate::{
 const IROM_ALIGN: u32 = 0x10000;
 const SEG_HEADER_LEN: u32 = 8;
 
+/// Wrapper for the extended header used by the ESP-IDF bootloader
 #[derive(Debug, Default, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 struct ExtendedHeader {
@@ -239,6 +240,7 @@ impl<'a> ImageFormat<'a> for IdfBootloaderFormat<'a> {
     }
 }
 
+/// Enconde the flash size into the format used by the bootloader.
 fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
     use FlashSize::*;
 
@@ -274,6 +276,7 @@ fn get_segment_padding(offset: usize, segment: &CodeSegment) -> u32 {
     }
 }
 
+/// Merge adjacent segments into one.
 fn merge_adjacent_segments(mut segments: Vec<CodeSegment>) -> Vec<CodeSegment> {
     segments.sort();
 
@@ -292,6 +295,7 @@ fn merge_adjacent_segments(mut segments: Vec<CodeSegment>) -> Vec<CodeSegment> {
     merged
 }
 
+/// Save a segment to the data buffer.
 fn save_flash_segment(
     data: &mut Vec<u8>,
     mut segment: CodeSegment,
@@ -314,6 +318,7 @@ fn save_flash_segment(
     Ok(checksum)
 }
 
+/// Stores a segment header and the segment data in the data buffer.
 fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment, checksum: u8) -> Result<u8, Error> {
     let padding = (4 - segment.size() % 4) % 4;
     let header = SegmentHeader {

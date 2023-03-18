@@ -14,6 +14,7 @@ const ERASE_CHIP_TIMEOUT: Duration = Duration::from_secs(120);
 const MEM_END_TIMEOUT: Duration = Duration::from_millis(50);
 const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 
+/// Types of commands that can be sent to a target device
 #[derive(Copy, Clone, Debug, Display)]
 #[non_exhaustive]
 #[repr(u8)]
@@ -42,6 +43,7 @@ pub enum CommandType {
 }
 
 impl CommandType {
+    /// Return a timeout based on the command type
     pub fn timeout(&self) -> Duration {
         match self {
             CommandType::MemEnd => MEM_END_TIMEOUT,
@@ -51,6 +53,7 @@ impl CommandType {
         }
     }
 
+    /// Return a timeout based on the size
     pub fn timeout_for_size(&self, size: u32) -> Duration {
         fn calc_timeout(timeout_per_mb: Duration, size: u32) -> Duration {
             let mb = size as f64 / 1_000_000.0;
@@ -71,6 +74,7 @@ impl CommandType {
     }
 }
 
+/// Available commands
 #[derive(Copy, Clone, Debug)]
 #[non_exhaustive]
 pub enum Command<'a> {
@@ -153,6 +157,7 @@ pub enum Command<'a> {
 }
 
 impl<'a> Command<'a> {
+    /// Return the command type
     pub fn command_type(&self) -> CommandType {
         match self {
             Command::FlashBegin { .. } => CommandType::FlashBegin,
@@ -176,10 +181,12 @@ impl<'a> Command<'a> {
         }
     }
 
+    /// Return a timeout based on the size
     pub fn timeout_for_size(&self, size: u32) -> Duration {
         self.command_type().timeout_for_size(size)
     }
 
+    /// Write a command
     pub fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
         writer.write_all(&[0, self.command_type() as u8])?;
         match *self {
@@ -350,6 +357,7 @@ impl<'a> Command<'a> {
     }
 }
 
+/// Write a data array and its checksum to a writer
 fn write_basic<W: Write>(mut writer: W, data: &[u8], checksum: u32) -> std::io::Result<()> {
     writer.write_all(&((data.len() as u16).to_le_bytes()))?;
     writer.write_all(&(checksum.to_le_bytes()))?;
@@ -357,6 +365,7 @@ fn write_basic<W: Write>(mut writer: W, data: &[u8], checksum: u32) -> std::io::
     Ok(())
 }
 
+/// WritE a Begin command to a writer
 fn begin_command<W: Write>(
     writer: W,
     size: u32,
@@ -394,6 +403,7 @@ fn begin_command<W: Write>(
     write_basic(writer, data, 0)
 }
 
+/// Write a Data command to a writer
 fn data_command<W: Write>(
     mut writer: W,
     block_data: &[u8],

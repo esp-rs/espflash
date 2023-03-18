@@ -38,6 +38,7 @@ const XTAL_CLK_DIVIDER: u32 = 1;
 pub struct Esp32c2;
 
 impl Esp32c2 {
+    /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }

@@ -35,10 +35,12 @@ const XTAL_CLK_DIVIDER: u32 = 1;
 pub struct Esp32;
 
 impl Esp32 {
+    /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }
 
+    /// Return the package version based on the eFuses
     fn package_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let word3 = self.read_efuse(connection, 3)?;
 

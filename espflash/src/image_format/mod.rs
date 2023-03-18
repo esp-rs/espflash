@@ -92,6 +92,7 @@ impl FromStr for ImageFormatKind {
     }
 }
 
+/// Return the frequency encoding for the given chip and frequency
 fn encode_flash_frequency(chip: Chip, frequency: FlashFrequency) -> Result<u8, Error> {
     let encodings = chip.into_target().flash_frequency_encodings();
     if let Some(&f) = encodings.get(&frequency) {
@@ -101,6 +102,7 @@ fn encode_flash_frequency(chip: Chip, frequency: FlashFrequency) -> Result<u8, E
     }
 }
 
+/// Update the checksum with the given data
 fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
     for byte in data {
         checksum ^= *byte;
