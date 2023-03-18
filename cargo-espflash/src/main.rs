@@ -49,9 +49,7 @@ enum CargoSubcommand {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// Display information about the connected board and exit without flashing
     BoardInfo(ConnectArgs),
-    /// Flash an application to a target device
     Flash(FlashArgs),
     Monitor(MonitorArgs),
     PartitionTable(PartitionTableArgs),
