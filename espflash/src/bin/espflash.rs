@@ -226,7 +226,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
 
 fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config)?;
-    board_info(&args.connect_args, config)?;
+    print_board_info(&mut flasher)?;
 
     let mut f = File::open(&args.bin_file).into_diagnostic()?;
     let size = f.metadata().into_diagnostic()?.len();

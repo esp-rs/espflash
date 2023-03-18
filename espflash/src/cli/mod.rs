@@ -44,7 +44,7 @@ pub struct ConnectArgs {
     #[arg(short = 'b', long, env = "ESPFLASH_BAUD")]
     pub baud: Option<u32>,
     /// Serial port connected to target device
-    #[arg(short = 'p', long)]
+    #[arg(short = 'p', long, env = "ESPFLASH_PORT")]
     pub port: Option<String>,
     /// DTR pin to use for the internal UART hardware. Uses BCM numbering.
     #[cfg(feature = "raspberry")]
