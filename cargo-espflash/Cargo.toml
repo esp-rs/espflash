@@ -21,7 +21,7 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "zip"
 
 [dependencies]
-cargo = { version = "0.69.0", features = ["vendored-openssl"] }
+cargo = { version = "0.66.0", features = ["vendored-openssl"] }
 cargo_metadata = "0.15.2"
 clap = { version = "4.0.32", features = ["derive"] }
 env_logger = "0.10.0"
