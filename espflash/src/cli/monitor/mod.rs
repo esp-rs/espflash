@@ -256,7 +256,7 @@ fn handle_key_event(key_event: KeyEvent) -> Option<Vec<u8>> {
             if key_event.modifiers & KeyModifiers::CONTROL == KeyModifiers::CONTROL {
                 buf[0] = ch as u8;
 
-                if ('a'..='z').contains(&ch) || (ch == ' ') {
+                if ch.is_ascii_lowercase() || (ch == ' ') {
                     buf[0] &= 0x1f;
                     Some(&buf[0..1])
                 } else if ('4'..='7').contains(&ch) {
