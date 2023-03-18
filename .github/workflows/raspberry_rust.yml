@@ -43,7 +43,7 @@ jobs:
             toolchain: stable
             components: clippy
             cargo-command: clippy
-            args: --features=raspberry -- -A clippy::too_many_arguments
+            args: --features=raspberry -- -D warnings -A clippy::too_many_arguments
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@v1
