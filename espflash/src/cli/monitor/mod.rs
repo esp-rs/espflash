@@ -140,6 +140,7 @@ pub fn monitor(
     Ok(())
 }
 
+/// Handles and writes the received serial data to the given output stream.
 fn handle_serial(ctx: &mut SerialContext, buff: &[u8], out: &mut dyn Write) {
     let text: Vec<u8> = normalized(buff.iter().copied()).collect();
     let text = String::from_utf8_lossy(&text).to_string();
