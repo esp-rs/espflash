@@ -43,6 +43,7 @@ pub struct UsbDevice {
 }
 
 impl UsbDevice {
+    /// Check if the given USB port matches this device
     pub fn matches(&self, port: &UsbPortInfo) -> bool {
         self.vid == port.vid && self.pid == port.pid
     }
@@ -57,6 +58,7 @@ pub struct Config {
     /// Preferred USB devices
     #[serde(default)]
     pub usb_device: Vec<UsbDevice>,
+    /// Path of the file to save the config to
     #[serde(skip)]
     save_path: PathBuf,
 }
@@ -76,6 +78,7 @@ impl Config {
         Ok(config)
     }
 
+    /// Save the config to the config file
     pub fn save_with<F: Fn(&mut Self)>(&self, modify_fn: F) -> Result<()> {
         let mut copy = self.clone();
         modify_fn(&mut copy);
