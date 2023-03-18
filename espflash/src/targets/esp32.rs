@@ -2,13 +2,13 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::{bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatKind},
+    targets::{bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x00f0_1d83];

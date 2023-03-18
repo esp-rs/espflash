@@ -8,8 +8,10 @@ use log::{error, info};
 use miette::{IntoDiagnostic, Result};
 use serialport::{available_ports, SerialPortInfo, SerialPortType, UsbPortInfo};
 
-use super::{config::Config, ConnectArgs};
-use crate::{cli::config::UsbDevice, error::Error};
+use crate::{
+    cli::{config::UsbDevice, Config, ConnectArgs},
+    error::Error,
+};
 
 pub fn get_serial_port_info(
     matches: &ConnectArgs,

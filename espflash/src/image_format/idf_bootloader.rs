@@ -4,14 +4,14 @@ use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use esp_idf_part::{PartitionTable, Type};
 use sha2::{Digest, Sha256};
 
-use super::{
-    encode_flash_frequency, update_checksum, EspCommonHeader, ImageFormat, SegmentHeader,
-    ESP_CHECKSUM_MAGIC, ESP_MAGIC, WP_PIN_DISABLED,
-};
 use crate::{
     elf::{CodeSegment, FirmwareImage, RomSegment},
     error::Error,
     flasher::{FlashFrequency, FlashMode, FlashSize},
+    image_format::{
+        encode_flash_frequency, update_checksum, EspCommonHeader, ImageFormat, SegmentHeader,
+        ESP_CHECKSUM_MAGIC, ESP_MAGIC, WP_PIN_DISABLED,
+    },
     targets::{Chip, Esp32Params},
 };
 

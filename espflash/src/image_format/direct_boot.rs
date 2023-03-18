@@ -1,9 +1,9 @@
 use std::iter::once;
 
-use super::ImageFormat;
 use crate::{
     elf::{CodeSegment, FirmwareImage, RomSegment},
     error::Error,
+    image_format::ImageFormat,
 };
 
 const DIRECT_BOOT_MAGIC: &[u8] = &[0x1d, 0x04, 0xdb, 0xae, 0x1d, 0x04, 0xdb, 0xae];

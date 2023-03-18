@@ -11,10 +11,11 @@ use bytemuck::{Pod, Zeroable};
 use serde::Deserialize;
 use strum::{Display, EnumVariantNames, IntoStaticStr};
 
+use crate::{elf::RomSegment, error::Error, flasher::FlashFrequency, targets::Chip};
+
 pub use self::{
     direct_boot::DirectBootFormat, esp8266::Esp8266Format, idf_bootloader::IdfBootloaderFormat,
 };
-use crate::{elf::RomSegment, error::Error, flasher::FlashFrequency, targets::Chip};
 
 mod direct_boot;
 mod esp8266;

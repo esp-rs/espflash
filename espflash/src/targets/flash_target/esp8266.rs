@@ -1,10 +1,10 @@
-use super::FlashTarget;
 use crate::{
     command::{Command, CommandType},
     connection::Connection,
     elf::RomSegment,
     error::Error,
     flasher::{get_erase_size, ProgressCallbacks, FLASH_WRITE_SIZE},
+    targets::FlashTarget,
 };
 
 /// Applications running from an ESP8266's flash

@@ -19,7 +19,6 @@ pub struct FlashStub {
 }
 
 // Include stub objects in binary
-
 const STUB_32: &str = include_str!("../../resources/stubs/stub_flasher_32.toml");
 const STUB_32C2: &str = include_str!("../../resources/stubs/stub_flasher_32c2.toml");
 const STUB_32C3: &str = include_str!("../../resources/stubs/stub_flasher_32c3.toml");

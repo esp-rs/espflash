@@ -2,14 +2,14 @@ use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
 
 use bytemuck::bytes_of;
 
-use super::{
-    encode_flash_frequency, update_checksum, EspCommonHeader, ImageFormat, SegmentHeader,
-    ESP_CHECKSUM_MAGIC, ESP_MAGIC,
-};
 use crate::{
     elf::{CodeSegment, FirmwareImage, RomSegment},
     error::Error,
     flasher::{FlashFrequency, FlashMode, FlashSize},
+    image_format::{
+        encode_flash_frequency, update_checksum, EspCommonHeader, ImageFormat, SegmentHeader,
+        ESP_CHECKSUM_MAGIC, ESP_MAGIC,
+    },
     targets::Chip,
 };
 

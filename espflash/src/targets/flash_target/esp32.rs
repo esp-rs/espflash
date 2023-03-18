@@ -5,7 +5,6 @@ use flate2::{
     Compression,
 };
 
-use super::FlashTarget;
 use crate::{
     command::{Command, CommandType},
     connection::{Connection, USB_SERIAL_JTAG_PID},
@@ -13,6 +12,7 @@ use crate::{
     error::Error,
     flasher::{ProgressCallbacks, SpiAttachParams, FLASH_SECTOR_SIZE},
     targets::Chip,
+    targets::FlashTarget,
 };
 
 /// Applications running from an ESP32's (or variant's) flash
