@@ -67,7 +67,7 @@ impl RawModeGuard {
 impl Drop for RawModeGuard {
     fn drop(&mut self) {
         if let Err(e) = disable_raw_mode() {
-            error!("{:#}", e)
+            error!("Failed to disable raw_mode: {:#}", e)
         }
     }
 }
