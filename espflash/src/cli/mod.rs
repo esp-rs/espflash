@@ -160,6 +160,7 @@ pub struct MonitorArgs {
     /// Optional file name of the ELF image to load the symbols from
     #[arg(short = 'e', long, value_name = "FILE")]
     elf: Option<PathBuf>,
+    /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
 }
@@ -389,6 +390,7 @@ pub fn save_elf_as_image(
     Ok(())
 }
 
+/// Displays the image or app size
 pub(crate) fn display_image_size(app_size: u32, part_size: Option<u32>) {
     if let Some(part_size) = part_size {
         let percent = app_size as f32 / part_size as f32 * 100.0;
@@ -410,6 +412,7 @@ pub struct EspflashProgress {
 }
 
 impl ProgressCallbacks for EspflashProgress {
+    /// Initialize the progress bar
     fn init(&mut self, addr: u32, len: usize) {
         let pb = ProgressBar::new(len as u64)
             .with_message(format!("{addr:#X}"))
@@ -423,12 +426,14 @@ impl ProgressCallbacks for EspflashProgress {
         self.pb = Some(pb);
     }
 
+    /// Update the progress bar
     fn update(&mut self, current: usize) {
         if let Some(ref pb) = self.pb {
             pb.set_position(current as u64);
         }
     }
 
+    /// End the progress bar
     fn finish(&mut self) {
         if let Some(ref pb) = self.pb {
             pb.finish();
@@ -538,6 +543,7 @@ pub fn erase_partitions(
     Ok(())
 }
 
+/// Erase a single partition
 fn erase_partition(flasher: &mut Flasher, part: &Partition) -> Result<()> {
     log::info!("Erasing {} ({:?})...", part.name(), part.subtype());
 
@@ -586,6 +592,7 @@ pub fn partition_table(args: PartitionTableArgs) -> Result<()> {
     Ok(())
 }
 
+/// Pretty print a partition table
 fn pretty_print(table: PartitionTable) {
     let mut pretty = Table::new();
 
