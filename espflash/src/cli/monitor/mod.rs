@@ -37,6 +37,7 @@ lazy_static! {
     static ref RE_FN_ADDR: Regex = Regex::new(r"0x[[:xdigit:]]{8}").unwrap();
 }
 
+/// Context for the serial monitor
 #[derive(Default)]
 struct SerialContext<'ctx> {
     symbols: Option<Symbols<'ctx>>,
@@ -53,6 +54,7 @@ impl<'ctx> SerialContext<'ctx> {
     }
 }
 
+/// Type that ensures that raw mode is disabled when dropped.
 struct RawModeGuard;
 
 impl RawModeGuard {

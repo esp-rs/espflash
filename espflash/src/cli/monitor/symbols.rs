@@ -6,6 +6,8 @@ use addr2line::{
     Context,
 };
 
+// Wrapper around addr2line that allows to look up function names and
+// locations from a given address.
 pub(crate) struct Symbols<'sym> {
     file: File<'sym, &'sym [u8]>,
     ctx: Context<EndianRcSlice<RunTimeEndian>>,
