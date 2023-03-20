@@ -25,7 +25,7 @@ cargo = { version = "0.66.0", features = ["vendored-openssl"] }
 cargo_metadata = "0.15.2"
 clap = { version = "4.0.32", features = ["derive"] }
 env_logger = "0.10.0"
-esp-idf-part = "0.3.0"
+esp-idf-part = "0.2.0"
 espflash = { version = "=2.0.0-rc.3", path = "../espflash" }
 log = "0.4.17"
 miette = { version = "5.5.0", features = ["fancy"] }
