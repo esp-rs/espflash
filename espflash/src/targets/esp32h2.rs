@@ -1,5 +1,5 @@
-use std::ops::Range;
 use std::collections::HashMap;
+use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
