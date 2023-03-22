@@ -19,6 +19,7 @@ pub use self::{
     esp32c6::Esp32c6,
     esp32s2::Esp32s2,
     esp32s3::Esp32s3,
+    esp32h2::Esp32h2,
     esp8266::Esp8266,
     flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
 };
@@ -36,6 +37,7 @@ mod esp32c3;
 mod esp32c6;
 mod esp32s2;
 mod esp32s3;
+mod esp32h2;
 mod esp8266;
 mod flash_target;
 
@@ -57,6 +59,8 @@ pub enum Chip {
     Esp32s2,
     /// ESP32-S3
     Esp32s3,
+    /// ESP32-H2
+    Esp32h2,
     /// ESP8266
     Esp8266,
 }
@@ -75,6 +79,8 @@ impl Chip {
             Ok(Chip::Esp32s2)
         } else if Esp32s3::has_magic_value(magic) {
             Ok(Chip::Esp32s3)
+        } else if Esp32h2::has_magic_value(magic) {
+            Ok(Chip::Esp32h2)
         } else if Esp8266::has_magic_value(magic) {
             Ok(Chip::Esp8266)
         } else {
@@ -90,6 +96,7 @@ impl Chip {
             Chip::Esp32c6 => Box::new(Esp32c6),
             Chip::Esp32s2 => Box::new(Esp32s2),
             Chip::Esp32s3 => Box::new(Esp32s3),
+            Chip::Esp32h2 => Box::new(Esp32h2),
             Chip::Esp8266 => Box::new(Esp8266),
         }
     }
