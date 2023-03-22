@@ -17,9 +17,9 @@ pub use self::{
     esp32c2::Esp32c2,
     esp32c3::Esp32c3,
     esp32c6::Esp32c6,
+    esp32h2::Esp32h2,
     esp32s2::Esp32s2,
     esp32s3::Esp32s3,
-    esp32h2::Esp32h2,
     esp8266::Esp8266,
     flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
 };
@@ -35,9 +35,9 @@ mod esp32;
 mod esp32c2;
 mod esp32c3;
 mod esp32c6;
+mod esp32h2;
 mod esp32s2;
 mod esp32s3;
-mod esp32h2;
 mod esp8266;
 mod flash_target;
 
