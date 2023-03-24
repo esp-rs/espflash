@@ -154,7 +154,7 @@ impl FlashSize {
 
 impl FromStr for FlashSize {
     type Err = Error;
-    /// Create a `FlashSize` from a string
+    /// Create a [FlashSize] from a string
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use strum::{IntoEnumIterator, VariantNames};
         let upper = s.to_uppercase();
