@@ -1,42 +1,66 @@
+//! Command-line interface configuration
+//!
+//! Both [cargo-espflash] and [espflash] allow for the use of configuration
+//! files; the [Config] type handles the loading and saving of this
+//! configuration file.
+//!
+//! [cargo-espflash]: https://crates.io/crates/cargo-espflash
+//! [espflash]: https://crates.io/crates/espflash
+
+use std::{
+    fs::{create_dir_all, read, write},
+    path::PathBuf,
+};
+
 use directories_next::ProjectDirs;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};
 use serde_hex::{Compact, SerHex};
 use serialport::UsbPortInfo;
-use std::fs::{create_dir_all, read, write};
-use std::path::PathBuf;
 
-#[derive(Debug, Deserialize, Serialize, Default, Clone)]
-pub struct Config {
-    #[serde(default)]
-    pub connection: Connection,
-    #[serde(default)]
-    pub usb_device: Vec<UsbDevice>,
-    #[serde(skip)]
-    save_path: PathBuf,
-}
-
+/// A configured, known serial connection
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Connection {
+    /// Name of the serial port used for communication
     pub serial: Option<String>,
-    #[cfg(feature = "raspberry")]
-    pub rts: Option<u8>,
+    /// Data Transmit Ready pin
     #[cfg(feature = "raspberry")]
     pub dtr: Option<u8>,
+    /// Ready To Send pin
+    #[cfg(feature = "raspberry")]
+    pub rts: Option<u8>,
 }
 
+/// A configured, known USB device
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct UsbDevice {
+    /// USB Vendor ID
     #[serde(with = "SerHex::<Compact>")]
     pub vid: u16,
+    /// USB Product ID
     #[serde(with = "SerHex::<Compact>")]
     pub pid: u16,
 }
 
 impl UsbDevice {
+    /// Check if the given USB port matches this device
     pub fn matches(&self, port: &UsbPortInfo) -> bool {
         self.vid == port.vid && self.pid == port.pid
     }
+}
+
+/// Deserialized contents of a configuration file
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
+pub struct Config {
+    /// Preferred serial port connection information
+    #[serde(default)]
+    pub connection: Connection,
+    /// Preferred USB devices
+    #[serde(default)]
+    pub usb_device: Vec<UsbDevice>,
+    /// Path of the file to save the config to
+    #[serde(skip)]
+    save_path: PathBuf,
 }
 
 impl Config {
@@ -54,6 +78,7 @@ impl Config {
         Ok(config)
     }
 
+    /// Save the config to the config file
     pub fn save_with<F: Fn(&mut Self)>(&self, modify_fn: F) -> Result<()> {
         let mut copy = self.clone();
         modify_fn(&mut copy);

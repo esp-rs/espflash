@@ -2,13 +2,13 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, MAX_RAM_BLOCK_SIZE};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
     flasher::{FlashFrequency, FlashMode, FlashSize, FLASH_WRITE_SIZE},
-    image_format::{Esp32BootloaderFormat, ImageFormat, ImageFormatId},
+    image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatKind},
+    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, MAX_RAM_BLOCK_SIZE},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x0000_07c6];
@@ -28,9 +28,11 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin"),
 );
 
+/// ESP32-S2 Target
 pub struct Esp32s2;
 
 impl Esp32s2 {
+    /// Return if the connection is USB OTG
     fn connection_is_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
         const UARTDEV_BUF_NO: u32 = 0x3fff_fd14; // Address which indicates OTG in use
         const UARTDEV_BUF_NO_USB_OTG: u32 = 2; // Value of UARTDEV_BUF_NO when OTG is in use
@@ -38,27 +40,31 @@ impl Esp32s2 {
         Ok(connection.read_reg(UARTDEV_BUF_NO)? == UARTDEV_BUF_NO_USB_OTG)
     }
 
+    /// Return the block2 version based on eFuses
     fn get_block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let blk2_word4 = self.read_efuse(connection, 15)?;
+        let blk2_word4 = self.read_efuse(connection, 27)?;
         let block2_version = (blk2_word4 >> 4) & 0x7;
 
         Ok(block2_version)
     }
 
+    /// Return the flash version based on eFuses
     fn get_flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let blk1_word3 = self.read_efuse(connection, 8)?;
+        let blk1_word3 = self.read_efuse(connection, 20)?;
         let flash_version = (blk1_word3 >> 21) & 0xf;
 
         Ok(flash_version)
     }
 
+    /// Return the psram version based on eFuses
     fn get_psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let blk1_word3 = self.read_efuse(connection, 8)?;
+        let blk1_word3 = self.read_efuse(connection, 20)?;
         let psram_version = (blk1_word3 >> 28) & 0xf;
 
         Ok(psram_version)
     }
 
+    /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }
@@ -66,7 +72,7 @@ impl Esp32s2 {
 
 impl ReadEFuse for Esp32s2 {
     fn efuse_reg(&self) -> u32 {
-        0x3f41_a030
+        0x3f41_a000
     }
 }
 
@@ -105,6 +111,17 @@ impl Target for Esp32s2 {
         Ok(features)
     }
 
+    fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        Ok(self.read_efuse(connection, 20)? >> 18 & 0x3)
+    }
+
+    fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let hi = self.read_efuse(connection, 20)? >> 20 & 0x1;
+        let lo = self.read_efuse(connection, 21)? >> 4 & 0x7;
+
+        Ok((hi << 3) + lo)
+    }
+
     fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
         // The ESP32-S2's XTAL has a fixed frequency of 40MHz.
         Ok(40)
@@ -123,16 +140,16 @@ impl Target for Esp32s2 {
         image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-        image_format: Option<ImageFormatId>,
-        _chip_revision: Option<u32>,
+        image_format: Option<ImageFormatKind>,
+        _chip_revision: Option<(u32, u32)>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = image_format.unwrap_or(ImageFormatId::Bootloader);
+        let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
 
         match image_format {
-            ImageFormatId::Bootloader => Ok(Box::new(Esp32BootloaderFormat::new(
+            ImageFormatKind::EspBootloader => Ok(Box::new(IdfBootloaderFormat::new(
                 image,
                 Chip::Esp32s2,
                 PARAMS,

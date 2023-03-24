@@ -1,7 +1,13 @@
+//! Establish a connection with a target device
+//!
+//! The [Connection] struct abstracts over the serial connection and
+//! sending/decoding of commands, and provides higher-level operations with the
+//! device.
+
 use std::{io::BufWriter, thread::sleep, time::Duration};
 
 use binread::{io::Cursor, BinRead, BinReaderExt};
-use bytemuck::{Pod, Zeroable};
+use log::info;
 use serialport::UsbPortInfo;
 use slip_codec::SlipDecoder;
 
@@ -13,31 +19,24 @@ use crate::{
 };
 
 const DEFAULT_CONNECT_ATTEMPTS: usize = 7;
-pub const USB_SERIAL_JTAG_PID: u16 = 0x1001;
+pub(crate) const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
+/// A response from a target device following a command
 #[derive(Debug, Copy, Clone, BinRead)]
 pub struct CommandResponse {
     pub resp: u8,
     pub return_op: u8,
     pub return_length: u16,
     pub value: u32,
-    pub status: u8,
     pub error: u8,
+    pub status: u8,
 }
 
+/// An established connection with a target device
 pub struct Connection {
     serial: Interface,
     port_info: UsbPortInfo,
     decoder: SlipDecoder,
-}
-
-#[derive(Zeroable, Pod, Copy, Clone, Debug)]
-#[repr(C)]
-struct WriteRegParams {
-    addr: u32,
-    value: u32,
-    mask: u32,
-    delay_us: u32,
 }
 
 impl Connection {
@@ -49,20 +48,18 @@ impl Connection {
         }
     }
 
+    /// Initialize a connection with a device
     pub fn begin(&mut self) -> Result<(), Error> {
         let mut extra_delay = false;
-        for i in 0..DEFAULT_CONNECT_ATTEMPTS {
+        for _ in 0..DEFAULT_CONNECT_ATTEMPTS {
             if self.connect_attempt(extra_delay).is_err() {
                 extra_delay = !extra_delay;
 
-                let delay_text = if extra_delay { "extra" } else { "default" };
-                println!("Unable to connect, retrying with {} delay...", delay_text);
+                info!(
+                    "Unable to connect, retrying with {} delay...",
+                    if extra_delay { "extra" } else { "default" }
+                );
             } else {
-                // Print a blank line if more than one connection attempt was made to visually
-                // separate the status text and whatever comes next.
-                if i > 0 {
-                    println!();
-                }
                 return Ok(());
             }
         }
@@ -70,6 +67,7 @@ impl Connection {
         Err(Error::Connection(ConnectionError::ConnectionFailed))
     }
 
+    /// Try to connect to a device
     fn connect_attempt(&mut self, extra_delay: bool) -> Result<(), Error> {
         self.reset_to_flash(extra_delay)?;
 
@@ -83,6 +81,7 @@ impl Connection {
         Err(Error::Connection(ConnectionError::ConnectionFailed))
     }
 
+    /// Try to sync with the device for a given timeout
     pub(crate) fn sync(&mut self) -> Result<(), Error> {
         self.with_timeout(CommandType::Sync.timeout(), |connection| {
             connection.command(Command::Sync)?;
@@ -114,11 +113,13 @@ impl Connection {
         Ok(())
     }
 
+    // Reset the device
     pub fn reset(&mut self) -> Result<(), Error> {
         let pid = self.port_info.pid;
         Ok(reset_after_flash(&mut self.serial, pid)?)
     }
 
+    // Reset the device to flash mode
     pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
         if self.port_info.pid == USB_SERIAL_JTAG_PID {
             self.serial.write_data_terminal_ready(false)?;
@@ -157,21 +158,25 @@ impl Connection {
         Ok(())
     }
 
+    /// Set timeout for the serial port
     pub fn set_timeout(&mut self, timeout: Duration) -> Result<(), Error> {
         self.serial.serial_port_mut().set_timeout(timeout)?;
         Ok(())
     }
 
+    /// Set baudrate for the serial port
     pub fn set_baud(&mut self, speed: u32) -> Result<(), Error> {
         self.serial.serial_port_mut().set_baud_rate(speed)?;
 
         Ok(())
     }
 
+    /// Get the current baudrate of the serial port
     pub fn get_baud(&self) -> Result<u32, Error> {
         Ok(self.serial.serial_port().baud_rate()?)
     }
 
+    /// Run a command with a timeout defined by the command type
     pub fn with_timeout<T, F: FnMut(&mut Connection) -> Result<T, Error>>(
         &mut self,
         timeout: Duration,
@@ -191,6 +196,7 @@ impl Connection {
         result
     }
 
+    /// Read the response from a serial port
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
         match self.read(10)? {
             None => Ok(None),
@@ -202,6 +208,7 @@ impl Connection {
         }
     }
 
+    /// Write a command to the serial port
     pub fn write_command(&mut self, command: Command) -> Result<(), Error> {
         let serial = self.serial.serial_port_mut();
 
@@ -213,6 +220,7 @@ impl Connection {
         Ok(())
     }
 
+    ///  Write a command and reads the response
     pub fn command(&mut self, command: Command) -> Result<u32, Error> {
         let ty = command.command_type();
         self.write_command(command).for_command(ty)?;
@@ -220,7 +228,7 @@ impl Connection {
         for _ in 0..100 {
             match self.read_response().for_command(ty)? {
                 Some(response) if response.return_op == ty as u8 => {
-                    return if response.status == 1 {
+                    return if response.error != 0 {
                         let _error = self.flush();
                         Err(Error::RomError(RomError::new(
                             command.command_type(),
@@ -238,12 +246,14 @@ impl Connection {
         Err(Error::Connection(ConnectionError::ConnectionFailed))
     }
 
+    /// Read a register command with a timeout
     pub fn read_reg(&mut self, reg: u32) -> Result<u32, Error> {
         self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
             connection.command(Command::ReadReg { address: reg })
         })
     }
 
+    /// Write a register command with a timeout
     pub fn write_reg(&mut self, addr: u32, value: u32, mask: Option<u32>) -> Result<(), Error> {
         self.with_timeout(CommandType::WriteReg.timeout(), |connection| {
             connection.command(Command::WriteReg {
@@ -266,20 +276,24 @@ impl Connection {
         }
     }
 
+    /// Flush the serial port
     pub fn flush(&mut self) -> Result<(), Error> {
         self.serial.serial_port_mut().flush()?;
         Ok(())
     }
 
+    /// Turn a serial port into a Interface
     pub fn into_interface(self) -> Interface {
         self.serial
     }
 
+    /// Get the USB PID of the serial port
     pub fn get_usb_pid(&self) -> Result<u16, Error> {
         Ok(self.port_info.pid)
     }
 }
 
+/// Reset the target device when flashing has completed
 pub fn reset_after_flash(serial: &mut Interface, pid: u16) -> Result<(), serialport::Error> {
     sleep(Duration::from_millis(100));
 

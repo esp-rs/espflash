@@ -1,11 +1,20 @@
+use std::cmp::Ordering;
+#[cfg(not(target_os = "windows"))]
+use std::fs;
+
 use crossterm::style::Stylize;
 use dialoguer::{theme::ColorfulTheme, Confirm, Select};
+use log::{error, info};
 use miette::{IntoDiagnostic, Result};
 use serialport::{available_ports, SerialPortInfo, SerialPortType, UsbPortInfo};
 
-use super::{config::Config, ConnectArgs};
-use crate::{cli::config::UsbDevice, error::Error};
+use crate::{
+    cli::{config::UsbDevice, Config, ConnectArgs},
+    error::Error,
+};
 
+/// Return the information of a serial port taking into account the different
+/// ways of choosing a port.
 pub fn get_serial_port_info(
     matches: &ConnectArgs,
     config: &Config,
@@ -20,21 +29,17 @@ pub fn get_serial_port_info(
     // also be prompted to select a port, unless there is only one found and its VID
     // and PID match the configured values.
     //
-    // The call to canonicalize() was originally added to resolve https://github.com/esp-rs/espflash/issues/177,
-    // however, canonicalize  doesn't work (on Windows) with "dummy" device paths
-    // like `COM4`. That's the reason we need to handle Windows/Posix
-    // differently.
+    // The call to canonicalize() was originally added to resolve
+    // https://github.com/esp-rs/espflash/issues/177, however, canonicalize
+    // doesn't work (on Windows) with "dummy" device paths like `COM4`. That's
+    // the reason we need to handle Windows/Posix differently.
 
     let ports = detect_usb_serial_ports().unwrap_or_default();
 
     if let Some(serial) = &matches.port {
-        #[cfg(not(target_os = "windows"))]
-        let serial = std::fs::canonicalize(serial)?.to_string_lossy().to_string();
-        find_serial_port(&ports, &serial)
+        find_serial_port(&ports, serial)
     } else if let Some(serial) = &config.connection.serial {
-        #[cfg(not(target_os = "windows"))]
-        let serial = std::fs::canonicalize(serial)?.to_string_lossy().to_string();
-        find_serial_port(&ports, &serial)
+        find_serial_port(&ports, serial)
     } else {
         let (port, matches) = select_serial_port(ports, config)?;
 
@@ -54,7 +59,7 @@ pub fn get_serial_port_info(
                             pid: usb_info.pid,
                         })
                     }) {
-                        eprintln!("Failed to save config {:#}", e);
+                        error!("Failed to save config {:#}", e);
                     }
                 }
             }
@@ -68,18 +73,23 @@ pub fn get_serial_port_info(
 /// Given a vector of `SerialPortInfo` structs, attempt to find and return one
 /// whose `port_name` field matches the provided `name` argument.
 fn find_serial_port(ports: &[SerialPortInfo], name: &str) -> Result<SerialPortInfo, Error> {
+    #[cfg(not(target_os = "windows"))]
+    let name = fs::canonicalize(name)?;
+    #[cfg(not(target_os = "windows"))]
+    let name = name.to_string_lossy();
+
     let port_info = ports
         .iter()
-        .find(|port| port.port_name.to_lowercase() == name.to_lowercase());
+        .find(|port| port.port_name.eq_ignore_ascii_case(name.as_ref()));
 
     if let Some(port) = port_info {
         Ok(port.to_owned())
     } else {
-        Err(Error::SerialNotFound(name.to_owned()))
+        Err(Error::SerialNotFound(name.to_string()))
     }
 }
 
-/// serialport's autodetect doesn't provide any port information when using musl
+/// Serialport's autodetect doesn't provide any port information when using musl
 /// linux we can do some manual parsing of sysfs to get the relevant bits
 /// without udev
 #[cfg(all(target_os = "linux", target_env = "musl"))]
@@ -93,20 +103,20 @@ fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
     let ports = ports
         .into_iter()
         .filter_map(|port_info| {
-            // with musl, the paths we get are `/sys/class/tty/*`
+            // With musl, the paths we get are `/sys/class/tty/*`
             let path = PathBuf::from(&port_info.port_name);
 
-            // this will give something like:
+            // This will give something like:
             // `/sys/devices/pci0000:00/0000:00:07.1/0000:0c:00.3/usb5/5-3/5-3.1/5-3.1:1.0/ttyUSB0/tty/ttyUSB0`
             let mut parent_dev = path.canonicalize().ok()?;
 
-            // walk up 3 dirs to get to the device hosting the tty:
+            // Walk up 3 dirs to get to the device hosting the tty:
             // `/sys/devices/pci0000:00/0000:00:07.1/0000:0c:00.3/usb5/5-3/5-3.1/5-3.1:1.0`
             parent_dev.pop();
             parent_dev.pop();
             parent_dev.pop();
 
-            // check that the device is using the usb subsystem
+            // Check that the device is using the usb subsystem
             read_link(parent_dev.join("subsystem"))
                 .ok()
                 .filter(|subsystem| subsystem.ends_with("usb"))?;
@@ -137,6 +147,7 @@ fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
     Ok(ports)
 }
 
+/// Returns a vector with available USB serial ports.
 #[cfg(not(all(target_os = "linux", target_env = "musl")))]
 fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
     let ports = available_ports().into_diagnostic()?;
@@ -145,7 +156,12 @@ fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
         .filter(|port_info| {
             matches!(
                 &port_info.port_type,
-                SerialPortType::UsbPort(..) | SerialPortType::Unknown
+                SerialPortType::UsbPort(..) |
+                // Allow PciPort. The user may want to use it.
+                // The port might have been misdetected by the system as PCI.
+                SerialPortType::PciPort |
+                // Good luck.
+                SerialPortType::Unknown
             )
         })
         .collect::<Vec<_>>();
@@ -165,30 +181,46 @@ const KNOWN_DEVICES: &[UsbDevice] = &[
     }, // QinHeng Electronics CH340 serial converter
 ];
 
+/// Ask the user to select a serial port from a list of detected serial ports.
 fn select_serial_port(
-    ports: Vec<SerialPortInfo>,
+    mut ports: Vec<SerialPortInfo>,
     config: &Config,
 ) -> Result<(SerialPortInfo, bool), Error> {
-    let device_matches = |info| {
+    fn device_matches(config: &Config, info: &UsbPortInfo) -> bool {
         config
             .usb_device
             .iter()
             .chain(KNOWN_DEVICES.iter())
             .any(|dev| dev.matches(info))
-    };
+    }
 
     if ports.len() > 1 {
         // Multiple serial ports detected
-        println!(
-            "Detected {} serial ports. Ports which match a known common dev board are highlighted.\n",
-            ports.len()
-        );
+        info!("Detected {} serial ports", ports.len());
+        info!("Ports which match a known common dev board are highlighted");
+        info!("Please select a port");
+
+        ports.sort_by(|a, b| {
+            let a_matches = match &a.port_type {
+                SerialPortType::UsbPort(info) => device_matches(config, info),
+                _ => false,
+            };
+            let b_matches = match &b.port_type {
+                SerialPortType::UsbPort(info) => device_matches(config, info),
+                _ => false,
+            };
+            match (a_matches, b_matches) {
+                (true, true) | (false, false) => Ordering::Equal,
+                (true, false) => Ordering::Less,
+                (false, true) => Ordering::Greater,
+            }
+        });
 
         let port_names = ports
             .iter()
             .map(|port_info| match &port_info.port_type {
                 SerialPortType::UsbPort(info) => {
-                    let formatted = if device_matches(info) {
+                    let formatted = if device_matches(config, info) {
                         port_info.port_name.as_str().bold()
                     } else {
                         port_info.port_name.as_str().reset()
@@ -204,16 +236,23 @@ fn select_serial_port(
             })
             .collect::<Vec<_>>();
 
+        // https://github.com/console-rs/dialoguer/issues/77
+        ctrlc::set_handler(move || {
+            let term = dialoguer::console::Term::stdout();
+            let _ = term.show_cursor();
+        })
+        .expect("Error setting Ctrl-C handler");
+
         let index = Select::with_theme(&ColorfulTheme::default())
             .items(&port_names)
             .default(0)
             .interact_opt()?
-            .ok_or(Error::Canceled)?;
+            .ok_or(Error::Cancelled)?;
 
         match ports.get(index) {
             Some(port_info) => {
                 let matches = if let SerialPortType::UsbPort(usb_info) = &port_info.port_type {
-                    device_matches(usb_info)
+                    device_matches(config, usb_info)
                 } else {
                     false
                 };
@@ -229,7 +268,7 @@ fn select_serial_port(
         let port_name = port.port_name.clone();
         let port_info = match &port.port_type {
             SerialPortType::UsbPort(info) => info,
-            SerialPortType::Unknown => &UsbPortInfo {
+            SerialPortType::PciPort | SerialPortType::Unknown => &UsbPortInfo {
                 vid: 0,
                 pid: 0,
                 serial_number: None,
@@ -239,7 +278,7 @@ fn select_serial_port(
             _ => unreachable!(),
         };
 
-        if device_matches(port_info) {
+        if device_matches(config, port_info) {
             Ok((port.to_owned(), true))
         } else if confirm_port(&port_name, port_info)? {
             Ok((port.to_owned(), false))
@@ -252,6 +291,7 @@ fn select_serial_port(
     }
 }
 
+/// Ask the user to confirm the use of a serial port.
 fn confirm_port(port_name: &str, port_info: &UsbPortInfo) -> Result<bool, Error> {
     Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt({
@@ -262,5 +302,5 @@ fn confirm_port(port_name: &str, port_info: &UsbPortInfo) -> Result<bool, Error>
             }
         })
         .interact_opt()?
-        .ok_or(Error::Canceled)
+        .ok_or(Error::Cancelled)
 }

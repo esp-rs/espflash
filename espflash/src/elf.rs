@@ -1,3 +1,5 @@
+//! ELF (Executable and Linkable Format) file operations
+
 use std::{
     borrow::Cow,
     cmp::Ordering,
@@ -17,13 +19,18 @@ use crate::{
     targets::Chip,
 };
 
-pub const ESP_CHECKSUM_MAGIC: u8 = 0xef;
-
+/// Operations for working with firmware images
 pub trait FirmwareImage<'a> {
+    /// Firmware image entry point
     fn entry(&self) -> u32;
+
+    /// Firmware image segments
     fn segments(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
+
+    /// Firmware image segments, with their associated load addresses
     fn segments_with_load_addresses(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a>;
 
+    /// Firmware image ROM segments
     fn rom_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
         Box::new(
             self.segments()
@@ -31,6 +38,7 @@ pub trait FirmwareImage<'a> {
         )
     }
 
+    /// Firmware image RAM segments
     fn ram_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
         Box::new(
             self.segments()
@@ -39,6 +47,7 @@ pub trait FirmwareImage<'a> {
     }
 }
 
+/// A firmware image built from an ELF file
 pub struct ElfFirmwareImage<'a> {
     elf: ElfFile<'a>,
 }
@@ -108,8 +117,9 @@ impl<'a> FirmwareImage<'a> for ElfFirmwareImage<'a> {
 }
 
 #[derive(Eq, Clone, Default)]
-/// A segment of code from the source elf
+/// A segment of code from the source ELF
 pub struct CodeSegment<'a> {
+    /// Base address of the code segment
     pub addr: u32,
     data: Cow<'a, [u8]>,
 }
@@ -153,14 +163,17 @@ impl<'a> CodeSegment<'a> {
         }
     }
 
+    /// Return the size of the segment
     pub fn size(&self) -> u32 {
         self.data.len() as u32
     }
 
+    /// Return the data of the segment
     pub fn data(&self) -> &[u8] {
         self.data.as_ref()
     }
 
+    /// Pad the segment to the given alignment
     pub fn pad_align(&mut self, align: usize) {
         let padding = (align - self.data.len() % align) % align;
         if padding > 0 {
@@ -220,7 +233,9 @@ impl Ord for CodeSegment<'_> {
 #[derive(Clone)]
 /// A segment of data to write to the flash
 pub struct RomSegment<'a> {
+    /// ROM address at which the segment begins
     pub addr: u32,
+    /// Segment data
     pub data: Cow<'a, [u8]>,
 }
 
@@ -243,30 +258,4 @@ impl<'a> From<CodeSegment<'a>> for RomSegment<'a> {
             data: segment.data,
         }
     }
-}
-
-pub fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
-    for byte in data {
-        checksum ^= *byte;
-    }
-
-    checksum
-}
-
-pub fn merge_adjacent_segments(mut segments: Vec<CodeSegment>) -> Vec<CodeSegment> {
-    segments.sort();
-
-    let mut merged: Vec<CodeSegment> = Vec::with_capacity(segments.len());
-    for segment in segments {
-        match merged.last_mut() {
-            Some(last) if last.addr + last.size() == segment.addr => {
-                *last += segment.data();
-            }
-            _ => {
-                merged.push(segment);
-            }
-        }
-    }
-
-    merged
 }

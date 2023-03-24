@@ -3,26 +3,26 @@ use std::{
     io::Read,
     num::ParseIntError,
     path::PathBuf,
-    str::FromStr,
 };
 
 use clap::{Args, Parser, Subcommand};
 use espflash::{
     cli::{
-        board_info, config::Config, connect, flash_elf_image, monitor::monitor, partition_table,
-        save_elf_as_image, serial_monitor, ConnectArgs, FlashArgs as BaseFlashArgs,
-        FlashConfigArgs, PartitionTableArgs, SaveImageArgs as BaseSaveImageArgs,
+        self, board_info, config::Config, connect, erase_partitions, flash_elf_image,
+        monitor::monitor, parse_partition_table, partition_table, print_board_info,
+        save_elf_as_image, serial_monitor, ConnectArgs, EspflashProgress, FlashConfigArgs,
+        MonitorArgs, PartitionTableArgs,
     },
-    image_format::{ImageFormatId, ImageFormatType},
+    image_format::ImageFormatKind,
     logging::initialize_logger,
+    targets::Chip,
     update::check_for_update,
 };
 use log::{debug, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};
-use strum::VariantNames;
 
 #[derive(Debug, Parser)]
-#[clap(about, propagate_version = true, version)]
+#[clap(about, version, propagate_version = true)]
 struct Cli {
     #[clap(subcommand)]
     subcommand: Commands,
@@ -30,12 +30,9 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// Display information about the connected board and exit without flashing
     BoardInfo(ConnectArgs),
-    /// Flash an application to a target device
     Flash(FlashArgs),
-    /// Open the serial monitor without flashing
-    Monitor(ConnectArgs),
+    Monitor(MonitorArgs),
     PartitionTable(PartitionTableArgs),
     SaveImage(SaveImageArgs),
     WriteBin(WriteBinArgs),
@@ -43,45 +40,48 @@ enum Commands {
 
 #[derive(Debug, Args)]
 struct FlashArgs {
-    /// ELF image to flash
-    image: PathBuf,
-
+    /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
+    /// Flashing configuration
     #[clap(flatten)]
     pub flash_config_args: FlashConfigArgs,
+    /// Flashing arguments
     #[clap(flatten)]
-    flash_args: BaseFlashArgs,
+    flash_args: cli::FlashArgs,
+    /// ELF image to flash
+    image: PathBuf,
 }
 
 #[derive(Debug, Args)]
 struct SaveImageArgs {
-    /// Image format to flash
-    #[clap(long, possible_values = ImageFormatType::VARIANTS)]
-    format: Option<String>,
-
-    #[clap(flatten)]
-    pub flash_config_args: FlashConfigArgs,
-    #[clap(flatten)]
-    save_image_args: BaseSaveImageArgs,
-
     /// ELF image to flash
     image: PathBuf,
+    /// Image format to flash
+    #[arg(long, value_enum)]
+    format: Option<ImageFormatKind>,
+    /// Flashing configuration
+    #[clap(flatten)]
+    pub flash_config_args: FlashConfigArgs,
+    /// Sage image arguments
+    #[clap(flatten)]
+    save_image_args: cli::SaveImageArgs,
 }
 
 /// Writes a binary file to a specific address in the chip's flash
 #[derive(Debug, Args)]
 struct WriteBinArgs {
     /// Address at which to write the binary file
-    #[clap(value_parser = parse_uint32)]
+    #[arg(value_parser = parse_uint32)]
     pub addr: u32,
     /// File containing the binary data to write
     pub bin_file: String,
-
+    /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
 }
 
+/// Parses a string as a 32-bit unsigned integer.
 fn parse_uint32(input: &str) -> Result<u32, ParseIntError> {
     parse_int::parse(input)
 }
@@ -101,12 +101,12 @@ fn main() -> Result<()> {
     check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     // Load any user configuraiton, if present.
-    let config = Config::load().unwrap();
+    let config = Config::load()?;
 
     // Execute the correct action based on the provided subcommand and its
     // associated arguments.
     match args {
-        Commands::BoardInfo(args) => board_info(args, &config),
+        Commands::BoardInfo(args) => board_info(&args, &config),
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
@@ -115,53 +115,72 @@ fn main() -> Result<()> {
     }
 }
 
-fn flash(mut args: FlashArgs, config: &Config) -> Result<()> {
-    // The `erase_otadata` argument requires `use_stub`, which is implicitly
-    // enabled here.
-    if args.flash_args.erase_otadata {
-        args.connect_args.use_stub = true;
-    }
-
+fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config)?;
-    flasher.board_info()?;
+    print_board_info(&mut flasher)?;
+
+    let chip = flasher.chip();
+    let target = chip.into_target();
+    let target_xtal_freq = target.crystal_freq(flasher.connection())?;
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(&args.image).into_diagnostic()?;
 
     if args.flash_args.ram {
-        flasher.load_elf_to_ram(&elf_data)?;
+        flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
         let bootloader = args.flash_args.bootloader.as_deref();
         let partition_table = args.flash_args.partition_table.as_deref();
 
-        let image_format = args
-            .flash_args
-            .format
-            .as_deref()
-            .map(ImageFormatId::from_str)
-            .transpose()?;
+        if let Some(path) = bootloader {
+            println!("Bootloader:        {}", path.display());
+        }
+        if let Some(path) = partition_table {
+            println!("Partition table:   {}", path.display());
+        }
+
+        let partition_table = match partition_table {
+            Some(path) => Some(parse_partition_table(path)?),
+            None => None,
+        };
+
+        if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
+            erase_partitions(
+                &mut flasher,
+                partition_table.clone(),
+                args.flash_args.erase_parts,
+                args.flash_args.erase_data_parts,
+            )?;
+        }
 
         flash_elf_image(
             &mut flasher,
             &elf_data,
             bootloader,
             partition_table,
-            image_format,
+            args.flash_args.format,
             args.flash_config_args.flash_mode,
             args.flash_config_args.flash_size,
             args.flash_config_args.flash_freq,
-            args.flash_args.erase_otadata,
         )?;
     }
 
     if args.flash_args.monitor {
         let pid = flasher.get_usb_pid()?;
 
+        // The 26MHz ESP32-C2's need to be treated as a special case.
+        let default_baud =
+            if chip == Chip::Esp32c2 && args.connect_args.no_stub && target_xtal_freq == 26 {
+                74_880
+            } else {
+                115_200
+            };
+
         monitor(
             flasher.into_interface(),
             Some(&elf_data),
             pid,
-            args.connect_args.monitor_baud.unwrap_or(115_200),
+            args.flash_args.monitor_baud.unwrap_or(default_baud),
         )
         .into_diagnostic()?;
     }
@@ -174,17 +193,26 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
         .into_diagnostic()
         .wrap_err_with(|| format!("Failed to open image {}", args.image.display()))?;
 
-    let image_format = args
-        .format
-        .as_deref()
-        .map(ImageFormatId::from_str)
-        .transpose()?;
+    // Since we have no `Flasher` instance and as such cannot print the board
+    // information, we will print whatever information we _do_ have.
+    println!("Chip type:         {}", args.save_image_args.chip);
+    if let Some(format) = args.format {
+        println!("Image format:      {:?}", format);
+    }
+    println!("Merge:             {}", args.save_image_args.merge);
+    println!("Skip padding:      {}", args.save_image_args.skip_padding);
+    if let Some(path) = &args.save_image_args.bootloader {
+        println!("Bootloader:        {}", path.display());
+    }
+    if let Some(path) = &args.save_image_args.partition_table {
+        println!("Partition table:   {}", path.display());
+    }
 
     save_elf_as_image(
         args.save_image_args.chip,
         &elf_data,
         args.save_image_args.file,
-        image_format,
+        args.format,
         args.flash_config_args.flash_mode,
         args.flash_config_args.flash_size,
         args.flash_config_args.flash_freq,
@@ -199,14 +227,14 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
 
 fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config)?;
-    flasher.board_info()?;
+    print_board_info(&mut flasher)?;
 
     let mut f = File::open(&args.bin_file).into_diagnostic()?;
     let size = f.metadata().into_diagnostic()?.len();
     let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
     f.read_to_end(&mut buffer).into_diagnostic()?;
 
-    flasher.write_bin_to_flash(args.addr, &buffer)?;
+    flasher.write_bin_to_flash(args.addr, &buffer, Some(&mut EspflashProgress::default()))?;
 
     Ok(())
 }

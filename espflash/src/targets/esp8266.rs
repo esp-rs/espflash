@@ -2,29 +2,31 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::{bytes_to_mac_addr, Chip, ReadEFuse, SpiRegisters, Target};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
-    image_format::{Esp8266Format, ImageFormat, ImageFormatId},
+    image_format::{Esp8266Format, ImageFormat, ImageFormatKind},
+    targets::{bytes_to_mac_addr, Chip, ReadEFuse, SpiRegisters, Target},
 };
 
-pub(crate) const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0xfff0_c101];
+const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0xfff0_c101];
 
-pub(crate) const FLASH_RANGES: &[Range<u32>] = &[
+const FLASH_RANGES: &[Range<u32>] = &[
     0x40200000..0x40300000, // IROM
 ];
 
 const UART_CLKDIV_REG: u32 = 0x6000_0014;
 const UART_CLKDIV_MASK: u32 = 0xfffff;
 
-const XTAL_CLK_DIVIDER: u32 = 1;
+const XTAL_CLK_DIVIDER: u32 = 2;
 
+/// ESP8266 Target
 pub struct Esp8266;
 
 impl Esp8266 {
+    /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }
@@ -45,6 +47,20 @@ impl Target for Esp8266 {
         Ok(vec!["WiFi"])
     }
 
+    fn major_chip_version(&self, _connection: &mut Connection) -> Result<u32, Error> {
+        Err(Error::UnsupportedFeature {
+            chip: Chip::Esp8266,
+            feature: "reading the major chip version".into(),
+        })
+    }
+
+    fn minor_chip_version(&self, _connection: &mut Connection) -> Result<u32, Error> {
+        Err(Error::UnsupportedFeature {
+            chip: Chip::Esp8266,
+            feature: "reading the minor chip version".into(),
+        })
+    }
+
     fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
         let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
         let est_xtal = (connection.get_baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
@@ -58,16 +74,16 @@ impl Target for Esp8266 {
         image: &'a dyn FirmwareImage<'a>,
         _bootloader: Option<Vec<u8>>,
         _partition_table: Option<PartitionTable>,
-        image_format: Option<ImageFormatId>,
-        _chip_revision: Option<u32>,
+        image_format: Option<ImageFormatKind>,
+        _chip_revision: Option<(u32, u32)>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = image_format.unwrap_or(ImageFormatId::Bootloader);
+        let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
 
         match image_format {
-            ImageFormatId::Bootloader => Ok(Box::new(Esp8266Format::new(
+            ImageFormatKind::EspBootloader => Ok(Box::new(Esp8266Format::new(
                 image, flash_mode, flash_size, flash_freq,
             )?)),
             _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp8266, None).into()),

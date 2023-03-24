@@ -1,11 +1,12 @@
 use bytemuck::{Pod, Zeroable};
 
-use super::FlashTarget;
 use crate::{
     command::{Command, CommandType},
     connection::Connection,
     elf::RomSegment,
     error::Error,
+    flasher::ProgressCallbacks,
+    targets::FlashTarget,
 };
 
 pub(crate) const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
@@ -17,6 +18,7 @@ struct EntryParams {
     entry: u32,
 }
 
+/// Applications running in the target device's RAM
 pub struct RamTarget {
     entry: Option<u32>,
     block_size: usize,
@@ -43,7 +45,10 @@ impl FlashTarget for RamTarget {
         &mut self,
         connection: &mut Connection,
         segment: RomSegment,
+        progress: &mut Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
+        let addr = segment.addr;
+
         let padding = 4 - segment.data.len() % 4;
         let block_count = (segment.data.len() + padding + self.block_size - 1) / self.block_size;
 
@@ -51,18 +56,34 @@ impl FlashTarget for RamTarget {
             size: segment.data.len() as u32,
             blocks: block_count as u32,
             block_size: self.block_size as u32,
-            offset: segment.addr,
+            offset: addr,
             supports_encryption: false,
         })?;
 
-        for (i, block) in segment.data.chunks(self.block_size).enumerate() {
+        let chunks = segment.data.chunks(self.block_size);
+        let num_chunks = chunks.len();
+
+        if let Some(cb) = progress.as_mut() {
+            cb.init(addr, num_chunks)
+        }
+
+        for (i, block) in chunks.enumerate() {
             connection.command(Command::MemData {
                 sequence: i as u32,
                 pad_to: 4,
                 pad_byte: 0,
                 data: block,
             })?;
+
+            if let Some(cb) = progress.as_mut() {
+                cb.update(i + 1)
+            }
         }
+
+        if let Some(cb) = progress.as_mut() {
+            cb.finish()
+        }
+
         Ok(())
     }
 
@@ -76,6 +97,7 @@ impl FlashTarget for RamTarget {
                 })
             })?;
         }
+
         Ok(())
     }
 }

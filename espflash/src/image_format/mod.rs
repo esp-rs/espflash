@@ -1,43 +1,31 @@
+//! Supported binary image formats
+//!
+//! Since the ESP8266 is not supported by ESP-IDF, it has its own image format
+//! which must be used. All other devices support the ESP-IDF bootloader format.
+//! Certain devices additionall support direct boot, which needs its own unique
+//! image format.
+
 use std::str::FromStr;
 
 use bytemuck::{Pod, Zeroable};
 use serde::Deserialize;
 use strum::{Display, EnumVariantNames, IntoStaticStr};
 
-pub use self::{esp32bootloader::*, esp32directboot::*, esp8266::*};
 use crate::{elf::RomSegment, error::Error, flasher::FlashFrequency, targets::Chip};
 
-mod esp32bootloader;
-mod esp32directboot;
-mod esp8266;
+pub use self::{
+    direct_boot::DirectBootFormat, esp8266::Esp8266Format, idf_bootloader::IdfBootloaderFormat,
+};
 
+mod direct_boot;
+mod esp8266;
+mod idf_bootloader;
+
+const ESP_CHECKSUM_MAGIC: u8 = 0xef;
 const ESP_MAGIC: u8 = 0xE9;
 const WP_PIN_DISABLED: u8 = 0xEE;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumVariantNames)]
-#[strum(serialize_all = "kebab-case")]
-pub enum ImageFormatType {
-    Esp8266,
-    IdfBoot,
-    DirectBoot,
-}
-
-impl FromStr for ImageFormatType {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use ImageFormatType::*;
-
-        match s.to_lowercase().as_str() {
-            "esp8266" => Ok(Esp8266),
-            "idf-boot" => Ok(IdfBoot),
-            "direct-boot" => Ok(DirectBoot),
-            _ => Err(Error::UnknownImageFormat(s.to_string())),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Zeroable, Pod, Debug)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C, packed)]
 struct EspCommonHeader {
     magic: u8,
@@ -47,13 +35,14 @@ struct EspCommonHeader {
     entry: u32,
 }
 
-#[derive(Copy, Clone, Zeroable, Pod, Debug)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C, packed)]
 struct SegmentHeader {
     addr: u32,
     length: u32,
 }
 
+/// Operations for working with firmware image formats
 pub trait ImageFormat<'a>: Send {
     /// Get the rom segments needed when flashing to device
     fn flash_segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
@@ -67,35 +56,57 @@ pub trait ImageFormat<'a>: Send {
     fn ota_segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
     where
         'a: 'b;
+
+    /// The size of the application binary
+    fn app_size(&self) -> u32;
+
+    /// If applicable, the size of the application partition (if it can be
+    /// determined)
+    fn part_size(&self) -> Option<u32>;
 }
 
+/// All supported firmware image formats
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(
     Debug, Copy, Clone, Eq, PartialEq, Display, IntoStaticStr, EnumVariantNames, Deserialize,
 )]
+#[non_exhaustive]
 #[strum(serialize_all = "kebab-case")]
 #[serde(rename_all = "kebab-case")]
-pub enum ImageFormatId {
-    Bootloader,
+pub enum ImageFormatKind {
+    /// Use the second-stage bootloader from ESP-IDF
+    EspBootloader,
+    /// Use direct boot and do not use a second-stage bootloader at all
     DirectBoot,
 }
 
-impl FromStr for ImageFormatId {
+impl FromStr for ImageFormatKind {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "bootloader" => Ok(Self::Bootloader),
+            "esp-bootloader" => Ok(Self::EspBootloader),
             "direct-boot" => Ok(Self::DirectBoot),
             _ => Err(Error::UnknownImageFormat(s.into())),
         }
     }
 }
 
-pub(crate) fn encode_flash_frequency(chip: Chip, frequency: FlashFrequency) -> Result<u8, Error> {
+/// Return the frequency encoding for the given chip and frequency
+fn encode_flash_frequency(chip: Chip, frequency: FlashFrequency) -> Result<u8, Error> {
     let encodings = chip.into_target().flash_frequency_encodings();
     if let Some(&f) = encodings.get(&frequency) {
         Ok(f)
     } else {
         Err(Error::UnsupportedFlashFrequency { chip, frequency })
     }
+}
+
+/// Update the checksum with the given data
+fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
+    for byte in data {
+        checksum ^= *byte;
+    }
+
+    checksum
 }

@@ -2,26 +2,26 @@ use std::{collections::HashMap, ops::Range};
 
 use esp_idf_part::PartitionTable;
 
-use super::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashFrequency, FlashMode, FlashSize},
-    image_format::{Esp32BootloaderFormat, Esp32DirectBootFormat, ImageFormat, ImageFormatId},
+    image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
+    targets::{bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target},
 };
 
-pub(crate) const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
+const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
     0x6f51_306f, // ECO0
     0x7c41_a06f, // ECO1
 ];
 
-pub(crate) const FLASH_RANGES: &[Range<u32>] = &[
+const FLASH_RANGES: &[Range<u32>] = &[
     0x4200_0000..0x4240_0000, // IROM
     0x3c00_0000..0x3c40_0000, // DROM
 ];
 
-pub(crate) const PARAMS: Esp32Params = Esp32Params::new(
+const PARAMS: Esp32Params = Esp32Params::new(
     0x0,
     0x1_0000,
     0x1f_0000,
@@ -29,9 +29,16 @@ pub(crate) const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32c2-bootloader.bin"),
 );
 
+const UART_CLKDIV_REG: u32 = 0x6000_0014;
+const UART_CLKDIV_MASK: u32 = 0xfffff;
+
+const XTAL_CLK_DIVIDER: u32 = 1;
+
+/// ESP32-C2 Target
 pub struct Esp32c2;
 
 impl Esp32c2 {
+    /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }
@@ -49,34 +56,29 @@ impl Target for Esp32c2 {
     }
 
     fn chip_features(&self, _connection: &mut Connection) -> Result<Vec<&str>, Error> {
-        Ok(vec!["WiFi"])
+        Ok(vec!["WiFi", "BLE"])
     }
 
-    fn chip_revision(&self, connection: &mut Connection) -> Result<Option<u32>, Error> {
-        let block1_addr = self.efuse_reg() + 0x44;
-        let num_word = 3;
-        let pos = 18;
-
-        let value = connection.read_reg(block1_addr + (num_word * 0x4))?;
-        let value = (value & (0x7 << pos)) >> pos;
-
-        Ok(Some(value))
+    fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        Ok(self.read_efuse(connection, 17)? >> 20 & 0x3)
     }
 
-    fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
-        // The ESP32-C2's XTAL has a fixed frequency of 40MHz.
-        Ok(40)
+    fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        Ok(self.read_efuse(connection, 17)? >> 16 & 0xf)
+    }
+
+    fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
+        let est_xtal = (connection.get_baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
+        let norm_xtal = if est_xtal > 33 { 40 } else { 26 };
+
+        Ok(norm_xtal)
     }
 
     fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
         use FlashFrequency::*;
 
-        let encodings = [
-            (Flash15M, 0x2),
-            (Flash20M, 0x1),
-            (Flash30M, 0x0),
-            (Flash60M, 0xF),
-        ];
+        let encodings = [(_15Mhz, 0x2), (_20Mhz, 0x1), (_30Mhz, 0x0), (_60Mhz, 0xF)];
 
         HashMap::from(encodings)
     }
@@ -86,16 +88,16 @@ impl Target for Esp32c2 {
         image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
-        image_format: Option<ImageFormatId>,
-        _chip_revision: Option<u32>,
+        image_format: Option<ImageFormatKind>,
+        _chip_revision: Option<(u32, u32)>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = image_format.unwrap_or(ImageFormatId::Bootloader);
+        let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
 
         match image_format {
-            ImageFormatId::Bootloader => Ok(Box::new(Esp32BootloaderFormat::new(
+            ImageFormatKind::EspBootloader => Ok(Box::new(IdfBootloaderFormat::new(
                 image,
                 Chip::Esp32c2,
                 PARAMS,
@@ -105,8 +107,20 @@ impl Target for Esp32c2 {
                 flash_size,
                 flash_freq,
             )?)),
-            ImageFormatId::DirectBoot => Ok(Box::new(Esp32DirectBootFormat::new(image, 0)?)),
+            ImageFormatKind::DirectBoot => Ok(Box::new(DirectBootFormat::new(image, 0)?)),
         }
+    }
+
+    /// What is the MAC address?
+    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
+        let word5 = self.read_efuse(connection, 16)?;
+        let word6 = self.read_efuse(connection, 17)?;
+
+        let bytes = ((word6 as u64) << 32) | word5 as u64;
+        let bytes = bytes.to_be_bytes();
+        let bytes = &bytes[2..];
+
+        Ok(bytes_to_mac_addr(bytes))
     }
 
     fn spi_registers(&self) -> SpiRegisters {
@@ -121,8 +135,8 @@ impl Target for Esp32c2 {
         }
     }
 
-    fn supported_image_formats(&self) -> &[ImageFormatId] {
-        &[ImageFormatId::Bootloader, ImageFormatId::DirectBoot]
+    fn supported_image_formats(&self) -> &[ImageFormatKind] {
+        &[ImageFormatKind::EspBootloader, ImageFormatKind::DirectBoot]
     }
 
     fn supported_build_targets(&self) -> &[&str] {

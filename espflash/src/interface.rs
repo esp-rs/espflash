@@ -1,3 +1,9 @@
+//! Serial port wrapper to support platform-specific functionality
+//!
+//! Since we support flashing using a Raspberry Pi's built-in UART, we must be
+//! able to abstract over the differences between this setup and when using a
+//! serial port as one normally would, ie.) via USB.
+
 use std::io::Read;
 
 use miette::{Context, Result};
@@ -5,17 +11,15 @@ use miette::{Context, Result};
 use rppal::gpio::{Gpio, OutputPin};
 use serialport::{FlowControl, SerialPort, SerialPortInfo};
 
-use crate::{
-    cli::{config::Config, ConnectArgs},
-    error::Error,
-};
+use crate::error::Error;
 
+/// Errors relating to the configuration of a serial port
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum SerialConfigError {
     #[cfg(feature = "raspberry")]
     #[error("You need to specify both DTR and RTS pins when using an internal UART peripheral")]
     MissingDtrRtsForInternalUart,
-
     #[cfg(feature = "raspberry")]
     #[error("GPIO {0} is not available")]
     GpioUnavailable(u8),
@@ -24,13 +28,17 @@ pub enum SerialConfigError {
 /// Wrapper around SerialPort where platform-specific modifications can be
 /// implemented.
 pub struct Interface {
+    /// Hardware serial port used for communication
     pub serial_port: Box<dyn SerialPort>,
+    /// Data Transmit Ready pin
     #[cfg(feature = "raspberry")]
     pub dtr: Option<OutputPin>,
+    /// Ready To Send pin
     #[cfg(feature = "raspberry")]
     pub rts: Option<OutputPin>,
 }
 
+/// Set the level of a GPIO
 #[cfg(feature = "raspberry")]
 fn write_gpio(gpio: &mut OutputPin, level: bool) {
     if level {
@@ -40,6 +48,7 @@ fn write_gpio(gpio: &mut OutputPin, level: bool) {
     }
 }
 
+/// Open a serial port
 fn open_port(port_info: &SerialPortInfo) -> Result<Box<dyn SerialPort>> {
     serialport::new(&port_info.port_name, 115_200)
         .flow_control(FlowControl::None)
@@ -50,16 +59,9 @@ fn open_port(port_info: &SerialPortInfo) -> Result<Box<dyn SerialPort>> {
 
 impl Interface {
     #[cfg(feature = "raspberry")]
-    pub(crate) fn new(
-        port_info: &SerialPortInfo,
-        args: &ConnectArgs,
-        config: &Config,
-    ) -> Result<Self> {
-        let rts_gpio = args.rts.or(config.connection.rts);
-        let dtr_gpio = args.dtr.or(config.connection.dtr);
-
+    pub fn new(port_info: &SerialPortInfo, dtr: Option<u8>, rts: Option<u8>) -> Result<Self> {
         if port_info.port_type == serialport::SerialPortType::Unknown
-            && (dtr_gpio.is_none() || rts_gpio.is_none())
+            && (dtr.is_none() || rts.is_none())
         {
             // Assume internal UART, which has no DTR pin and usually no RTS either.
             return Err(Error::from(SerialConfigError::MissingDtrRtsForInternalUart).into());
@@ -67,7 +69,7 @@ impl Interface {
 
         let gpios = Gpio::new().unwrap();
 
-        let rts = if let Some(gpio) = rts_gpio {
+        let rts = if let Some(gpio) = rts {
             match gpios.get(gpio) {
                 Ok(pin) => Some(pin.into_output()),
                 Err(_) => return Err(Error::from(SerialConfigError::GpioUnavailable(gpio)).into()),
@@ -76,7 +78,7 @@ impl Interface {
             None
         };
 
-        let dtr = if let Some(gpio) = dtr_gpio {
+        let dtr = if let Some(gpio) = dtr {
             match gpios.get(gpio) {
                 Ok(pin) => Some(pin.into_output()),
                 Err(_) => return Err(Error::from(SerialConfigError::GpioUnavailable(gpio)).into()),
@@ -93,16 +95,13 @@ impl Interface {
     }
 
     #[cfg(not(feature = "raspberry"))]
-    pub(crate) fn new(
-        port_info: &SerialPortInfo,
-        _args: &ConnectArgs,
-        _config: &Config,
-    ) -> Result<Self> {
+    pub fn new(port_info: &SerialPortInfo, _dtr: Option<u8>, _rts: Option<u8>) -> Result<Self> {
         Ok(Self {
             serial_port: open_port(port_info)?,
         })
     }
 
+    /// Set the level of the DTR pin
     pub fn write_data_terminal_ready(&mut self, pin_state: bool) -> serialport::Result<()> {
         #[cfg(feature = "raspberry")]
         if let Some(gpio) = self.dtr.as_mut() {
@@ -113,6 +112,7 @@ impl Interface {
         self.serial_port.write_data_terminal_ready(pin_state)
     }
 
+    /// Set the level of the RTS pin
     pub fn write_request_to_send(&mut self, pin_state: bool) -> serialport::Result<()> {
         #[cfg(feature = "raspberry")]
         if let Some(gpio) = self.rts.as_mut() {
@@ -123,20 +123,23 @@ impl Interface {
         self.serial_port.write_request_to_send(pin_state)
     }
 
+    /// Turn an `Interface` into a `SerialPort`
     pub fn into_serial(self) -> Box<dyn SerialPort> {
         self.serial_port
     }
 
+    /// Turn an `Interface` into a `&SerialPort`
     pub fn serial_port(&self) -> &dyn SerialPort {
         self.serial_port.as_ref()
     }
 
+    /// Turn an `Interface` into a  `&mut SerialPort`
     pub fn serial_port_mut(&mut self) -> &mut dyn SerialPort {
         self.serial_port.as_mut()
     }
 }
 
-// Note(dbuga): this impl is necessary because using `dyn SerialPort` as `dyn
+// Note(dbuga): this `impl` is necessary because using `dyn SerialPort` as `dyn
 // Read` requires trait_upcasting which isn't stable yet.
 impl Read for Interface {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
