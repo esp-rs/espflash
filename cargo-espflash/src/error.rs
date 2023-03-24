@@ -4,7 +4,7 @@ use std::{
 };
 
 use espflash::targets::Chip;
-use miette::{Diagnostic, LabeledSpan, SourceCode, SourceOffset};
+use miette::{Diagnostic, LabeledSpan, SourceCode};
 use thiserror::Error;
 
 #[derive(Debug, Diagnostic, Error)]
@@ -92,13 +92,9 @@ impl Diagnostic for TomlError {
     }
 
     fn labels(&self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + '_>> {
-        let (line, col) = self.err.line_col()?;
-        let offset = SourceOffset::from_location(&self.source, line + 1, col + 1);
-
-        Some(Box::new(once(LabeledSpan::new(
+        Some(Box::new(once(LabeledSpan::new_with_span(
             Some(self.err.to_string()),
-            offset.offset(),
-            0,
+            self.err.span()?,
         ))))
     }
 }

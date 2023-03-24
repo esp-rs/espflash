@@ -31,4 +31,4 @@ log = "0.4.17"
 miette = { version = "5.5.0", features = ["fancy"] }
 serde = { version = "1.0.152", features = ["derive"] }
 thiserror = "1.0.38"
-toml = "0.5.10"
+toml = "0.7.3"

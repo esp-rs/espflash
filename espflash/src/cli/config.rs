@@ -8,7 +8,7 @@
 //! [espflash]: https://crates.io/crates/espflash
 
 use std::{
-    fs::{create_dir_all, read, write},
+    fs::{create_dir_all, read_to_string, write},
     path::PathBuf,
 };
 
@@ -69,8 +69,8 @@ impl Config {
         let dirs = ProjectDirs::from("rs", "esp", "espflash").unwrap();
         let file = dirs.config_dir().join("espflash.toml");
 
-        let mut config = if let Ok(data) = read(&file) {
-            toml::from_slice(&data).into_diagnostic()?
+        let mut config = if let Ok(data) = read_to_string(&file) {
+            toml::from_str(&data).into_diagnostic()?
         } else {
             Self::default()
         };
