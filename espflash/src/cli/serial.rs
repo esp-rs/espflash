@@ -236,6 +236,13 @@ fn select_serial_port(
             })
             .collect::<Vec<_>>();
 
+        // https://github.com/console-rs/dialoguer/issues/77
+        ctrlc::set_handler(move || {
+            let term = dialoguer::console::Term::stdout();
+            let _ = term.show_cursor();
+        })
+        .expect("Error setting Ctrl-C handler");
+
         let index = Select::with_theme(&ColorfulTheme::default())
             .items(&port_names)
             .default(0)

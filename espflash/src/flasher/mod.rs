@@ -340,6 +340,12 @@ impl Flasher {
         Ok(flasher)
     }
 
+    pub fn disable_watchdog(&mut self) -> Result<(), Error> {
+        let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
+        target.begin(&mut self.connection).flashing()?;
+        Ok(())
+    }
+
     /// Load flash stub
     fn load_stub(&mut self) -> Result<(), Error> {
         debug!("Loading flash stub for chip: {:?}", self.chip);
@@ -662,16 +668,24 @@ impl Flasher {
         let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
         target.begin(&mut self.connection).flashing()?;
 
+        // The ESP8266 does not have readable major/minor revision numbers, so we have
+        // nothing to return if targeting it.
+        let chip_revision = if self.chip != Chip::Esp8266 {
+            Some(
+                self.chip
+                    .into_target()
+                    .chip_revision(&mut self.connection)?,
+            )
+        } else {
+            None
+        };
+
         let image = self.chip.into_target().get_flash_image(
             &image,
             bootloader,
             partition_table,
             image_format,
-            Some(
-                self.chip
-                    .into_target()
-                    .chip_revision(&mut self.connection)?,
-            ),
+            chip_revision,
             flash_mode,
             flash_size.or(Some(self.flash_size)),
             flash_freq,

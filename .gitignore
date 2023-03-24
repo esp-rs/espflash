@@ -13,3 +13,4 @@ target/
 .vscode/
 .DS_Store
 *.swp
+.idea/
