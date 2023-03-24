@@ -365,7 +365,7 @@ fn write_basic<W: Write>(mut writer: W, data: &[u8], checksum: u32) -> std::io::
     Ok(())
 }
 
-/// WritE a Begin command to a writer
+/// Write a Begin command to a writer
 fn begin_command<W: Write>(
     writer: W,
     size: u32,
