@@ -42,10 +42,11 @@ bytemuck = { version = "1.12.3", features = ["derive"] }
 clap = { version = "4.0.32", features = ["derive", "env"], optional = true }
 comfy-table = { version = "6.1.4", optional = true }
 crossterm = { version = "0.25.0", optional = true }
+ctrlc = "3.2.5"
 dialoguer = { version = "0.10.2", optional = true }
 directories-next = { version = "2.0.0", optional = true }
-esp-idf-part = "0.1.2"
 env_logger = { version = "0.10.0", optional = true }
+esp-idf-part = "0.1.2"
 flate2 = "1.0.25"
 indicatif = { version = "0.17.2", optional = true }
 lazy_static = { version = "1.4.0", optional = true }
