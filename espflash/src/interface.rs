@@ -123,17 +123,17 @@ impl Interface {
         self.serial_port.write_request_to_send(pin_state)
     }
 
-    /// Turn an `Interface` into a `SerialPort`
+    /// Turn an [Interface] into a [SerialPort]
     pub fn into_serial(self) -> Box<dyn SerialPort> {
         self.serial_port
     }
 
-    /// Turn an `Interface` into a `&SerialPort`
+    /// Turn an [Interface] into a `&`[SerialPort]
     pub fn serial_port(&self) -> &dyn SerialPort {
         self.serial_port.as_ref()
     }
 
-    /// Turn an `Interface` into a  `&mut SerialPort`
+    /// Turn an [Interface] into a  `&mut `[SerialPort]
     pub fn serial_port_mut(&mut self) -> &mut dyn SerialPort {
         self.serial_port.as_mut()
     }
