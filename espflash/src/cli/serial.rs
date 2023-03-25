@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 #[cfg(not(target_os = "windows"))]
 use std::fs;
 
@@ -6,7 +5,7 @@ use crossterm::style::Stylize;
 use dialoguer::{theme::ColorfulTheme, Confirm, Select};
 use log::{error, info};
 use miette::{IntoDiagnostic, Result};
-use serialport::{available_ports, SerialPortInfo, SerialPortType, UsbPortInfo};
+use serialport::{available_ports, SerialPortInfo, SerialPortType};
 
 use crate::{
     cli::{config::UsbDevice, Config, ConnectArgs},
@@ -26,7 +25,7 @@ pub fn get_serial_port_info(
     // Users may optionally specify the device's VID and PID in the configuration
     // file. If no VID/PID has been provided, the user will always be prompted to
     // select a serial port. If some VID and PID were provided then the user will
-    // also be prompted to select a port, unless there is only one found and its VID
+    // also be prompted to select a port, unless there is only one found whose VID
     // and PID match the configured values.
     //
     // The call to canonicalize() was originally added to resolve
@@ -186,53 +185,50 @@ fn select_serial_port(
     mut ports: Vec<SerialPortInfo>,
     config: &Config,
 ) -> Result<(SerialPortInfo, bool), Error> {
-    fn device_matches(config: &Config, info: &UsbPortInfo) -> bool {
-        config
+    // Does this port match a known one?
+    let matches = |port: &SerialPortInfo| match &port.port_type {
+        SerialPortType::UsbPort(info) => config
             .usb_device
             .iter()
             .chain(KNOWN_DEVICES.iter())
-            .any(|dev| dev.matches(info))
-    }
+            .any(|dev| dev.matches(info)),
+        _ => false,
+    };
 
-    if ports.len() > 1 {
-        // Multiple serial ports detected
+    if let [port] = ports
+        .iter()
+        .filter(|&p| matches(p))
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        // There is a unique recognized device.
+        Ok(((*port).to_owned(), true))
+    } else if ports.len() > 1 {
+        // Multiple serial ports detected.
         info!("Detected {} serial ports", ports.len());
         info!("Ports which match a known common dev board are highlighted");
         info!("Please select a port");
 
-        ports.sort_by(|a, b| {
-            let a_matches = match &a.port_type {
-                SerialPortType::UsbPort(info) => device_matches(config, info),
-                _ => false,
-            };
-            let b_matches = match &b.port_type {
-                SerialPortType::UsbPort(info) => device_matches(config, info),
-                _ => false,
-            };
-            match (a_matches, b_matches) {
-                (true, true) | (false, false) => Ordering::Equal,
-                (true, false) => Ordering::Less,
-                (false, true) => Ordering::Greater,
-            }
-        });
+        ports.sort_by_key(|a| !matches(a));
 
         let port_names = ports
             .iter()
-            .map(|port_info| match &port_info.port_type {
-                SerialPortType::UsbPort(info) => {
-                    let formatted = if device_matches(config, info) {
-                        port_info.port_name.as_str().bold()
-                    } else {
-                        port_info.port_name.as_str().reset()
-                    };
-
-                    if let Some(product) = &info.product {
-                        format!("{} - {}", formatted, product)
-                    } else {
-                        formatted.to_string()
+            .map(|port_info| {
+                let formatted = if matches(&port_info) {
+                    port_info.port_name.as_str().bold()
+                } else {
+                    port_info.port_name.as_str().reset()
+                };
+                match &port_info.port_type {
+                    SerialPortType::UsbPort(info) => {
+                        if let Some(product) = &info.product {
+                            format!("{} - {}", formatted, product)
+                        } else {
+                            formatted.to_string()
+                        }
                     }
+                    _ => formatted.to_string(),
                 }
-                _ => port_info.port_name.clone(),
             })
             .collect::<Vec<_>>();
 
@@ -250,37 +246,19 @@ fn select_serial_port(
             .ok_or(Error::Cancelled)?;
 
         match ports.get(index) {
-            Some(port_info) => {
-                let matches = if let SerialPortType::UsbPort(usb_info) = &port_info.port_type {
-                    device_matches(config, usb_info)
-                } else {
-                    false
-                };
-
-                Ok((port_info.to_owned(), matches))
-            }
+            Some(port_info) => Ok((port_info.to_owned(), matches(port_info))),
             None => Err(Error::SerialNotFound(
                 port_names.get(index).unwrap().to_string(),
             )),
         }
     } else if let [port] = ports.as_slice() {
-        // Single serial port detected
+        // A single port, but we didn't recognize it. Prompt for confirmation.
         let port_name = port.port_name.clone();
-        let port_info = match &port.port_type {
-            SerialPortType::UsbPort(info) => info,
-            SerialPortType::PciPort | SerialPortType::Unknown => &UsbPortInfo {
-                vid: 0,
-                pid: 0,
-                serial_number: None,
-                manufacturer: None,
-                product: None,
-            },
-            _ => unreachable!(),
+        let product = match &port.port_type {
+            SerialPortType::UsbPort(info) => info.product.as_ref(),
+            _ => None,
         };
-
-        if device_matches(config, port_info) {
-            Ok((port.to_owned(), true))
-        } else if confirm_port(&port_name, port_info)? {
+        if confirm_port(&port_name, product)? {
             Ok((port.to_owned(), false))
         } else {
             Err(Error::SerialNotFound(port_name))
@@ -292,10 +270,10 @@ fn select_serial_port(
 }
 
 /// Ask the user to confirm the use of a serial port.
-fn confirm_port(port_name: &str, port_info: &UsbPortInfo) -> Result<bool, Error> {
+fn confirm_port(port_name: &str, product: Option<&String>) -> Result<bool, Error> {
     Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt({
-            if let Some(product) = &port_info.product {
+            if let Some(product) = product {
                 format!("Use serial port '{}' - {}?", port_name, product)
             } else {
                 format!("Use serial port '{}'?", port_name)
