@@ -1,6 +1,6 @@
-use std::{borrow::Cow, io::Write, iter::once};
+use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
 
-use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
+use bytemuck::{bytes_of, from_bytes};
 use esp_idf_part::{PartitionTable, Type};
 use sha2::{Digest, Sha256};
 
@@ -9,28 +9,14 @@ use crate::{
     error::Error,
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{
-        encode_flash_frequency, update_checksum, EspCommonHeader, ImageFormat, SegmentHeader,
-        ESP_CHECKSUM_MAGIC, ESP_MAGIC, WP_PIN_DISABLED,
+        update_checksum, ImageFormat, ImageHeader, SegmentHeader, ESP_CHECKSUM_MAGIC, ESP_MAGIC,
+        WP_PIN_DISABLED,
     },
     targets::{Chip, Esp32Params},
 };
 
 const IROM_ALIGN: u32 = 0x10000;
 const SEG_HEADER_LEN: u32 = 8;
-
-/// Wrapper for the extended header used by the ESP-IDF bootloader
-#[derive(Debug, Default, Clone, Copy, Pod, Zeroable)]
-#[repr(C)]
-struct ExtendedHeader {
-    wp_pin: u8,
-    clk_q_drv: u8,
-    d_cs_drv: u8,
-    gd_wp_drv: u8,
-    chip_id: u16,
-    min_rev: u8,
-    padding: [u8; 8],
-    append_digest: u8,
-}
 
 /// Image format for ESP32 family chips using the second-stage bootloader from
 /// ESP-IDF
@@ -62,10 +48,8 @@ impl<'a> IdfBootloaderFormat<'a> {
             Cow::Borrowed(params.default_bootloader)
         };
 
-        let mut data = Vec::new();
-
         // fetch the generated header from the bootloader
-        let mut header: EspCommonHeader = *from_bytes(&bootloader[0..8]);
+        let mut header: ImageHeader = *from_bytes(&bootloader[0..size_of::<ImageHeader>()]);
         if header.magic != ESP_MAGIC {
             return Err(Error::InvalidBootloader);
         }
@@ -73,41 +57,29 @@ impl<'a> IdfBootloaderFormat<'a> {
         // update the header if a user has specified any custom arguments
         if let Some(mode) = flash_mode {
             header.flash_mode = mode as u8;
-            bootloader.to_mut()[2] = bytes_of(&header)[2];
         }
 
-        match (flash_size, flash_freq) {
-            (Some(s), Some(f)) => {
-                header.flash_config = encode_flash_size(s)? + encode_flash_frequency(chip, f)?;
-                bootloader.to_mut()[3] = bytes_of(&header)[3];
-            }
-            (Some(s), None) => {
-                header.flash_config = encode_flash_size(s)? + (header.flash_config & 0x0F);
-                bootloader.to_mut()[3] = bytes_of(&header)[3];
-            }
-            (None, Some(f)) => {
-                header.flash_config =
-                    (header.flash_config & 0xF0) + encode_flash_frequency(chip, f)?;
-                bootloader.to_mut()[3] = bytes_of(&header)[3];
-            }
-            (None, None) => {} // nothing to update
-        }
+        header.write_flash_config(
+            flash_size.unwrap_or_default(),
+            flash_freq.unwrap_or_default(),
+            chip,
+        )?;
+
+        bootloader.to_mut().splice(
+            0..size_of::<ImageHeader>(),
+            bytes_of(&header).iter().copied(),
+        );
 
         // write the header of the app
         // use the same settings as the bootloader
         // just update the entry point
         header.entry = image.entry();
-        data.write_all(bytes_of(&header))?;
 
-        let extended_header = ExtendedHeader {
-            wp_pin: WP_PIN_DISABLED,
-            chip_id: params.chip_id,
-            append_digest: 1,
+        header.wp_pin = WP_PIN_DISABLED;
+        header.chip_id = params.chip_id;
+        header.append_digest = 1;
 
-            ..ExtendedHeader::default()
-        };
-
-        data.write_all(bytes_of(&extended_header))?;
+        let mut data = bytes_of(&header).to_vec();
 
         let flash_segments: Vec<_> = merge_adjacent_segments(image.rom_segments(chip).collect());
         let mut ram_segments: Vec<_> = merge_adjacent_segments(image.ram_segments(chip).collect());
@@ -237,23 +209,6 @@ impl<'a> ImageFormat<'a> for IdfBootloaderFormat<'a> {
 
     fn part_size(&self) -> Option<u32> {
         Some(self.part_size)
-    }
-}
-
-/// Enconde the flash size into the format used by the bootloader.
-fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
-    use FlashSize::*;
-
-    match size {
-        _1Mb => Ok(0x00),
-        _2Mb => Ok(0x10),
-        _4Mb => Ok(0x20),
-        _8Mb => Ok(0x30),
-        _16Mb => Ok(0x40),
-        _32Mb => Ok(0x19),
-        _64Mb => Ok(0x1a),
-        _128Mb => Ok(0x21),
-        _ => Err(Error::UnsupportedFlash(size as u8)),
     }
 }
 

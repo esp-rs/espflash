@@ -7,8 +7,7 @@ use crate::{
     error::Error,
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{
-        encode_flash_frequency, update_checksum, EspCommonHeader, ImageFormat, SegmentHeader,
-        ESP_CHECKSUM_MAGIC, ESP_MAGIC,
+        update_checksum, ImageFormat, ImageHeader, SegmentHeader, ESP_CHECKSUM_MAGIC, ESP_MAGIC,
     },
     targets::Chip,
 };
@@ -39,19 +38,20 @@ impl<'a> Esp8266Format<'a> {
 
         // Common header
         let flash_mode = flash_mode.unwrap_or_default() as u8;
-        let flash_freq = flash_freq.unwrap_or_default();
-        let flash_size = flash_size.unwrap_or_default();
-        let flash_config =
-            encode_flash_size(flash_size)? + encode_flash_frequency(Chip::Esp8266, flash_freq)?;
         let segment_count = image.ram_segments(Chip::Esp8266).count() as u8;
 
-        let header = EspCommonHeader {
+        let mut header = ImageHeader {
             magic: ESP_MAGIC,
             segment_count,
             flash_mode,
-            flash_config,
             entry: image.entry(),
+            ..Default::default()
         };
+        header.write_flash_config(
+            flash_size.unwrap_or_default(),
+            flash_freq.unwrap_or_default(),
+            Chip::Esp8266,
+        )?;
         common_data.write_all(bytes_of(&header))?;
 
         let mut total_len = 8;
@@ -161,21 +161,6 @@ fn merge_rom_segments<'a>(
         addr: first.addr - IROM_MAP_START,
         data: Cow::Owned(data),
     })
-}
-
-fn encode_flash_size(size: FlashSize) -> Result<u8, Error> {
-    use FlashSize::*;
-
-    match size {
-        _256Kb => Ok(0x10),
-        _512Kb => Ok(0x00),
-        _1Mb => Ok(0x20),
-        _2Mb => Ok(0x30),
-        _4Mb => Ok(0x40),
-        _8Mb => Ok(0x80),
-        _16Mb => Ok(0x90),
-        _ => Err(Error::UnsupportedFlash(size as u8)),
-    }
 }
 
 #[cfg(test)]
