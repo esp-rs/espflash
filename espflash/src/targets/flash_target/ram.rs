@@ -1,12 +1,12 @@
 use bytemuck::{Pod, Zeroable};
 
-use super::FlashTarget;
 use crate::{
     command::{Command, CommandType},
     connection::Connection,
     elf::RomSegment,
     error::Error,
     flasher::ProgressCallbacks,
+    targets::FlashTarget,
 };
 
 pub(crate) const MAX_RAM_BLOCK_SIZE: usize = 0x1800;

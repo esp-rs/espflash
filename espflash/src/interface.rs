@@ -38,6 +38,7 @@ pub struct Interface {
     pub rts: Option<OutputPin>,
 }
 
+/// Set the level of a GPIO
 #[cfg(feature = "raspberry")]
 fn write_gpio(gpio: &mut OutputPin, level: bool) {
     if level {
@@ -47,6 +48,7 @@ fn write_gpio(gpio: &mut OutputPin, level: bool) {
     }
 }
 
+/// Open a serial port
 fn open_port(port_info: &SerialPortInfo) -> Result<Box<dyn SerialPort>> {
     serialport::new(&port_info.port_name, 115_200)
         .flow_control(FlowControl::None)
@@ -99,6 +101,7 @@ impl Interface {
         })
     }
 
+    /// Set the level of the DTR pin
     pub fn write_data_terminal_ready(&mut self, pin_state: bool) -> serialport::Result<()> {
         #[cfg(feature = "raspberry")]
         if let Some(gpio) = self.dtr.as_mut() {
@@ -109,6 +112,7 @@ impl Interface {
         self.serial_port.write_data_terminal_ready(pin_state)
     }
 
+    /// Set the level of the RTS pin
     pub fn write_request_to_send(&mut self, pin_state: bool) -> serialport::Result<()> {
         #[cfg(feature = "raspberry")]
         if let Some(gpio) = self.rts.as_mut() {
@@ -119,20 +123,23 @@ impl Interface {
         self.serial_port.write_request_to_send(pin_state)
     }
 
+    /// Turn an [Interface] into a [SerialPort]
     pub fn into_serial(self) -> Box<dyn SerialPort> {
         self.serial_port
     }
 
+    /// Turn an [Interface] into a `&`[SerialPort]
     pub fn serial_port(&self) -> &dyn SerialPort {
         self.serial_port.as_ref()
     }
 
+    /// Turn an [Interface] into a  `&mut `[SerialPort]
     pub fn serial_port_mut(&mut self) -> &mut dyn SerialPort {
         self.serial_port.as_mut()
     }
 }
 
-// Note(dbuga): this impl is necessary because using `dyn SerialPort` as `dyn
+// Note(dbuga): this `impl` is necessary because using `dyn SerialPort` as `dyn
 // Read` requires trait_upcasting which isn't stable yet.
 impl Read for Interface {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {

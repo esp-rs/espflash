@@ -2,13 +2,13 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, MAX_RAM_BLOCK_SIZE};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
     flasher::{FlashFrequency, FlashMode, FlashSize, FLASH_WRITE_SIZE},
     image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatKind},
+    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, MAX_RAM_BLOCK_SIZE},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x0000_07c6];
@@ -32,6 +32,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
 pub struct Esp32s2;
 
 impl Esp32s2 {
+    /// Return if the connection is USB OTG
     fn connection_is_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
         const UARTDEV_BUF_NO: u32 = 0x3fff_fd14; // Address which indicates OTG in use
         const UARTDEV_BUF_NO_USB_OTG: u32 = 2; // Value of UARTDEV_BUF_NO when OTG is in use
@@ -39,6 +40,7 @@ impl Esp32s2 {
         Ok(connection.read_reg(UARTDEV_BUF_NO)? == UARTDEV_BUF_NO_USB_OTG)
     }
 
+    /// Return the block2 version based on eFuses
     fn get_block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let blk2_word4 = self.read_efuse(connection, 27)?;
         let block2_version = (blk2_word4 >> 4) & 0x7;
@@ -46,6 +48,7 @@ impl Esp32s2 {
         Ok(block2_version)
     }
 
+    /// Return the flash version based on eFuses
     fn get_flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let blk1_word3 = self.read_efuse(connection, 20)?;
         let flash_version = (blk1_word3 >> 21) & 0xf;
@@ -53,6 +56,7 @@ impl Esp32s2 {
         Ok(flash_version)
     }
 
+    /// Return the psram version based on eFuses
     fn get_psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let blk1_word3 = self.read_efuse(connection, 20)?;
         let psram_version = (blk1_word3 >> 28) & 0xf;
@@ -60,6 +64,7 @@ impl Esp32s2 {
         Ok(psram_version)
     }
 
+    /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }

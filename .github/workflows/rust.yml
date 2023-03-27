@@ -103,4 +103,4 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       # `too_many_arguments` is relatively arbitrary
-      - run: cargo clippy -- -A clippy::too_many_arguments
+      - run: cargo clippy -- -A clippy::too_many_arguments -D warnings

@@ -2,13 +2,13 @@ use std::{collections::HashMap, ops::Range};
 
 use esp_idf_part::PartitionTable;
 
-use super::{bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
+    targets::{bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
@@ -38,6 +38,7 @@ const XTAL_CLK_DIVIDER: u32 = 1;
 pub struct Esp32c2;
 
 impl Esp32c2 {
+    /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }

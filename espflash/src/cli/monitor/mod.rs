@@ -37,6 +37,7 @@ lazy_static! {
     static ref RE_FN_ADDR: Regex = Regex::new(r"0x[[:xdigit:]]{8}").unwrap();
 }
 
+/// Context for the serial monitor
 #[derive(Default)]
 struct SerialContext<'ctx> {
     symbols: Option<Symbols<'ctx>>,
@@ -53,6 +54,7 @@ impl<'ctx> SerialContext<'ctx> {
     }
 }
 
+/// Type that ensures that raw mode is disabled when dropped.
 struct RawModeGuard;
 
 impl RawModeGuard {
@@ -65,7 +67,7 @@ impl RawModeGuard {
 impl Drop for RawModeGuard {
     fn drop(&mut self) {
         if let Err(e) = disable_raw_mode() {
-            error!("{:#}", e)
+            error!("Failed to disable raw_mode: {:#}", e)
         }
     }
 }
@@ -140,6 +142,7 @@ pub fn monitor(
     Ok(())
 }
 
+/// Handles and writes the received serial data to the given output stream.
 fn handle_serial(ctx: &mut SerialContext, buff: &[u8], out: &mut dyn Write) {
     let text: Vec<u8> = normalized(buff.iter().copied()).collect();
     let text = String::from_utf8_lossy(&text).to_string();
@@ -256,7 +259,7 @@ fn handle_key_event(key_event: KeyEvent) -> Option<Vec<u8>> {
             if key_event.modifiers & KeyModifiers::CONTROL == KeyModifiers::CONTROL {
                 buf[0] = ch as u8;
 
-                if ('a'..='z').contains(&ch) || (ch == ' ') {
+                if ch.is_ascii_lowercase() || (ch == ' ') {
                     buf[0] &= 0x1f;
                     Some(&buf[0..1])
                 } else if ('4'..='7').contains(&ch) {

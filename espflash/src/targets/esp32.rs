@@ -2,13 +2,13 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::{bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatKind},
+    targets::{bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x00f0_1d83];
@@ -35,10 +35,12 @@ const XTAL_CLK_DIVIDER: u32 = 1;
 pub struct Esp32;
 
 impl Esp32 {
+    /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }
 
+    /// Return the package version based on the eFuses
     fn package_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let word3 = self.read_efuse(connection, 3)?;
 

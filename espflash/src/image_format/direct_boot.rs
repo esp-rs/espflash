@@ -1,11 +1,12 @@
 use std::iter::once;
 
-use super::ImageFormat;
 use crate::{
     elf::{CodeSegment, FirmwareImage, RomSegment},
     error::Error,
+    image_format::ImageFormat,
 };
 
+/// Magic number for Direct boot which should be the first 8 bytes in flash
 const DIRECT_BOOT_MAGIC: &[u8] = &[0x1d, 0x04, 0xdb, 0xae, 0x1d, 0x04, 0xdb, 0xae];
 
 /// Image format for ESP32 family chips not using a second-stage bootloader

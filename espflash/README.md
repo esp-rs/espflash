@@ -42,8 +42,8 @@ If you would like to flash from a Raspberry Pi using the built-in UART periphera
 cargo install espflash --features=raspberry
 ```
 
-[libuv]: (https://libuv.org/)
-[cargo-binstall]: (https://github.com/cargo-bins/cargo-binstall)
+[libuv]: https://libuv.org/
+[cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
 [releases]: https://github.com/esp-rs/espflash/releases
 
 ## Usage

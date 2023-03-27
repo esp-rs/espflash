@@ -6,6 +6,8 @@ use addr2line::{
     Context,
 };
 
+// Wrapper around addr2line that allows to look up function names and
+// locations from a given address.
 pub(crate) struct Symbols<'sym> {
     file: File<'sym, &'sym [u8]>,
     ctx: Context<EndianRcSlice<RunTimeEndian>>,
@@ -18,7 +20,7 @@ impl<'sym> Symbols<'sym> {
 
         Ok(Self { file, ctx })
     }
-
+    /// Returns the name of the function at the given address, if one can be found.
     pub fn get_name(&self, addr: u64) -> Option<String> {
         // The basic steps here are:
         //   1. find which frame `addr` is in
@@ -44,6 +46,7 @@ impl<'sym> Symbols<'sym> {
             })
     }
 
+    /// Returns the file name and line number of the function at the given address, if one can be.
     pub fn get_location(&self, addr: u64) -> Option<(String, u32)> {
         // Find the location which `addr` is in. If we can dedetermine a file name and
         // line number for this function we will return them both in a tuple.

@@ -30,9 +30,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// Display information about the connected board and exit without flashing
     BoardInfo(ConnectArgs),
-    /// Flash an application to a target device
     Flash(FlashArgs),
     Monitor(MonitorArgs),
     PartitionTable(PartitionTableArgs),
@@ -42,30 +40,32 @@ enum Commands {
 
 #[derive(Debug, Args)]
 struct FlashArgs {
-    /// ELF image to flash
-    image: PathBuf,
-
+    /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
+    /// Flashing configuration
     #[clap(flatten)]
     pub flash_config_args: FlashConfigArgs,
+    /// Flashing arguments
     #[clap(flatten)]
     flash_args: cli::FlashArgs,
+    /// ELF image to flash
+    image: PathBuf,
 }
 
 #[derive(Debug, Args)]
 struct SaveImageArgs {
+    /// ELF image to flash
+    image: PathBuf,
     /// Image format to flash
     #[arg(long, value_enum)]
     format: Option<ImageFormatKind>,
-
+    /// Flashing configuration
     #[clap(flatten)]
     pub flash_config_args: FlashConfigArgs,
+    /// Sage image arguments
     #[clap(flatten)]
     save_image_args: cli::SaveImageArgs,
-
-    /// ELF image to flash
-    image: PathBuf,
 }
 
 /// Writes a binary file to a specific address in the chip's flash
@@ -76,11 +76,12 @@ struct WriteBinArgs {
     pub addr: u32,
     /// File containing the binary data to write
     pub bin_file: String,
-
+    /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
 }
 
+/// Parses a string as a 32-bit unsigned integer.
 fn parse_uint32(input: &str) -> Result<u32, ParseIntError> {
     parse_int::parse(input)
 }

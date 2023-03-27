@@ -2,13 +2,13 @@ use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
 
-use super::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashFrequency, FlashMode, FlashSize},
     image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
+    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x2CE0_806F];
@@ -30,6 +30,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
 pub struct Esp32c6;
 
 impl Esp32c6 {
+    /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }
