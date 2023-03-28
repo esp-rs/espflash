@@ -15,6 +15,7 @@ use std::{
 };
 
 use clap::Args;
+use clap_complete::Shell;
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
@@ -57,6 +58,16 @@ pub struct ConnectArgs {
     /// Do not use the RAM stub for loading
     #[arg(long)]
     pub no_stub: bool,
+}
+
+/// Generate completions for the given shell
+#[derive(Debug, Args)]
+pub struct CompletionsArgs {
+    /// Verbosity level of the logs.
+    #[arg(short = 'l', long, default_value = "info", value_parser = ["debug", "info", "warn", "error"])]
+    pub log_level: String,
+    /// Shell to generate completions for.
+    pub shell: Shell,
 }
 
 /// Configure communication with the target device's flash
@@ -213,6 +224,13 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
 pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(args, config)?;
     print_board_info(&mut flasher)?;
+
+    Ok(())
+}
+
+/// Connect to a target device and print information about its chip
+pub fn completions(args: &CompletionsArgs, app: &mut clap::Command) -> Result<()> {
+    clap_complete::generate(args.shell, app, "espflash", &mut std::io::stdout());
 
     Ok(())
 }
