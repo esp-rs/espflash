@@ -31,7 +31,7 @@ bytemuck = { version = "1.12.3", features = ["derive"] }
 clap = { version = "4.0.32", features = ["derive", "env"], optional = true }
 comfy-table = { version = "6.1.4", optional = true }
 crossterm = { version = "0.26.1", optional = true }
-ctrlc = "3.2.5"
+ctrlc = { version = "3.2.5", optional = true }
 dialoguer = { version = "0.10.2", optional = true }
 directories-next = { version = "2.0.0", optional = true }
 env_logger = { version = "0.10.0", optional = true }
@@ -62,6 +62,7 @@ cli = [
     "dep:clap",
     "dep:comfy-table",
     "dep:crossterm",
+    "dep:ctrlc",
     "dep:dialoguer",
     "dep:directories-next",
     "dep:env_logger",
