@@ -230,7 +230,7 @@ pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
 
 /// Connect to a target device and print information about its chip
 pub fn completions(args: &CompletionsArgs, app: &mut clap::Command) -> Result<()> {
-    clap_complete::generate(args.shell, app, "espflash", &mut std::io::stdout());
+    clap_complete::generate(args.shell, app, clap::crate_name!(), &mut std::io::stdout());
 
     Ok(())
 }
