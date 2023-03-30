@@ -2,7 +2,7 @@
 //!
 //! Since the ESP8266 is not supported by ESP-IDF, it has its own image format
 //! which must be used. All other devices support the ESP-IDF bootloader format.
-//! Certain devices additionall support direct boot, which needs its own unique
+//! Certain devices additionally support direct boot, which needs its own unique
 //! image format.
 
 use std::str::FromStr;
@@ -31,8 +31,9 @@ const WP_PIN_DISABLED: u8 = 0xEE;
 
 /// Firmware header used by the ESP-IDF bootloader.
 ///
-/// [Header documentation](https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/firmware-image-format.html#file-header)
-/// [Extended header documentation](https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/firmware-image-format.html#extended-file-header)
+/// ## Header documentation:
+/// * [Header](https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/firmware-image-format.html#file-header)
+/// * [Extended header](https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/firmware-image-format.html#extended-file-header)
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C, packed)]
 #[doc(alias = "esp_image_header_t")]
@@ -86,6 +87,11 @@ impl Default for ImageHeader {
 }
 
 impl ImageHeader {
+    /// Header size without extended part.
+    ///
+    /// [ESP8266 header format](https://docs.espressif.com/projects/esptool/en/latest/esp8266/advanced-topics/firmware-image-format.html#file-header)
+    pub const COMMON_HEADER_LEN: u32 = 8;
+
     /// Updates flash size and speed filed.
     pub fn write_flash_config(
         &mut self,

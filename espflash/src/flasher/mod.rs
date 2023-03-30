@@ -69,6 +69,7 @@ pub enum FlashFrequency {
 }
 
 impl FlashFrequency {
+    /// Encodes flash frequency into the format used by the bootloader.
     pub fn encode_flash_frequency(self: FlashFrequency, chip: Chip) -> Result<u8, Error> {
         let encodings = chip.into_target().flash_frequency_encodings();
         if let Some(&f) = encodings.get(&self) {

@@ -52,9 +52,11 @@ impl<'a> Esp8266Format<'a> {
             flash_freq.unwrap_or_default(),
             Chip::Esp8266,
         )?;
-        common_data.write_all(bytes_of(&header))?;
 
-        let mut total_len = 8;
+        // Esp8266 does not have extended header
+        let mut total_len = ImageHeader::COMMON_HEADER_LEN;
+        common_data.write_all(&bytes_of(&header)[0..total_len as usize])?;
+
         let mut checksum = ESP_CHECKSUM_MAGIC;
 
         for segment in image.ram_segments(Chip::Esp8266) {
