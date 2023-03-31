@@ -68,6 +68,21 @@ pub enum FlashFrequency {
     _80Mhz,
 }
 
+impl FlashFrequency {
+    /// Encodes flash frequency into the format used by the bootloader.
+    pub fn encode_flash_frequency(self: FlashFrequency, chip: Chip) -> Result<u8, Error> {
+        let encodings = chip.into_target().flash_frequency_encodings();
+        if let Some(&f) = encodings.get(&self) {
+            Ok(f)
+        } else {
+            Err(Error::UnsupportedFlashFrequency {
+                chip,
+                frequency: self,
+            })
+        }
+    }
+}
+
 /// Supported flash modes
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Copy, Clone, Debug, Default, EnumVariantNames)]
@@ -93,50 +108,95 @@ pub enum FlashMode {
 #[non_exhaustive]
 #[repr(u8)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+#[doc(alias("esp_image_flash_size_t"))]
 pub enum FlashSize {
     /// 256 KB
-    _256Kb = 0x12,
+    _256Kb,
     /// 512 KB
-    _512Kb = 0x13,
+    _512Kb,
     /// 1 MB
-    _1Mb = 0x14,
+    _1Mb,
     /// 2 MB
-    _2Mb = 0x15,
+    _2Mb,
     /// 4 MB
     #[default]
-    _4Mb = 0x16,
+    _4Mb,
     /// 8 MB
-    _8Mb = 0x17,
+    _8Mb,
     /// 16 MB
-    _16Mb = 0x18,
+    _16Mb,
     /// 32 MB
-    _32Mb = 0x19,
+    _32Mb,
     /// 64 MB
-    _64Mb = 0x1a,
+    _64Mb,
     /// 128 MB
-    _128Mb = 0x21,
+    _128Mb,
+    /// 256 MB
+    _256Mb,
 }
 
 impl FlashSize {
-    /// Create a `FlashSize` from an `u8`
-    fn from(value: u8) -> Result<FlashSize, Error> {
+    /// Encodes flash size into the format used by the bootloader.
+    ///
+    /// ## Values:
+    /// * [Esp8266](https://docs.espressif.com/projects/esptool/en/latest/esp8266/advanced-topics/firmware-image-format.html#file-header)
+    /// * [Others](https://docs.espressif.com/projects/esptool/en/latest/esp32s3/advanced-topics/firmware-image-format.html#file-header)
+    pub const fn encode_flash_size(self: FlashSize, chip: Chip) -> Result<u8, Error> {
+        use FlashSize::*;
+
+        let encoded = match chip {
+            Chip::Esp8266 => match self {
+                _256Kb => 1,
+                _512Kb => 0,
+                _1Mb => 2,
+                _2Mb => 3,
+                _4Mb => 4,
+                // Currently not supported
+                // _2Mb_c1 => 5,
+                // _4Mb_c1 => 6,
+                _8Mb => 8,
+                _16Mb => 9,
+                _ => return Err(Error::UnsupportedFlash(self as u8)),
+            },
+            _ => match self {
+                _1Mb => 0,
+                _2Mb => 1,
+                _4Mb => 2,
+                _8Mb => 3,
+                _16Mb => 4,
+                _32Mb => 5,
+                _64Mb => 6,
+                _128Mb => 7,
+                _256Mb => 8,
+                _ => return Err(Error::UnsupportedFlash(self as u8)),
+            },
+        };
+
+        Ok(encoded)
+    }
+
+    /// Create a [FlashSize] from an [u8]
+    ///
+    /// [source](https://github.com/espressif/esptool/blob/f4d2510e2c897621884f433ef3f191e8fc5ff184/esptool/cmds.py#L42)
+    const fn from_detected(value: u8) -> Result<FlashSize, Error> {
         match value {
-            0x12 => Ok(FlashSize::_256Kb),
-            0x13 => Ok(FlashSize::_512Kb),
-            0x14 => Ok(FlashSize::_1Mb),
-            0x15 => Ok(FlashSize::_2Mb),
-            0x16 => Ok(FlashSize::_4Mb),
-            0x17 => Ok(FlashSize::_8Mb),
-            0x18 => Ok(FlashSize::_16Mb),
-            0x19 => Ok(FlashSize::_32Mb),
-            0x1a => Ok(FlashSize::_64Mb),
-            0x21 => Ok(FlashSize::_128Mb),
+            0x12 | 0x32 => Ok(FlashSize::_256Kb),
+            0x13 | 0x33 => Ok(FlashSize::_512Kb),
+            0x14 | 0x34 => Ok(FlashSize::_1Mb),
+            0x15 | 0x35 => Ok(FlashSize::_2Mb),
+            0x16 | 0x36 => Ok(FlashSize::_4Mb),
+            0x17 | 0x37 => Ok(FlashSize::_8Mb),
+            0x18 | 0x38 => Ok(FlashSize::_16Mb),
+            0x19 | 0x39 => Ok(FlashSize::_32Mb),
+            0x20 | 0x1A | 0x3A => Ok(FlashSize::_64Mb),
+            0x21 | 0x1B => Ok(FlashSize::_128Mb),
+            0x22 | 0x1C => Ok(FlashSize::_256Mb),
             _ => Err(Error::UnsupportedFlash(value)),
         }
     }
 
-    /// Return the flash size in bytes
-    pub fn size(self) -> u32 {
+    /// Returns the flash size in bytes
+    pub const fn size(self) -> u32 {
         match self {
             FlashSize::_256Kb => 0x0040000,
             FlashSize::_512Kb => 0x0080000,
@@ -148,6 +208,7 @@ impl FlashSize {
             FlashSize::_32Mb => 0x2000000,
             FlashSize::_64Mb => 0x4000000,
             FlashSize::_128Mb => 0x8000000,
+            FlashSize::_256Mb => 0x10000000,
         }
     }
 }
@@ -450,7 +511,7 @@ impl Flasher {
             return Ok(None);
         }
 
-        let flash_size = match FlashSize::from(size_id) {
+        let flash_size = match FlashSize::from_detected(size_id) {
             Ok(size) => size,
             Err(_) => {
                 warn!(
@@ -458,7 +519,7 @@ impl Flasher {
                     flash_id,
                     size_id
                 );
-                FlashSize::_4Mb
+                FlashSize::default()
             }
         };
 
