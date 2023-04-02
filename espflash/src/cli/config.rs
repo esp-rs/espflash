@@ -15,7 +15,6 @@ use std::{
 use directories_next::ProjectDirs;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};
-use serde_hex::{Compact, SerHex};
 use serialport::UsbPortInfo;
 
 /// A configured, known serial connection
@@ -35,10 +34,8 @@ pub struct Connection {
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct UsbDevice {
     /// USB Vendor ID
-    #[serde(with = "SerHex::<Compact>")]
     pub vid: u16,
     /// USB Product ID
-    #[serde(with = "SerHex::<Compact>")]
     pub pid: u16,
 }
 
