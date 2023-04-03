@@ -214,7 +214,7 @@ fn select_serial_port(
         let port_names = ports
             .iter()
             .map(|port_info| {
-                let formatted = if matches(&port_info) {
+                let formatted = if matches(port_info) {
                     port_info.port_name.as_str().bold()
                 } else {
                     port_info.port_name.as_str().reset()
