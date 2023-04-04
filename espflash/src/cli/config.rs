@@ -50,7 +50,7 @@ where
     let bytes = hex::decode(if s.len() % 2 == 1 {
         format!("0{}", s)
     } else {
-        s.to_owned()
+        s
     })
     .map_err(serde::de::Error::custom)?;
     let padding = vec![0; 2 - bytes.len()];
