@@ -112,3 +112,53 @@ impl Config {
             .wrap_err_with(|| format!("Failed to write config to {}", self.save_path.display()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    struct TestData {
+        #[serde(deserialize_with = "parse_hex_u16")]
+        value: u16,
+    }
+
+    #[test]
+    fn test_parse_hex_u16() {
+        // Test no padding
+        let input = "aaaa";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert_eq!(result.unwrap().value, 0xaaaa);
+        let input = "1234";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert_eq!(result.unwrap().value, 0x1234);
+
+        // Test padding
+        let input = "a";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert_eq!(result.unwrap().value, 0x0a);
+
+        let input = "10";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert_eq!(result.unwrap().value, 0x10);
+
+        let input = "100";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert_eq!(result.unwrap().value, 0x0100);
+
+        // Test uppercase
+        let input = "A1B2";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert_eq!(result.unwrap().value, 0xA1B2);
+
+        // Test invalid
+        let input = "gg";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert!(result.is_err());
+
+        let input = "10gg";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert!(result.is_err());
+    }
+}
