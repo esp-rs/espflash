@@ -34,10 +34,10 @@ pub struct Connection {
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct UsbDevice {
     /// USB Vendor ID
-    #[serde(deserialize_with = "parse_hex_u16")]
+    #[serde(serialize_with = "parse_u16_hex", deserialize_with = "parse_hex_u16")]
     pub vid: u16,
     /// USB Product ID
-    #[serde(deserialize_with = "parse_hex_u16")]
+    #[serde(serialize_with = "parse_u16_hex", deserialize_with = "parse_hex_u16")]
     pub pid: u16,
 }
 
@@ -58,6 +58,14 @@ where
     let vec = [&padding[..], &bytes[..]].concat();
     let decimal = u16::from_be_bytes(vec.try_into().unwrap());
     Ok(decimal)
+}
+
+fn parse_u16_hex<S>(decimal: &u16, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let hex_string = format!("{:04x}", decimal);
+    serializer.serialize_str(&hex_string)
 }
 
 impl UsbDevice {
