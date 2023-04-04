@@ -15,7 +15,6 @@ use std::{
 use directories_next::ProjectDirs;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};
-use serde_hex::{Compact, SerHex};
 use serialport::UsbPortInfo;
 
 /// A configured, known serial connection
@@ -35,11 +34,36 @@ pub struct Connection {
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct UsbDevice {
     /// USB Vendor ID
-    #[serde(with = "SerHex::<Compact>")]
+    #[serde(serialize_with = "parse_u16_hex", deserialize_with = "parse_hex_u16")]
     pub vid: u16,
     /// USB Product ID
-    #[serde(with = "SerHex::<Compact>")]
+    #[serde(serialize_with = "parse_u16_hex", deserialize_with = "parse_hex_u16")]
     pub pid: u16,
+}
+
+fn parse_hex_u16<'de, D>(deserializer: D) -> Result<u16, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    let bytes = hex::decode(if s.len() % 2 == 1 {
+        format!("0{}", s)
+    } else {
+        s
+    })
+    .map_err(serde::de::Error::custom)?;
+    let padding = vec![0; 2_usize.saturating_sub(bytes.len())];
+    let vec = [&padding[..], &bytes[..]].concat();
+    let decimal = u16::from_be_bytes(vec.try_into().unwrap());
+    Ok(decimal)
+}
+
+fn parse_u16_hex<S>(decimal: &u16, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let hex_string = format!("{:04x}", decimal);
+    serializer.serialize_str(&hex_string)
 }
 
 impl UsbDevice {
@@ -92,5 +116,71 @@ impl Config {
         write(&self.save_path, serialized)
             .into_diagnostic()
             .wrap_err_with(|| format!("Failed to write config to {}", self.save_path.display()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize, Serialize)]
+    struct TestData {
+        #[serde(serialize_with = "parse_u16_hex", deserialize_with = "parse_hex_u16")]
+        value: u16,
+    }
+
+    #[test]
+    fn test_parse_hex_u16() {
+        // Test no padding
+        let result: Result<TestData, _> = toml::from_str(r#"value = "aaaa""#);
+        assert_eq!(result.unwrap().value, 0xaaaa);
+
+        let result: Result<TestData, _> = toml::from_str(r#"value = "1234""#);
+        assert_eq!(result.unwrap().value, 0x1234);
+
+        // Test padding
+        let result: Result<TestData, _> = toml::from_str(r#"value = "a""#);
+        assert_eq!(result.unwrap().value, 0x0a);
+
+        let result: Result<TestData, _> = toml::from_str(r#"value = "10""#);
+        assert_eq!(result.unwrap().value, 0x10);
+
+        let result: Result<TestData, _> = toml::from_str(r#"value = "100""#);
+        assert_eq!(result.unwrap().value, 0x0100);
+
+        // Test uppercase
+        let result: Result<TestData, _> = toml::from_str(r#"value = "A1B2""#);
+        assert_eq!(result.unwrap().value, 0xA1B2);
+
+        // Test invalid
+        let result: Result<TestData, _> = toml::from_str(r#"value = "gg""#);
+        assert!(result.is_err());
+
+        let result: Result<TestData, _> = toml::from_str(r#"value = "10gg""#);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_u16_hex() {
+        // Valid hexadecimal input with 1 digit
+        let result: Result<TestData, _> = toml::from_str(r#"value = "1""#);
+        assert_eq!(result.unwrap().value, 0x1);
+
+        // Valid hexadecimal input with 2 digits
+        let result: Result<TestData, _> = toml::from_str(r#"value = "ff""#);
+        assert_eq!(result.unwrap().value, 0xff);
+
+        // Valid hexadecimal input with 3 digits
+        let result: Result<TestData, _> = toml::from_str(r#"value = "b1a""#);
+        assert_eq!(result.unwrap().value, 0xb1a);
+
+        // Valid hexadecimal input with 4 digits
+        let result: Result<TestData, _> = toml::from_str(r#"value = "abc1""#);
+        assert_eq!(result.unwrap().value, 0xabc1);
+
+        // Invalid input (non-hexadecimal character)
+        let result: Result<TestData, _> = toml::from_str(r#"value = "xyz""#);
+        assert!(result.is_err());
     }
 }
