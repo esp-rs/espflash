@@ -164,28 +164,23 @@ mod tests {
     #[test]
     fn test_parse_u16_hex() {
         // Valid hexadecimal input with 1 digit
-        let input = "1";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        let result: Result<TestData, _> = toml::from_str(r#"value = "1""#);
         assert_eq!(result.unwrap().value, 0x1);
 
         // Valid hexadecimal input with 2 digits
-        let input = "ff";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        let result: Result<TestData, _> = toml::from_str(r#"value = "ff""#);
         assert_eq!(result.unwrap().value, 0xff);
 
         // Valid hexadecimal input with 3 digits
-        let input = "b1a";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        let result: Result<TestData, _> = toml::from_str(r#"value = "b1a""#);
         assert_eq!(result.unwrap().value, 0xb1a);
 
         // Valid hexadecimal input with 4 digits
-        let input = "abc1";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        let result: Result<TestData, _> = toml::from_str(r#"value = "abc1""#);
         assert_eq!(result.unwrap().value, 0xabc1);
 
         // Invalid input (non-hexadecimal character)
-        let input = "xyz";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        let result: Result<TestData, _> = toml::from_str(r#"value = "xyz""#);
         assert!(result.is_err());
     }
 }
