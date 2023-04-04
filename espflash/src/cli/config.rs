@@ -46,7 +46,6 @@ where
     D: serde::Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
-    // Check if the string is less than 4 digits, if so, pad it with 0s
     let bytes = hex::decode(if s.len() % 2 == 1 {
         format!("0{}", s)
     } else {
