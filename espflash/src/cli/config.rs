@@ -133,38 +133,31 @@ mod tests {
     #[test]
     fn test_parse_hex_u16() {
         // Test no padding
-        let input = "aaaa";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        let result: Result<TestData, _> = toml::from_str(r#"value = "aaaa""#);
         assert_eq!(result.unwrap().value, 0xaaaa);
-        let input = "1234";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+
+        let result: Result<TestData, _> = toml::from_str(r#"value = "1234""#);
         assert_eq!(result.unwrap().value, 0x1234);
 
         // Test padding
-        let input = "a";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        let result: Result<TestData, _> = toml::from_str(r#"value = "a""#);
         assert_eq!(result.unwrap().value, 0x0a);
 
-        let input = "10";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        let result: Result<TestData, _> = toml::from_str(r#"value = "10""#);
         assert_eq!(result.unwrap().value, 0x10);
 
-        let input = "100";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        let result: Result<TestData, _> = toml::from_str(r#"value = "100""#);
         assert_eq!(result.unwrap().value, 0x0100);
 
         // Test uppercase
-        let input = "A1B2";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        let result: Result<TestData, _> = toml::from_str(r#"value = "A1B2""#);
         assert_eq!(result.unwrap().value, 0xA1B2);
 
         // Test invalid
-        let input = "gg";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        let result: Result<TestData, _> = toml::from_str(r#"value = "gg""#);
         assert!(result.is_err());
 
-        let input = "10gg";
-        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        let result: Result<TestData, _> = toml::from_str(r#"value = "10gg""#);
         assert!(result.is_err());
     }
 
