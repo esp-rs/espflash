@@ -53,7 +53,7 @@ where
         s
     })
     .map_err(serde::de::Error::custom)?;
-    let padding = vec![0; 2 - bytes.len()];
+    let padding = vec![0; 2_usize.saturating_sub(bytes.len())];
     // Apend the padding before the bytes
     let vec = [&padding[..], &bytes[..]].concat();
     let decimal = u16::from_be_bytes(vec.try_into().unwrap());
