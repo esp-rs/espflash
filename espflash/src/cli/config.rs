@@ -15,7 +15,6 @@ use std::{
 use directories_next::ProjectDirs;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};
-use serde_hex::{Compact, SerHex};
 use serialport::UsbPortInfo;
 
 /// A configured, known serial connection
@@ -35,11 +34,30 @@ pub struct Connection {
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct UsbDevice {
     /// USB Vendor ID
-    #[serde(with = "SerHex::<Compact>")]
+    #[serde(deserialize_with = "parse_hex_u16")]
     pub vid: u16,
     /// USB Product ID
-    #[serde(with = "SerHex::<Compact>")]
+    #[serde(deserialize_with = "parse_hex_u16")]
     pub pid: u16,
+}
+
+fn parse_hex_u16<'de, D>(deserializer: D) -> Result<u16, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    // Check if the string is less than 4 digits, if so, pad it with 0s
+    let bytes = hex::decode(if s.len() % 2 == 1 {
+        format!("0{}", s)
+    } else {
+        s.to_owned()
+    })
+    .map_err(serde::de::Error::custom)?;
+    let padding = vec![0; 2 - bytes.len()];
+    // Apend the padding before the bytes
+    let vec = [&padding[..], &bytes[..]].concat();
+    let decimal = u16::from_be_bytes(vec.try_into().unwrap());
+    Ok(decimal)
 }
 
 impl UsbDevice {
