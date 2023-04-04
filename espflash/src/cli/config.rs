@@ -126,9 +126,9 @@ mod tests {
     use super::*;
     use serde::Deserialize;
 
-    #[derive(Debug, Deserialize)]
+    #[derive(Debug, Deserialize, Serialize)]
     struct TestData {
-        #[serde(deserialize_with = "parse_hex_u16")]
+        #[serde(serialize_with = "parse_u16_hex", deserialize_with = "parse_hex_u16")]
         value: u16,
     }
 
@@ -166,6 +166,34 @@ mod tests {
         assert!(result.is_err());
 
         let input = "10gg";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_u16_hex() {
+        // Valid hexadecimal input with 1 digit
+        let input = "1";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert_eq!(result.unwrap().value, 0x1);
+
+        // Valid hexadecimal input with 2 digits
+        let input = "ff";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert_eq!(result.unwrap().value, 0xff);
+
+        // Valid hexadecimal input with 3 digits
+        let input = "b1a";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert_eq!(result.unwrap().value, 0xb1a);
+
+        // Valid hexadecimal input with 4 digits
+        let input = "abc1";
+        let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
+        assert_eq!(result.unwrap().value, 0xabc1);
+
+        // Invalid input (non-hexadecimal character)
+        let input = "xyz";
         let result: Result<TestData, _> = toml::from_str(&format!("value = \"{}\"", input));
         assert!(result.is_err());
     }
