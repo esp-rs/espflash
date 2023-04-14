@@ -63,9 +63,6 @@ pub struct ConnectArgs {
 /// Generate completions for the given shell
 #[derive(Debug, Args)]
 pub struct CompletionsArgs {
-    /// Verbosity level of the logs.
-    #[arg(short = 'l', long, default_value = "info", value_parser = ["debug", "info", "warn", "error"])]
-    pub log_level: String,
     /// Shell to generate completions for.
     pub shell: Shell,
 }
