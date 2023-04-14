@@ -5,7 +5,8 @@ use std::{
 };
 
 use cargo_metadata::Message;
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, CommandFactory, Parser, Subcommand};
+use clap_complete::Shell;
 use espflash::{
     cli::{
         self, board_info, config::Config, connect, erase_partitions, flash_elf_image,
@@ -50,6 +51,7 @@ enum CargoSubcommand {
 #[derive(Debug, Subcommand)]
 enum Commands {
     BoardInfo(ConnectArgs),
+    Completions(CompletionsArgs),
     Flash(FlashArgs),
     Monitor(MonitorArgs),
     PartitionTable(PartitionTableArgs),
@@ -91,6 +93,12 @@ struct BuildArgs {
 
     #[clap(flatten)]
     pub flash_config_args: FlashConfigArgs,
+}
+
+#[derive(Debug, Args)]
+pub struct CompletionsArgs {
+    /// Shell to generate completions for.
+    pub shell: Shell,
 }
 
 /// Build and flash an application to a target device
@@ -137,6 +145,7 @@ fn main() -> Result<()> {
     // associated arguments.
     match args {
         Commands::BoardInfo(args) => board_info(&args, &config),
+        Commands::Completions(args) => completions(&args, &mut Cli::command()),
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
@@ -401,6 +410,13 @@ fn build(
     };
 
     Ok(build_ctx)
+}
+
+/// Generate shell completions for the given shell
+fn completions(args: &CompletionsArgs, app: &mut clap::Command) -> Result<()> {
+    clap_complete::generate(args.shell, app, "cargo", &mut std::io::stdout());
+
+    Ok(())
 }
 
 fn save_image(args: SaveImageArgs) -> Result<()> {
