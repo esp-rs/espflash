@@ -125,6 +125,7 @@ impl Connection {
         Ok(reset_after_flash(&mut self.serial, pid)?)
     }
 
+    #[cfg(unix)]
     fn classic_reset(&mut self, extra_delay: bool) -> Result<(), Error> {
         info!(
             "Attempting Classic reset with {} delay...",
