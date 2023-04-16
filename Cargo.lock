@@ -907,6 +907,7 @@ dependencies = [
  "hex 0.4.3",
  "indicatif",
  "lazy_static",
+ "libc",
  "log",
  "miette",
  "parse_int",

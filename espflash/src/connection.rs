@@ -54,11 +54,6 @@ impl Connection {
         for _ in 0..DEFAULT_CONNECT_ATTEMPTS {
             if self.connect_attempt(extra_delay).is_err() {
                 extra_delay = !extra_delay;
-
-                info!(
-                    "Unable to connect, retrying with {} delay...",
-                    if extra_delay { "extra" } else { "default" }
-                );
             } else {
                 return Ok(());
             }
@@ -69,8 +64,19 @@ impl Connection {
 
     /// Try to connect to a device
     fn connect_attempt(&mut self, extra_delay: bool) -> Result<(), Error> {
-        self.reset_to_flash(extra_delay)?;
+        if self.port_info.pid == USB_SERIAL_JTAG_PID {
+            self.usb_jtag_reset()
+        } else {
+            #[cfg(unix)]
+            if self.unix_tight_reset(extra_delay).is_ok() {
+                return Ok(())
+            }
 
+            self.classic_reset(extra_delay)
+        }
+    }
+
+    fn wait_for_connection(&mut self) -> Result<(), Error> {
         for _ in 0..5 {
             self.flush()?;
             if self.sync().is_ok() {
@@ -119,43 +125,76 @@ impl Connection {
         Ok(reset_after_flash(&mut self.serial, pid)?)
     }
 
-    // Reset the device to flash mode
-    pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
-        if self.port_info.pid == USB_SERIAL_JTAG_PID {
-            self.serial.write_data_terminal_ready(false)?;
-            self.serial.write_request_to_send(false)?;
+    fn classic_reset(&mut self, extra_delay: bool) -> Result<(), Error> {
+        info!(
+            "Attempting Classic reset with {} delay...",
+            if extra_delay { "extra" } else { "default" }
+        );
 
-            sleep(Duration::from_millis(100));
+        self.serial.write_data_terminal_ready(false)?;
+        self.serial.write_request_to_send(false)?;
 
-            self.serial.write_data_terminal_ready(true)?;
-            self.serial.write_request_to_send(false)?;
+        self.serial.write_data_terminal_ready(true)?;
+        self.serial.write_request_to_send(true)?;
 
-            sleep(Duration::from_millis(100));
+        self.serial.write_data_terminal_ready(false)?;
+        self.serial.write_request_to_send(true)?;
 
-            self.serial.write_request_to_send(true)?;
-            self.serial.write_data_terminal_ready(false)?;
-            self.serial.write_request_to_send(true)?;
+        sleep(Duration::from_millis(100));
 
-            sleep(Duration::from_millis(100));
+        self.serial.write_data_terminal_ready(true)?;
+        self.serial.write_request_to_send(false)?;
 
-            self.serial.write_data_terminal_ready(false)?;
-            self.serial.write_request_to_send(false)?;
-        } else {
-            self.serial.write_data_terminal_ready(false)?;
-            self.serial.write_request_to_send(true)?;
+        let millis = if extra_delay { 500 } else { 50 };
+        sleep(Duration::from_millis(millis));
 
-            sleep(Duration::from_millis(100));
+        self.serial.write_data_terminal_ready(false)?;
+        self.wait_for_connection()
+    }
 
-            self.serial.write_data_terminal_ready(true)?;
-            self.serial.write_request_to_send(false)?;
+    fn unix_tight_reset(&mut self, extra_delay: bool) -> Result<(), Error> {
+        info!(
+            "Attempting UnixTight reset with {} delay...",
+            if extra_delay { "extra" } else { "default" }
+        );
 
-            let millis = if extra_delay { 500 } else { 50 };
-            sleep(Duration::from_millis(millis));
+        self.serial.write_dtr_rts(false, false)?;
+        self.serial.write_dtr_rts(true, true)?;
+        self.serial.write_dtr_rts(false, true)?; // IO = HIGH, EN = LOW, chip in reset
 
-            self.serial.write_data_terminal_ready(false)?;
-        }
+        sleep(Duration::from_millis(100));
 
-        Ok(())
+        self.serial.write_dtr_rts(true, false)?; // IO0 = LOW, EN = HIGH, chip out of reset
+
+        let millis = if extra_delay { 500 } else { 50 };
+        sleep(Duration::from_millis(millis));
+
+        self.serial.write_dtr_rts(false, false)?; // IO0 = HIGH, done
+        self.serial.write_data_terminal_ready(false)?; // Needed in some environments to ensure IO0 = HIGH
+        self.wait_for_connection()
+    }
+
+    fn usb_jtag_reset(&mut self) -> Result<(), Error> {
+        info!("Attempting USB-JTAG reset...");
+        self.serial.write_data_terminal_ready(false)?;
+        self.serial.write_request_to_send(false)?;
+
+        sleep(Duration::from_millis(100));
+
+        self.serial.write_data_terminal_ready(true)?;
+        self.serial.write_request_to_send(false)?;
+
+        sleep(Duration::from_millis(100));
+
+        self.serial.write_request_to_send(true)?;
+        self.serial.write_data_terminal_ready(false)?;
+        self.serial.write_request_to_send(true)?;
+
+        sleep(Duration::from_millis(100));
+
+        self.serial.write_data_terminal_ready(false)?;
+        self.serial.write_request_to_send(false)?;
+        self.wait_for_connection()
     }
 
     /// Set timeout for the serial port
