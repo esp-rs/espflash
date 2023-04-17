@@ -95,7 +95,8 @@ struct BuildArgs {
     pub flash_config_args: FlashConfigArgs,
 }
 
-/// Generate completions for the given shell
+/// Generate completions for the given shell.
+/// Resulting completions have to be appended to cargo's completions.
 #[derive(Debug, Args)]
 pub struct CompletionsArgs {
     /// Shell to generate completions for.
