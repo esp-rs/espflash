@@ -26,7 +26,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
     0x1_0000,
     0x1f_0000,
     12,
-    FlashFrequency::_20Mhz,
+    FlashFrequency::_30Mhz,
     include_bytes!("../../resources/bootloaders/esp32c2-bootloader.bin"),
 );
 
