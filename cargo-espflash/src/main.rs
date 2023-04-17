@@ -33,7 +33,7 @@ mod error;
 mod package_metadata;
 
 #[derive(Debug, Parser)]
-#[clap(version, bin_name = "cargo", propagate_version = true)]
+#[clap(version, propagate_version = true)]
 struct Cli {
     #[clap(subcommand)]
     subcommand: CargoSubcommand,
@@ -95,6 +95,7 @@ struct BuildArgs {
     pub flash_config_args: FlashConfigArgs,
 }
 
+/// Generate completions for the given shell
 #[derive(Debug, Args)]
 pub struct CompletionsArgs {
     /// Shell to generate completions for.
