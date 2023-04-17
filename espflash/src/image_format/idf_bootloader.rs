@@ -61,7 +61,7 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         header.write_flash_config(
             flash_size.unwrap_or_default(),
-            flash_freq.unwrap_or_default(),
+            flash_freq.unwrap_or(params.flash_freq),
             chip,
         )?;
 
