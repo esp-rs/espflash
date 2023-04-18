@@ -133,6 +133,7 @@ pub struct Esp32Params {
     pub app_addr: u32,
     pub app_size: u32,
     pub chip_id: u16,
+    pub flash_freq: FlashFrequency,
     pub default_bootloader: &'static [u8],
 }
 
@@ -142,6 +143,7 @@ impl Esp32Params {
         app_addr: u32,
         app_size: u32,
         chip_id: u16,
+        flash_freq: FlashFrequency,
         bootloader: &'static [u8],
     ) -> Self {
         Self {
@@ -154,6 +156,7 @@ impl Esp32Params {
             app_addr,
             app_size,
             chip_id,
+            flash_freq,
             default_bootloader: bootloader,
         }
     }

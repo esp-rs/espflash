@@ -23,6 +23,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
     0x1_0000,
     0x10_0000,
     9,
+    FlashFrequency::_40Mhz,
     include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin"),
 );
 
