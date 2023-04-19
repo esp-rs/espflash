@@ -69,7 +69,7 @@ impl Connection {
         } else {
             #[cfg(unix)]
             if self.unix_tight_reset(extra_delay).is_ok() {
-                return Ok(())
+                return Ok(());
             }
 
             self.classic_reset(extra_delay)

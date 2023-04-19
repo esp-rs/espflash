@@ -7,7 +7,7 @@
 use std::io::Read;
 
 #[cfg(unix)]
-use { std::os::unix::io::AsRawFd, std::io, libc };
+use {libc, std::io, std::os::unix::io::AsRawFd};
 
 use miette::{Context, Result};
 #[cfg(feature = "raspberry")]
@@ -127,7 +127,7 @@ impl Interface {
             let mut status: i32 = 0;
             let res = libc::ioctl(fd, libc::TIOCMGET, &status);
             if res != 0 {
-                return Err(io::Error::last_os_error().into())
+                return Err(io::Error::last_os_error().into());
             }
 
             if dtr {
@@ -144,7 +144,7 @@ impl Interface {
 
             let res = libc::ioctl(fd, libc::TIOCMSET, &status);
             if res != 0 {
-                return Err(io::Error::last_os_error().into())
+                return Err(io::Error::last_os_error().into());
             }
         }
         Ok(())
