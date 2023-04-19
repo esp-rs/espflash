@@ -108,7 +108,7 @@ fn main() -> Result<()> {
     // associated arguments.
     match args {
         Commands::BoardInfo(args) => board_info(&args, &config),
-        Commands::Completions(args) => completions(&args, &mut Cli::command()),
+        Commands::Completions(args) => completions(&args, &mut Cli::command(), "espflash"),
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),

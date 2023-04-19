@@ -6,13 +6,12 @@ use std::{
 
 use cargo_metadata::Message;
 use clap::{Args, CommandFactory, Parser, Subcommand};
-use clap_complete::Shell;
 use espflash::{
     cli::{
-        self, board_info, config::Config, connect, erase_partitions, flash_elf_image,
+        self, board_info, completions, config::Config, connect, erase_partitions, flash_elf_image,
         monitor::monitor, parse_partition_table, partition_table, print_board_info,
-        save_elf_as_image, serial_monitor, ConnectArgs, EspflashProgress, FlashConfigArgs,
-        MonitorArgs, PartitionTableArgs,
+        save_elf_as_image, serial_monitor, CompletionsArgs, ConnectArgs, EspflashProgress,
+        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -95,14 +94,6 @@ struct BuildArgs {
     pub flash_config_args: FlashConfigArgs,
 }
 
-/// Generate completions for the given shell.
-/// Resulting completions have to be appended to cargo's completions.
-#[derive(Debug, Args)]
-pub struct CompletionsArgs {
-    /// Shell to generate completions for.
-    pub shell: Shell,
-}
-
 /// Build and flash an application to a target device
 #[derive(Debug, Args)]
 struct FlashArgs {
@@ -147,7 +138,7 @@ fn main() -> Result<()> {
     // associated arguments.
     match args {
         Commands::BoardInfo(args) => board_info(&args, &config),
-        Commands::Completions(args) => completions(&args, &mut Cli::command()),
+        Commands::Completions(args) => completions(&args, &mut Cli::command(), "cargo"),
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
@@ -412,13 +403,6 @@ fn build(
     };
 
     Ok(build_ctx)
-}
-
-/// Generate shell completions for the given shell
-fn completions(args: &CompletionsArgs, app: &mut clap::Command) -> Result<()> {
-    clap_complete::generate(args.shell, app, "cargo", &mut std::io::stdout());
-
-    Ok(())
 }
 
 fn save_image(args: SaveImageArgs) -> Result<()> {

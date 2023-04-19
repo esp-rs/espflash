@@ -327,7 +327,6 @@ dependencies = [
  "cargo",
  "cargo_metadata",
  "clap 4.1.13",
- "clap_complete",
  "env_logger 0.10.0",
  "esp-idf-part",
  "espflash",

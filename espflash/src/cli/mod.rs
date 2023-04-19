@@ -226,8 +226,8 @@ pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
 }
 
 /// Generate shell completions for the given shell
-pub fn completions(args: &CompletionsArgs, app: &mut clap::Command) -> Result<()> {
-    clap_complete::generate(args.shell, app, "espflash", &mut std::io::stdout());
+pub fn completions(args: &CompletionsArgs, app: &mut clap::Command, bin_name: &str) -> Result<()> {
+    clap_complete::generate(args.shell, app, bin_name, &mut std::io::stdout());
 
     Ok(())
 }
