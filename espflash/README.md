@@ -54,7 +54,8 @@ A command-line tool for flashing Espressif devices over serial
 Usage: espflash <COMMAND>
 
 Commands:
-  board-info       Display information about the connected board and exit without flashing
+  board-info       Establish a connection with a target device
+  completions      Generate completions for the given shell
   flash            Flash an application to a target device
   monitor          Open the serial monitor without flashing
   partition-table  Operations for partitions tables
@@ -63,8 +64,8 @@ Commands:
   help             Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help     Print help information
-  -V, --version  Print version information
+  -h, --help     Print help
+  -V, --version  Print version
 ```
 
 ### Cargo Runner

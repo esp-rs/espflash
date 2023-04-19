@@ -29,6 +29,7 @@ base64 = "0.21.0"
 binread = "2.2.0"
 bytemuck = { version = "1.12.3", features = ["derive"] }
 clap = { version = "4.0.32", features = ["derive", "env"], optional = true }
+clap_complete = { version = "4.1.5", optional = true }
 comfy-table = { version = "6.1.4", optional = true }
 crossterm = { version = "0.26.1", optional = true }
 ctrlc = { version = "3.2.5", optional = true }
@@ -60,6 +61,7 @@ default = ["cli"]
 cli = [
     "dep:addr2line",
     "dep:clap",
+    "dep:clap_complete",
     "dep:comfy-table",
     "dep:crossterm",
     "dep:ctrlc",

@@ -15,6 +15,7 @@ use std::{
 };
 
 use clap::Args;
+use clap_complete::Shell;
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
@@ -57,6 +58,13 @@ pub struct ConnectArgs {
     /// Do not use the RAM stub for loading
     #[arg(long)]
     pub no_stub: bool,
+}
+
+/// Generate completions for the given shell
+#[derive(Debug, Args)]
+pub struct CompletionsArgs {
+    /// Shell to generate completions for.
+    pub shell: Shell,
 }
 
 /// Configure communication with the target device's flash
@@ -213,6 +221,13 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
 pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(args, config)?;
     print_board_info(&mut flasher)?;
+
+    Ok(())
+}
+
+/// Generate shell completions for the given shell
+pub fn completions(args: &CompletionsArgs, app: &mut clap::Command, bin_name: &str) -> Result<()> {
+    clap_complete::generate(args.shell, app, bin_name, &mut std::io::stdout());
 
     Ok(())
 }

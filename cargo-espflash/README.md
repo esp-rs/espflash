@@ -54,6 +54,7 @@ Usage: cargo espflash <COMMAND>
 
 Commands:
   board-info       Display information about the connected board and exit without flashing
+  completions      Generate completions for the given shell. Resulting completions have to be appended to cargo's completions
   flash            Flash an application to a target device
   monitor          Open the serial monitor without flashing
   partition-table  Operations for partitions tables

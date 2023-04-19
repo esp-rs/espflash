@@ -5,13 +5,13 @@ use std::{
     path::PathBuf,
 };
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{
-        self, board_info, config::Config, connect, erase_partitions, flash_elf_image,
+        self, board_info, completions, config::Config, connect, erase_partitions, flash_elf_image,
         monitor::monitor, parse_partition_table, partition_table, print_board_info,
-        save_elf_as_image, serial_monitor, ConnectArgs, EspflashProgress, FlashConfigArgs,
-        MonitorArgs, PartitionTableArgs,
+        save_elf_as_image, serial_monitor, CompletionsArgs, ConnectArgs, EspflashProgress,
+        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -22,15 +22,16 @@ use log::{debug, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};
 
 #[derive(Debug, Parser)]
-#[clap(about, version, propagate_version = true)]
-struct Cli {
-    #[clap(subcommand)]
+#[command(about, version, propagate_version = true)]
+pub struct Cli {
+    #[command(subcommand)]
     subcommand: Commands,
 }
 
 #[derive(Debug, Subcommand)]
 enum Commands {
     BoardInfo(ConnectArgs),
+    Completions(CompletionsArgs),
     Flash(FlashArgs),
     Monitor(MonitorArgs),
     PartitionTable(PartitionTableArgs),
@@ -107,6 +108,7 @@ fn main() -> Result<()> {
     // associated arguments.
     match args {
         Commands::BoardInfo(args) => board_info(&args, &config),
+        Commands::Completions(args) => completions(&args, &mut Cli::command(), "espflash"),
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
