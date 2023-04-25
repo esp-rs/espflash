@@ -68,6 +68,11 @@ Options:
   -V, --version  Print version
 ```
 
+> **Note**
+>
+> #### Permissions on Linux
+>  In Linux, when using any of the commands that requires using a serial port, the current user may not have access to serial ports and a “Permission Denied” or “Port doesn’t exist” errors may appear. On most Linux distributions, the solution is to add the user to the `dialout` group (check e.g. `ls -l /dev/ttyUSB0` to find the group) with a command like `sudo usermod -a -G dialout $USER`. You can call `su - $USER` to enable read and write permissions for the serial port without having to log out and back in again. Check your Linux distribution’s documentation for more information.
+
 ### Cargo Runner
 
 You can also use `espflash` as a Cargo runner by adding the following to your project's `.cargo/config.toml` file, for example:
