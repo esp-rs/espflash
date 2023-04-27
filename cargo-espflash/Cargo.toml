@@ -21,7 +21,6 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "zip"
 
 [dependencies]
-cargo = { version = "0.66.0", features = ["vendored-openssl"] }
 cargo_metadata = "0.15.2"
 clap = { version = "4.0.32", features = ["derive"] }
 env_logger = "0.10.0"
@@ -32,3 +31,10 @@ miette = { version = "5.5.0", features = ["fancy"] }
 serde = { version = "1.0.152", features = ["derive"] }
 thiserror = "1.0.38"
 toml = "0.7.3"
+
+
+[target.'cfg(unix)'.dependencies]
+cargo = { version = "0.66.0", features = ["vendored-openssl"] }
+
+[target.'cfg(windows)'.dependencies]
+cargo = "0.66.0"
