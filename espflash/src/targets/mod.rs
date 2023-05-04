@@ -31,6 +31,9 @@ use crate::{
     image_format::{ImageFormat, ImageFormatKind},
 };
 
+/// Max partition size is 16 MB
+const MAX_PARTITION_SIZE: u32 = 16 * 1000 * 1024;
+
 mod esp32;
 mod esp32c2;
 mod esp32c3;
@@ -187,7 +190,10 @@ impl Esp32Params {
                 Type::App,
                 SubType::App(AppType::Factory),
                 self.app_addr,
-                flash_size.map_or(self.app_size, |size| size - self.app_addr),
+                core::cmp::min(
+                    flash_size.map_or(self.app_size, |size| size - self.app_addr),
+                    MAX_PARTITION_SIZE,
+                ),
                 false,
             ),
         ])
