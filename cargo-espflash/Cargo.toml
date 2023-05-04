@@ -34,7 +34,7 @@ toml = "0.7.3"
 
 
 [target.'cfg(unix)'.dependencies]
-cargo = { version = "0.66.0", features = ["vendored-openssl"] }
+cargo = { version = "0.70.1", features = ["vendored-openssl"] }
 
 [target.'cfg(windows)'.dependencies]
-cargo = "0.66.0"
+cargo = "0.70.1"
