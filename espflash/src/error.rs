@@ -44,6 +44,11 @@ pub enum Error {
     #[error(
         "Supplied ELF image of {0}B is too big, and doesn't fit configured app partition of {1}B"
     )]
+    #[diagnostic(
+        code(espflash::image_too_big),
+        help("Reduce the size of the binary or increase the size of the partition."),
+        url("https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#built-in-partition-tables")
+    )]
     ElfTooBig(u32, u32),
 
     #[error("Failed to connect to on-device flash")]
