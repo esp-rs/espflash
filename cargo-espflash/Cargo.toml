@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "2.0.0-rc.4"
+version = "2.0.0-rc.5"
 authors = ["Robin Appelman <robin@icewind.nl>", "Jesse Braham <jesse@beta7.io>"]
 edition = "2021"
 rust-version = "1.64"
@@ -26,7 +26,7 @@ cargo_metadata = "0.15.2"
 clap = { version = "4.0.32", features = ["derive"] }
 env_logger = "0.10.0"
 esp-idf-part = "0.2.0"
-espflash = { version = "=2.0.0-rc.4", path = "../espflash" }
+espflash = { version = "=2.0.0-rc.5", path = "../espflash" }
 log = "0.4.17"
 miette = { version = "5.5.0", features = ["fancy"] }
 serde = { version = "1.0.152", features = ["derive"] }
