@@ -161,7 +161,7 @@ impl Connection {
 
         self.serial.write_dtr_rts(false, false)?;
         self.serial.write_dtr_rts(true, true)?;
-        self.serial.write_dtr_rts(false, true)?; // IO = HIGH, EN = LOW, chip in reset
+        self.serial.write_dtr_rts(false, true)?; // IO0 = HIGH, EN = LOW, chip in reset
 
         sleep(Duration::from_millis(100));
 
