@@ -100,6 +100,21 @@ It's possible to specify a serial port and/or USB VID/PID values by setting them
 | macOS            | `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml` |
 | Windows          | `%APPDATA%\esp\espflash\espflash.toml`                            |
 
+### Configuration examples
+
+You can either configure the serial port name like so:
+```
+[connection]
+serial = "/dev/ttyUSB0"
+```
+
+Or specify one or more USB `vid`/`pid` couple:
+```
+[[usb_device]]
+vid = "303a"
+pid = "1001"
+```
+
 ## Windows Subsystem for Linux
 
 It is not currently possible to use `cargo-espflash` from within WSL1.
