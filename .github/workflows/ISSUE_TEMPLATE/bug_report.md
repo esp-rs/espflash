@@ -11,7 +11,8 @@ assignees: ''
 
 <!-- A clear and concise description of what the bug is. -->
 
-- Would you like to work on a fix? [y/n]
+- [ ] I have searched the existing issues (closed & open) to make sure the issue hasn't already been reported
+- [ ] Check this box if you would like to work on a fix
 
 ## To Reproduce
 
@@ -22,9 +23,7 @@ Steps to reproduce the behavior:
 3. ...
 4. ...
 
-<!-- Make sure you are able to reproduce the bug in the main branch, too. -->
-<!-- Make sure the issue is not already reported. -->
-
+- [ ] I have reproduced the bug in main branch too
 
 ## Expected behavior
 
