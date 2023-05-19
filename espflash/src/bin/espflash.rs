@@ -26,6 +26,9 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 pub struct Cli {
     #[command(subcommand)]
     subcommand: Commands,
+    /// Do not check for updates
+    #[arg(long, global = true)]
+    offline: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -93,20 +96,22 @@ fn main() -> Result<()> {
 
     // Attempt to parse any provided comand-line arguments, or print the help
     // message and terminate if the invocation is not correct.
-    let args = Cli::parse().subcommand;
+    let args = Cli::parse();
     debug!("{:#?}", args);
 
     // Only check for updates once the command-line arguments have been processed,
     // to avoid printing any update notifications when the help message is
     // displayed.
-    check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    if !args.offline {
+        check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    }
 
     // Load any user configuraiton, if present.
     let config = Config::load()?;
 
     // Execute the correct action based on the provided subcommand and its
     // associated arguments.
-    match args {
+    match args.subcommand {
         Commands::BoardInfo(args) => board_info(&args, &config),
         Commands::Completions(args) => completions(&args, &mut Cli::command(), "espflash"),
         Commands::Flash(args) => flash(args, &config),
