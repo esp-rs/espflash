@@ -38,7 +38,7 @@ Steps to reproduce the behavior:
 <!-- Please fill the following information. -->
 
 - OS: [e.g. Ubuntu 20.04]
-- esfpaslh/cargo-espflash version: [e.g. 0.1.0]
+- espflash/cargo-espflash version: [e.g. 0.1.0]
 - Target: [e.g. ESP32-C3]
 
 ## Additional context
