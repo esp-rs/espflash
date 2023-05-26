@@ -3,7 +3,7 @@ use std::error::Error;
 use addr2line::{
     gimli::{EndianRcSlice, RunTimeEndian},
     object::{read::File, Object},
-    Context,
+    Context, LookupResult,
 };
 
 // Wrapper around addr2line that allows to look up function names and
@@ -20,6 +20,7 @@ impl<'sym> Symbols<'sym> {
 
         Ok(Self { file, ctx })
     }
+
     /// Returns the name of the function at the given address, if one can be found.
     pub fn get_name(&self, addr: u64) -> Option<String> {
         // The basic steps here are:
@@ -28,15 +29,19 @@ impl<'sym> Symbols<'sym> {
         //   3. if no function name is found, try to look it up in the object file
         //      directly
         //   4. return a demangled function name, if one was found
-        self.ctx
-            .find_frames(addr)
+        let mut frames = match self.ctx.find_frames(addr) {
+            LookupResult::Output(result) => result.unwrap(),
+            LookupResult::Load { .. } => unimplemented!(),
+        };
+
+        frames
+            .next()
             .ok()
-            .and_then(|mut frames| {
-                frames.next().ok().flatten().and_then(|frame| {
-                    frame
-                        .function
-                        .and_then(|name| name.demangle().map(|s| s.into_owned()).ok())
-                })
+            .flatten()
+            .and_then(|frame| {
+                frame
+                    .function
+                    .and_then(|name| name.demangle().map(|s| s.into_owned()).ok())
             })
             .or_else(|| {
                 self.file
