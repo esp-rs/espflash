@@ -387,8 +387,11 @@ impl From<String> for MissingPartition {
 }
 
 #[derive(Debug, Error, Diagnostic)]
-#[error("No partition table could be found at the specified path")]
-#[diagnostic(code(espflash::partition_table::missing_partition_table))]
+#[error("No partition table could be found")]
+#[diagnostic(
+    code(espflash::partition_table::missing_partition_table),
+    help("Try providing a CSV or binary paritition table with the `--partition-table` argument.")
+)]
 pub struct MissingPartitionTable;
 
 #[derive(Debug, Error)]

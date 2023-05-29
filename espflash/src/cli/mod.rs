@@ -89,21 +89,10 @@ pub struct FlashArgs {
     #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Erase partitions by label
-    #[arg(
-        long,
-        requires = "partition_table",
-        value_name = "LABELS",
-        value_delimiter = ','
-    )]
+    #[arg(long, value_name = "LABELS", value_delimiter = ',')]
     pub erase_parts: Option<Vec<String>>,
     /// Erase specified data partitions
-    #[arg(
-        long,
-        requires = "partition_table",
-        value_name = "PARTS",
-        value_enum,
-        value_delimiter = ','
-    )]
+    #[arg(long, value_name = "PARTS", value_enum, value_delimiter = ',')]
     pub erase_data_parts: Option<Vec<DataType>>,
     /// Image format to flash
     #[arg(long, value_enum)]
