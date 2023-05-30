@@ -3,7 +3,7 @@ name = "espflash"
 version = "2.0.0-rc.4"
 authors = ["Robin Appelman <robin@icewind.nl>", "Jesse Braham <jesse@beta7.io>"]
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.65"
 description = "A command-line tool for flashing Espressif devices over serial"
 repository = "https://github.com/esp-rs/espflash"
 license = "MIT OR Apache-2.0"
@@ -24,13 +24,14 @@ path = "./src/bin/espflash.rs"
 required-features = ["cli"]
 
 [dependencies]
-addr2line = { version = "0.19.0", optional = true }
+addr2line = { version = "0.20.0", optional = true }
 base64 = "0.21.0"
 binread = "2.2.0"
 bytemuck = { version = "1.12.3", features = ["derive"] }
 clap = { version = "4.0.32", features = ["derive", "env"], optional = true }
+clap_complete = { version = "4.1.5", optional = true }
 comfy-table = { version = "6.1.4", optional = true }
-crossterm = { version = "0.26.1", optional = true }
+crossterm = { version = "0.25.0", optional = true } # 0.26.x causes issues on Windows
 ctrlc = { version = "3.2.5", optional = true }
 dialoguer = { version = "0.10.2", optional = true }
 directories-next = { version = "2.0.0", optional = true }
@@ -61,6 +62,7 @@ default = ["cli"]
 cli = [
     "dep:addr2line",
     "dep:clap",
+    "dep:clap_complete",
     "dep:comfy-table",
     "dep:crossterm",
     "dep:ctrlc",

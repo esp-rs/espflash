@@ -44,6 +44,11 @@ pub enum Error {
     #[error(
         "Supplied ELF image of {0}B is too big, and doesn't fit configured app partition of {1}B"
     )]
+    #[diagnostic(
+        code(espflash::image_too_big),
+        help("Reduce the size of the binary or increase the size of the app partition."),
+        url("https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#built-in-partition-tables")
+    )]
     ElfTooBig(u32, u32),
 
     #[error("Failed to connect to on-device flash")]
@@ -382,8 +387,11 @@ impl From<String> for MissingPartition {
 }
 
 #[derive(Debug, Error, Diagnostic)]
-#[error("No partition table could be found at the specified path")]
-#[diagnostic(code(espflash::partition_table::missing_partition_table))]
+#[error("No partition table could be found")]
+#[diagnostic(
+    code(espflash::partition_table::missing_partition_table),
+    help("Try providing a CSV or binary paritition table with the `--partition-table` argument.")
+)]
 pub struct MissingPartitionTable;
 
 #[derive(Debug, Error)]

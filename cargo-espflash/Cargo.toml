@@ -3,7 +3,7 @@ name = "cargo-espflash"
 version = "2.0.0-rc.4"
 authors = ["Robin Appelman <robin@icewind.nl>", "Jesse Braham <jesse@beta7.io>"]
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.65"
 description = "Cargo subcommand for flashing Espressif devices over serial"
 repository = "https://github.com/esp-rs/espflash"
 license = "MIT OR Apache-2.0"
@@ -21,7 +21,6 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "zip"
 
 [dependencies]
-cargo = { version = "0.66.0", features = ["vendored-openssl"] }
 cargo_metadata = "0.15.2"
 clap = { version = "4.0.32", features = ["derive"] }
 env_logger = "0.10.0"
@@ -32,3 +31,10 @@ miette = { version = "5.5.0", features = ["fancy"] }
 serde = { version = "1.0.152", features = ["derive"] }
 thiserror = "1.0.38"
 toml = "0.7.3"
+
+
+[target.'cfg(unix)'.dependencies]
+cargo = { version = "0.70.1", features = ["vendored-openssl"] }
+
+[target.'cfg(windows)'.dependencies]
+cargo = "0.70.1"

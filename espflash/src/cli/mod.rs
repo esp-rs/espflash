@@ -15,6 +15,7 @@ use std::{
 };
 
 use clap::Args;
+use clap_complete::Shell;
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
@@ -59,6 +60,13 @@ pub struct ConnectArgs {
     pub no_stub: bool,
 }
 
+/// Generate completions for the given shell
+#[derive(Debug, Args)]
+pub struct CompletionsArgs {
+    /// Shell to generate completions for.
+    pub shell: Shell,
+}
+
 /// Configure communication with the target device's flash
 #[derive(Debug, Args)]
 pub struct FlashConfigArgs {
@@ -81,21 +89,10 @@ pub struct FlashArgs {
     #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Erase partitions by label
-    #[arg(
-        long,
-        requires = "partition_table",
-        value_name = "LABELS",
-        value_delimiter = ','
-    )]
+    #[arg(long, value_name = "LABELS", value_delimiter = ',')]
     pub erase_parts: Option<Vec<String>>,
     /// Erase specified data partitions
-    #[arg(
-        long,
-        requires = "partition_table",
-        value_name = "PARTS",
-        value_enum,
-        value_delimiter = ','
-    )]
+    #[arg(long, value_name = "PARTS", value_enum, value_delimiter = ',')]
     pub erase_data_parts: Option<Vec<DataType>>,
     /// Image format to flash
     #[arg(long, value_enum)]
@@ -213,6 +210,13 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
 pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(args, config)?;
     print_board_info(&mut flasher)?;
+
+    Ok(())
+}
+
+/// Generate shell completions for the given shell
+pub fn completions(args: &CompletionsArgs, app: &mut clap::Command, bin_name: &str) -> Result<()> {
+    clap_complete::generate(args.shell, app, bin_name, &mut std::io::stdout());
 
     Ok(())
 }
