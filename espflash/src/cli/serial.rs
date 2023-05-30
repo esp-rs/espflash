@@ -77,6 +77,22 @@ fn find_serial_port(ports: &[SerialPortInfo], name: &str) -> Result<SerialPortIn
     #[cfg(not(target_os = "windows"))]
     let name = name.to_string_lossy();
 
+    // The case in device paths matters in BSD!
+    #[cfg(any(
+        target_os = "freebsd",
+        target_os = "dragonfly",
+        target_os = "openbsd",
+        target_os = "netbsd"
+    ))]
+    let port_info = ports.iter().find(|port| port.port_name == name);
+
+    // On Windows and other *nix systems, the case is not important.
+    #[cfg(not(any(
+        target_os = "freebsd",
+        target_os = "dragonfly",
+        target_os = "openbsd",
+        target_os = "netbsd"
+    )))]
     let port_info = ports
         .iter()
         .find(|port| port.port_name.eq_ignore_ascii_case(name.as_ref()));
