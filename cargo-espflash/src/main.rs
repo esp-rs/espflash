@@ -158,9 +158,17 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let cargo_config = CargoConfig::load(&metadata.workspace_root, &metadata.package_root);
 
     let mut flasher = connect(&args.connect_args, config)?;
+
+    // If the user has provided a flash size via a command-line argument, we'll
+    // override the detected (or default) value with this.
+    if let Some(flash_size) = args.build_args.flash_config_args.flash_size {
+        flasher.set_flash_size(flash_size);
+    }
+
     let chip = flasher.chip();
     let target = chip.into_target();
     let target_xtal_freq = target.crystal_freq(flasher.connection())?;
+
     flasher.disable_watchdog()?;
 
     let build_ctx =

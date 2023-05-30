@@ -119,6 +119,13 @@ fn main() -> Result<()> {
 
 fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config)?;
+
+    // If the user has provided a flash size via a command-line argument, we'll
+    // override the detected (or default) value with this.
+    if let Some(flash_size) = args.flash_config_args.flash_size {
+        flasher.set_flash_size(flash_size);
+    }
+
     print_board_info(&mut flasher)?;
 
     let chip = flasher.chip();
