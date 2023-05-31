@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+# Cancel any currently running workflows from the same PR, branch, or
+# tag when a new workflow is triggered.
+#
+# https://stackoverflow.com/a/66336834
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Check
+
+  check:
+    name: Check
+    strategy:
+      matrix:
+        os: ["macos-12", "ubuntu-22.04", "windows-2022"]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Install dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: sudo apt-get install musl-tools libudev-dev
+
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo check
+
+  check-lib:
+    name: Check (lib)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get install musl-tools libudev-dev
+
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo check --lib --no-default-features
+
+  msrv:
+    name: Check MSRV
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get install musl-tools libudev-dev
+
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: "1.65"
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo check
+
+  # --------------------------------------------------------------------------
+  # Test
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get install musl-tools libudev-dev
+
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo test --lib
+
+  # --------------------------------------------------------------------------
+  # Lint
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get install musl-tools libudev-dev
+
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo clippy -- -D warnings -A clippy::too_many_arguments
+
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo fmt --all -- --check
