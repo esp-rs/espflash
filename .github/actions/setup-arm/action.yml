@@ -1,0 +1,70 @@
+name: Setup ARM Build Environment
+description: Setup an ARM build environment
+
+inputs:
+  arch:
+    required: true
+  target:
+    required: true
+  toolchain:
+    default: stable
+    required: false
+  components:
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Replace target string
+      uses: mad9000/actions-find-and-replace-string@3
+      id: findandreplace
+      with:
+        source: ${{ inputs.target }}
+        find: "unknown-"
+        replace: ""
+
+    - name: Install toolchain
+      uses: dtolnay/rust-toolchain@v1
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        target: ${{ inputs.target }}
+        components: ${{ inputs.components }}
+
+    - uses: Swatinem/rust-cache@v2
+
+    - name: Install Cross-Compile Support
+      uses: cyberjunk/gha-ubuntu-cross@v3
+      with:
+        arch: ${{ inputs.arch }}
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        sudo apt install -y \
+          curl \
+          gcc-aarch64-linux-gnu \
+          gcc-arm-linux-gnueabihf \
+          git \
+          "libc6:${{ inputs.arch }}" \
+          "libgcc-s1:${{ inputs.arch }}" \
+          libudev-dev \
+          "libudev-dev:${{ inputs.arch }}" \
+          "libudev1:${{ inputs.arch }}" \
+          musl-tools \
+          pkg-config
+
+    - name: Set environment variables
+      shell: bash
+      run: |
+        echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=0" >> $GITHUB_ENV
+        echo "PKG_CONFIG_DIR=/opt/" >> $GITHUB_ENV
+        echo "PKG_CONFIG_LIBDIR=/opt/usr/lib/pkgconfig:/opt/usr/share/pkgconfig" >> $GITHUB_ENV
+        echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+        if [[ ${{ inputs.arch }} == arm64 ]]; then
+          echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
+        fi
+        if [[ ${{ inputs.arch }} == armhf ]]; then
+          echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig" >> $GITHUB_ENV
+          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+        fi
