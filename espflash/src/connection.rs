@@ -125,7 +125,6 @@ impl Connection {
         Ok(reset_after_flash(&mut self.serial, pid)?)
     }
 
-    #[cfg(unix)]
     fn classic_reset(&mut self, extra_delay: bool) -> Result<(), Error> {
         info!(
             "Attempting Classic reset with {} delay...",
@@ -153,6 +152,7 @@ impl Connection {
         self.wait_for_connection()
     }
 
+    #[cfg(unix)]
     fn unix_tight_reset(&mut self, extra_delay: bool) -> Result<(), Error> {
         info!(
             "Attempting UnixTight reset with {} delay...",
@@ -177,24 +177,29 @@ impl Connection {
 
     fn usb_jtag_reset(&mut self) -> Result<(), Error> {
         info!("Attempting USB-JTAG reset...");
-        self.serial.write_data_terminal_ready(false)?;
-        self.serial.write_request_to_send(false)?;
+        self.serial.write_dtr_rts(false, false)?;
+        // self.serial.write_data_terminal_ready(false)?;
+        // self.serial.write_request_to_send(false)?;
 
         sleep(Duration::from_millis(100));
 
-        self.serial.write_data_terminal_ready(true)?;
-        self.serial.write_request_to_send(false)?;
+        self.serial.write_dtr_rts(true, false)?;
+        // self.serial.write_data_terminal_ready(true)?;
+        // self.serial.write_request_to_send(false)?;
 
         sleep(Duration::from_millis(100));
 
-        self.serial.write_request_to_send(true)?;
-        self.serial.write_data_terminal_ready(false)?;
-        self.serial.write_request_to_send(true)?;
+        self.serial.write_dtr_rts(false, true)?;
+        // self.serial.write_request_to_send(true)?;
+        // self.serial.write_data_terminal_ready(false)?;
+        // self.serial.write_request_to_send(true)?;
+        self.serial.write_dtr_rts(false, true)?;
 
         sleep(Duration::from_millis(100));
 
-        self.serial.write_data_terminal_ready(false)?;
-        self.serial.write_request_to_send(false)?;
+        // self.serial.write_data_terminal_ready(false)?;
+        // self.serial.write_request_to_send(false)?;
+        self.serial.write_dtr_rts(false, false)?;
         self.wait_for_connection()
     }
 
