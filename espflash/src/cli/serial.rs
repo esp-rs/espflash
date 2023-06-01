@@ -114,6 +114,8 @@ fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
         path::PathBuf,
     };
 
+    use serialport::UsbPortInfo;
+
     let ports = available_ports().into_diagnostic()?;
     let ports = ports
         .into_iter()
