@@ -177,29 +177,24 @@ impl Connection {
 
     fn usb_jtag_reset(&mut self) -> Result<(), Error> {
         info!("Attempting USB-JTAG reset...");
-        self.serial.write_dtr_rts(false, false)?;
-        // self.serial.write_data_terminal_ready(false)?;
-        // self.serial.write_request_to_send(false)?;
+        self.serial.write_data_terminal_ready(false)?;
+        self.serial.write_request_to_send(false)?;
 
         sleep(Duration::from_millis(100));
 
-        self.serial.write_dtr_rts(true, false)?;
-        // self.serial.write_data_terminal_ready(true)?;
-        // self.serial.write_request_to_send(false)?;
+        self.serial.write_data_terminal_ready(true)?;
+        self.serial.write_request_to_send(false)?;
 
         sleep(Duration::from_millis(100));
 
-        self.serial.write_dtr_rts(false, true)?;
-        // self.serial.write_request_to_send(true)?;
-        // self.serial.write_data_terminal_ready(false)?;
-        // self.serial.write_request_to_send(true)?;
-        self.serial.write_dtr_rts(false, true)?;
+        self.serial.write_request_to_send(true)?;
+        self.serial.write_data_terminal_ready(false)?;
+        self.serial.write_request_to_send(true)?;
 
         sleep(Duration::from_millis(100));
 
-        // self.serial.write_data_terminal_ready(false)?;
-        // self.serial.write_request_to_send(false)?;
-        self.serial.write_dtr_rts(false, false)?;
+        self.serial.write_data_terminal_ready(false)?;
+        self.serial.write_request_to_send(false)?;
         self.wait_for_connection()
     }
 
