@@ -1,0 +1,50 @@
+name: Package Release
+
+inputs:
+  runs_on:
+    required: true
+  target:
+    required: true
+  github_token:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        target: ${{ inputs.target }}
+
+    - uses: Swatinem/rust-cache@v2
+
+    - name: Install dependencies
+      if: ${{ inputs.runs_on == 'ubuntu-22.04' }}
+      shell: bash
+      run: |
+        sudo apt-get install musl-tools libudev-dev
+
+    - name: Build
+      shell: bash
+      run: |
+        cargo build --release --all --target ${{ inputs.target }}
+
+    - name: Compress (Unix)
+      if: ${{ inputs.runs_on != 'windows-2022' }}
+      shell: bash
+      run: |
+        zip -j cargo-espflash-${{ inputs.target }}.zip target/${{ inputs.target }}/release/cargo-espflash
+        zip -j espflash-${{ inputs.target }}.zip target/${{ inputs.target }}/release/espflash
+
+    - name: Compress (Windows)
+      if: ${{ inputs.runs_on == 'windows-2022' }}
+      shell: bash
+      run: |
+        7z a -tzip cargo-espflash-${{ inputs.target }}.zip ./target/${{ inputs.target }}/release/cargo-espflash.exe
+        7z a -tzip espflash-${{ inputs.target }}.zip ./target/${{ inputs.target }}/release/espflash.exe
+
+    - uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ inputs.github_token }}
+        file: "*.zip"
+        file_glob: true
+        tag: ${{ github.ref }}
