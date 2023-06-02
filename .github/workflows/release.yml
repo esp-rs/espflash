@@ -4,52 +4,85 @@ on:
   release:
     types: [created]
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
+  # --------------------------------------------------------------------------
   # Linux
 
   armv7-unknown-linux-gnueabihf:
-    uses: ./.github/workflows/raspberry_package.yml
-    with:
-      target: armv7-unknown-linux-gnueabihf
-      arch: armhf
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/package-arm
+        with:
+          arch: armhf
+          target: armv7-unknown-linux-gnueabihf
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
   aarch64-unknown-linux-gnu:
-    uses: ./.github/workflows/raspberry_package.yml
-    with:
-      target: aarch64-unknown-linux-gnu
-      arch: arm64
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/package-arm
+        with:
+          arch: arm64
+          target: aarch64-unknown-linux-gnu
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
   x86_64-unknown-linux-gnu:
-    uses: ./.github/workflows/package.yml
-    with:
-      runs_on: ubuntu-20.04
-      target: x86_64-unknown-linux-gnu
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/package
+        with:
+          runs_on: ubuntu-22.04
+          target: x86_64-unknown-linux-gnu
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
   x86_64-unknown-linux-musl:
-    uses: ./.github/workflows/package.yml
-    with:
-      runs_on: ubuntu-20.04
-      target: x86_64-unknown-linux-musl
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/package
+        with:
+          runs_on: ubuntu-22.04
+          target: x86_64-unknown-linux-musl
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
+  # --------------------------------------------------------------------------
   # macOS
 
   aarch64-apple-darwin:
-    uses: ./.github/workflows/package.yml
-    with:
-      runs_on: macos-latest
-      target: aarch64-apple-darwin
+    runs-on: macos-12
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/package
+        with:
+          runs_on: macos-12
+          target: aarch64-apple-darwin
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
   x86_64-apple-darwin:
-    uses: ./.github/workflows/package.yml
-    with:
-      runs_on: macos-latest
-      target: x86_64-apple-darwin
+    runs-on: macos-12
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/package
+        with:
+          runs_on: macos-12
+          target: x86_64-apple-darwin
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
+  # --------------------------------------------------------------------------
   # Windows
 
   x86_64-pc-windows-msvc:
-    uses: ./.github/workflows/package.yml
-    with:
-      runs_on: windows-latest
-      target: x86_64-pc-windows-msvc
-      extension: .exe
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/package
+        with:
+          runs_on: windows-2022
+          target: x86_64-pc-windows-msvc
+          github_token: ${{ secrets.GITHUB_TOKEN }}
