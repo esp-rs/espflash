@@ -23,7 +23,7 @@ jobs:
   # Check
 
   check:
-    name: Check
+    name: Check (${{ matrix.platform.target }})
     strategy:
       fail-fast: false
       matrix:
@@ -62,7 +62,7 @@ jobs:
 
 
   check-lib:
-    name: Check (lib)
+    name: Check lib (${{ matrix.platform.target }})
     strategy:
       fail-fast: false
       matrix:
@@ -88,7 +88,7 @@ jobs:
       - run: cargo check --lib --no-default-features ${{ matrix.platform.features }}
 
   msrv:
-    name: Check MSRV
+    name: Check MSRV (${{ matrix.platform.target }})
     strategy:
       fail-fast: false
       matrix:
@@ -118,7 +118,7 @@ jobs:
   # Test
 
   test:
-    name: Unit Tests
+    name: Unit Tests (${{ matrix.platform.target }})
     strategy:
       fail-fast: false
       matrix:
@@ -147,7 +147,7 @@ jobs:
   # Lint
 
   clippy:
-    name: Clippy
+    name: Clippy (${{ matrix.platform.target }})
     strategy:
       fail-fast: false
       matrix:
