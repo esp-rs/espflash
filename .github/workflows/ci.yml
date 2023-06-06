@@ -53,7 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: ./.github/actions/setup-arm
+      - uses: ./.github/actions/setup-target
         with:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
@@ -80,7 +80,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: ./.github/actions/setup-arm
+      - uses: ./.github/actions/setup-target
         with:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
@@ -167,7 +167,7 @@ jobs:
         run: sudo apt-get install musl-tools libudev-dev
 
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/setup-arm
+      - uses: ./.github/actions/setup-target
         if: matrix.platform.arch != 'x86_64'
         with:
           arch: ${{ matrix.platform.arch }}
