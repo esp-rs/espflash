@@ -161,36 +161,27 @@ jobs:
             arch: "armhf"
             features: "--features=raspberry"
     runs-on: ubuntu-22.04
-    steps:
-      - name: Install dependencies
-        if: matrix.platform.arch == 'x86_64'
-        run: sudo apt-get install musl-tools libudev-dev
 
+    steps:
       - uses: actions/checkout@v3
+
       - uses: ./.github/actions/setup-target
-        if: matrix.platform.arch != 'x86_64'
         with:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
           components: clippy
-      - uses: dtolnay/rust-toolchain@stable
-        if: matrix.platform.arch == 'x86_64'
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-        if: matrix.platform.arch == 'x86_64'
 
       - run: cargo clippy ${{ matrix.platform.features }} -- -D warnings -A clippy::too_many_arguments
 
   rustfmt:
-      name: Rustfmt
-      runs-on: ubuntu-22.04
+    name: Rustfmt
+    runs-on: ubuntu-22.04
 
-      steps:
-        - uses: actions/checkout@v3
-        - uses: dtolnay/rust-toolchain@stable
-          with:
-            components: rustfmt
-        - uses: Swatinem/rust-cache@v2
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
 
-        - run: cargo fmt --all -- --check
+      - run: cargo fmt --all -- --check
