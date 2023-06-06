@@ -56,8 +56,8 @@ runs:
           musl-tools \
           pkg-config
 
-    - name: Install dependencies (x86_64)
-      if: inputs.arch == 'x86_64'
+    - name: Install dependencies (x86_64-unknown-linux-gnu)
+      if: inputs.target == 'x86_64-unknown-linux-gnu'
       shell: bash
       run: sudo apt-get install musl-tools libudev-dev
 
