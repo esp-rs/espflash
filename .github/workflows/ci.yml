@@ -51,22 +51,12 @@ jobs:
     runs-on: ${{ matrix.platform.os }}
 
     steps:
-      - name: Install dependencies
-        if: matrix.platform.os == 'ubuntu-22.04' && matrix.platform.arch == 'x86_64'
-        run: sudo apt-get install musl-tools libudev-dev
-
       - uses: actions/checkout@v3
 
       - uses: ./.github/actions/setup-arm
-        if: matrix.platform.arch != 'x86_64'
         with:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform.target }}
-      - uses: Swatinem/rust-cache@v2
 
       - run: cargo check ${{ matrix.platform.features }}
 
@@ -88,23 +78,12 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Install dependencies
-        if: matrix.platform.arch == 'x86_64'
-        run: sudo apt-get install musl-tools libudev-dev
-
       - uses: actions/checkout@v3
 
       - uses: ./.github/actions/setup-arm
-        if: matrix.platform.arch != 'x86_64'
         with:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
-
-      - uses: dtolnay/rust-toolchain@stable
-        if: matrix.platform.arch == 'x86_64'
-
-      - uses: Swatinem/rust-cache@v2
-        if: matrix.platform.arch == 'x86_64'
 
       - run: cargo check --lib --no-default-features ${{ matrix.platform.features }}
 
@@ -125,26 +104,13 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Install dependencies
-        if: matrix.platform.arch == 'x86_64'
-        run: sudo apt-get install musl-tools libudev-dev
-
       - uses: actions/checkout@v3
 
-      - uses: ./.github/actions/setup-arm
-        if: matrix.platform.arch != 'x86_64'
+      - uses: ./.github/actions/setup-target
         with:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
           toolchain: "1.65"
-
-      - uses: dtolnay/rust-toolchain@v1
-        if: matrix.platform.arch == 'x86_64'
-        with:
-          toolchain: "1.65"
-
-      - uses: Swatinem/rust-cache@v2
-        if: matrix.platform.arch == 'x86_64'
 
       - run: cargo check ${{ matrix.platform.features }}
 
@@ -168,23 +134,12 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Install dependencies
-        if: matrix.platform.arch == 'x86_64'
-        run: sudo apt-get install musl-tools libudev-dev
-
       - uses: actions/checkout@v3
 
-      - uses: ./.github/actions/setup-arm
-        if: matrix.platform.arch != 'x86_64'
+      - uses: ./.github/actions/setup-target
         with:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
-
-      - uses: dtolnay/rust-toolchain@stable
-        if: matrix.platform.arch == 'x86_64'
-
-      - uses: Swatinem/rust-cache@v2
-        if: matrix.platform.arch == 'x86_64'
 
       - run: cargo test --lib ${{ matrix.platform.features }}
 
@@ -193,38 +148,24 @@ jobs:
 
   clippy:
     name: Clippy
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: Install dependencies
-        run: sudo apt-get install musl-tools libudev-dev
-
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-
-      - run: cargo clippy -- -D warnings -A clippy::too_many_arguments
-
-  rustfmt:
-    name: Rustfmt
     strategy:
       fail-fast: false
       matrix:
         platform:
           - target: "x86_64-unknown-linux-gnu"
             arch: "x86_64"
-            args: "--all -- --check"
           - target: "aarch64-unknown-linux-gnu"
             arch: "arm64"
-            args: "--features=raspberry -- -D warnings -A clippy::too_many_arguments"
+            features: "--features=raspberry"
           - target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
-            args: "--features=raspberry -- -D warnings -A clippy::too_many_arguments"
+            features: "--features=raspberry"
     runs-on: ubuntu-22.04
-
     steps:
+      - name: Install dependencies
+        if: matrix.platform.arch == 'x86_64'
+        run: sudo apt-get install musl-tools libudev-dev
+
       - uses: actions/checkout@v3
       - uses: ./.github/actions/setup-arm
         if: matrix.platform.arch != 'x86_64'
@@ -232,14 +173,24 @@ jobs:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
           components: clippy
-
       - uses: dtolnay/rust-toolchain@stable
         if: matrix.platform.arch == 'x86_64'
-
         with:
-          components: rustfmt
+          components: clippy
       - uses: Swatinem/rust-cache@v2
         if: matrix.platform.arch == 'x86_64'
 
-      - if: matrix.platform.arch == 'x86_64'
-        run: cargo fmt ${{ matrix.platform.args }}
+      - run: cargo clippy ${{ matrix.platform.features }} -- -D warnings -A clippy::too_many_arguments
+
+  rustfmt:
+      name: Rustfmt
+      runs-on: ubuntu-22.04
+
+      steps:
+        - uses: actions/checkout@v3
+        - uses: dtolnay/rust-toolchain@stable
+          with:
+            components: rustfmt
+        - uses: Swatinem/rust-cache@v2
+
+        - run: cargo fmt --all -- --check
