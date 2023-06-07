@@ -20,6 +20,16 @@ A library and command-line tool for flashing Espressif devices.
 
 For more information and installation instructions, please refer to the `espflash` package's [README](./espflash/README.md).
 
+## Git Hooks
+
+We provide a simple `pre-commit` hook to verify the formatting of each package prior to committing changes. This can be enabled by placing it in the `.git/hooks/` directory:
+
+```bash
+$ cp pre-commit .git/hooks/pre-commit
+```
+
+When using this hook, you can choose to ignore its failure on a per-commit basis by committing with the `--no-verify` flag; however, you will need to be sure that all packages are formatted when submitting a pull request.
+
 ## License
 
 Licensed under either of:
