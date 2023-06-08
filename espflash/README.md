@@ -5,9 +5,19 @@
 ![MSRV](https://img.shields.io/badge/MSRV-1.65-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
 ![Crates.io](https://img.shields.io/crates/l/espflash?labelColor=1C2C2E&style=flat-square)
 
-A library and command-line tool for flashing Espressif devices over serial.
+A library and command-line tool for flashing Espressif devices.
 
-Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-S2/S3**, **ESP32-H2** and **ESP8266**.
+Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-S2/S3**, and **ESP8266**.
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Permissions on Linux](#permissions-on-linux)
+  - [Windows Subsystem for Linux](#windows-subsystem-for-linux)
+  - [Cargo Runner](#cargo-runner)
+- [Bootloader and Partition Table](#bootloader-and-partition-table)
+- [Configuration File](#configuration-file)
 
 ## Installation
 
@@ -49,7 +59,7 @@ cargo install espflash --features=raspberry
 ## Usage
 
 ```text
-A command-line tool for flashing Espressif devices over serial
+A command-line tool for flashing Espressif devices
 
 Usage: espflash <COMMAND>
 
@@ -68,10 +78,19 @@ Options:
   -V, --version  Print version
 ```
 
-> **Note**
->
-> #### Permissions on Linux
->  In Linux, when using any of the commands that requires using a serial port, the current user may not have access to serial ports and a “Permission Denied” or “Port doesn’t exist” errors may appear. On most Linux distributions, the solution is to add the user to the `dialout` group (check e.g. `ls -l /dev/ttyUSB0` to find the group) with a command like `sudo usermod -a -G dialout $USER`. You can call `su - $USER` to enable read and write permissions for the serial port without having to log out and back in again. Check your Linux distribution’s documentation for more information.
+### Permissions on Linux
+
+In Linux, when using any of the commands that requires using a serial port, the current user may not have access to serial ports and a "Permission Denied" or "Port doesn’t exist" errors may appear.
+
+On most Linux distributions, the solution is to add the user to the `dialout` group (check e.g. `ls -l /dev/ttyUSB0` to find the group) with a command like `sudo usermod -a -G dialout $USER`. You can call `su - $USER` to enable read and write permissions for the serial port without having to log out and back in again.
+
+Check your Linux distribution’s documentation for more information.
+
+### Windows Subsystem for Linux
+
+It is _not_ currently possible to use `cargo-espflash` from within WSL1. There are no plans to add support for WSL1 at this time.
+
+It is also _not_ possible to flash chips using the built-in `USB_SERIAL_JTAG` peripheral when using WSL2, because resetting also resets `USB_SERIAL_JTAG` peripheral, which then disconnects the chip from WSL2. Chips _can_ be flashed via UART using WSL2, however.
 
 ### Cargo Runner
 
@@ -84,7 +103,7 @@ runner = "espflash flash --baud=921600 --monitor /dev/ttyUSB0"
 
 With this configuration you can flash and monitor you application using `cargo run`.
 
-## Configuration
+## Configuration File
 
 It's possible to specify a serial port and/or USB VID/PID values by setting them in a configuration file. The location of this file differs based on your operating system:
 
@@ -97,23 +116,19 @@ It's possible to specify a serial port and/or USB VID/PID values by setting them
 ### Configuration examples
 
 You can either configure the serial port name like so:
+
 ```
 [connection]
 serial = "/dev/ttyUSB0"
 ```
 
 Or specify one or more USB `vid`/`pid` couple:
+
 ```
 [[usb_device]]
 vid = "303a"
 pid = "1001"
 ```
-
-## Windows Subsystem for Linux
-
-It is not currently possible to use `espflash` from within WSL1.
-
-It is not possible to flash chips using the built-in `USB_SERIAL_JTAG` when using WSL2, because the reset also resets `USB_SERIAL_JTAG` peripheral which then disconnects the chip from WSL2. Chips _can_ be flashed via UART using WSL2, however.
 
 ## License
 
