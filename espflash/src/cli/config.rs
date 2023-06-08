@@ -12,7 +12,7 @@ use std::{
     path::PathBuf,
 };
 
-use directories_next::ProjectDirs;
+use directories::ProjectDirs;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};
 use serialport::UsbPortInfo;
