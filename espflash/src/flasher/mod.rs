@@ -686,7 +686,7 @@ impl Flasher {
         Ok(info)
     }
 
-    /// Load an elf image to ram and execute it
+    /// Load an ELF image to RAM and execute it
     ///
     /// Note that this will not touch the flash on the device
     pub fn load_elf_to_ram(
@@ -716,7 +716,7 @@ impl Flasher {
         target.finish(&mut self.connection, true).flashing()
     }
 
-    /// Load an elf image to flash and execute it
+    /// Load an ELF image to flash and execute it
     pub fn load_elf_to_flash_with_format(
         &mut self,
         elf_data: &[u8],
@@ -756,7 +756,7 @@ impl Flasher {
             flash_freq,
         )?;
 
-        // When the "cli" feature is enabled, display the image size information.
+        // When the `cli` feature is enabled, display the image size information.
         #[cfg(feature = "cli")]
         crate::cli::display_image_size(image.app_size(), image.part_size());
 
@@ -791,7 +791,7 @@ impl Flasher {
         Ok(())
     }
 
-    /// Load an elf image to flash and execute it
+    /// Load an ELF image to flash and execute it
     pub fn load_elf_to_flash(
         &mut self,
         elf_data: &[u8],
