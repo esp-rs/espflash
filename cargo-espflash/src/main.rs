@@ -32,7 +32,7 @@ mod error;
 mod package_metadata;
 
 #[derive(Debug, Parser)]
-#[clap(version, propagate_version = true)]
+#[clap(bin_name = "cargo", version, propagate_version = true)]
 struct Cli {
     #[clap(subcommand)]
     subcommand: CargoSubcommand,
