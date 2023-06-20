@@ -60,7 +60,7 @@ cargo install cargo-espflash --features=raspberry
 ```text
 Cargo subcommand for flashing Espressif devices
 
-Usage: cargo-espflash espflash <COMMAND>
+Usage: cargo espflash <COMMAND>
 
 Commands:
   board-info       Establish a connection with a target device
