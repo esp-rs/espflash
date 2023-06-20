@@ -412,7 +412,7 @@ impl From<&'static str> for ElfError {
     }
 }
 
-/// Uunsuported image format error
+/// Unsupported image format error
 #[derive(Debug)]
 pub struct UnsupportedImageFormatError {
     format: ImageFormatKind,
@@ -442,7 +442,7 @@ impl UnsupportedImageFormatError {
             .join(", ")
     }
 
-    /// Update the context of the unsported image format error
+    /// Update the context of the unsupported image format error
     pub fn with_context(mut self, ctx: String) -> Self {
         self.context.replace(ctx);
 

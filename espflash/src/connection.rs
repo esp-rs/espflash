@@ -164,14 +164,14 @@ impl Connection {
         Ok(())
     }
 
-    /// Set baudrate for the serial port
+    /// Set baud rate for the serial port
     pub fn set_baud(&mut self, speed: u32) -> Result<(), Error> {
         self.serial.serial_port_mut().set_baud_rate(speed)?;
 
         Ok(())
     }
 
-    /// Get the current baudrate of the serial port
+    /// Get the current baud rate of the serial port
     pub fn get_baud(&self) -> Result<u32, Error> {
         Ok(self.serial.serial_port().baud_rate()?)
     }

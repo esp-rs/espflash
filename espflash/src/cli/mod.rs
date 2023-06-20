@@ -120,7 +120,7 @@ pub struct PartitionTableArgs {
     /// Input partition table
     #[arg(value_name = "FILE")]
     partition_table: PathBuf,
-    /// Convert CSV parition table to binary representation
+    /// Convert CSV partition table to binary representation
     #[arg(long, conflicts_with = "to_csv")]
     to_binary: bool,
     /// Convert binary partition table to CSV representation
