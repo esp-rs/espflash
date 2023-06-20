@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "2.0.0-dev"
+version = "2.0.0"
 edition = "2021"
 rust-version = "1.65"
 description = "Cargo subcommand for flashing Espressif devices"
@@ -26,11 +26,11 @@ pkg-fmt = "zip"
 
 [dependencies]
 cargo_metadata = "0.15.4"
-clap = { version = "4.3.2", features = ["derive"] }
+clap = { version = "4.3.4", features = ["derive"] }
 env_logger = "0.10.0"
 esp-idf-part = "0.4.1"
-espflash = { version = "=2.0.0-dev", path = "../espflash" }
-log = "0.4.18"
+espflash = { version = "2.0.0", path = "../espflash" }
+log = "0.4.19"
 miette = { version = "5.9.0", features = ["fancy"] }
 serde = { version = "1.0.164", features = ["derive"] }
 thiserror = "1.0.40"
