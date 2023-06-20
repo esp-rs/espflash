@@ -5,17 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
+## [2.0.0]
 
 ### Fixed
 
 - Explicitly set `bin_name` attribute for `cargo-espflash` (#432)
-
-### Changed
-
-### Removed
 
 ## [2.0.0-rc.4] - 2023-06-08
 
@@ -140,7 +134,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-09-21
 
-[unreleased]: https://github.com/esp-rs/espflash/compare/v2.0.0-rc.4...HEAD
+[2.0.0]: https://github.com/esp-rs/espflash/compare/v2.0.0-rc.4...v2.0.0
 [2.0.0-rc.4]: https://github.com/esp-rs/espflash/compare/v2.0.0-rc.3...v2.0.0-rc.4
 [2.0.0-rc.3]: https://github.com/esp-rs/espflash/compare/v2.0.0-rc.2...v2.0.0-rc.3
 [2.0.0-rc.2]: https://github.com/esp-rs/espflash/compare/v2.0.0-rc.1...v2.0.0-rc.2
