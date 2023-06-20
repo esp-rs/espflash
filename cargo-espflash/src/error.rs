@@ -21,7 +21,7 @@ pub enum Error {
     #[error("The current workspace is invalid, and could not be loaded")]
     #[diagnostic(
         code(cargo_espflash::invalid_workspace),
-        help("Ensure that a valid Cargo.toml file is in the executing directory")
+        help("Ensure that a valid `Cargo.toml` file is in the executing directory")
     )]
     InvalidWorkspace,
 
@@ -45,9 +45,9 @@ pub enum Error {
         code(cargo_espflash::no_build_std),
         help(
             "Cargo currently requires the unstable 'build-std' feature, ensure \
-            that .cargo/config{{.toml}} has the appropriate options.\n  \
-            \tSee: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std"
-        )
+            that `.cargo/config{{.toml}}` has the appropriate options."
+        ),
+        url("https://doc.rust-lang.org/cargo/reference/unstable.html#build-std")
     )]
     NoBuildStd,
 
@@ -59,7 +59,7 @@ pub enum Error {
     )]
     NoPackage,
 
-    #[error("No Cargo.toml found in the current directory")]
+    #[error("No `Cargo.toml` found in the current directory")]
     #[diagnostic(
         code(cargo_espflash::no_project),
         help("Ensure that you're running the command from within a Cargo project")

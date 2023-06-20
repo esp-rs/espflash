@@ -57,7 +57,7 @@ impl Esp32s2 {
         Ok(flash_version)
     }
 
-    /// Return the psram version based on eFuses
+    /// Return the PSRAM version based on eFuses
     fn get_psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let blk1_word3 = self.read_efuse(connection, 20)?;
         let psram_version = (blk1_word3 >> 28) & 0xf;
