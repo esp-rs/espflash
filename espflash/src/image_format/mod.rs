@@ -117,12 +117,12 @@ struct SegmentHeader {
 
 /// Operations for working with firmware image formats
 pub trait ImageFormat<'a>: Send {
-    /// Get the rom segments needed when flashing to device
+    /// Get the ROM segments needed when flashing to device
     fn flash_segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
     where
         'a: 'b;
 
-    /// Get the rom segments to save when exporting for ota
+    /// Get the ROM segments to save when exporting for OTA
     ///
     /// Compared to `flash_segments` this excludes things like bootloader and
     /// partition table

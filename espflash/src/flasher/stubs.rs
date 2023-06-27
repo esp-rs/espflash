@@ -8,7 +8,7 @@ use crate::targets::Chip;
 pub struct FlashStub {
     /// Entry point (address)
     entry: u32,
-    /// Text (b64 encoded)
+    /// Text (base64 encoded)
     text: String,
     /// Start of text section address
     text_start: u32,

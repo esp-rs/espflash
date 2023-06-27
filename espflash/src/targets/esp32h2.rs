@@ -121,10 +121,6 @@ impl Target for Esp32h2 {
     }
 
     fn supported_build_targets(&self) -> &[&str] {
-        &[
-            "riscv32imac-unknown-none-elf",
-            "riscv32imc-esp-espidf",
-            "riscv32imc-unknown-none-elf",
-        ]
+        &["riscv32imac-esp-espidf", "riscv32imac-unknown-none-elf"]
     }
 }

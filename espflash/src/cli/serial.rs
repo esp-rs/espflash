@@ -104,8 +104,8 @@ fn find_serial_port(ports: &[SerialPortInfo], name: &str) -> Result<SerialPortIn
     }
 }
 
-/// Serialport's autodetect doesn't provide any port information when using musl
-/// linux we can do some manual parsing of sysfs to get the relevant bits
+/// Serialport's auto-detect doesn't provide any port information when using MUSL
+/// Linux we can do some manual parsing of sysfs to get the relevant bits
 /// without udev
 #[cfg(all(target_os = "linux", target_env = "musl"))]
 fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
@@ -186,7 +186,7 @@ fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
     Ok(ports)
 }
 
-/// USB UART adapters which are known to be on common dev boards
+/// USB UART adapters which are known to be on common development boards
 const KNOWN_DEVICES: &[UsbDevice] = &[
     UsbDevice {
         vid: 0x10c4,

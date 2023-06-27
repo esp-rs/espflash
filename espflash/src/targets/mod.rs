@@ -44,7 +44,7 @@ mod esp32s3;
 mod esp8266;
 mod flash_target;
 
-/// Enumeration of all supported devices
+/// All supported devices
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, EnumVariantNames)]
 #[non_exhaustive]
@@ -165,8 +165,9 @@ impl Esp32Params {
     }
 
     /// Generates a default partition table.
+    ///
     /// `flash_size` is used to scale app partition when present, otherwise the
-    /// param defaults are used.
+    /// paramameter defaults are used.
     pub fn default_partition_table(&self, flash_size: Option<u32>) -> PartitionTable {
         PartitionTable::new(vec![
             Partition::new(
@@ -261,7 +262,7 @@ pub trait Target: ReadEFuse {
     /// Enumerate the chip's features, read from eFuse
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error>;
 
-    /// Deterimine the chip's revision number
+    /// Determine the chip's revision number
     fn chip_revision(&self, connection: &mut Connection) -> Result<(u32, u32), Error> {
         let major = self.major_chip_version(connection)?;
         let minor = self.minor_chip_version(connection)?;

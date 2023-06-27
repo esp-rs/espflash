@@ -213,11 +213,11 @@ impl<'a> ImageFormat<'a> for IdfBootloaderFormat<'a> {
 }
 
 /// Actual alignment (in data bytes) required for a segment header: positioned
-/// so that after we write the next 8 byte header, file_offs % IROM_ALIGN ==
+/// so that after we write the next 8 byte header, file_offset % IROM_ALIGN ==
 /// segment.addr % IROM_ALIGN
 ///
 /// (this is because the segment's vaddr may not be IROM_ALIGNed, more likely is
-/// aligned IROM_ALIGN+0x18 to account for the binary file header
+/// aligned IROM_ALIGN+0x18 to account for the binary file header)
 fn get_segment_padding(offset: usize, segment: &CodeSegment) -> u32 {
     let align_past = (segment.addr - SEG_HEADER_LEN) % IROM_ALIGN;
     let pad_len = ((IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past) % IROM_ALIGN;

@@ -58,7 +58,7 @@ pub mod image_format;
 pub mod interface;
 pub mod targets;
 
-/// Logging utilties
+/// Logging utilities
 #[cfg(feature = "cli")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod logging {

@@ -6,7 +6,7 @@
 
 Serial flasher utilities for Espressif devices, based loosely on [esptool.py](https://github.com/espressif/esptool/).
 
-Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-S2/S3**, **ESP32-H2** and **ESP8266**.
+Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-S2/S3**, and **ESP8266**.
 
 ## [cargo-espflash](./cargo-espflash/)
 
@@ -19,6 +19,16 @@ For more information and installation instructions, please refer to the `cargo-e
 A library and command-line tool for flashing Espressif devices.
 
 For more information and installation instructions, please refer to the `espflash` package's [README](./espflash/README.md).
+
+## Git Hooks
+
+We provide a simple `pre-commit` hook to verify the formatting of each package prior to committing changes. This can be enabled by placing it in the `.git/hooks/` directory:
+
+```bash
+$ cp pre-commit .git/hooks/pre-commit
+```
+
+When using this hook, you can choose to ignore its failure on a per-commit basis by committing with the `--no-verify` flag; however, you will need to be sure that all packages are formatted when submitting a pull request.
 
 ## License
 

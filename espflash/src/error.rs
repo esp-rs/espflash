@@ -18,6 +18,7 @@ use crate::{
     targets::Chip,
 };
 
+/// All possible errors returned by espflash
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -172,6 +173,7 @@ impl From<SerialConfigError> for Error {
     }
 }
 
+/// Connection-related errors
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 pub enum ConnectionError {
@@ -253,6 +255,7 @@ impl From<SlipError> for ConnectionError {
     }
 }
 
+/// An executed command which has timed out
 #[derive(Clone, Debug, Default)]
 pub struct TimedOutCommand {
     command: Option<CommandType>,
@@ -273,6 +276,7 @@ impl From<CommandType> for TimedOutCommand {
     }
 }
 
+/// Errors originating from a device's ROM functionality
 #[derive(Clone, Copy, Debug, Default, Diagnostic, Error, FromRepr)]
 #[non_exhaustive]
 #[repr(u8)]
@@ -357,6 +361,7 @@ impl From<u8> for RomErrorKind {
     }
 }
 
+/// An error originating from a device's ROM functionality
 #[derive(Clone, Copy, Debug, Diagnostic, Error)]
 #[error("Error while running {command} command")]
 #[non_exhaustive]
@@ -372,6 +377,7 @@ impl RomError {
     }
 }
 
+/// Missing partition error
 #[derive(Debug, Diagnostic, Error)]
 #[error("Missing partition")]
 #[diagnostic(
@@ -386,6 +392,7 @@ impl From<String> for MissingPartition {
     }
 }
 
+/// Missing partition table error
 #[derive(Debug, Error, Diagnostic)]
 #[error("No partition table could be found")]
 #[diagnostic(
@@ -394,6 +401,7 @@ impl From<String> for MissingPartition {
 )]
 pub struct MissingPartitionTable;
 
+/// Invalid ELF file error
 #[derive(Debug, Error)]
 #[error("{0}")]
 pub struct ElfError(&'static str);
@@ -404,7 +412,7 @@ impl From<&'static str> for ElfError {
     }
 }
 
-/// Uunsuported image format error
+/// Unsupported image format error
 #[derive(Debug)]
 pub struct UnsupportedImageFormatError {
     format: ImageFormatKind,
@@ -434,7 +442,7 @@ impl UnsupportedImageFormatError {
             .join(", ")
     }
 
-    /// Update the context of the unsported image format error
+    /// Update the context of the unsupported image format error
     pub fn with_context(mut self, ctx: String) -> Self {
         self.context.replace(ctx);
 

@@ -12,7 +12,7 @@ use std::{
     path::PathBuf,
 };
 
-use directories_next::ProjectDirs;
+use directories::ProjectDirs;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};
 use serialport::UsbPortInfo;
@@ -82,13 +82,13 @@ pub struct Config {
     /// Preferred USB devices
     #[serde(default)]
     pub usb_device: Vec<UsbDevice>,
-    /// Path of the file to save the config to
+    /// Path of the file to save the configuration to
     #[serde(skip)]
     save_path: PathBuf,
 }
 
 impl Config {
-    /// Load the config from config file
+    /// Load configuration from the configuration file
     pub fn load() -> Result<Self> {
         let dirs = ProjectDirs::from("rs", "esp", "espflash").unwrap();
         let file = dirs.config_dir().join("espflash.toml");
@@ -102,7 +102,7 @@ impl Config {
         Ok(config)
     }
 
-    /// Save the config to the config file
+    /// Save configuration to the configuration file
     pub fn save_with<F: Fn(&mut Self)>(&self, modify_fn: F) -> Result<()> {
         let mut copy = self.clone();
         modify_fn(&mut copy);

@@ -4,9 +4,19 @@
 ![MSRV](https://img.shields.io/badge/MSRV-1.65-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
 ![Crates.io](https://img.shields.io/crates/l/cargo-espflash?labelColor=1C2C2E&style=flat-square)
 
-Cross-compiler and Cargo extension for flashing Espressif devices over serial.
+Cross-compiler and Cargo extension for flashing Espressif devices.
 
-Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-S2/S3**, **ESP32-H2** and **ESP8266**.
+Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-S2/S3**, and **ESP8266**.
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Permissions on Linux](#permissions-on-linux)
+  - [Windows Subsystem for Linux](#windows-subsystem-for-linux)
+- [Bootloader and Partition Table](#bootloader-and-partition-table)
+- [Package Metadata](#package-metadata)
+- [Configuration File](#configuration-file)
 
 ## Installation
 
@@ -48,28 +58,37 @@ cargo install cargo-espflash --features=raspberry
 ## Usage
 
 ```text
-Cargo subcommand for flashing Espressif devices over serial
+Cargo subcommand for flashing Espressif devices
 
 Usage: cargo espflash <COMMAND>
 
 Commands:
-  board-info       Display information about the connected board and exit without flashing
-  completions      Generate completions for the given shell. Resulting completions have to be appended to cargo's completions
-  flash            Flash an application to a target device
+  board-info       Establish a connection with a target device
+  completions      Generate completions for the given shell
+  flash            Build and flash an application to a target device
   monitor          Open the serial monitor without flashing
   partition-table  Operations for partitions tables
   save-image       Save the image to disk instead of flashing to device
   help             Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help     Print help information
-  -V, --version  Print version information
+  -h, --help     Print help
+  -V, --version  Print version
 ```
 
-> **Note**
->
-> #### Permissions on Linux
->  In Linux, when using any of the commands that requires using a serial port, the current user may not have access to serial ports and a “Permission Denied” or “Port doesn’t exist” errors may appear. On most Linux distributions, the solution is to add the user to the `dialout` group (check e.g. `ls -l /dev/ttyUSB0` to find the group) with a command like `sudo usermod -a -G dialout $USER`. You can call `su - $USER` to enable read and write permissions for the serial port without having to log out and back in again. Check your Linux distribution’s documentation for more information.
+### Permissions on Linux
+
+In Linux, when using any of the commands that requires using a serial port, the current user may not have access to serial ports and a "Permission Denied" or "Port doesn’t exist" errors may appear.
+
+On most Linux distributions, the solution is to add the user to the `dialout` group (check e.g. `ls -l /dev/ttyUSB0` to find the group) with a command like `sudo usermod -a -G dialout $USER`. You can call `su - $USER` to enable read and write permissions for the serial port without having to log out and back in again.
+
+Check your Linux distribution’s documentation for more information.
+
+### Windows Subsystem for Linux
+
+It is _not_ currently possible to use `cargo-espflash` from within WSL1. There are no plans to add support for WSL1 at this time.
+
+It is also _not_ possible to flash chips using the built-in `USB_SERIAL_JTAG` peripheral when using WSL2, because resetting also resets `USB_SERIAL_JTAG` peripheral, which then disconnects the chip from WSL2. Chips _can_ be flashed via UART using WSL2, however.
 
 ## Bootloader and Partition Table
 
@@ -90,7 +109,7 @@ partition_table = "partitions.csv" # Supports CSV and binary formats
 format          = "direct-boot"    # Can be 'esp-bootloader' or 'direct-boot'
 ```
 
-## Configuration
+## Configuration File
 
 It's possible to specify a serial port and/or USB VID/PID values by setting them in a configuration file. The location of this file differs based on your operating system:
 
@@ -103,23 +122,19 @@ It's possible to specify a serial port and/or USB VID/PID values by setting them
 ### Configuration examples
 
 You can either configure the serial port name like so:
+
 ```
 [connection]
 serial = "/dev/ttyUSB0"
 ```
 
 Or specify one or more USB `vid`/`pid` couple:
+
 ```
 [[usb_device]]
 vid = "303a"
 pid = "1001"
 ```
-
-## Windows Subsystem for Linux
-
-It is not currently possible to use `cargo-espflash` from within WSL1.
-
-It is not possible to flash chips using the built-in `USB_SERIAL_JTAG` when using WSL2, because the reset also resets `USB_SERIAL_JTAG` peripheral which then disconnects the chip from WSL2. Chips _can_ be flashed via UART using WSL2, however.
 
 ## License
 

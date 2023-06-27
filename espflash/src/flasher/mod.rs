@@ -139,7 +139,7 @@ impl FlashSize {
     /// Encodes flash size into the format used by the bootloader.
     ///
     /// ## Values:
-    /// * [Esp8266](https://docs.espressif.com/projects/esptool/en/latest/esp8266/advanced-topics/firmware-image-format.html#file-header)
+    /// * [ESP8266](https://docs.espressif.com/projects/esptool/en/latest/esp8266/advanced-topics/firmware-image-format.html#file-header)
     /// * [Others](https://docs.espressif.com/projects/esptool/en/latest/esp32s3/advanced-topics/firmware-image-format.html#file-header)
     pub const fn encode_flash_size(self: FlashSize, chip: Chip) -> Result<u8, Error> {
         use FlashSize::*;
@@ -280,7 +280,7 @@ impl SpiAttachParams {
     }
 }
 
-/// List of spi params to try while detecting flash size
+/// List of SPI parameters to try while detecting flash size
 const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
     [SpiAttachParams::default(), SpiAttachParams::esp32_pico_d4()];
 
@@ -333,7 +333,7 @@ pub trait ProgressCallbacks {
     fn init(&mut self, addr: u32, total: usize);
     /// Update some progress report
     fn update(&mut self, current: usize);
-    /// Finish some prgoress report
+    /// Finish some progress report
     fn finish(&mut self);
 }
 
@@ -686,7 +686,7 @@ impl Flasher {
         Ok(info)
     }
 
-    /// Load an elf image to ram and execute it
+    /// Load an ELF image to RAM and execute it
     ///
     /// Note that this will not touch the flash on the device
     pub fn load_elf_to_ram(
@@ -716,7 +716,7 @@ impl Flasher {
         target.finish(&mut self.connection, true).flashing()
     }
 
-    /// Load an elf image to flash and execute it
+    /// Load an ELF image to flash and execute it
     pub fn load_elf_to_flash_with_format(
         &mut self,
         elf_data: &[u8],
@@ -756,7 +756,7 @@ impl Flasher {
             flash_freq,
         )?;
 
-        // When the "cli" feature is enabled, display the image size information.
+        // When the `cli` feature is enabled, display the image size information.
         #[cfg(feature = "cli")]
         crate::cli::display_image_size(image.app_size(), image.part_size());
 
@@ -791,7 +791,7 @@ impl Flasher {
         Ok(())
     }
 
-    /// Load an elf image to flash and execute it
+    /// Load an ELF image to flash and execute it
     pub fn load_elf_to_flash(
         &mut self,
         elf_data: &[u8],
