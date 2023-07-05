@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add help text for all subcommands (#441)
+
 ### Fixed
 
 ### Changed
