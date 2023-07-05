@@ -35,7 +35,7 @@ addr2line = { version = "0.20.0", optional = true }
 base64 = "0.21.2"
 binread = "2.2.0"
 bytemuck = { version = "1.13.1", features = ["derive"] }
-clap = { version = "4.3.4", features = ["derive", "env"], optional = true }
+clap = { version = "4.3.4", features = ["derive", "env", "wrap_help"], optional = true }
 clap_complete = { version = "4.3.1", optional = true }
 comfy-table = { version = "7.0.1", optional = true }
 crossterm = { version = "0.25.0", optional = true } # 0.26.x causes issues on Windows
@@ -57,7 +57,7 @@ serde = { version = "1.0.164", features = ["derive"] }
 serialport = "4.2.1"
 sha2 = "0.10.7"
 slip-codec = "0.3.4"
-strum = { version = "0.24.1", features = ["derive"] } # `derive(FromRepr)` broken in 0.25.0
+strum = { version = "0.25.0", features = ["derive"] }
 thiserror = "1.0.40"
 toml = "0.7.4"
 update-informer = { version = "1.0.0", optional = true }
