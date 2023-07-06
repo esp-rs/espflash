@@ -89,7 +89,7 @@ enum Commands {
     ///
     /// Allows for conversion between formats via the '--to-csv' and
     /// '--to-binary' options, plus the ability to print a partition table
-    /// in tabluar format.
+    /// in tabular format.
     PartitionTable(PartitionTableArgs),
     /// Generate a binary application image and save it to a local disk
     ///
