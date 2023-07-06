@@ -26,7 +26,7 @@ pkg-fmt = "zip"
 
 [dependencies]
 cargo_metadata = "0.15.4"
-clap = { version = "4.3.4", features = ["derive"] }
+clap = { version = "4.3.4", features = ["derive", "wrap_help"] }
 env_logger = "0.10.0"
 esp-idf-part = "0.4.1"
 espflash = { version = "=2.0.1-dev", path = "../espflash" }

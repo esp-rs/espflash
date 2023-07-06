@@ -22,7 +22,7 @@ use log::{debug, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};
 
 #[derive(Debug, Parser)]
-#[command(about, version, propagate_version = true)]
+#[command(about, max_term_width = 100, propagate_version = true, version)]
 pub struct Cli {
     #[command(subcommand)]
     subcommand: Commands,
@@ -30,12 +30,51 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    /// Print information about a connected target device
+    ///
+    /// Automatically detects and prints the chip type, crystal frequency, flash
+    /// size, chip features, and MAC address of a connected target device.
     BoardInfo(ConnectArgs),
+    /// Generate completions for the given shell
+    ///
+    /// The completions are printed to stdout, and can be redirected as needed.
+    /// The directory in which completion scripts are stored differs
+    /// depending on which shell is being used; consult your shell's
+    /// documentation to determine the appropriate path.
     Completions(CompletionsArgs),
+    /// Flash an application in ELF format to a connected target device
+    ///
+    /// Given a path to an ELF file, first convert it into the appropriate
+    /// binary application image format as required by the ESP32 devices. Once
+    /// we have a valid application image, we can write the bootloader,
+    /// partition table, and application image to the connected target device.
+    ///
+    /// Please refer to the ESP-IDF documentation for more information on the
+    /// binary image format:
+    ///
+    /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/app_image_format.html
     Flash(FlashArgs),
+    /// Open the serial monitor without flashing the connected target device
     Monitor(MonitorArgs),
+    /// Convert partition tables between CSV and binary format
+    ///
+    /// Uses the ESP-IDF format for partition tables; please refer to the
+    /// ESP-IDF documentation for more information on this format:
+    ///
+    /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html
+    ///
+    /// Allows for conversion between formats via the '--to-csv' and
+    /// '--to-binary' options, plus the ability to print a partition table
+    /// in tabular format.
     PartitionTable(PartitionTableArgs),
+    /// Generate a binary application image and save it to a local disk
+    ///
+    /// If the '--merge' option is used, then the bootloader, partition table,
+    /// and all application segments will be merged into a single binary file.
+    /// Otherwise, each segment will be saved as individual binaries, prefixed
+    /// with their intended addresses in flash.
     SaveImage(SaveImageArgs),
+    /// Write a binary file to a specific address in a target device's flash
     WriteBin(WriteBinArgs),
 }
 
