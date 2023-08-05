@@ -52,6 +52,9 @@ pub struct ConnectArgs {
     /// Serial port connected to target device
     #[arg(short = 'p', long, env = "ESPFLASH_PORT")]
     pub port: Option<String>,
+    /// Require confirmation before auto-connecting to a recognized device.
+    #[arg(short = 'i', long)]
+    pub interactive: bool,
     /// DTR pin to use for the internal UART hardware. Uses BCM numbering.
     #[cfg(feature = "raspberry")]
     #[cfg_attr(feature = "raspberry", clap(long))]
