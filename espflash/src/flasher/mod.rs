@@ -864,6 +864,16 @@ impl Flasher {
         Ok(())
     }
 
+    pub fn erase_flash(&mut self) -> Result<(), Error> {
+        self.connection
+            .with_timeout(CommandType::EraseFlash.timeout(), |connection| {
+                connection.command(Command::EraseFlash)
+            })?;
+        sleep(Duration::from_secs_f32(0.05));
+        self.connection.flush()?;
+        Ok(())
+    }
+
     pub fn into_interface(self) -> Interface {
         self.connection.into_interface()
     }

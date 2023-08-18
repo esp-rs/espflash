@@ -162,6 +162,13 @@ pub struct MonitorArgs {
     connect_args: ConnectArgs,
 }
 
+#[derive(Debug, Args)]
+pub struct EraseFlashArgs {
+    /// Connection configuration
+    #[clap(flatten)]
+    pub connect_args: ConnectArgs,
+}
+
 /// Select a serial port and establish a connection with a target device
 pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
     let port_info = get_serial_port_info(args, config)?;

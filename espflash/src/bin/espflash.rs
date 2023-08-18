@@ -10,15 +10,15 @@ use espflash::{
     cli::{
         self, board_info, completions, config::Config, connect, erase_partitions, flash_elf_image,
         monitor::monitor, parse_partition_table, partition_table, print_board_info,
-        save_elf_as_image, serial_monitor, CompletionsArgs, ConnectArgs, EspflashProgress,
-        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        save_elf_as_image, serial_monitor, CompletionsArgs, ConnectArgs, EraseFlashArgs,
+        EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
     targets::Chip,
     update::check_for_update,
 };
-use log::{debug, LevelFilter};
+use log::{debug, info, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};
 
 #[derive(Debug, Parser)]
@@ -42,6 +42,8 @@ enum Commands {
     /// depending on which shell is being used; consult your shell's
     /// documentation to determine the appropriate path.
     Completions(CompletionsArgs),
+    /// Erase Flash entirely
+    EraseFlash(EraseFlashArgs),
     /// Flash an application in ELF format to a connected target device
     ///
     /// Given a path to an ELF file, first convert it into the appropriate
@@ -148,12 +150,21 @@ fn main() -> Result<()> {
     match args {
         Commands::BoardInfo(args) => board_info(&args, &config),
         Commands::Completions(args) => completions(&args, &mut Cli::command(), "espflash"),
+        Commands::EraseFlash(args) => erase_flash(args, &config),
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
         Commands::SaveImage(args) => save_image(args),
         Commands::WriteBin(args) => write_bin(args, &config),
     }
+}
+
+fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
+    info!("Erasing Flash...");
+    let mut flash = connect(&args.connect_args, config)?;
+    flash.erase_flash()?;
+
+    Ok(())
 }
 
 fn flash(args: FlashArgs, config: &Config) -> Result<()> {
