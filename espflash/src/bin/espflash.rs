@@ -11,7 +11,7 @@ use espflash::{
         self, board_info, completions, config::Config, connect, erase_partitions, flash_elf_image,
         monitor::monitor, parse_partition_table, partition_table, print_board_info,
         save_elf_as_image, serial_monitor, CompletionsArgs, ConnectArgs, EraseFlashArgs,
-        EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        ErasePartsArgs, EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -44,6 +44,8 @@ enum Commands {
     Completions(CompletionsArgs),
     /// Erase Flash entirely
     EraseFlash(EraseFlashArgs),
+    /// Erase specified partitions
+    EraseParts(ErasePartsArgs),
     /// Flash an application in ELF format to a connected target device
     ///
     /// Given a path to an ELF file, first convert it into the appropriate
@@ -151,6 +153,7 @@ fn main() -> Result<()> {
         Commands::BoardInfo(args) => board_info(&args, &config),
         Commands::Completions(args) => completions(&args, &mut Cli::command(), "espflash"),
         Commands::EraseFlash(args) => erase_flash(args, &config),
+        Commands::EraseParts(args) => erase_parts(args, &config),
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
@@ -163,6 +166,19 @@ fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     info!("Erasing Flash...");
     let mut flash = connect(&args.connect_args, config)?;
     flash.erase_flash()?;
+
+    Ok(())
+}
+
+fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
+    let mut flash = connect(&args.connect_args, config)?;
+    let partition_table = parse_partition_table(&args.partition_table)?;
+    erase_partitions(
+        &mut flash,
+        Some(partition_table),
+        Some(args.erase_parts),
+        None,
+    )?;
 
     Ok(())
 }

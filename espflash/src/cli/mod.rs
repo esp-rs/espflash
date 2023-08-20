@@ -162,11 +162,27 @@ pub struct MonitorArgs {
     connect_args: ConnectArgs,
 }
 
+/// Erase entire flash of target device
 #[derive(Debug, Args)]
 pub struct EraseFlashArgs {
     /// Connection configuration
     #[clap(flatten)]
     pub connect_args: ConnectArgs,
+}
+
+/// Erase named partitions based on provided partition table
+#[derive(Debug, Args)]
+pub struct ErasePartsArgs {
+    /// Connection configuration
+    #[clap(flatten)]
+    pub connect_args: ConnectArgs,
+
+    #[arg(value_name = "LABELS", value_delimiter = ',')]
+    pub erase_parts: Vec<String>,
+
+    /// Input partition table
+    #[arg(long, value_name = "FILE")]
+    pub partition_table: PathBuf,
 }
 
 /// Select a serial port and establish a connection with a target device
