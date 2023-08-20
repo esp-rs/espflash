@@ -1,7 +1,7 @@
 use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
 
 use bytemuck::{bytes_of, from_bytes};
-use esp_idf_part::{PartitionTable, Type};
+use esp_idf_part::{Partition, PartitionTable, Type};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -35,6 +35,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         chip: Chip,
         params: Esp32Params,
         partition_table: Option<PartitionTable>,
+        target_app_partition: Option<String>,
         bootloader: Option<Vec<u8>>,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
@@ -144,17 +145,27 @@ impl<'a> IdfBootloaderFormat<'a> {
         let hash = hasher.finalize();
         data.write_all(&hash)?;
 
-        // The default partition table contains the "factory" partition, and if a user
-        // provides a partition table via command-line then the validation step confirms
-        // that at least one "app" partition is present. We prefer the "factory"
-        // partition, and use any available "app" partitions if not present.
-        let factory_partition = partition_table
-            .find("factory")
-            .or_else(|| partition_table.find_by_type(Type::App))
-            .unwrap();
+        let target_app_partition: &Partition =
+        // Use the target app partition if provided
+        if let Some(target_partition) = target_app_partition {
+            partition_table
+                .find(&target_partition)
+                .ok_or(Error::AppPartitionNotFound)?
+        } else {
+
+            // The default partition table contains the "factory" partition, and if a user
+            // provides a partition table via command-line then the validation step confirms
+            // that at least one "app" partition is present. We prefer the "factory"
+            // partition, and use any available "app" partitions if not present.
+
+            partition_table
+                .find("factory")
+                .or_else(|| partition_table.find_by_type(Type::App))
+                .ok_or(Error::AppPartitionNotFound)?
+        };
 
         let app_size = data.len() as u32;
-        let part_size = factory_partition.size();
+        let part_size = target_app_partition.size();
 
         // The size of the application must not exceed the size of the factory
         // partition.
@@ -163,7 +174,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         }
 
         let flash_segment = RomSegment {
-            addr: factory_partition.offset(),
+            addr: target_app_partition.offset(),
             data: Cow::Owned(data),
         };
 
@@ -313,9 +324,18 @@ pub mod tests {
         let expected_bin = fs::read("tests/resources/esp32_hal_blinky.bin").unwrap();
 
         let image = ElfFirmwareImage::try_from(input_bytes.as_slice()).unwrap();
-        let flash_image =
-            IdfBootloaderFormat::new(&image, Chip::Esp32, PARAMS, None, None, None, None, None)
-                .unwrap();
+        let flash_image = IdfBootloaderFormat::new(
+            &image,
+            Chip::Esp32,
+            PARAMS,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
 
         let segments = flash_image.flash_segments().collect::<Vec<_>>();
         assert_eq!(segments.len(), 3);
