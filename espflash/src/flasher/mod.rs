@@ -855,10 +855,10 @@ impl Flasher {
     pub fn erase_region(&mut self, offset: u32, size: u32) -> Result<(), Error> {
         debug!("Erasing region of 0x{:x}B at 0x{:08x}", size, offset);
 
-        self.connection
-            .with_timeout(CommandType::EraseRegion.timeout(), |connection| {
-                connection.command(Command::EraseRegion { offset, size })
-            })?;
+        self.connection.with_timeout(
+            CommandType::EraseRegion.timeout_for_size(size),
+            |connection| connection.command(Command::EraseRegion { offset, size }),
+        )?;
         std::thread::sleep(Duration::from_secs_f32(0.05));
         self.connection.flush()?;
         Ok(())
