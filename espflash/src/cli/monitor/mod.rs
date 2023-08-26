@@ -21,6 +21,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode},
     QueueableCommand,
 };
+use defmt_decoder::{Frame, StreamDecoder, Table};
 use lazy_static::lazy_static;
 use log::error;
 use miette::{IntoDiagnostic, Result};
@@ -107,6 +108,66 @@ impl Drop for RawModeGuard {
     }
 }
 
+enum FrameKind<'a> {
+    Defmt(Frame<'a>),
+    Raw(&'a [u8]),
+}
+
+struct FrameDelimiter<'a> {
+    buffer: Vec<u8>,
+    decoder: Option<Box<dyn StreamDecoder + 'a>>,
+    in_frame: bool,
+}
+
+const FRAME_START: &[u8] = &[0xFF, 0x00];
+const FRAME_END: &[u8] = &[0x00];
+
+fn search(haystack: &[u8], look_for_end: bool) -> Option<(&[u8], usize)> {
+    let needle = if look_for_end { FRAME_END } else { FRAME_START };
+    let start = if look_for_end {
+        // skip leading zeros
+        haystack.iter().position(|&b| b != 0)?
+    } else {
+        0
+    };
+
+    let end = haystack[start..]
+        .windows(needle.len())
+        .position(|window| window == needle)?;
+
+    Some((&haystack[start..][..end], start + end + needle.len()))
+}
+
+impl FrameDelimiter<'_> {
+    pub fn feed(&mut self, buffer: &[u8], mut process: impl FnMut(FrameKind<'_>)) {
+        let Some(table) = self.decoder.as_mut() else {
+            process(FrameKind::Raw(buffer));
+            return;
+        };
+
+        self.buffer.extend_from_slice(buffer);
+
+        while let Some((frame, consumed)) = search(&self.buffer, self.in_frame) {
+            if !self.in_frame {
+                process(FrameKind::Raw(frame));
+                self.in_frame = true;
+            } else {
+                table.received(frame);
+                // small reliance on rzcobs internals: we need to feed the terminating zero
+                table.received(FRAME_END);
+                if let Ok(frame) = table.decode() {
+                    process(FrameKind::Defmt(frame));
+                } else {
+                    log::warn!("Failed to decode defmt frame");
+                }
+                self.in_frame = false;
+            };
+
+            self.buffer.drain(..consumed);
+        }
+    }
+}
+
 /// Open a serial monitor on the given interface
 pub fn monitor(
     mut serial: Interface,
@@ -127,10 +188,13 @@ pub fn monitor(
         .set_timeout(Duration::from_millis(5))?;
 
     // Load symbols from the ELF file (if provided) and initialize the context.
-    let symbols = if let Some(bytes) = elf {
-        Symbols::try_from(bytes).ok()
+    let (symbols, defmt_data) = if let Some(bytes) = elf {
+        (
+            Symbols::try_from(bytes).ok(),
+            Table::parse(bytes).ok().flatten(),
+        )
     } else {
-        None
+        (None, None)
     };
     let mut ctx = SerialContext::new(symbols);
 
@@ -140,7 +204,32 @@ pub fn monitor(
     let stdout = stdout();
     let mut stdout = stdout.lock();
 
+    let defmt_encoding = defmt_data
+        .map(|table| {
+            let encoding = table.encoding();
+            (table, encoding)
+        })
+        .and_then(|(table, encoding)| {
+            // We only support rzcobs encoding because it is the only way to multiplex
+            // a defmt stream and an ASCII log stream over the same serial port.
+            if encoding == defmt_decoder::Encoding::Rzcobs {
+                Some((table, encoding))
+            } else {
+                log::warn!("Unsupported defmt encoding: {:?}", encoding);
+                None
+            }
+        });
+
     let mut buff = [0; 1024];
+
+    let mut delimiter = FrameDelimiter {
+        buffer: Vec::new(),
+        decoder: defmt_encoding
+            .as_ref()
+            .map(|(table, _)| table.new_stream_decoder()),
+        in_frame: false,
+    };
+
     loop {
         let read_count = match serial.serial_port_mut().read(&mut buff) {
             Ok(count) => Ok(count),
@@ -149,9 +238,13 @@ pub fn monitor(
             err => err,
         }?;
 
-        if read_count > 0 {
-            handle_serial(&mut ctx, &buff[0..read_count], &mut stdout);
-        }
+        delimiter.feed(&buff[0..read_count], |frame| match frame {
+            FrameKind::Defmt(frame) => handle_defmt(&mut ctx, frame, &mut stdout),
+            FrameKind::Raw(bytes) => handle_serial(&mut ctx, bytes, &mut stdout),
+        });
+
+        // Don't forget to flush the writer!
+        stdout.flush().ok();
 
         if poll(Duration::from_secs(0))? {
             if let Event::Key(key) = read()? {
@@ -175,6 +268,35 @@ pub fn monitor(
     }
 
     Ok(())
+}
+
+fn handle_defmt(ctx: &mut SerialContext, frame: Frame<'_>, out: &mut dyn Write) {
+    let message = frame.display_message().to_string();
+
+    match frame.level() {
+        Some(level) => {
+            let color = match level {
+                defmt_parser::Level::Trace => Color::Cyan,
+                defmt_parser::Level::Debug => Color::Blue,
+                defmt_parser::Level::Info => Color::Green,
+                defmt_parser::Level::Warn => Color::Yellow,
+                defmt_parser::Level::Error => Color::Red,
+            };
+            out.queue(PrintStyledContent(message.as_str().with(color)))
+                .ok()
+        }
+        None => out.queue(Print(message.as_str())).ok(),
+    };
+
+    // Remember to begin a new line after we have printed this one!
+    out.write_all(b"\r\n").ok();
+
+    // If we have loaded some symbols...
+    if let Some(symbols) = &ctx.symbols {
+        for line in message.lines() {
+            resolve_addresses(symbols, line, out);
+        }
+    }
 }
 
 /// Handles and writes the received serial data to the given output stream.
@@ -208,38 +330,16 @@ fn handle_serial(ctx: &mut SerialContext, buff: &[u8], out: &mut dyn Write) {
         // The previous fragment has been completed (by this current line).
         ctx.previous_frag = None;
 
+        // Remember to begin a new line after we have printed this one!
+        out.write_all(b"\r\n").ok();
+
         // If we have loaded some symbols...
         if let Some(symbols) = &ctx.symbols {
             // And there was previously a line printed to the terminal...
             if let Some(line) = &ctx.previous_line {
-                // Check the previous line for function addresses. For each address found,
-                // attempt to look up the associated function's name and location and write both
-                // to the terminal.
-                for matched in RE_FN_ADDR.find_iter(line).map(|m| m.as_str()) {
-                    // Since our regular expression already confirms that this is a correctly
-                    // formatted hex literal, we can (fairly) safely assume that it will parse
-                    // successfully into an integer.
-                    let addr = parse_int::parse::<u64>(matched).unwrap();
-
-                    let name = symbols.get_name(addr).unwrap_or_else(|| "??".into());
-                    let (file, line_num) =
-                        if let Some((file, line_num)) = symbols.get_location(addr) {
-                            (file, line_num.to_string())
-                        } else {
-                            ("??".into(), "??".into())
-                        };
-
-                    out.queue(PrintStyledContent(
-                        format!("\r\n{matched} - {name}\r\n    at {file}:{line_num}")
-                            .with(Color::Yellow),
-                    ))
-                    .unwrap();
-                }
+                resolve_addresses(symbols, line, out);
             }
         }
-
-        // Remember to begin a new line after we have printed this one!
-        out.write_all(b"\r\n").ok();
     }
 
     // If there is an incomplete line we will still print it. However, we will not
@@ -253,9 +353,30 @@ fn handle_serial(ctx: &mut SerialContext, buff: &[u8], out: &mut dyn Write) {
             ctx.previous_frag = Some(line.to_string());
         }
     }
+}
 
-    // Don't forget to flush the writer!
-    out.flush().ok();
+fn resolve_addresses(symbols: &Symbols<'_>, line: &str, out: &mut dyn Write) {
+    // Check the previous line for function addresses. For each address found,
+    // attempt to look up the associated function's name and location and write both
+    // to the terminal.
+    for matched in RE_FN_ADDR.find_iter(line).map(|m| m.as_str()) {
+        // Since our regular expression already confirms that this is a correctly
+        // formatted hex literal, we can (fairly) safely assume that it will parse
+        // successfully into an integer.
+        let addr = parse_int::parse::<u64>(matched).unwrap();
+
+        let name = symbols.get_name(addr).unwrap_or_else(|| "??".into());
+        let (file, line_num) = if let Some((file, line_num)) = symbols.get_location(addr) {
+            (file, line_num.to_string())
+        } else {
+            ("??".into(), "??".into())
+        };
+
+        out.queue(PrintStyledContent(
+            format!("{matched} - {name}\r\n    at {file}:{line_num}\r\n").with(Color::Yellow),
+        ))
+        .unwrap();
+    }
 }
 
 // Converts key events from crossterm into appropriate character/escape
