@@ -179,6 +179,7 @@ fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
         Some(args.erase_parts),
         None,
     )?;
+    flash.connection().reset()?;
 
     Ok(())
 }
