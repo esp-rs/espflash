@@ -282,8 +282,10 @@ fn handle_defmt(ctx: &mut SerialContext, frame: Frame<'_>, out: &mut dyn Write) 
                 defmt_parser::Level::Warn => Color::Yellow,
                 defmt_parser::Level::Error => Color::Red,
             };
-            out.queue(PrintStyledContent(message.as_str().with(color)))
-                .ok()
+            out.queue(PrintStyledContent(
+                format!("[{}] - {}", level.as_str().to_uppercase(), message.as_str()).with(color),
+            ))
+            .ok()
         }
         None => out.queue(Print(message.as_str())).ok(),
     };
