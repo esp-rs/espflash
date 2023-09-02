@@ -1,15 +1,15 @@
 use std::{
     fs::{self, File},
     io::Read,
-    num::ParseIntError,
     path::PathBuf,
 };
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
+use espflash::cli::EraseRegionArgs;
 use espflash::{
     cli::{
         self, board_info, completions, config::Config, connect, erase_partitions, flash_elf_image,
-        monitor::monitor, parse_partition_table, partition_table, print_board_info,
+        monitor::monitor, parse_partition_table, parse_uint32, partition_table, print_board_info,
         save_elf_as_image, serial_monitor, CompletionsArgs, ConnectArgs, EraseFlashArgs,
         ErasePartsArgs, EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
@@ -46,6 +46,8 @@ enum Commands {
     EraseFlash(EraseFlashArgs),
     /// Erase specified partitions
     EraseParts(ErasePartsArgs),
+    /// Erase specified region
+    EraseRegion(EraseRegionArgs),
     /// Flash an application in ELF format to a connected target device
     ///
     /// Given a path to an ELF file, first convert it into the appropriate
@@ -125,11 +127,6 @@ struct WriteBinArgs {
     connect_args: ConnectArgs,
 }
 
-/// Parses a string as a 32-bit unsigned integer.
-fn parse_uint32(input: &str) -> Result<u32, ParseIntError> {
-    parse_int::parse(input)
-}
-
 fn main() -> Result<()> {
     miette::set_panic_hook();
     initialize_logger(LevelFilter::Info);
@@ -154,6 +151,7 @@ fn main() -> Result<()> {
         Commands::Completions(args) => completions(&args, &mut Cli::command(), "espflash"),
         Commands::EraseFlash(args) => erase_flash(args, &config),
         Commands::EraseParts(args) => erase_parts(args, &config),
+        Commands::EraseRegion(args) => erase_region(args, &config),
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
@@ -179,6 +177,14 @@ fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
         Some(args.erase_parts),
         None,
     )?;
+    flash.connection().reset()?;
+
+    Ok(())
+}
+
+fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
+    let mut flash = connect(&args.connect_args, config)?;
+    flash.erase_region(args.addr, args.size)?;
     flash.connection().reset()?;
 
     Ok(())
