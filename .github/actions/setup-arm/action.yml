@@ -33,7 +33,7 @@ runs:
     - uses: Swatinem/rust-cache@v2
 
     - name: Install Cross-Compile Support
-      uses: junelife/gha-ubuntu-cross@v4
+      uses: junelife/gha-ubuntu-cross@v6
       with:
         arch: ${{ inputs.arch }}
 
