@@ -13,6 +13,7 @@ use crate::{
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0xfff0_c101];
 
+#[allow(clippy::single_range_in_vec_init)]
 const FLASH_RANGES: &[Range<u32>] = &[
     0x40200000..0x40300000, // IROM
 ];
