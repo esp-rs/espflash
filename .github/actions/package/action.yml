@@ -1,32 +1,28 @@
 name: Package Release
-
 inputs:
-  runs_on:
+  arch:
+    required: false
+  github_token:
     required: true
+  features:
+    required: false
   target:
     required: true
-  github_token:
+  runs_on:
     required: true
 
 runs:
   using: composite
   steps:
-    - uses: dtolnay/rust-toolchain@stable
+    - uses: ./.github/actions/setup-target
       with:
+        arch: ${{ inputs.arch }}
         target: ${{ inputs.target }}
-
-    - uses: Swatinem/rust-cache@v2
-
-    - name: Install dependencies
-      if: ${{ inputs.runs_on == 'ubuntu-22.04' }}
-      shell: bash
-      run: |
-        sudo apt-get install musl-tools libudev-dev
 
     - name: Build
       shell: bash
       run: |
-        cargo build --release --all --target ${{ inputs.target }}
+        cargo build --release --all --target ${{ inputs.target }} ${{ inputs.features }}
 
     - name: Compress (Unix)
       if: ${{ inputs.runs_on != 'windows-2022' }}

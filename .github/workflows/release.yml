@@ -8,81 +8,48 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # --------------------------------------------------------------------------
-  # Linux
-
-  armv7-unknown-linux-gnueabihf:
-    runs-on: ubuntu-22.04
+  release:
+    name: ${{ matrix.platform.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          # Linux
+          - os: "ubuntu-22.04"
+            target: "x86_64-unknown-linux-gnu"
+            arch: "x86_64"
+          - os: "ubuntu-22.04"
+            target: "x86_64-unknown-linux-musl"
+            arch: "x86_64"
+          - os: "ubuntu-22.04"
+            target: "aarch64-unknown-linux-gnu"
+            arch: "arm64"
+            features: "--features=raspberry"
+          - os: "ubuntu-22.04"
+            target: "armv7-unknown-linux-gnueabihf"
+            arch: "armhf"
+            features: "--features=raspberry"
+          # Windows
+          - os: "windows-2022"
+            target: "x86_64-pc-windows-msvc"
+            arch: "x86_64"
+          # macOs
+          - os: "macos-12"
+            target: "aarch64-apple-darwin"
+            # This is not true, but simplifies the logic of the action.
+            arch: "x86_64"
+          - os: "macos-12"
+            target: "x86_64-apple-darwin"
+            arch: "x86_64"
+    runs-on: ${{ matrix.platform.os }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/package-arm
-        with:
-          arch: armhf
-          target: armv7-unknown-linux-gnueabihf
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-  aarch64-unknown-linux-gnu:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/package-arm
-        with:
-          arch: arm64
-          target: aarch64-unknown-linux-gnu
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
 
-  x86_64-unknown-linux-gnu:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v3
       - uses: ./.github/actions/package
         with:
-          runs_on: ubuntu-22.04
-          target: x86_64-unknown-linux-gnu
+          arch: ${{ matrix.platform.arch }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-  x86_64-unknown-linux-musl:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/package
-        with:
-          runs_on: ubuntu-22.04
-          target: x86_64-unknown-linux-musl
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-  # --------------------------------------------------------------------------
-  # macOS
-
-  aarch64-apple-darwin:
-    runs-on: macos-12
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/package
-        with:
-          runs_on: macos-12
-          target: aarch64-apple-darwin
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-  x86_64-apple-darwin:
-    runs-on: macos-12
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/package
-        with:
-          runs_on: macos-12
-          target: x86_64-apple-darwin
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-  # --------------------------------------------------------------------------
-  # Windows
-
-  x86_64-pc-windows-msvc:
-    runs-on: windows-2022
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/package
-        with:
-          runs_on: windows-2022
-          target: x86_64-pc-windows-msvc
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          features: ${{ matrix.platform.features }}
+          target: ${{ matrix.platform.target }}
+          runs_on: ${{ matrix.platform.os }}

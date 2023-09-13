@@ -1,5 +1,5 @@
-name: Setup ARM Build Environment
-description: Setup an ARM build environment
+name: Setup target Build Environment
+description: Setup an ARM or x86_64 build environment
 
 inputs:
   arch:
@@ -16,6 +16,7 @@ runs:
   using: composite
   steps:
     - name: Replace target string
+      if: inputs.arch != 'x86_64'
       uses: mad9000/actions-find-and-replace-string@3
       id: findandreplace
       with:
@@ -33,11 +34,13 @@ runs:
     - uses: Swatinem/rust-cache@v2
 
     - name: Install Cross-Compile Support
+      if: inputs.arch != 'x86_64'
       uses: junelife/gha-ubuntu-cross@v6
       with:
         arch: ${{ inputs.arch }}
 
-    - name: Install dependencies
+    - name: Install dependencies (Raspberry Pi)
+      if: inputs.arch != 'x86_64'
       shell: bash
       run: |
         sudo apt install -y \
@@ -53,7 +56,13 @@ runs:
           musl-tools \
           pkg-config
 
+    - name: Install dependencies (x86_64 linux)
+      if: inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-unknown-linux-musl'
+      shell: bash
+      run: sudo apt-get install musl-tools libudev-dev
+
     - name: Set environment variables
+      if: inputs.arch != 'x86_64'
       shell: bash
       run: |
         echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=0" >> $GITHUB_ENV
