@@ -23,106 +23,166 @@ jobs:
   # Check
 
   check:
-    name: Check
+    name: Check (${{ matrix.platform.target }})
     strategy:
       fail-fast: false
       matrix:
         platform:
           - os: "macos-12"
             target: "x86_64-apple-darwin"
+            arch: "x86_64"
           - os: "ubuntu-22.04"
             target: "x86_64-unknown-linux-gnu"
+            arch: "x86_64"
           - os: "ubuntu-22.04"
             target: "x86_64-unknown-linux-musl"
+            arch: "x86_64"
           - os: "windows-2022"
             target: "x86_64-pc-windows-msvc"
+            arch: "x86_64"
+          - os: "ubuntu-22.04"
+            target: "aarch64-unknown-linux-gnu"
+            arch: "arm64"
+            features: "--features=raspberry"
+          - os: "ubuntu-22.04"
+            target: "armv7-unknown-linux-gnueabihf"
+            arch: "armhf"
+            features: "--features=raspberry"
     runs-on: ${{ matrix.platform.os }}
 
     steps:
-      - name: Install dependencies
-        if: matrix.platform.os == 'ubuntu-22.04'
-        run: sudo apt-get install musl-tools libudev-dev
 
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-target
         with:
-          targets: ${{ matrix.platform.target }}
-      - uses: Swatinem/rust-cache@v2
+          arch: ${{ matrix.platform.arch }}
+          target: ${{ matrix.platform.target }}
 
-      - run: cargo check
+      - run: cargo check ${{ matrix.platform.features }}
 
   check-lib:
-    name: Check (lib)
+    name: Check lib (${{ matrix.platform.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - target: "x86_64-unknown-linux-gnu"
+            arch: "x86_64"
+          - target: "aarch64-unknown-linux-gnu"
+            arch: "arm64"
+            features: "--features=raspberry"
+          - target: "armv7-unknown-linux-gnueabihf"
+            arch: "armhf"
+            features: "--features=raspberry"
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Install dependencies
-        run: sudo apt-get install musl-tools libudev-dev
 
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@v4
 
-      - run: cargo check --lib --no-default-features
+      - uses: ./.github/actions/setup-target
+        with:
+          arch: ${{ matrix.platform.arch }}
+          target: ${{ matrix.platform.target }}
+
+      - run: cargo check --lib --no-default-features ${{ matrix.platform.features }}
 
   msrv:
-    name: Check MSRV
+    name: Check MSRV (${{ matrix.platform.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - target: "x86_64-unknown-linux-gnu"
+            arch: "x86_64"
+          - target: "aarch64-unknown-linux-gnu"
+            arch: "arm64"
+            features: "--features=raspberry"
+          - target: "armv7-unknown-linux-gnueabihf"
+            arch: "armhf"
+            features: "--features=raspberry"
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Install dependencies
-        run: sudo apt-get install musl-tools libudev-dev
 
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@v1
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-target
         with:
+          arch: ${{ matrix.platform.arch }}
+          target: ${{ matrix.platform.target }}
           toolchain: "1.65"
-      - uses: Swatinem/rust-cache@v2
 
-      - run: cargo check
+      - run: cargo check ${{ matrix.platform.features }}
 
   # --------------------------------------------------------------------------
   # Test
 
   test:
-    name: Unit Tests
+    name: Unit Tests (${{ matrix.platform.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - target: "x86_64-unknown-linux-gnu"
+            arch: "x86_64"
+          - target: "aarch64-unknown-linux-gnu"
+            arch: "arm64"
+            features: "--features=raspberry"
+          - target: "armv7-unknown-linux-gnueabihf"
+            arch: "armhf"
+            features: "--features=raspberry"
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Install dependencies
-        run: sudo apt-get install musl-tools libudev-dev
 
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@v4
 
-      - run: cargo test --lib
+      - uses: ./.github/actions/setup-target
+        with:
+          arch: ${{ matrix.platform.arch }}
+          target: ${{ matrix.platform.target }}
+
+      - run: cargo test --lib ${{ matrix.platform.features }}
 
   # --------------------------------------------------------------------------
   # Lint
 
   clippy:
-    name: Clippy
+    name: Clippy (${{ matrix.platform.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - target: "x86_64-unknown-linux-gnu"
+            arch: "x86_64"
+          - target: "aarch64-unknown-linux-gnu"
+            arch: "arm64"
+            features: "--features=raspberry"
+          - target: "armv7-unknown-linux-gnueabihf"
+            arch: "armhf"
+            features: "--features=raspberry"
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Install dependencies
-        run: sudo apt-get install musl-tools libudev-dev
 
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-target
         with:
+          arch: ${{ matrix.platform.arch }}
+          target: ${{ matrix.platform.target }}
           components: clippy
-      - uses: Swatinem/rust-cache@v2
 
-      - run: cargo clippy -- -D warnings -A clippy::too_many_arguments
+      - run: cargo clippy ${{ matrix.platform.features }} -- -D warnings -A clippy::too_many_arguments
 
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt

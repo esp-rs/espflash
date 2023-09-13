@@ -14,7 +14,7 @@ jobs:
   armv7-unknown-linux-gnueabihf:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/package-arm
         with:
           arch: armhf
@@ -24,7 +24,7 @@ jobs:
   aarch64-unknown-linux-gnu:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/package-arm
         with:
           arch: arm64
@@ -34,7 +34,7 @@ jobs:
   x86_64-unknown-linux-gnu:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/package
         with:
           runs_on: ubuntu-22.04
@@ -44,7 +44,7 @@ jobs:
   x86_64-unknown-linux-musl:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/package
         with:
           runs_on: ubuntu-22.04
@@ -57,7 +57,7 @@ jobs:
   aarch64-apple-darwin:
     runs-on: macos-12
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/package
         with:
           runs_on: macos-12
@@ -67,7 +67,7 @@ jobs:
   x86_64-apple-darwin:
     runs-on: macos-12
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/package
         with:
           runs_on: macos-12
@@ -80,7 +80,7 @@ jobs:
   x86_64-pc-windows-msvc:
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/package
         with:
           runs_on: windows-2022
