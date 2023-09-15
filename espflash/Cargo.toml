@@ -40,8 +40,8 @@ clap_complete = { version = "4.4.3", optional = true }
 comfy-table = { version = "7.0.1", optional = true }
 crossterm = { version = "0.25.0", optional = true } # 0.26.x causes issues on Windows
 ctrlc = { version = "3.4.0", optional = true }
-defmt-decoder = { version = "=0.3.8", features = ["unstable"] }
-defmt-parser = { version = "=0.3.3", features = ["unstable"] }
+defmt-decoder = { version = "=0.3.8", features = ["unstable"], optional = true }
+defmt-parser = { version = "=0.3.3", features = ["unstable"], optional = true }
 dialoguer = { version = "0.10.4", optional = true }
 directories = { version = "5.0.1", optional = true }
 env_logger = { version = "0.10.0", optional = true }
@@ -66,7 +66,7 @@ update-informer = { version = "1.1.0", optional = true }
 xmas-elf = "0.9.0"
 
 [features]
-default = ["cli"]
+default = ["cli", "defmt"]
 cli = [
     "dep:addr2line",
     "dep:clap",
@@ -83,5 +83,9 @@ cli = [
     "dep:parse_int",
     "dep:regex",
     "dep:update-informer",
+]
+defmt = [
+    "dep:defmt-decoder",
+    "dep:defmt-parser",
 ]
 raspberry = ["dep:rppal"]

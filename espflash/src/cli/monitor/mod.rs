@@ -23,13 +23,14 @@ use log::error;
 use miette::{IntoDiagnostic, Result};
 
 use crate::{
-    cli::monitor::parser::{esp_defmt::EspDefmt, InputParser, ResolvingPrinter},
+    cli::monitor::parser::{InputParser, ResolvingPrinter},
     connection::reset_after_flash,
     interface::Interface,
 };
 
+pub mod parser;
+
 mod line_endings;
-mod parser;
 mod symbols;
 
 /// Type that ensures that raw mode is disabled when dropped.
@@ -57,7 +58,13 @@ pub fn monitor(
     pid: u16,
     baud: u32,
 ) -> serialport::Result<()> {
-    monitor_with(serial, elf, pid, baud, EspDefmt::new(elf))
+    #[cfg(feature = "defmt")]
+    let parser = parser::esp_defmt::EspDefmt::new(elf);
+
+    #[cfg(not(feature = "defmt"))]
+    let parser = parser::serial::Serial;
+
+    monitor_with(serial, elf, pid, baud, parser)
 }
 
 /// Open a serial monitor on the given interface, using the given input parser.
