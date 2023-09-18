@@ -149,8 +149,8 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<binread::Error> for Error {
-    fn from(err: binread::Error) -> Self {
+impl From<binrw::Error> for Error {
+    fn from(err: binrw::Error) -> Self {
         Self::Connection(err.into())
     }
 }
@@ -223,10 +223,10 @@ impl From<io::Error> for ConnectionError {
     }
 }
 
-impl From<binread::Error> for ConnectionError {
-    fn from(err: binread::Error) -> Self {
+impl From<binrw::Error> for ConnectionError {
+    fn from(err: binrw::Error) -> Self {
         match err {
-            binread::Error::Io(e) => ConnectionError::from(e),
+            binrw::Error::Io(e) => ConnectionError::from(e),
             _ => unreachable!(),
         }
     }
