@@ -6,7 +6,7 @@
 
 use std::{io::BufWriter, thread::sleep, time::Duration};
 
-use binread::{io::Cursor, BinRead, BinReaderExt};
+use binrw::{io::Cursor, BinRead, BinReaderExt};
 use log::info;
 use serialport::UsbPortInfo;
 use slip_codec::SlipDecoder;
