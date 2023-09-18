@@ -43,7 +43,7 @@ runs:
       if: inputs.arch != 'x86_64'
       shell: bash
       run: |
-        sudo apt install -y \
+        sudo apt-get update && sudo apt-get install -y \
           curl \
           gcc-aarch64-linux-gnu \
           gcc-arm-linux-gnueabihf \
@@ -59,7 +59,8 @@ runs:
     - name: Install dependencies (x86_64 linux)
       if: inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-unknown-linux-musl'
       shell: bash
-      run: sudo apt-get install musl-tools libudev-dev
+      run: |
+        sudo apt-get update && sudo apt-get install musl-tools libudev-dev
 
     - name: Set environment variables
       if: inputs.arch != 'x86_64'
