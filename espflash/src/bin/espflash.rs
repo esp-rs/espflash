@@ -1,17 +1,17 @@
 use std::{
     fs::{self, File},
     io::Read,
+    num::ParseIntError,
     path::PathBuf,
 };
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
-use espflash::cli::EraseRegionArgs;
 use espflash::{
     cli::{
         self, board_info, completions, config::Config, connect, erase_partitions, flash_elf_image,
-        monitor::monitor, parse_partition_table, parse_uint32, partition_table, print_board_info,
-        save_elf_as_image, serial_monitor, CompletionsArgs, ConnectArgs, EraseFlashArgs,
-        ErasePartsArgs, EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        monitor::monitor, parse_partition_table, partition_table, print_board_info,
+        save_elf_as_image, serial_monitor, CompletionsArgs, ConnectArgs, EspflashProgress,
+        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -84,6 +84,45 @@ enum Commands {
     WriteBin(WriteBinArgs),
 }
 
+/// Erase entire flash of target device
+#[derive(Debug, Args)]
+pub struct EraseFlashArgs {
+    /// Connection configuration
+    #[clap(flatten)]
+    pub connect_args: ConnectArgs,
+}
+
+/// Erase named partitions based on provided partition table
+#[derive(Debug, Args)]
+pub struct ErasePartsArgs {
+    /// Connection configuration
+    #[clap(flatten)]
+    pub connect_args: ConnectArgs,
+
+    #[arg(value_name = "LABELS", value_delimiter = ',')]
+    pub erase_parts: Vec<String>,
+
+    /// Input partition table
+    #[arg(long, value_name = "FILE")]
+    pub partition_table: PathBuf,
+}
+
+/// Erase specified region of flash
+#[derive(Debug, Args)]
+pub struct EraseRegionArgs {
+    /// Connection configuration
+    #[clap(flatten)]
+    pub connect_args: ConnectArgs,
+
+    /// Offset to start erasing from
+    #[arg(value_name = "OFFSET", value_parser = parse_uint32)]
+    pub addr: u32,
+
+    /// Size of the region to erase
+    #[arg(value_name = "SIZE", value_parser = parse_uint32)]
+    pub size: u32,
+}
+
 #[derive(Debug, Args)]
 struct FlashArgs {
     /// Connection configuration
@@ -125,6 +164,11 @@ struct WriteBinArgs {
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
+}
+
+/// Parses a string as a 32-bit unsigned integer.
+fn parse_uint32(input: &str) -> Result<u32, ParseIntError> {
+    parse_int::parse(input)
 }
 
 fn main() -> Result<()> {
