@@ -242,7 +242,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
 
     let mut flash = connect(&args.connect_args, config)?;
     let partition_table = match partition_table {
-        Some(path) => Some(parse_partition_table(&path)?),
+        Some(path) => Some(parse_partition_table(path)?),
         None => None,
     };
 
