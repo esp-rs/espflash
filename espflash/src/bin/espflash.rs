@@ -1,17 +1,17 @@
 use std::{
     fs::{self, File},
     io::Read,
-    num::ParseIntError,
     path::PathBuf,
 };
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
+use espflash::cli::{EraseFlashArgs, EraseRegionArgs};
 use espflash::{
     cli::{
-        self, board_info, completions, config::Config, connect, erase_partitions, flash_elf_image,
-        monitor::monitor, parse_partition_table, partition_table, print_board_info,
-        save_elf_as_image, serial_monitor, CompletionsArgs, ConnectArgs, EspflashProgress,
-        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        self, board_info, completions, config::Config, connect, erase_flash, erase_partitions,
+        erase_region, flash_elf_image, monitor::monitor, parse_partition_table, parse_uint32,
+        partition_table, print_board_info, save_elf_as_image, serial_monitor, CompletionsArgs,
+        ConnectArgs, EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     image_format::ImageFormatKind,
     logging::initialize_logger,
@@ -19,7 +19,7 @@ use espflash::{
     update::check_for_update,
 };
 use log::{debug, info, LevelFilter};
-use miette::{IntoDiagnostic, Result, WrapErr};
+use miette::{bail, IntoDiagnostic, Result, WrapErr};
 
 #[derive(Debug, Parser)]
 #[command(about, max_term_width = 100, propagate_version = true, version)]
@@ -84,14 +84,6 @@ enum Commands {
     WriteBin(WriteBinArgs),
 }
 
-/// Erase entire flash of target device
-#[derive(Debug, Args)]
-pub struct EraseFlashArgs {
-    /// Connection configuration
-    #[clap(flatten)]
-    pub connect_args: ConnectArgs,
-}
-
 /// Erase named partitions based on provided partition table
 #[derive(Debug, Args)]
 pub struct ErasePartsArgs {
@@ -99,28 +91,13 @@ pub struct ErasePartsArgs {
     #[clap(flatten)]
     pub connect_args: ConnectArgs,
 
+    /// Labels of the partitions to be erased
     #[arg(value_name = "LABELS", value_delimiter = ',')]
     pub erase_parts: Vec<String>,
 
     /// Input partition table
     #[arg(long, value_name = "FILE")]
-    pub partition_table: PathBuf,
-}
-
-/// Erase specified region of flash
-#[derive(Debug, Args)]
-pub struct EraseRegionArgs {
-    /// Connection configuration
-    #[clap(flatten)]
-    pub connect_args: ConnectArgs,
-
-    /// Offset to start erasing from
-    #[arg(value_name = "OFFSET", value_parser = parse_uint32)]
-    pub addr: u32,
-
-    /// Size of the region to erase
-    #[arg(value_name = "SIZE", value_parser = parse_uint32)]
-    pub size: u32,
+    pub partition_table: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
@@ -166,11 +143,6 @@ struct WriteBinArgs {
     connect_args: ConnectArgs,
 }
 
-/// Parses a string as a 32-bit unsigned integer.
-fn parse_uint32(input: &str) -> Result<u32, ParseIntError> {
-    parse_int::parse(input)
-}
-
 fn main() -> Result<()> {
     miette::set_panic_hook();
     initialize_logger(LevelFilter::Info);
@@ -204,31 +176,19 @@ fn main() -> Result<()> {
     }
 }
 
-fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
-    info!("Erasing Flash...");
+pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
+    if args.connect_args.no_stub {
+        bail!("Cannot erase flash without the RAM stub")
+    }
+
     let mut flash = connect(&args.connect_args, config)?;
-    flash.erase_flash()?;
+    let partition_table = match args.partition_table {
+        Some(path) => Some(parse_partition_table(&path)?),
+        None => None,
+    };
 
-    Ok(())
-}
-
-fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
-    let mut flash = connect(&args.connect_args, config)?;
-    let partition_table = parse_partition_table(&args.partition_table)?;
-    erase_partitions(
-        &mut flash,
-        Some(partition_table),
-        Some(args.erase_parts),
-        None,
-    )?;
-    flash.connection().reset()?;
-
-    Ok(())
-}
-
-fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
-    let mut flash = connect(&args.connect_args, config)?;
-    flash.erase_region(args.addr, args.size)?;
+    info!("Erasing the following partitions: {:?}", args.erase_parts);
+    erase_partitions(&mut flash, partition_table, Some(args.erase_parts), None)?;
     flash.connection().reset()?;
 
     Ok(())

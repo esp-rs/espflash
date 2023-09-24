@@ -6,6 +6,7 @@ use std::{
 
 use cargo_metadata::Message;
 use clap::{Args, CommandFactory, Parser, Subcommand};
+use espflash::cli::{erase_flash, erase_region, EraseFlashArgs, EraseRegionArgs};
 use espflash::{
     cli::{
         self, board_info, completions, config::Config, connect, erase_partitions, flash_elf_image,
@@ -18,8 +19,8 @@ use espflash::{
     targets::Chip,
     update::check_for_update,
 };
-use log::{debug, LevelFilter};
-use miette::{IntoDiagnostic, Result, WrapErr};
+use log::{debug, info, LevelFilter};
+use miette::{bail, IntoDiagnostic, Result, WrapErr};
 
 use crate::{
     cargo_config::CargoConfig,
@@ -66,6 +67,12 @@ enum Commands {
     /// depending on which shell is being used; consult your shell's
     /// documentation to determine the appropriate path.
     Completions(CompletionsArgs),
+    /// Erase Flash entirely
+    EraseFlash(EraseFlashArgs),
+    /// Erase specified partitions
+    EraseParts(ErasePartsArgs),
+    /// Erase specified region
+    EraseRegion(EraseRegionArgs),
     /// Flash an application in ELF format to a target device
     ///
     /// First convert the ELF file produced by cargo into the appropriate
@@ -137,6 +144,26 @@ struct BuildArgs {
     pub flash_config_args: FlashConfigArgs,
 }
 
+/// Erase named partitions based on provided partition table
+#[derive(Debug, Args)]
+pub struct ErasePartsArgs {
+    /// Connection configuration
+    #[clap(flatten)]
+    pub connect_args: ConnectArgs,
+
+    /// Labels of the partitions to be erased
+    #[arg(value_name = "LABELS", value_delimiter = ',')]
+    pub erase_parts: Vec<String>,
+
+    /// Input partition table
+    #[arg(long, value_name = "FILE")]
+    pub partition_table: Option<PathBuf>,
+
+    /// Specify a (binary) package within a workspace which may provide a partition table
+    #[arg(long)]
+    pub package: Option<String>,
+}
+
 /// Build and flash an application to a target device
 #[derive(Debug, Args)]
 struct FlashArgs {
@@ -182,6 +209,9 @@ fn main() -> Result<()> {
     match args {
         Commands::BoardInfo(args) => board_info(&args, &config),
         Commands::Completions(args) => completions(&args, &mut Cli::command(), "cargo"),
+        Commands::EraseFlash(args) => erase_flash(args, &config),
+        Commands::EraseParts(args) => erase_parts(args, &config),
+        Commands::EraseRegion(args) => erase_region(args, &config),
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
@@ -194,6 +224,33 @@ struct BuildContext {
     pub artifact_path: PathBuf,
     pub bootloader_path: Option<PathBuf>,
     pub partition_table_path: Option<PathBuf>,
+}
+
+pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
+    if args.connect_args.no_stub {
+        bail!("Cannot erase flash without the RAM stub")
+    }
+
+    let metadata_partition_table = PackageMetadata::load(&args.package)
+        .ok()
+        .and_then(|m| m.partition_table);
+
+    let partition_table = args
+        .partition_table
+        .as_deref()
+        .or(metadata_partition_table.as_deref());
+
+    let mut flash = connect(&args.connect_args, config)?;
+    let partition_table = match partition_table {
+        Some(path) => Some(parse_partition_table(&path)?),
+        None => None,
+    };
+
+    info!("Erasing the following partitions: {:?}", args.erase_parts);
+    erase_partitions(&mut flash, partition_table, Some(args.erase_parts), None)?;
+    flash.connection().reset()?;
+
+    Ok(())
 }
 
 fn flash(args: FlashArgs, config: &Config) -> Result<()> {

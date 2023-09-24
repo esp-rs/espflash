@@ -7,6 +7,7 @@
 //! [cargo-espflash]: https://crates.io/crates/cargo-espflash
 //! [espflash]: https://crates.io/crates/espflash
 
+use std::num::ParseIntError;
 use std::{
     collections::HashMap,
     fs,
@@ -20,7 +21,7 @@ use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
 use log::{debug, info};
-use miette::{IntoDiagnostic, Result, WrapErr};
+use miette::{bail, IntoDiagnostic, Result, WrapErr};
 use serialport::{SerialPortType, UsbPortInfo};
 
 use self::{config::Config, monitor::monitor, serial::get_serial_port_info};
@@ -65,6 +66,30 @@ pub struct ConnectArgs {
 pub struct CompletionsArgs {
     /// Shell to generate completions for.
     pub shell: Shell,
+}
+
+/// Erase entire flash of target device
+#[derive(Debug, Args)]
+pub struct EraseFlashArgs {
+    /// Connection configuration
+    #[clap(flatten)]
+    pub connect_args: ConnectArgs,
+}
+
+/// Erase specified region of flash
+#[derive(Debug, Args)]
+pub struct EraseRegionArgs {
+    /// Connection configuration
+    #[clap(flatten)]
+    pub connect_args: ConnectArgs,
+
+    /// Offset to start erasing from
+    #[arg(value_name = "OFFSET", value_parser = parse_uint32)]
+    pub addr: u32,
+
+    /// Size of the region to erase
+    #[arg(value_name = "SIZE", value_parser = parse_uint32)]
+    pub size: u32,
 }
 
 /// Configure communication with the target device's flash
@@ -445,6 +470,38 @@ impl ProgressCallbacks for EspflashProgress {
     }
 }
 
+pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
+    if args.connect_args.no_stub {
+        bail!("Cannot erase flash without the RAM stub")
+    }
+
+    let mut flash = connect(&args.connect_args, config)?;
+
+    info!("Erasing Flash...");
+    flash.erase_flash()?;
+
+    flash.connection().reset()?;
+
+    Ok(())
+}
+
+pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
+    if args.connect_args.no_stub {
+        bail!("Cannot erase flash without the RAM stub")
+    }
+
+    let mut flash = connect(&args.connect_args, config)?;
+
+    info!(
+        "Erasing region at 0x{:08x} ({} bytes)",
+        args.addr, args.size
+    );
+    flash.erase_region(args.addr, args.size)?;
+    flash.connection().reset()?;
+
+    Ok(())
+}
+
 /// Write an ELF image to a target device's flash
 pub fn flash_elf_image(
     flasher: &mut Flasher,
@@ -636,4 +693,9 @@ fn pretty_print(table: PartitionTable) {
     }
 
     println!("{pretty}");
+}
+
+/// Parses a string as a 32-bit unsigned integer.
+pub fn parse_uint32(input: &str) -> Result<u32, ParseIntError> {
+    parse_int::parse(input)
 }

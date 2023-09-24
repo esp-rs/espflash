@@ -54,7 +54,7 @@ pub enum Error {
     #[error("No package could be located in the current workspace")]
     #[diagnostic(
         code(cargo_espflash::no_package),
-        help("Ensure that you are executing from a valid package, and that the specified package name\
+        help("Ensure that you are executing from a valid package, and that the specified package name \
               exists in the current workspace.")
     )]
     NoPackage,

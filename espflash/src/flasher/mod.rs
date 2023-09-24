@@ -865,14 +865,14 @@ impl Flasher {
     }
 
     pub fn erase_flash(&mut self) -> Result<(), Error> {
+        debug!("Erasing the entire flash");
+
         self.connection
             .with_timeout(CommandType::EraseFlash.timeout(), |connection| {
                 connection.command(Command::EraseFlash)
             })?;
         sleep(Duration::from_secs_f32(0.05));
         self.connection.flush()?;
-
-        self.connection.reset()?;
 
         Ok(())
     }
