@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added erase-flash, erase-region, and erase-parts subcommands (#462)
+
 ### Fixed
 
 - Fixed printing UTF-8 sequences that were read in multiple parts. (#468)
 
 ### Changed
+
+- Update dependencies to their latest versions (#482)
 
 ### Removed
 
