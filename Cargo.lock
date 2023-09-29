@@ -67,9 +67,9 @@ dependencies = [
 
 [[package]]
 name = "anstream"
-version = "0.6.1"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6cd65a4b849ace0b7f6daeebcc1a1d111282227ca745458c61dbf670e52a597"
+checksum = "83d7b3983a025adeb201ef26a5564ebd1641ea9851f6282aee4940f745a3c07c"
 dependencies = [
  "anstyle",
  "anstyle-parse",
@@ -105,9 +105,9 @@ dependencies = [
 
 [[package]]
 name = "anstyle-wincon"
-version = "3.0.0"
+version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0238ca56c96dfa37bdf7c373c8886dd591322500aceeeccdb2216fe06dc2f796"
+checksum = "f0699d10d2f4d628a98ee7b57b289abbc98ff3bad977cb3152709d4bf2330628"
 dependencies = [
  "anstyle",
  "windows-sys 0.48.0",
@@ -396,7 +396,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-espflash"
-version = "2.0.2-dev"
+version = "2.0.2"
 dependencies = [
  "cargo",
  "cargo_metadata",
@@ -1029,7 +1029,7 @@ dependencies = [
 
 [[package]]
 name = "espflash"
-version = "2.0.2-dev"
+version = "2.0.2"
 dependencies = [
  "addr2line",
  "base64",
