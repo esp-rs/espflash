@@ -83,10 +83,10 @@ pub enum Error {
     )]
     NoSerial,
 
-    #[error("Cannot erase flash without the RAM stub")]
+    #[error("Erase commands require using the RAM stub")]
     #[diagnostic(
         code(espflash::stub_required_to_erase_flash),
-        help("Don't use the `--no-ram-stub` option with `erase` commands")
+        help("Don't use the `--no-stub` option with erase commands")
     )]
     StubRequiredToEraseFlash,
 
