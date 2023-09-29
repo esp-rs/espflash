@@ -34,7 +34,7 @@ log = "0.4.20"
 miette = { version = "5.10.0", features = ["fancy"] }
 serde = { version = "1.0.188", features = ["derive"] }
 thiserror = "1.0.49"
-toml = "0.8.1"
+toml = "0.7.8"
 
 [target.'cfg(unix)'.dependencies]
 cargo = { version = "0.73.1", features = ["vendored-openssl"] }
