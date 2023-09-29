@@ -21,13 +21,13 @@ use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
 use log::{debug, info};
-use miette::{bail, IntoDiagnostic, Result, WrapErr};
+use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{SerialPortType, UsbPortInfo};
 
 use self::{config::Config, monitor::monitor, serial::get_serial_port_info};
 use crate::{
     elf::ElfFirmwareImage,
-    error::{MissingPartition, MissingPartitionTable},
+    error::{Error, MissingPartition, MissingPartitionTable},
     flasher::{FlashFrequency, FlashMode, FlashSize, Flasher, ProgressCallbacks},
     image_format::ImageFormatKind,
     interface::Interface,
@@ -472,7 +472,7 @@ impl ProgressCallbacks for EspflashProgress {
 
 pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
-        bail!("Cannot erase flash without the RAM stub")
+        return Err(Error::StubRequiredToEraseFlash).into_diagnostic();
     }
 
     let mut flash = connect(&args.connect_args, config)?;
@@ -487,7 +487,7 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
 
 pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
-        bail!("Cannot erase flash without the RAM stub")
+        return Err(Error::StubRequiredToEraseFlash).into_diagnostic();
     }
 
     let mut flash = connect(&args.connect_args, config)?;

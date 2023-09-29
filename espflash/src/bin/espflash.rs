@@ -5,21 +5,22 @@ use std::{
 };
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
-use espflash::cli::{EraseFlashArgs, EraseRegionArgs};
 use espflash::{
     cli::{
         self, board_info, completions, config::Config, connect, erase_flash, erase_partitions,
         erase_region, flash_elf_image, monitor::monitor, parse_partition_table, parse_uint32,
         partition_table, print_board_info, save_elf_as_image, serial_monitor, CompletionsArgs,
-        ConnectArgs, EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress, FlashConfigArgs,
+        MonitorArgs, PartitionTableArgs,
     },
+    error::Error,
     image_format::ImageFormatKind,
     logging::initialize_logger,
     targets::Chip,
     update::check_for_update,
 };
 use log::{debug, info, LevelFilter};
-use miette::{bail, IntoDiagnostic, Result, WrapErr};
+use miette::{IntoDiagnostic, Result, WrapErr};
 
 #[derive(Debug, Parser)]
 #[command(about, max_term_width = 100, propagate_version = true, version)]
@@ -178,7 +179,7 @@ fn main() -> Result<()> {
 
 pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
-        bail!("Cannot erase flash without the RAM stub")
+        return Err(Error::StubRequiredToEraseFlash).into_diagnostic();
     }
 
     let mut flash = connect(&args.connect_args, config)?;

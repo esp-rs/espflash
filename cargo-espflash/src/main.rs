@@ -14,13 +14,14 @@ use espflash::{
         save_elf_as_image, serial_monitor, CompletionsArgs, ConnectArgs, EspflashProgress,
         FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
+    error::Error as EspflashError,
     image_format::ImageFormatKind,
     logging::initialize_logger,
     targets::Chip,
     update::check_for_update,
 };
 use log::{debug, info, LevelFilter};
-use miette::{bail, IntoDiagnostic, Result, WrapErr};
+use miette::{IntoDiagnostic, Result, WrapErr};
 
 use crate::{
     cargo_config::CargoConfig,
@@ -228,7 +229,7 @@ struct BuildContext {
 
 pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
-        bail!("Cannot erase flash without the RAM stub")
+        return Err(EspflashError::StubRequiredToEraseFlash).into_diagnostic();
     }
 
     let metadata_partition_table = PackageMetadata::load(&args.package)
