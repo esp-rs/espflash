@@ -83,6 +83,13 @@ pub enum Error {
     )]
     NoSerial,
 
+    #[error("Erase commands require using the RAM stub")]
+    #[diagnostic(
+        code(espflash::stub_required_to_erase_flash),
+        help("Don't use the `--no-stub` option with erase commands")
+    )]
+    StubRequiredToEraseFlash,
+
     #[error("Incorrect serial port configuration")]
     #[diagnostic(
         code(espflash::serial_config),

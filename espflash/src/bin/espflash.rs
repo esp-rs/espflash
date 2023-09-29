@@ -1,24 +1,25 @@
 use std::{
     fs::{self, File},
     io::Read,
-    num::ParseIntError,
     path::PathBuf,
 };
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{
-        self, board_info, completions, config::Config, connect, erase_partitions, flash_elf_image,
-        monitor::monitor, parse_partition_table, partition_table, print_board_info,
-        save_elf_as_image, serial_monitor, CompletionsArgs, ConnectArgs, EspflashProgress,
-        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        self, board_info, completions, config::Config, connect, erase_flash, erase_partitions,
+        erase_region, flash_elf_image, monitor::monitor, parse_partition_table, parse_uint32,
+        partition_table, print_board_info, save_elf_as_image, serial_monitor, CompletionsArgs,
+        ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress, FlashConfigArgs,
+        MonitorArgs, PartitionTableArgs,
     },
+    error::Error,
     image_format::ImageFormatKind,
     logging::initialize_logger,
     targets::Chip,
     update::check_for_update,
 };
-use log::{debug, LevelFilter};
+use log::{debug, info, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};
 
 #[derive(Debug, Parser)]
@@ -42,6 +43,12 @@ enum Commands {
     /// depending on which shell is being used; consult your shell's
     /// documentation to determine the appropriate path.
     Completions(CompletionsArgs),
+    /// Erase Flash entirely
+    EraseFlash(EraseFlashArgs),
+    /// Erase specified partitions
+    EraseParts(ErasePartsArgs),
+    /// Erase specified region
+    EraseRegion(EraseRegionArgs),
     /// Flash an application in ELF format to a connected target device
     ///
     /// Given a path to an ELF file, first convert it into the appropriate
@@ -76,6 +83,22 @@ enum Commands {
     SaveImage(SaveImageArgs),
     /// Write a binary file to a specific address in a target device's flash
     WriteBin(WriteBinArgs),
+}
+
+/// Erase named partitions based on provided partition table
+#[derive(Debug, Args)]
+pub struct ErasePartsArgs {
+    /// Connection configuration
+    #[clap(flatten)]
+    pub connect_args: ConnectArgs,
+
+    /// Labels of the partitions to be erased
+    #[arg(value_name = "LABELS", value_delimiter = ',')]
+    pub erase_parts: Vec<String>,
+
+    /// Input partition table
+    #[arg(long, value_name = "FILE")]
+    pub partition_table: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
@@ -121,11 +144,6 @@ struct WriteBinArgs {
     connect_args: ConnectArgs,
 }
 
-/// Parses a string as a 32-bit unsigned integer.
-fn parse_uint32(input: &str) -> Result<u32, ParseIntError> {
-    parse_int::parse(input)
-}
-
 fn main() -> Result<()> {
     miette::set_panic_hook();
     initialize_logger(LevelFilter::Info);
@@ -148,12 +166,33 @@ fn main() -> Result<()> {
     match args {
         Commands::BoardInfo(args) => board_info(&args, &config),
         Commands::Completions(args) => completions(&args, &mut Cli::command(), "espflash"),
+        Commands::EraseFlash(args) => erase_flash(args, &config),
+        Commands::EraseParts(args) => erase_parts(args, &config),
+        Commands::EraseRegion(args) => erase_region(args, &config),
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
         Commands::SaveImage(args) => save_image(args),
         Commands::WriteBin(args) => write_bin(args, &config),
     }
+}
+
+pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
+    if args.connect_args.no_stub {
+        return Err(Error::StubRequiredToEraseFlash).into_diagnostic();
+    }
+
+    let mut flash = connect(&args.connect_args, config)?;
+    let partition_table = match args.partition_table {
+        Some(path) => Some(parse_partition_table(&path)?),
+        None => None,
+    };
+
+    info!("Erasing the following partitions: {:?}", args.erase_parts);
+    erase_partitions(&mut flash, partition_table, Some(args.erase_parts), None)?;
+    flash.connection().reset()?;
+
+    Ok(())
 }
 
 fn flash(args: FlashArgs, config: &Config) -> Result<()> {
