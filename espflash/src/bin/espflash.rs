@@ -62,6 +62,8 @@ enum Commands {
     ///
     /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/app_image_format.html
     Flash(FlashArgs),
+    /// Hold the target device in reset
+    HoldInReset(ConnectArgs),
     /// Open the serial monitor without flashing the connected target device
     Monitor(MonitorArgs),
     /// Convert partition tables between CSV and binary format
@@ -77,6 +79,8 @@ enum Commands {
     PartitionTable(PartitionTableArgs),
     /// Read SPI flash content
     ReadFlash(ReadFlashArgs),
+    /// Reset the target device
+    Reset(ConnectArgs),
     /// Generate a binary application image and save it to a local disk
     ///
     /// If the '--merge' option is used, then the bootloader, partition table,
@@ -174,9 +178,11 @@ fn main() -> Result<()> {
         Commands::EraseParts(args) => erase_parts(args, &config),
         Commands::EraseRegion(args) => erase_region(args, &config),
         Commands::Flash(args) => flash(args, &config),
+        Commands::HoldInReset(args) => hold_in_reset(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
         Commands::ReadFlash(args) => read_flash(args, &config),
+        Commands::Reset(args) => reset(args, &config),
         Commands::SaveImage(args) => save_image(args, &config),
         Commands::WriteBin(args) => write_bin(args, &config),
         Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
@@ -202,6 +208,23 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
         .reset_after(!args.connect_args.no_stub)?;
 
     info!("Specified partitions successfully erased!");
+
+    Ok(())
+}
+
+fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
+    let mut args = args.clone();
+    args.no_stub = true;
+    let mut flash = connect(&args, config)?;
+    info!("Resetting target device");
+    flash.connection().reset()?;
+
+    Ok(())
+}
+
+fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
+    connect(&args, config)?;
+    info!("Holding target device in reset");
 
     Ok(())
 }
