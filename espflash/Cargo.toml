@@ -31,35 +31,35 @@ path = "./src/bin/espflash.rs"
 required-features = ["cli"]
 
 [dependencies]
-addr2line = { version = "0.20.0", optional = true }
-base64 = "0.21.2"
+addr2line = { version = "0.21.0", optional = true }
+base64 = "0.21.4"
 binread = "2.2.0"
-bytemuck = { version = "1.13.1", features = ["derive"] }
-clap = { version = "4.3.*", features = ["derive", "env", "wrap_help"], optional = true }
-clap_complete = { version = "4.3.*", optional = true }
+bytemuck = { version = "1.14.0", features = ["derive"] }
+clap = { version = "4.4.6", features = ["derive", "env", "wrap_help"], optional = true }
+clap_complete = { version = "4.4.3", optional = true }
 comfy-table = { version = "7.0.1", optional = true }
 crossterm = { version = "0.25.0", optional = true } # 0.26.x causes issues on Windows
-ctrlc = { version = "3.4.0", optional = true }
+ctrlc = { version = "3.4.1", optional = true }
 dialoguer = { version = "0.10.4", optional = true }
 directories = { version = "5.0.1", optional = true }
 env_logger = { version = "0.10.0", optional = true }
 esp-idf-part = "0.4.1"
-flate2 = "1.0.26"
+flate2 = "1.0.27"
 hex = { version = "0.4.3", features = ["serde"], optional = true }
-indicatif = { version = "0.17.5", optional = true }
+indicatif = { version = "0.17.7", optional = true }
 lazy_static = { version = "1.4.0", optional = true }
-log = "0.4.19"
-miette = { version = "5.9.0", features = ["fancy"] }
+log = "0.4.20"
+miette = { version = "5.10.0", features = ["fancy"] }
 parse_int = { version = "0.6.0", optional = true }
-regex = { version = "1.9.1", optional = true }
+regex = { version = "1.9.5", optional = true }
 rppal = { version = "0.14.1", optional = true }
-serde = { version = "1.0.171", features = ["derive"] }
-serialport = "4.2.1"
-sha2 = "0.10.7"
+serde = { version = "1.0.188", features = ["derive"] }
+serialport = "4.2.2"
+sha2 = "0.10.8"
 slip-codec = "0.3.4"
 strum = { version = "0.25.0", features = ["derive"] }
-thiserror = "1.0.43"
-toml = "0.7.6"
+thiserror = "1.0.49"
+toml = "0.8.1"
 update-informer = { version = "1.1.0", optional = true }
 xmas-elf = "0.9.0"
 
