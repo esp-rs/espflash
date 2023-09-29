@@ -83,6 +83,13 @@ pub enum Error {
     )]
     NoSerial,
 
+    #[error("Erase commands require using the RAM stub")]
+    #[diagnostic(
+        code(espflash::stub_required_to_erase_flash),
+        help("Don't use the `--no-stub` option with erase commands")
+    )]
+    StubRequiredToEraseFlash,
+
     #[error("Incorrect serial port configuration")]
     #[diagnostic(
         code(espflash::serial_config),
@@ -149,8 +156,8 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<binread::Error> for Error {
-    fn from(err: binread::Error) -> Self {
+impl From<binrw::Error> for Error {
+    fn from(err: binrw::Error) -> Self {
         Self::Connection(err.into())
     }
 }
@@ -223,10 +230,10 @@ impl From<io::Error> for ConnectionError {
     }
 }
 
-impl From<binread::Error> for ConnectionError {
-    fn from(err: binread::Error) -> Self {
+impl From<binrw::Error> for ConnectionError {
+    fn from(err: binrw::Error) -> Self {
         match err {
-            binread::Error::Io(e) => ConnectionError::from(e),
+            binrw::Error::Io(e) => ConnectionError::from(e),
             _ => unreachable!(),
         }
     }
