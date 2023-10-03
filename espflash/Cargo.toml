@@ -1,8 +1,8 @@
 [package]
 name = "espflash"
-version = "2.0.2"
+version = "2.1.0"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 description = "A command-line tool for flashing Espressif devices"
 repository = "https://github.com/esp-rs/espflash"
 license = "MIT OR Apache-2.0"
@@ -33,10 +33,10 @@ required-features = ["cli"]
 [dependencies]
 addr2line = { version = "0.21.0", optional = true }
 base64 = "0.21.4"
-binrw = "0.11.2"
+binrw = "0.12.0"
 bytemuck = { version = "1.14.0", features = ["derive"] }
-clap = { version = "4.3.*", features = ["derive", "env", "wrap_help"], optional = true }
-clap_complete = { version = "4.3.*", optional = true }
+clap = { version = "4.4.6", features = ["derive", "env", "wrap_help"], optional = true }
+clap_complete = { version = "4.4.3", optional = true }
 comfy-table = { version = "7.0.1", optional = true }
 crossterm = { version = "0.25.0", optional = true } # 0.26.x causes issues on Windows
 ctrlc = { version = "3.4.1", optional = true }
@@ -51,7 +51,7 @@ lazy_static = { version = "1.4.0", optional = true }
 log = "0.4.20"
 miette = { version = "5.10.0", features = ["fancy"] }
 parse_int = { version = "0.6.0", optional = true }
-regex = { version = "1.9.5", optional = true }
+regex = { version = "1.9.6", optional = true }
 rppal = { version = "0.14.1", optional = true }
 serde = { version = "1.0.188", features = ["derive"] }
 serialport = "4.2.2"
@@ -59,7 +59,7 @@ sha2 = "0.10.8"
 slip-codec = "0.3.4"
 strum = { version = "0.25.0", features = ["derive"] }
 thiserror = "1.0.49"
-toml = "0.7.8"
+toml = "0.8.2"
 update-informer = { version = "1.1.0", optional = true }
 xmas-elf = "0.9.0"
 

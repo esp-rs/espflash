@@ -1,8 +1,8 @@
 [package]
 name = "cargo-espflash"
-version = "2.0.2"
+version = "2.1.0"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 description = "Cargo subcommand for flashing Espressif devices"
 repository = "https://github.com/esp-rs/espflash"
 license = "MIT OR Apache-2.0"
@@ -26,15 +26,15 @@ pkg-fmt = "zip"
 
 [dependencies]
 cargo_metadata = "0.18.0"
-clap = { version = "4.3.*", features = ["derive", "wrap_help"] }
+clap = { version = "4.4.6", features = ["derive", "wrap_help"] }
 env_logger = "0.10.0"
 esp-idf-part = "0.4.1"
-espflash = { version = "=2.0.2", path = "../espflash" }
+espflash = { version = "=2.1.0", path = "../espflash" }
 log = "0.4.20"
 miette = { version = "5.10.0", features = ["fancy"] }
 serde = { version = "1.0.188", features = ["derive"] }
 thiserror = "1.0.49"
-toml = "0.7.8"
+toml = "0.8.2"
 
 [target.'cfg(unix)'.dependencies]
 cargo = { version = "0.73.1", features = ["vendored-openssl"] }
