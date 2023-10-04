@@ -66,13 +66,16 @@ A command-line tool for flashing Espressif devices
 Usage: espflash <COMMAND>
 
 Commands:
-  board-info       Establish a connection with a target device
+  board-info       Print information about a connected target device
   completions      Generate completions for the given shell
-  flash            Flash an application to a target device
-  monitor          Open the serial monitor without flashing
-  partition-table  Operations for partitions tables
-  save-image       Save the image to disk instead of flashing to device
-  write-bin        Writes a binary file to a specific address in the chip's flash
+  erase-flash      Erase Flash entirely
+  erase-parts      Erase specified partitions
+  erase-region     Erase specified region
+  flash            Flash an application in ELF format to a connected target device
+  monitor          Open the serial monitor without flashing the connected target device
+  partition-table  Convert partition tables between CSV and binary format
+  save-image       Generate a binary application image and save it to a local disk
+  write-bin        Write a binary file to a specific address in a target device's flash
   help             Print this message or the help of the given subcommand(s)
 
 Options:
