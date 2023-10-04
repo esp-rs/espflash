@@ -17,6 +17,9 @@ Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-S2/S3**, and *
 - [Bootloader and Partition Table](#bootloader-and-partition-table)
 - [Package Metadata](#package-metadata)
 - [Configuration File](#configuration-file)
+  - [Configuration examples](#configuration-examples)
+- [License](#license)
+  - [Contribution](#contribution)
 
 ## Installation
 
