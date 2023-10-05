@@ -197,6 +197,7 @@ impl ResetStrategy for UsbJtagSerialReset {
 ///
 /// Returns a [Vec] containing one or more reset strategies to be attempted
 /// sequentially.
+#[allow(unused_variables)]
 pub fn construct_reset_strategy_sequence(port_name: &str, pid: u16) -> Vec<Box<dyn ResetStrategy>> {
     // USB-JTAG/Serial mode
     if pid == USB_SERIAL_JTAG_PID {
@@ -204,6 +205,7 @@ pub fn construct_reset_strategy_sequence(port_name: &str, pid: u16) -> Vec<Box<d
     }
 
     // USB-to-Serial bridge
+    #[cfg(unix)]
     if cfg!(unix) && !port_name.starts_with("rfc2217:") {
         return vec![
             Box::new(UnixTightReset::new(false)),
