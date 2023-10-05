@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [Unreleased]
 
 ### Added
+- Add publish to Crates.io step in the release workflow. (#486)
 
 ### Fixed
 
