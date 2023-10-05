@@ -7,7 +7,7 @@
 use std::{io::BufWriter, iter::zip, thread::sleep, time::Duration};
 
 use binrw::{io::Cursor, BinRead, BinReaderExt};
-use log::{debug, info};
+use log::debug;
 use serialport::UsbPortInfo;
 use slip_codec::SlipDecoder;
 
@@ -62,8 +62,13 @@ impl Connection {
         let reset_sequence = construct_reset_strategy_sequence(&port_name, self.port_info.pid);
 
         for (_, reset_strategy) in zip(0..MAX_CONNECT_ATTEMPTS, reset_sequence.iter().cycle()) {
-            if self.connect_attempt(reset_strategy).is_ok() {
-                return Ok(());
+            match self.connect_attempt(reset_strategy) {
+                Ok(_) => {
+                    return Ok(());
+                }
+                Err(e) => {
+                    debug!("Failed to reset, error {:#?}, retrying", e);
+                }
             }
         }
 
