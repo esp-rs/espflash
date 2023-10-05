@@ -1,10 +1,7 @@
 //! This entire module is copied from `esptool.py` (https://github.com/espressif/esptool/blob/a8586d02b1305ebc687d31783437a7f4d4dbb70f/esptool/reset.py)
 
 #[cfg(unix)]
-use std::{
-    io,
-    os::{fd::AsRawFd, unix::io::RawFd},
-};
+use std::{io, os::fd::AsRawFd};
 use std::{thread::sleep, time::Duration};
 
 use log::debug;
@@ -17,12 +14,7 @@ const DEFAULT_RESET_DELAY: u64 = 50; // ms
 const EXTRA_RESET_DELAY: u64 = 500; // ms
 
 #[cfg(unix)]
-mod syscalls {
-    use nix::{ioctl_read_bad, ioctl_write_int_bad, libc};
-
-    ioctl_read_bad!(tiocmget, libc::TIOCMGET, libc::c_int);
-    ioctl_write_int_bad!(tiocmset, libc::TIOCMSET);
-}
+use libc::ioctl;
 
 /// Some strategy for resting a target device
 pub trait ResetStrategy {
@@ -50,22 +42,28 @@ pub trait ResetStrategy {
         rts_level: bool,
     ) -> Result<(), Error> {
         let fd = interface.as_raw_fd();
-        let mut status = tiocmget(fd)?;
+        let mut status: i32 = 0;
+        match unsafe { ioctl(fd, libc::TIOCMGET, &status) } {
+            0 => (),
+            _ => return Err(io::Error::last_os_error().into()),
+        }
 
         if dtr_level {
-            status |= nix::libc::TIOCM_DTR
+            status |= libc::TIOCM_DTR
         } else {
-            status &= !nix::libc::TIOCM_DTR
+            status &= !libc::TIOCM_DTR
         }
 
         if rts_level {
-            status |= nix::libc::TIOCM_RTS
+            status |= libc::TIOCM_RTS
         } else {
-            status &= !nix::libc::TIOCM_RTS
+            status &= !libc::TIOCM_RTS
         }
 
-        tiocmset(fd, status)?;
-
+        match unsafe { ioctl(fd, libc::TIOCMSET, &status) } {
+            0 => (),
+            _ => return Err(io::Error::last_os_error().into()),
+        }
         Ok(())
     }
 }
@@ -94,6 +92,11 @@ impl ResetStrategy for ClassicReset {
             "Using Classic reset strategy with delay of {}ms",
             self.delay
         );
+        self.set_dtr(interface, false)?;
+        self.set_rts(interface, false)?;
+
+        self.set_dtr(interface, true)?;
+        self.set_rts(interface, true)?;
 
         self.set_dtr(interface, false)?; // IO0 = HIGH
         self.set_rts(interface, true)?; // EN = LOW, chip in reset
@@ -106,6 +109,7 @@ impl ResetStrategy for ClassicReset {
         sleep(Duration::from_millis(self.delay));
 
         self.set_dtr(interface, false)?; // IO0 = HIGH, done
+        self.set_rts(interface, false)?;
 
         Ok(())
     }
@@ -214,24 +218,4 @@ pub fn construct_reset_strategy_sequence(port_name: &str, pid: u16) -> Vec<Box<d
         Box::new(ClassicReset::new(false)),
         Box::new(ClassicReset::new(true)),
     ]
-}
-
-/// Get the status of modem bits
-#[cfg(unix)]
-fn tiocmget(fd: RawFd) -> io::Result<i32> {
-    let mut bits: i32 = 0;
-
-    match unsafe { syscalls::tiocmget(fd, &mut bits) } {
-        Ok(0) => Ok(bits),
-        _ => Err(io::Error::last_os_error()),
-    }
-}
-
-/// Set the status of modem bits
-#[cfg(unix)]
-fn tiocmset(fd: RawFd, bits: i32) -> io::Result<()> {
-    match unsafe { syscalls::tiocmset(fd, bits) } {
-        Ok(0) => Ok(()),
-        _ => Err(io::Error::last_os_error()),
-    }
 }
