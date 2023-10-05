@@ -5,6 +5,8 @@
 //! serial port as one normally would, ie.) via USB.
 
 use std::io::Read;
+#[cfg(unix)]
+use std::os::fd::{AsRawFd, RawFd};
 
 use miette::{Context, Result};
 #[cfg(feature = "raspberry")]
@@ -12,6 +14,11 @@ use rppal::gpio::{Gpio, OutputPin};
 use serialport::{FlowControl, SerialPort, SerialPortInfo};
 
 use crate::error::Error;
+
+#[cfg(unix)]
+type Port = serialport::TTYPort;
+#[cfg(windows)]
+type Port = serialport::COMPort;
 
 /// Errors relating to the configuration of a serial port
 #[derive(thiserror::Error, Debug)]
@@ -29,7 +36,7 @@ pub enum SerialConfigError {
 /// implemented.
 pub struct Interface {
     /// Hardware serial port used for communication
-    pub serial_port: Box<dyn SerialPort>,
+    pub serial_port: Port,
     /// Data Transmit Ready pin
     #[cfg(feature = "raspberry")]
     pub dtr: Option<OutputPin>,
@@ -49,10 +56,10 @@ fn write_gpio(gpio: &mut OutputPin, level: bool) {
 }
 
 /// Open a serial port
-fn open_port(port_info: &SerialPortInfo) -> Result<Box<dyn SerialPort>> {
+fn open_port(port_info: &SerialPortInfo) -> Result<Port> {
     serialport::new(&port_info.port_name, 115_200)
         .flow_control(FlowControl::None)
-        .open()
+        .open_native()
         .map_err(Error::from)
         .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))
 }
@@ -125,17 +132,17 @@ impl Interface {
 
     /// Turn an [Interface] into a [SerialPort]
     pub fn into_serial(self) -> Box<dyn SerialPort> {
-        self.serial_port
+        Box::new(self.serial_port)
     }
 
     /// Turn an [Interface] into a `&`[SerialPort]
     pub fn serial_port(&self) -> &dyn SerialPort {
-        self.serial_port.as_ref()
+        &self.serial_port
     }
 
     /// Turn an [Interface] into a  `&mut `[SerialPort]
     pub fn serial_port_mut(&mut self) -> &mut dyn SerialPort {
-        self.serial_port.as_mut()
+        &mut self.serial_port
     }
 }
 
@@ -144,5 +151,12 @@ impl Interface {
 impl Read for Interface {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.serial_port.read(buf)
+    }
+}
+
+#[cfg(unix)]
+impl AsRawFd for Interface {
+    fn as_raw_fd(&self) -> RawFd {
+        self.serial_port.as_raw_fd()
     }
 }

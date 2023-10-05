@@ -1118,6 +1118,7 @@ dependencies = [
  "lazy_static",
  "log",
  "miette",
+ "nix 0.27.1",
  "parse_int",
  "regex",
  "rppal",

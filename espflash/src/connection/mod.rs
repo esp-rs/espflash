@@ -4,21 +4,29 @@
 //! sending/decoding of commands, and provides higher-level operations with the
 //! device.
 
-use std::{io::BufWriter, thread::sleep, time::Duration};
+use std::{io::BufWriter, iter::zip, thread::sleep, time::Duration};
 
 use binrw::{io::Cursor, BinRead, BinReaderExt};
 use log::{debug, info};
 use serialport::UsbPortInfo;
 use slip_codec::SlipDecoder;
 
-use self::encoder::SlipEncoder;
+#[cfg(unix)]
+use self::reset::UnixTightReset;
+use self::{
+    encoder::SlipEncoder,
+    reset::{construct_reset_strategy_sequence, ClassicReset, ResetStrategy, UsbJtagSerialReset},
+};
 use crate::{
     command::{Command, CommandType},
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
     interface::Interface,
 };
 
-const DEFAULT_CONNECT_ATTEMPTS: usize = 7;
+mod reset;
+
+const MAX_CONNECT_ATTEMPTS: usize = 7;
+const MAX_SYNC_ATTEMPTS: usize = 5;
 pub(crate) const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
 /// A response from a target device following a command
@@ -50,16 +58,11 @@ impl Connection {
 
     /// Initialize a connection with a device
     pub fn begin(&mut self) -> Result<(), Error> {
-        let mut extra_delay = false;
-        for _ in 0..DEFAULT_CONNECT_ATTEMPTS {
-            if self.connect_attempt(extra_delay).is_err() {
-                extra_delay = !extra_delay;
+        let port_name = self.serial.serial_port().name().unwrap_or_default();
+        let reset_sequence = construct_reset_strategy_sequence(&port_name, self.port_info.pid);
 
-                info!(
-                    "Unable to connect, retrying with {} delay...",
-                    if extra_delay { "extra" } else { "default" }
-                );
-            } else {
+        for (_, reset_strategy) in zip(0..MAX_CONNECT_ATTEMPTS, reset_sequence.iter().cycle()) {
+            if self.connect_attempt(reset_strategy).is_ok() {
                 return Ok(());
             }
         }
@@ -68,11 +71,12 @@ impl Connection {
     }
 
     /// Try to connect to a device
-    fn connect_attempt(&mut self, extra_delay: bool) -> Result<(), Error> {
-        self.reset_to_flash(extra_delay)?;
-
-        for _ in 0..5 {
+    #[allow(clippy::borrowed_box)]
+    fn connect_attempt(&mut self, reset_strategy: &Box<dyn ResetStrategy>) -> Result<(), Error> {
+        reset_strategy.reset(&mut self.serial)?;
+        for _ in 0..MAX_SYNC_ATTEMPTS {
             self.flush()?;
+
             if self.sync().is_ok() {
                 return Ok(());
             }
@@ -86,12 +90,14 @@ impl Connection {
         self.with_timeout(CommandType::Sync.timeout(), |connection| {
             connection.command(Command::Sync)?;
             connection.flush()?;
+
             sleep(Duration::from_millis(10));
-            for _ in 0..7 {
+
+            for _ in 0..MAX_CONNECT_ATTEMPTS {
                 match connection.read_response()? {
                     Some(response) if response.return_op == CommandType::Sync as u8 => {
                         if response.status == 1 {
-                            let _error = connection.flush();
+                            connection.flush().ok();
                             return Err(Error::RomError(RomError::new(
                                 CommandType::Sync,
                                 RomErrorKind::from(response.error),
@@ -115,47 +121,26 @@ impl Connection {
 
     // Reset the device
     pub fn reset(&mut self) -> Result<(), Error> {
-        let pid = self.port_info.pid;
-        Ok(reset_after_flash(&mut self.serial, pid)?)
+        reset_after_flash(&mut self.serial, self.port_info.pid)?;
+
+        Ok(())
     }
 
     // Reset the device to flash mode
     pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
         if self.port_info.pid == USB_SERIAL_JTAG_PID {
-            self.serial.write_data_terminal_ready(false)?;
-            self.serial.write_request_to_send(false)?;
-
-            sleep(Duration::from_millis(100));
-
-            self.serial.write_data_terminal_ready(true)?;
-            self.serial.write_request_to_send(false)?;
-
-            sleep(Duration::from_millis(100));
-
-            self.serial.write_request_to_send(true)?;
-            self.serial.write_data_terminal_ready(false)?;
-            self.serial.write_request_to_send(true)?;
-
-            sleep(Duration::from_millis(100));
-
-            self.serial.write_data_terminal_ready(false)?;
-            self.serial.write_request_to_send(false)?;
+            UsbJtagSerialReset.reset(&mut self.serial)
         } else {
-            self.serial.write_data_terminal_ready(false)?;
-            self.serial.write_request_to_send(true)?;
+            #[cfg(unix)]
+            if UnixTightReset::new(extra_delay)
+                .reset(&mut self.serial)
+                .is_ok()
+            {
+                return Ok(());
+            }
 
-            sleep(Duration::from_millis(100));
-
-            self.serial.write_data_terminal_ready(true)?;
-            self.serial.write_request_to_send(false)?;
-
-            let millis = if extra_delay { 500 } else { 50 };
-            sleep(Duration::from_millis(millis));
-
-            self.serial.write_data_terminal_ready(false)?;
+            ClassicReset::new(extra_delay).reset(&mut self.serial)
         }
-
-        Ok(())
     }
 
     /// Set timeout for the serial port
@@ -177,11 +162,10 @@ impl Connection {
     }
 
     /// Run a command with a timeout defined by the command type
-    pub fn with_timeout<T, F: FnMut(&mut Connection) -> Result<T, Error>>(
-        &mut self,
-        timeout: Duration,
-        mut f: F,
-    ) -> Result<T, Error> {
+    pub fn with_timeout<T, F>(&mut self, timeout: Duration, mut f: F) -> Result<T, Error>
+    where
+        F: FnMut(&mut Connection) -> Result<T, Error>,
+    {
         let old_timeout = {
             let serial = self.serial.serial_port_mut();
             let old_timeout = serial.timeout();
