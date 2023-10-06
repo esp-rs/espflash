@@ -30,9 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Update dependencies to their latest versions (#482)
-- **breaking** Bumped MSRV to 1.70.0
-
-### Removed
 
 ## [2.0.1] - 2023-07-13
 
