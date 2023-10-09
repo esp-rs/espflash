@@ -116,23 +116,29 @@ impl InputParser for EspDefmt {
                             defmt_parser::Level::Warn => Color::Yellow,
                             defmt_parser::Level::Error => Color::Red,
                         };
-                        out.queue(PrintStyledContent(
-                            format!(
-                                "[{}] - {}",
-                                level.as_str().to_uppercase(),
-                                frame.display_message()
-                            )
-                            .with(color),
-                        ))
-                        .unwrap();
+                        // Print/PrintStyledContent panics if its content has a bare \n in it, so
+                        // we feed the input line by line.
+                        // As an additional benefit we can print the level before each
+                        // line which looks better.
+                        let level = level.as_str().to_uppercase();
+                        for line in frame.display_message().to_string().lines() {
+                            out.queue(PrintStyledContent(
+                                format!("[{level}] - {line}\r\n").with(color),
+                            ))
+                            .unwrap();
+                        }
                     }
                     None => {
-                        out.queue(Print(frame.display_message())).unwrap();
+                        // Print/PrintStyledContent panics if its content has a bare \n in it, so
+                        // we feed the input line by line.
+                        for line in frame.display_message().to_string().lines() {
+                            out.queue(Print(line)).unwrap();
+                            out.queue(Print("\r\n")).unwrap();
+                        }
                     }
                 };
 
-                // Remember to begin a new line after we have printed this one!
-                out.write_all(b"\r\n").unwrap();
+                out.flush().unwrap();
             }
             FrameKind::Raw(bytes) => out.write_all(bytes).unwrap(),
         });

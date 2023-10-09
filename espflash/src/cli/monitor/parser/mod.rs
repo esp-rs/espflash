@@ -147,7 +147,7 @@ impl<W: Write> Write for ResolvingPrinter<'_, W> {
             };
 
             // Remember to begin a new line after we have printed this one!
-            self.writer.write_all(b"\r\n")?;
+            self.writer.queue(Print("\r\n"))?;
 
             // If we have loaded some symbols...
             if let Some(symbols) = self.symbols.as_ref() {
