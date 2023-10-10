@@ -5,7 +5,7 @@ use std::{io::Write, mem::size_of, time::Duration};
 use bytemuck::{bytes_of, Pod, Zeroable};
 use strum::Display;
 
-use crate::flasher::{checksum, SpiAttachParams, CHECKSUM_INIT};
+use crate::flasher::{checksum, SpiAttachParams, SpiSetParams, CHECKSUM_INIT};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 const ERASE_REGION_TIMEOUT_PER_MB: Duration = Duration::from_secs(30);
@@ -120,6 +120,9 @@ pub enum Command<'a> {
     ReadReg {
         address: u32,
     },
+    SpiSetParams {
+        spi_params: SpiSetParams,
+    },
     SpiAttach {
         spi_params: SpiAttachParams,
     },
@@ -169,6 +172,7 @@ impl<'a> Command<'a> {
             Command::Sync => CommandType::Sync,
             Command::WriteReg { .. } => CommandType::WriteReg,
             Command::ReadReg { .. } => CommandType::ReadReg,
+            Command::SpiSetParams { .. } => CommandType::SpiSetParams,
             Command::SpiAttach { .. } => CommandType::SpiAttach,
             Command::SpiAttachStub { .. } => CommandType::SpiAttach,
             Command::ChangeBaud { .. } => CommandType::ChangeBaud,
@@ -291,6 +295,9 @@ impl<'a> Command<'a> {
             }
             Command::ReadReg { address } => {
                 write_basic(writer, &address.to_le_bytes(), 0)?;
+            }
+            Command::SpiSetParams { spi_params } => {
+                write_basic(writer, &spi_params.encode(), 0)?;
             }
             Command::SpiAttach { spi_params } => {
                 write_basic(writer, &spi_params.encode(false), 0)?;

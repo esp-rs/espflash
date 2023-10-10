@@ -229,6 +229,44 @@ impl FromStr for FlashSize {
     }
 }
 
+/// Parameters of the attached SPI flash chip (sizes, etc).
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
+pub struct SpiSetParams {
+    fl_id: u32,
+    total_size: u32,
+    block_size: u32,
+    sector_size: u32,
+    page_size: u32,
+    status_mask: u32,
+}
+
+impl SpiSetParams {
+    pub const fn default(size: u32) -> Self {
+        SpiSetParams {
+            fl_id: 0,
+            total_size: size,
+            block_size: 64 * 1024,
+            sector_size: 4 * 1024,
+            page_size: 256,
+            status_mask: 0xFFFF,
+        }
+    }
+
+    // https://github.com/espressif/esptool/blob/master/esptool/loader.py#L1197-L1205
+    /// Encode the parameters into a byte array
+    pub fn encode(&self) -> Vec<u8> {
+        let mut encoded: Vec<u8> = Vec::new();
+        encoded.extend_from_slice(&self.fl_id.to_le_bytes());
+        encoded.extend_from_slice(&self.total_size.to_le_bytes());
+        encoded.extend_from_slice(&self.block_size.to_le_bytes());
+        encoded.extend_from_slice(&self.sector_size.to_le_bytes());
+        encoded.extend_from_slice(&self.page_size.to_le_bytes());
+        encoded.extend_from_slice(&self.status_mask.to_le_bytes());
+        encoded
+    }
+}
+
 /// Parameters for attaching to a target devices SPI flash
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -491,6 +529,16 @@ impl Flasher {
                 // return.
                 self.flash_size = flash_size;
                 self.spi_params = spi_params;
+
+                let spi_set_params = SpiSetParams::default(self.flash_size.size());
+                self.connection.with_timeout(
+                    CommandType::SpiSetParams.timeout(),
+                    |connection| {
+                        connection.command(Command::SpiSetParams {
+                            spi_params: spi_set_params,
+                        })
+                    },
+                )?;
 
                 return Ok(());
             }
