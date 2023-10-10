@@ -13,6 +13,7 @@ const ERASE_WRITE_TIMEOUT_PER_MB: Duration = Duration::from_secs(40);
 const ERASE_CHIP_TIMEOUT: Duration = Duration::from_secs(120);
 const MEM_END_TIMEOUT: Duration = Duration::from_millis(50);
 const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
+const FLASH_DEFLATE_END_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Types of commands that can be sent to a target device
 #[derive(Copy, Clone, Debug, Display)]
@@ -49,6 +50,7 @@ impl CommandType {
             CommandType::MemEnd => MEM_END_TIMEOUT,
             CommandType::Sync => SYNC_TIMEOUT,
             CommandType::EraseFlash => ERASE_CHIP_TIMEOUT,
+            CommandType::FlashDeflateEnd => FLASH_DEFLATE_END_TIMEOUT,
             _ => DEFAULT_TIMEOUT,
         }
     }
@@ -58,7 +60,7 @@ impl CommandType {
         fn calc_timeout(timeout_per_mb: Duration, size: u32) -> Duration {
             let mb = size as f64 / 1_000_000.0;
             std::cmp::max(
-                DEFAULT_TIMEOUT,
+                FLASH_DEFLATE_END_TIMEOUT,
                 Duration::from_millis((timeout_per_mb.as_millis() as f64 * mb) as u64),
             )
         }
