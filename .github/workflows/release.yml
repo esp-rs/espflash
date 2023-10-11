@@ -56,7 +56,6 @@ jobs:
 
   publish-cratesio:
     name: Publishing to Crates.io
-    needs: release
     runs-on: ubuntu-20.04
     steps:
 
