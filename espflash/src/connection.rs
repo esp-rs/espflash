@@ -7,7 +7,7 @@
 use std::{io::BufWriter, thread::sleep, time::Duration};
 
 use binrw::{io::Cursor, BinRead, BinReaderExt};
-use log::info;
+use log::{debug, info};
 use serialport::UsbPortInfo;
 use slip_codec::SlipDecoder;
 
@@ -210,6 +210,7 @@ impl Connection {
 
     /// Write a command to the serial port
     pub fn write_command(&mut self, command: Command) -> Result<(), Error> {
+        debug!("Writing command: {:?}", command);
         let serial = self.serial.serial_port_mut();
 
         serial.clear(serialport::ClearBuffer::Input)?;
