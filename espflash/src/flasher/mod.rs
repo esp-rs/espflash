@@ -253,7 +253,6 @@ impl SpiSetParams {
         }
     }
 
-    // https://github.com/espressif/esptool/blob/master/esptool/loader.py#L1197-L1205
     /// Encode the parameters into a byte array
     pub fn encode(&self) -> Vec<u8> {
         let mut encoded: Vec<u8> = Vec::new();
