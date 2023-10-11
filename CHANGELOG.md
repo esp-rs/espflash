@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Read esp-println generated defmt messages (#466)
+
 ### Fixed
 
 ### Changed
