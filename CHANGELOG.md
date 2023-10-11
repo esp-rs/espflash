@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add publish to Crates.io step in the release workflow. (#486)
 
+- Read esp-println generated defmt messages (#466)
+
 ### Fixed
 
 ### Changed
