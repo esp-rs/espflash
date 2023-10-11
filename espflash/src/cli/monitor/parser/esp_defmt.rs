@@ -116,10 +116,8 @@ impl InputParser for EspDefmt {
                             defmt_parser::Level::Warn => Color::Yellow,
                             defmt_parser::Level::Error => Color::Red,
                         };
-                        // Print/PrintStyledContent panics if its content has a bare \n in it, so
-                        // we feed the input line by line.
-                        // As an additional benefit we can print the level before each
-                        // line which looks better.
+
+                        // Print the level before each line.
                         let level = level.as_str().to_uppercase();
                         for line in frame.display_message().to_string().lines() {
                             out.queue(PrintStyledContent(
@@ -129,12 +127,9 @@ impl InputParser for EspDefmt {
                         }
                     }
                     None => {
-                        // Print/PrintStyledContent panics if its content has a bare \n in it, so
-                        // we feed the input line by line.
-                        for line in frame.display_message().to_string().lines() {
-                            out.queue(Print(line)).unwrap();
-                            out.queue(Print("\r\n")).unwrap();
-                        }
+                        out.queue(Print(frame.display_message().to_string()))
+                            .unwrap();
+                        out.queue(Print("\r\n")).unwrap();
                     }
                 };
 

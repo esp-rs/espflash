@@ -165,7 +165,7 @@ impl<W: Write> Write for ResolvingPrinter<'_, W> {
             self.line_fragment = format!("{fragment}{line}");
         }
 
-        Ok(text.len())
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
