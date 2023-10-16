@@ -41,3 +41,6 @@ cargo = { version = "0.73.1", features = ["vendored-openssl"] }
 
 [target.'cfg(windows)'.dependencies]
 cargo = "0.73.1"
+
+[features]
+defmt = ["espflash/defmt"]
