@@ -58,22 +58,16 @@ pub fn monitor(
     pid: u16,
     baud: u32,
 ) -> serialport::Result<()> {
-    #[cfg(feature = "defmt")]
-    let parser = parser::esp_defmt::EspDefmt::new(elf);
-
-    #[cfg(not(feature = "defmt"))]
-    let parser = parser::serial::Serial;
-
-    monitor_with(serial, elf, pid, baud, parser)
+    monitor_with(serial, elf, pid, baud, false)
 }
 
 /// Open a serial monitor on the given interface, using the given input parser.
-pub fn monitor_with<L: InputParser>(
+pub fn monitor_with(
     mut serial: Interface,
     elf: Option<&[u8]>,
     pid: u16,
     baud: u32,
-    mut parser: L,
+    defmt: bool,
 ) -> serialport::Result<()> {
     println!("Commands:");
     println!("    CTRL+R    Reset chip");
@@ -102,7 +96,13 @@ pub fn monitor_with<L: InputParser>(
             err => err,
         }?;
 
-        parser.feed(&buff[0..read_count], &mut stdout);
+        if defmt {
+            let mut parser = parser::esp_defmt::EspDefmt::new(elf);
+            parser.feed(&buff[0..read_count], &mut stdout);
+        } else {
+            let mut parser = parser::serial::Serial;
+            parser.feed(&buff[0..read_count], &mut stdout);
+        };
 
         // Don't forget to flush the writer!
         stdout.flush().ok();
