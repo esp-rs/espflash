@@ -21,6 +21,7 @@ use crossterm::{
 };
 use log::error;
 use miette::{IntoDiagnostic, Result};
+use strum::{Display, EnumIter, EnumString, EnumVariantNames};
 
 use crate::{
     cli::monitor::parser::{InputParser, ResolvingPrinter},
@@ -32,6 +33,17 @@ pub mod parser;
 
 mod line_endings;
 mod symbols;
+
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, EnumVariantNames)]
+#[non_exhaustive]
+#[strum(serialize_all = "lowercase")]
+pub enum LogFormat {
+    /// defmt
+    Defmt,
+    /// serial
+    Serial,
+}
 
 /// Type that ensures that raw mode is disabled when dropped.
 struct RawModeGuard;
@@ -58,7 +70,7 @@ pub fn monitor(
     pid: u16,
     baud: u32,
 ) -> serialport::Result<()> {
-    monitor_with(serial, elf, pid, baud, false)
+    monitor_with(serial, elf, pid, baud, LogFormat::Serial)
 }
 
 /// Open a serial monitor on the given interface, using the given input parser.
@@ -67,7 +79,7 @@ pub fn monitor_with(
     elf: Option<&[u8]>,
     pid: u16,
     baud: u32,
-    defmt: bool,
+    log_format: LogFormat,
 ) -> serialport::Result<()> {
     println!("Commands:");
     println!("    CTRL+R    Reset chip");
@@ -96,13 +108,16 @@ pub fn monitor_with(
             err => err,
         }?;
 
-        if defmt {
-            let mut parser = parser::esp_defmt::EspDefmt::new(elf);
-            parser.feed(&buff[0..read_count], &mut stdout);
-        } else {
-            let mut parser = parser::serial::Serial;
-            parser.feed(&buff[0..read_count], &mut stdout);
-        };
+        match log_format {
+            LogFormat::Defmt => {
+                let mut parser = parser::esp_defmt::EspDefmt::new(elf);
+                parser.feed(&buff[0..read_count], &mut stdout);
+            }
+            LogFormat::Serial => {
+                let mut parser = parser::serial::Serial;
+                parser.feed(&buff[0..read_count], &mut stdout);
+            }
+        }
 
         // Don't forget to flush the writer!
         stdout.flush().ok();
