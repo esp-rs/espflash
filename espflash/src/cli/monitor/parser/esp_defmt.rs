@@ -9,13 +9,12 @@ use defmt_decoder::{Frame, Table};
 use crate::cli::monitor::parser::InputParser;
 
 enum FrameKind<'a> {
-    Defmt(Frame<'a>),
+    Defmt(&'a [u8]),
     Raw(&'a [u8]),
 }
 
 struct FrameDelimiter {
     buffer: Vec<u8>,
-    table: Option<Table>,
     in_frame: bool,
 }
 
@@ -23,48 +22,33 @@ struct FrameDelimiter {
 const FRAME_START: &[u8] = &[0xFF, 0x00];
 const FRAME_END: &[u8] = &[0x00];
 
-fn search(haystack: &[u8], look_for_end: bool) -> Option<(&[u8], usize)> {
-    let needle = if look_for_end { FRAME_END } else { FRAME_START };
-    let start = if look_for_end {
-        // skip leading zeros
-        haystack.iter().position(|&b| b != 0)?
-    } else {
-        0
-    };
-
-    let end = haystack[start..]
-        .windows(needle.len())
-        .position(|window| window == needle)?;
-
-    Some((&haystack[start..][..end], start + end + needle.len()))
-}
-
 impl FrameDelimiter {
-    pub fn feed(&mut self, buffer: &[u8], mut process: impl FnMut(FrameKind<'_>)) {
-        let Some(table) = self.table.as_mut() else {
-            process(FrameKind::Raw(buffer));
-            return;
+    fn search(haystack: &[u8], look_for_end: bool) -> Option<(&[u8], usize)> {
+        let needle = if look_for_end { FRAME_END } else { FRAME_START };
+        let start = if look_for_end {
+            // skip leading zeros
+            haystack.iter().position(|&b| b != 0)?
+        } else {
+            0
         };
 
-        let mut decoder = table.new_stream_decoder();
+        let end = haystack[start..]
+            .windows(needle.len())
+            .position(|window| window == needle)?;
 
+        Some((&haystack[start..][..end], start + end + needle.len()))
+    }
+
+    pub fn feed(&mut self, buffer: &[u8], mut process: impl FnMut(FrameKind<'_>)) {
         self.buffer.extend_from_slice(buffer);
 
-        while let Some((frame, consumed)) = search(&self.buffer, self.in_frame) {
-            if !self.in_frame {
-                process(FrameKind::Raw(frame));
-                self.in_frame = true;
+        while let Some((frame, consumed)) = Self::search(&self.buffer, self.in_frame) {
+            if self.in_frame {
+                process(FrameKind::Defmt(frame));
             } else {
-                decoder.received(frame);
-                // small reliance on rzcobs internals: we need to feed the terminating zero
-                decoder.received(FRAME_END);
-                if let Ok(frame) = decoder.decode() {
-                    process(FrameKind::Defmt(frame));
-                } else {
-                    log::warn!("Failed to decode defmt frame");
-                }
-                self.in_frame = false;
-            };
+                process(FrameKind::Raw(frame));
+            }
+            self.in_frame = !self.in_frame;
 
             self.buffer.drain(..consumed);
         }
@@ -73,6 +57,7 @@ impl FrameDelimiter {
 
 pub struct EspDefmt {
     delimiter: FrameDelimiter,
+    table: Option<Table>,
 }
 
 impl EspDefmt {
@@ -96,46 +81,69 @@ impl EspDefmt {
         Self {
             delimiter: FrameDelimiter {
                 buffer: Vec::new(),
-                table: Self::load_table(elf),
                 in_frame: false,
             },
+            table: Self::load_table(elf),
         }
+    }
+
+    fn handle_raw(bytes: &[u8], out: &mut impl Write) {
+        out.write_all(bytes).unwrap();
+    }
+
+    fn handle_defmt(frame: Frame<'_>, out: &mut impl Write) {
+        match frame.level() {
+            Some(level) => {
+                let color = match level {
+                    defmt_parser::Level::Trace => Color::Cyan,
+                    defmt_parser::Level::Debug => Color::Blue,
+                    defmt_parser::Level::Info => Color::Green,
+                    defmt_parser::Level::Warn => Color::Yellow,
+                    defmt_parser::Level::Error => Color::Red,
+                };
+
+                // Print the level before each line.
+                let level = level.as_str().to_uppercase();
+                for line in frame.display_message().to_string().lines() {
+                    out.queue(PrintStyledContent(
+                        format!("[{level}] - {line}\r\n").with(color),
+                    ))
+                    .unwrap();
+                }
+            }
+            None => {
+                out.queue(Print(frame.display_message().to_string()))
+                    .unwrap();
+                out.queue(Print("\r\n")).unwrap();
+            }
+        }
+
+        out.flush().unwrap();
     }
 }
 
 impl InputParser for EspDefmt {
     fn feed(&mut self, bytes: &[u8], out: &mut impl Write) {
+        let Some(table) = self.table.as_mut() else {
+            Self::handle_raw(bytes, out);
+            return;
+        };
+
+        let mut decoder = table.new_stream_decoder();
+
         self.delimiter.feed(bytes, |frame| match frame {
             FrameKind::Defmt(frame) => {
-                match frame.level() {
-                    Some(level) => {
-                        let color = match level {
-                            defmt_parser::Level::Trace => Color::Cyan,
-                            defmt_parser::Level::Debug => Color::Blue,
-                            defmt_parser::Level::Info => Color::Green,
-                            defmt_parser::Level::Warn => Color::Yellow,
-                            defmt_parser::Level::Error => Color::Red,
-                        };
+                decoder.received(frame);
+                // small reliance on rzcobs internals: we need to feed the terminating zero
+                decoder.received(FRAME_END);
 
-                        // Print the level before each line.
-                        let level = level.as_str().to_uppercase();
-                        for line in frame.display_message().to_string().lines() {
-                            out.queue(PrintStyledContent(
-                                format!("[{level}] - {line}\r\n").with(color),
-                            ))
-                            .unwrap();
-                        }
-                    }
-                    None => {
-                        out.queue(Print(frame.display_message().to_string()))
-                            .unwrap();
-                        out.queue(Print("\r\n")).unwrap();
-                    }
-                };
-
-                out.flush().unwrap();
+                if let Ok(frame) = decoder.decode() {
+                    Self::handle_defmt(frame, out);
+                } else {
+                    log::warn!("Failed to decode defmt frame");
+                }
             }
-            FrameKind::Raw(bytes) => out.write_all(bytes).unwrap(),
+            FrameKind::Raw(bytes) => Self::handle_raw(bytes, out),
         });
     }
 }
