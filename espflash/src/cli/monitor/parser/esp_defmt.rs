@@ -8,6 +8,7 @@ use defmt_decoder::{Frame, Table};
 
 use crate::cli::monitor::parser::InputParser;
 
+#[derive(Debug, PartialEq)]
 enum FrameKind<'a> {
     Defmt(&'a [u8]),
     Raw(&'a [u8]),
@@ -23,6 +24,13 @@ const FRAME_START: &[u8] = &[0xFF, 0x00];
 const FRAME_END: &[u8] = &[0x00];
 
 impl FrameDelimiter {
+    fn new() -> Self {
+        Self {
+            buffer: Vec::new(),
+            in_frame: false,
+        }
+    }
+
     fn search(haystack: &[u8], look_for_end: bool) -> Option<(&[u8], usize)> {
         let needle = if look_for_end { FRAME_END } else { FRAME_START };
         let start = if look_for_end {
@@ -45,12 +53,26 @@ impl FrameDelimiter {
         while let Some((frame, consumed)) = Self::search(&self.buffer, self.in_frame) {
             if self.in_frame {
                 process(FrameKind::Defmt(frame));
-            } else {
+            } else if !frame.is_empty() {
                 process(FrameKind::Raw(frame));
             }
             self.in_frame = !self.in_frame;
 
             self.buffer.drain(..consumed);
+        }
+
+        if !self.in_frame {
+            // If we have a 0xFF byte at the end, we should assume it's the start of a new frame.
+            let consume = if self.buffer.ends_with(&[0xFF]) {
+                &self.buffer[..self.buffer.len() - 1]
+            } else {
+                self.buffer.as_slice()
+            };
+
+            if !consume.is_empty() {
+                process(FrameKind::Raw(consume));
+                self.buffer.drain(..consume.len());
+            }
         }
     }
 }
@@ -79,10 +101,7 @@ impl EspDefmt {
 
     pub fn new(elf: Option<&[u8]>) -> Self {
         Self {
-            delimiter: FrameDelimiter {
-                buffer: Vec::new(),
-                in_frame: false,
-            },
+            delimiter: FrameDelimiter::new(),
             table: Self::load_table(elf),
         }
     }
@@ -145,5 +164,124 @@ impl InputParser for EspDefmt {
             }
             FrameKind::Raw(bytes) => Self::handle_raw(bytes, out),
         });
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn framing_prints_raw_data_by_default() {
+        let mut parser = FrameDelimiter::new();
+
+        let mut asserted = 0;
+        parser.feed(b"hello", |frame| {
+            assert_eq!(frame, FrameKind::Raw(b"hello"));
+            asserted += 1;
+        });
+        assert_eq!(asserted, 1);
+    }
+
+    #[test]
+    fn start_byte_on_end_is_not_part_of_the_raw_sequence() {
+        let mut parser = FrameDelimiter::new();
+
+        let mut asserted = 0;
+        parser.feed(b"hello\xFF", |frame| {
+            assert_eq!(frame, FrameKind::Raw(b"hello"));
+            asserted += 1;
+        });
+        assert_eq!(asserted, 1);
+    }
+
+    #[test]
+    fn frame_start_on_end_is_not_part_of_the_raw_sequence() {
+        let mut parser = FrameDelimiter::new();
+
+        let mut asserted = 0;
+        parser.feed(b"hello\xFF\x00", |frame| {
+            assert_eq!(frame, FrameKind::Raw(b"hello"));
+            asserted += 1;
+        });
+        assert_eq!(asserted, 1);
+    }
+
+    #[test]
+    fn process_data_after_frame() {
+        let mut parser = FrameDelimiter::new();
+
+        let mut asserted = 0;
+        parser.feed(b"\xFF\x00frame data\x00hello", |frame| {
+            match asserted {
+                0 => assert_eq!(frame, FrameKind::Defmt(b"frame data")),
+                1 => assert_eq!(frame, FrameKind::Raw(b"hello")),
+                _ => panic!("Too many frames"),
+            }
+            asserted += 1;
+        });
+        assert_eq!(asserted, 2);
+    }
+
+    #[test]
+    fn can_concatenate_partial_defmt_frames() {
+        let mut parser = FrameDelimiter::new();
+
+        let mut asserted = 0;
+        parser.feed(b"\xFF\x00frame", |_| {
+            panic!("Should not have a frame yet");
+        });
+        parser.feed(b" data\x00\xFF", |frame| {
+            assert_eq!(frame, FrameKind::Defmt(b"frame data"));
+            asserted += 1;
+        });
+        parser.feed(b"\x00second frame", |_| {
+            panic!("Should not have a frame yet");
+        });
+        parser.feed(b"\x00last part", |frame| {
+            match asserted {
+                1 => assert_eq!(frame, FrameKind::Defmt(b"second frame")),
+                2 => assert_eq!(frame, FrameKind::Raw(b"last part")),
+                _ => panic!("Too many frames"),
+            }
+            asserted += 1;
+        });
+        assert_eq!(asserted, 3);
+    }
+
+    #[test]
+    fn defmt_frames_back_to_back() {
+        let mut parser = FrameDelimiter::new();
+
+        let mut asserted = 0;
+        parser.feed(b"\xFF\x00frame data1\x00\xFF\x00frame data2\x00", |frame| {
+            match asserted {
+                0 => assert_eq!(frame, FrameKind::Defmt(b"frame data1")),
+                1 => assert_eq!(frame, FrameKind::Defmt(b"frame data2")),
+                _ => panic!("Too many frames"),
+            }
+            asserted += 1;
+        });
+        assert_eq!(asserted, 2);
+    }
+
+    #[test]
+    fn output_includes_ff_and_0_bytes() {
+        let mut parser = FrameDelimiter::new();
+
+        let mut asserted = 0;
+        parser.feed(
+            b"some message\xFF with parts of\0 a defmt \0\xFF frame delimiter",
+            |frame| {
+                assert_eq!(
+                    frame,
+                    FrameKind::Raw(
+                        b"some message\xFF with parts of\0 a defmt \0\xFF frame delimiter"
+                    )
+                );
+                asserted += 1;
+            },
+        );
+        assert_eq!(asserted, 1);
     }
 }
