@@ -404,7 +404,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-espflash"
-version = "2.1.1-dev"
+version = "3.0.0-dev"
 dependencies = [
  "cargo",
  "cargo_metadata",
@@ -1095,7 +1095,7 @@ dependencies = [
 
 [[package]]
 name = "espflash"
-version = "2.1.1-dev"
+version = "3.0.0-dev"
 dependencies = [
  "addr2line",
  "base64",
