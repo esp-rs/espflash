@@ -8,7 +8,7 @@ use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{
         self, board_info, completions, config::Config, connect, erase_flash, erase_partitions,
-        erase_region, flash_elf_image, monitor::monitor, parse_partition_table, parse_uint32,
+        erase_region, flash_elf_image, monitor::monitor_with, parse_partition_table, parse_uint32,
         partition_table, print_board_info, save_elf_as_image, serial_monitor, CompletionsArgs,
         ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress, FlashConfigArgs,
         MonitorArgs, PartitionTableArgs,
@@ -263,11 +263,12 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
                 115_200
             };
 
-        monitor(
+        monitor_with(
             flasher.into_interface(),
             Some(&elf_data),
             pid,
             args.flash_args.monitor_baud.unwrap_or(default_baud),
+            args.flash_args.log_format,
         )
         .into_diagnostic()?;
     }

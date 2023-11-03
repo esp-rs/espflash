@@ -24,7 +24,11 @@ use log::{debug, info};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{SerialPortType, UsbPortInfo};
 
-use self::{config::Config, monitor::monitor, serial::get_serial_port_info};
+use self::{
+    config::Config,
+    monitor::{monitor_with, LogFormat},
+    serial::get_serial_port_info,
+};
 use crate::{
     elf::ElfFirmwareImage,
     error::{Error, MissingPartition, MissingPartitionTable},
@@ -134,6 +138,9 @@ pub struct FlashArgs {
     /// Load the application to RAM instead of Flash
     #[arg(long)]
     pub ram: bool,
+    /// Logging format.
+    #[arg(long, short = 'f', default_value = "serial", requires = "monitor")]
+    pub log_format: LogFormat,
 }
 
 /// Operations for partitions tables
@@ -185,6 +192,9 @@ pub struct MonitorArgs {
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
+    /// Logging format.
+    #[arg(long, short = 'f', default_value = "serial")]
+    pub log_format: LogFormat,
 }
 
 /// Select a serial port and establish a connection with a target device
@@ -291,11 +301,12 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         115_200
     };
 
-    monitor(
+    monitor_with(
         flasher.into_interface(),
         elf.as_deref(),
         pid,
         args.connect_args.baud.unwrap_or(default_baud),
+        args.log_format,
     )
     .into_diagnostic()?;
 

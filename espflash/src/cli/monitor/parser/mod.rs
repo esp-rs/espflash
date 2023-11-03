@@ -1,4 +1,3 @@
-#[cfg(feature = "defmt")]
 pub mod esp_defmt;
 pub mod serial;
 
