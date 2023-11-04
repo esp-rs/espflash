@@ -22,6 +22,10 @@ use crate::{
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 pub enum Error {
+    #[error("App partition not found")]
+    #[diagnostic(code(espflash::app_partition_not_found))]
+    AppPartitionNotFound,
+
     #[error("Operation was cancelled by the user")]
     #[diagnostic(code(espflash::cancelled))]
     Cancelled,

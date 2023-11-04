@@ -135,6 +135,9 @@ pub struct FlashArgs {
     /// Path to a CSV file containing partition table
     #[arg(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
+    /// Label of target app partition
+    #[arg(long, value_name = "LABEL")]
+    pub target_app_partition: Option<String>,
     /// Load the application to RAM instead of Flash
     #[arg(long)]
     pub ram: bool,
@@ -178,6 +181,9 @@ pub struct SaveImageArgs {
     /// Custom partition table for merging
     #[arg(long, short = 'T', requires = "merge", value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
+    /// Label of target app partition
+    #[arg(long, value_name = "LABEL")]
+    pub target_app_partition: Option<String>,
     /// Don't pad the image to the flash size
     #[arg(long, short = 'P', requires = "merge")]
     pub skip_padding: bool,
@@ -325,6 +331,7 @@ pub fn save_elf_as_image(
     merge: bool,
     bootloader_path: Option<PathBuf>,
     partition_table_path: Option<PathBuf>,
+    target_app_partition: Option<String>,
     skip_padding: bool,
 ) -> Result<()> {
     let image = ElfFirmwareImage::try_from(elf_data)?;
@@ -366,6 +373,7 @@ pub fn save_elf_as_image(
             &image,
             bootloader,
             partition_table,
+            target_app_partition,
             image_format,
             None,
             flash_mode,
@@ -404,6 +412,7 @@ pub fn save_elf_as_image(
     } else {
         let image = chip.into_target().get_flash_image(
             &image,
+            None,
             None,
             None,
             image_format,
@@ -519,6 +528,7 @@ pub fn flash_elf_image(
     elf_data: &[u8],
     bootloader: Option<&Path>,
     partition_table: Option<PartitionTable>,
+    target_app_partition: Option<String>,
     image_format: Option<ImageFormatKind>,
     flash_mode: Option<FlashMode>,
     flash_size: Option<FlashSize>,
@@ -541,6 +551,7 @@ pub fn flash_elf_image(
         elf_data,
         bootloader,
         partition_table,
+        target_app_partition,
         image_format,
         flash_mode,
         flash_size,
