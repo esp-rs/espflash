@@ -142,7 +142,7 @@ pub struct FlashArgs {
     #[arg(long)]
     pub ram: bool,
     /// Logging format.
-    #[arg(long, short = 'f', default_value = "serial", requires = "monitor")]
+    #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
     pub log_format: LogFormat,
 }
 
@@ -199,7 +199,7 @@ pub struct MonitorArgs {
     #[clap(flatten)]
     connect_args: ConnectArgs,
     /// Logging format.
-    #[arg(long, short = 'f', default_value = "serial")]
+    #[arg(long, short = 'L', default_value = "serial")]
     pub log_format: LogFormat,
 }
 
