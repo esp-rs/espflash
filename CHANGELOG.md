@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Read esp-println generated defmt messages (#466)
 - Add --target-app-partition argument to flash command (#461)
+- Add --confirm-port argument to flash command (#455)
 
 ### Fixed
 
