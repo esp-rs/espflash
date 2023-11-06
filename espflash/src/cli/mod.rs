@@ -26,7 +26,7 @@ use serialport::{SerialPortType, UsbPortInfo};
 
 use self::{
     config::Config,
-    monitor::{monitor_with, LogFormat},
+    monitor::{monitor, LogFormat},
     serial::get_serial_port_info,
 };
 use crate::{
@@ -307,7 +307,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         115_200
     };
 
-    monitor_with(
+    monitor(
         flasher.into_interface(),
         elf.as_deref(),
         pid,
