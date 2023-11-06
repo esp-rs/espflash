@@ -40,7 +40,7 @@ pub fn get_serial_port_info(
     } else if let Some(serial) = &config.connection.serial {
         find_serial_port(&ports, serial)
     } else {
-        let (port, matches) = select_serial_port(ports, config, matches.interactive)?;
+        let (port, matches) = select_serial_port(ports, config, matches.confirm_port)?;
 
         match &port.port_type {
             SerialPortType::UsbPort(usb_info) if !matches => {
@@ -202,7 +202,7 @@ const KNOWN_DEVICES: &[UsbDevice] = &[
 fn select_serial_port(
     mut ports: Vec<SerialPortInfo>,
     config: &Config,
-    force_interactive: bool,
+    force_confirm_port: bool,
 ) -> Result<(SerialPortInfo, bool), Error> {
     // Does this port match a known one?
     let matches = |port: &SerialPortInfo| match &port.port_type {
@@ -221,7 +221,7 @@ fn select_serial_port(
         .as_slice()
     {
         // There is a unique recognized device.
-        if !force_interactive {
+        if !force_confirm_port {
             return Ok(((*port).to_owned(), true));
         }
     }
