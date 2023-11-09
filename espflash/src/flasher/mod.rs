@@ -825,16 +825,26 @@ impl Flasher {
         &mut self,
         addr: u32,
         data: &[u8],
-        mut progress: Option<&mut dyn ProgressCallbacks>,
+        progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let segment = RomSegment {
             addr,
             data: Cow::from(data),
         };
+        self.write_bins_to_flash(&[segment], progress)
+    }
 
+    /// Load multiple bin images to flash at specific addresses
+    pub fn write_bins_to_flash(
+        &mut self,
+        segments: &[RomSegment],
+        mut progress: Option<&mut dyn ProgressCallbacks>,
+    ) -> Result<(), Error> {
         let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
         target.begin(&mut self.connection).flashing()?;
-        target.write_segment(&mut self.connection, segment, &mut progress)?;
+        for segment in segments {
+            target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;
+        }
         target.finish(&mut self.connection, true).flashing()?;
 
         Ok(())
