@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed printing panic backtraces when using `esp-println` and `defmt` (#496)
+- Fixed defmt parsing when data is read in parts (#503)
 
 ### Changed
 

@@ -106,11 +106,11 @@ impl EspDefmt {
         }
     }
 
-    fn handle_raw(bytes: &[u8], out: &mut impl Write) {
+    fn handle_raw(bytes: &[u8], out: &mut dyn Write) {
         out.write_all(bytes).unwrap();
     }
 
-    fn handle_defmt(frame: Frame<'_>, out: &mut impl Write) {
+    fn handle_defmt(frame: Frame<'_>, out: &mut dyn Write) {
         match frame.level() {
             Some(level) => {
                 let color = match level {
@@ -142,7 +142,7 @@ impl EspDefmt {
 }
 
 impl InputParser for EspDefmt {
-    fn feed(&mut self, bytes: &[u8], out: &mut impl Write) {
+    fn feed(&mut self, bytes: &[u8], out: &mut dyn Write) {
         let Some(table) = self.table.as_mut() else {
             Self::handle_raw(bytes, out);
             return;
