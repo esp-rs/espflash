@@ -13,7 +13,7 @@ use regex::Regex;
 use crate::cli::monitor::{line_endings::normalized, symbols::Symbols};
 
 pub trait InputParser {
-    fn feed(&mut self, bytes: &[u8], out: &mut impl Write);
+    fn feed(&mut self, bytes: &[u8], out: &mut dyn Write);
 }
 
 // Pattern to much a function address in serial output.

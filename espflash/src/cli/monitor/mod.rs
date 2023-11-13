@@ -99,6 +99,11 @@ pub fn monitor_with(
     let stdout = stdout();
     let mut stdout = ResolvingPrinter::new(elf, stdout.lock());
 
+    let mut parser: Box<dyn InputParser> = match log_format {
+        LogFormat::Defmt => Box::new(parser::esp_defmt::EspDefmt::new(elf)),
+        LogFormat::Serial => Box::new(parser::serial::Serial),
+    };
+
     let mut buff = [0; 1024];
     loop {
         let read_count = match serial.serial_port_mut().read(&mut buff) {
@@ -108,16 +113,7 @@ pub fn monitor_with(
             err => err,
         }?;
 
-        match log_format {
-            LogFormat::Defmt => {
-                let mut parser = parser::esp_defmt::EspDefmt::new(elf);
-                parser.feed(&buff[0..read_count], &mut stdout);
-            }
-            LogFormat::Serial => {
-                let mut parser = parser::serial::Serial;
-                parser.feed(&buff[0..read_count], &mut stdout);
-            }
-        }
+        parser.feed(&buff[0..read_count], &mut stdout);
 
         // Don't forget to flush the writer!
         stdout.flush().ok();
