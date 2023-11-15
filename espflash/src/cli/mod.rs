@@ -26,7 +26,7 @@ use serialport::{SerialPortType, UsbPortInfo};
 
 use self::{
     config::Config,
-    monitor::{monitor_with, LogFormat},
+    monitor::{monitor, LogFormat},
     serial::get_serial_port_info,
 };
 use crate::{
@@ -145,7 +145,7 @@ pub struct FlashArgs {
     #[arg(long)]
     pub ram: bool,
     /// Logging format.
-    #[arg(long, short = 'f', default_value = "serial", requires = "monitor")]
+    #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
     pub log_format: LogFormat,
 }
 
@@ -202,7 +202,7 @@ pub struct MonitorArgs {
     #[clap(flatten)]
     connect_args: ConnectArgs,
     /// Logging format.
-    #[arg(long, short = 'f', default_value = "serial")]
+    #[arg(long, short = 'L', default_value = "serial")]
     pub log_format: LogFormat,
 }
 
@@ -310,7 +310,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         115_200
     };
 
-    monitor_with(
+    monitor(
         flasher.into_interface(),
         elf.as_deref(),
         pid,

@@ -63,18 +63,8 @@ impl Drop for RawModeGuard {
     }
 }
 
-/// Open a serial monitor on the given interface
-pub fn monitor(
-    serial: Interface,
-    elf: Option<&[u8]>,
-    pid: u16,
-    baud: u32,
-) -> serialport::Result<()> {
-    monitor_with(serial, elf, pid, baud, LogFormat::Serial)
-}
-
 /// Open a serial monitor on the given interface, using the given input parser.
-pub fn monitor_with(
+pub fn monitor(
     mut serial: Interface,
     elf: Option<&[u8]>,
     pid: u16,
