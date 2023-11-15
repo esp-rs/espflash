@@ -118,7 +118,7 @@ It's possible to specify a serial port and/or USB VID/PID values by setting them
 | macOS            | `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml` |
 | Windows          | `%APPDATA%\esp\espflash\espflash.toml`                            |
 
-### Configuration examples
+### Configuration Examples
 
 You can either configure the serial port name like so:
 

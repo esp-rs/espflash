@@ -112,7 +112,7 @@ If the `--bootloader` and/or `--partition-table` options are provided then these
 
 ## Package Metadata
 
-You're able to specify paths to bootloader and partition table files ands image format in your package's Cargo metadata for per-project configuration:
+You're able to specify paths to bootloader and partition table files and image format in your package's Cargo metadata for per-project configuration:
 
 ```toml
 [package.metadata.espflash]
@@ -131,7 +131,7 @@ It's possible to specify a serial port and/or USB VID/PID values by setting them
 | macOS            | `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml` |
 | Windows          | `%APPDATA%\esp\espflash\espflash.toml`                            |
 
-### Configuration examples
+### Configuration Examples
 
 You can either configure the serial port name like so:
 
