@@ -418,27 +418,21 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
 
 /// Convert the provided firmware image from ELF to binary
 pub fn save_elf_as_image(
+    elf_data: &[u8],
     chip: Chip,
     image_path: PathBuf,
     flash_data: FlashData,
     merge: bool,
     skip_padding: bool,
 ) -> Result<()> {
-    let image = ElfFirmwareImage::try_from(flash_data.elf_data)?;
+    let image = ElfFirmwareImage::try_from(elf_data)?;
 
     if merge {
         // To get a chip revision, the connection is needed
         // For simplicity, the revision None is used
-        let image = chip.into_target().get_flash_image(
-            &image,
-            flash_data.bootloader,
-            flash_data.partition_table,
-            flash_data.partition_table_offset,
-            flash_data.target_app_partition,
-            flash_data.image_format,
-            None,
-            flash_data.flash_settings,
-        )?;
+        let image = chip
+            .into_target()
+            .get_flash_image(&image, flash_data.clone(), None)?;
 
         display_image_size(image.app_size(), image.part_size());
 
@@ -470,16 +464,9 @@ pub fn save_elf_as_image(
             file.write_all(&padding_bytes).into_diagnostic()?;
         }
     } else {
-        let image = chip.into_target().get_flash_image(
-            &image,
-            None,
-            None,
-            flash_data.target_app_partition,
-            flash_data.partition_table_offset,
-            flash_data.image_format,
-            None,
-            flash_data.flash_settings,
-        )?;
+        let image = chip
+            .into_target()
+            .get_flash_image(&image, flash_data, None)?;
 
         display_image_size(image.app_size(), image.part_size());
 
@@ -582,10 +569,14 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
 }
 
 /// Write an ELF image to a target device's flash
-pub fn flash_elf_image(flasher: &mut Flasher, flash_data: FlashData) -> Result<()> {
+pub fn flash_elf_image(
+    flasher: &mut Flasher,
+    elf_data: &[u8],
+    flash_data: FlashData,
+) -> Result<()> {
     // Load the ELF data, optionally using the provider bootloader/partition
     // table/image format, to the device's flash memory.
-    flasher.load_elf_to_flash(flash_data, Some(&mut EspflashProgress::default()))?;
+    flasher.load_elf_to_flash(elf_data, flash_data, Some(&mut EspflashProgress::default()))?;
     info!("Flashing has completed!");
 
     Ok(())

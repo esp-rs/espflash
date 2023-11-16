@@ -284,8 +284,7 @@ impl FlashSettings {
 /// Flash data and configuration
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub struct FlashData<'a> {
-    pub elf_data: &'a [u8],
+pub struct FlashData {
     pub bootloader: Option<Vec<u8>>,
     pub partition_table: Option<PartitionTable>,
     pub partition_table_offset: Option<u32>,
@@ -295,12 +294,10 @@ pub struct FlashData<'a> {
     pub min_chip_rev: u16,
 }
 
-impl<'a> FlashData<'a> {
+impl FlashData {
     pub fn new(
-        elf_data: &'a [u8],
-        bootloader: Option<&'a Path>,
-        partition_table: Option<&'a Path>,
-        partition_table_offset: Option<u32>,
+        bootloader: Option<&Path>,
+        partition_table: Option<&Path>,
         image_format: Option<ImageFormatKind>,
         target_app_partition: Option<String>,
         flash_settings: FlashSettings,
@@ -325,7 +322,6 @@ impl<'a> FlashData<'a> {
         };
 
         Ok(FlashData {
-            elf_data,
             bootloader,
             partition_table,
             partition_table_offset,
@@ -893,10 +889,11 @@ impl Flasher {
     /// Load an ELF image to flash and execute it
     pub fn load_elf_to_flash(
         &mut self,
+        elf_data: &[u8],
         flash_data: FlashData,
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
-        let image = ElfFirmwareImage::try_from(flash_data.elf_data)?;
+        let image = ElfFirmwareImage::try_from(elf_data)?;
 
         let mut target =
             self.chip

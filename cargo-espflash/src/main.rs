@@ -321,7 +321,6 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         );
 
         let flash_data = FlashData::new(
-            &elf_data,
             bootloader,
             partition_table,
             args.flash_args.partition_table_offset,
@@ -339,7 +338,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             )?;
         }
 
-        flash_elf_image(&mut flasher, flash_data)?;
+        flash_elf_image(&mut flasher, &elf_data, flash_data)?;
     }
 
     if args.flash_args.monitor {
@@ -571,7 +570,6 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
     );
 
     let flash_data = FlashData::new(
-        &elf_data,
         bootloader.as_deref(),
         partition_table.as_deref(),
         args.save_image_args.partition_table_offset,
@@ -581,6 +579,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
     )?;
 
     save_elf_as_image(
+        &elf_data,
         args.save_image_args.chip,
         args.save_image_args.file,
         flash_data,

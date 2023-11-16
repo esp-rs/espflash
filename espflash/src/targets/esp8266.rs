@@ -1,12 +1,10 @@
 use std::ops::Range;
 
-use esp_idf_part::PartitionTable;
-
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
-    flasher::FlashSettings,
+    flasher::FlashData,
     image_format::{Esp8266Format, ImageFormat, ImageFormatKind},
     targets::{bytes_to_mac_addr, Chip, ReadEFuse, SpiRegisters, Target},
 };
@@ -73,21 +71,20 @@ impl Target for Esp8266 {
     fn get_flash_image<'a>(
         &self,
         image: &'a dyn FirmwareImage<'a>,
-        _bootloader: Option<Vec<u8>>,
-        _partition_table: Option<PartitionTable>,
-        _partition_table_offset: Option<u32>,
-        _target_app_partition: Option<String>,
-        image_format: Option<ImageFormatKind>,
+        flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
         min_rev_full: u16,
         flash_settings: FlashSettings,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
+        let image_format = flash_data
+            .image_format
+            .unwrap_or(ImageFormatKind::EspBootloader);
 
         match image_format {
-            ImageFormatKind::EspBootloader => {
-                Ok(Box::new(Esp8266Format::new(image, flash_settings)?))
-            }
+            ImageFormatKind::EspBootloader => Ok(Box::new(Esp8266Format::new(
+                image,
+                flash_data.flash_settings,
+            )?)),
             _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp8266, None).into()),
         }
     }

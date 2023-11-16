@@ -27,7 +27,7 @@ use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::Error,
-    flasher::{FlashFrequency, FlashSettings, SpiAttachParams, FLASH_WRITE_SIZE},
+    flasher::{FlashData, FlashFrequency, SpiAttachParams, FLASH_WRITE_SIZE},
     image_format::{ImageFormat, ImageFormatKind},
 };
 
@@ -297,11 +297,11 @@ pub trait Target: ReadEFuse {
     fn get_flash_image<'a>(
         &self,
         image: &'a dyn FirmwareImage<'a>,
-        bootloader: Option<Vec<u8>>,
-        partition_table: Option<PartitionTable>,
-        partition_table_offset: Option<u32>,
-        target_app_partition: Option<String>,
-        image_format: Option<ImageFormatKind>,
+        // bootloader: Option<Vec<u8>>,
+        // partition_table: Option<PartitionTable>,
+        // target_app_partition: Option<String>,
+        // image_format: Option<ImageFormatKind>,
+        flash_data: FlashData,
         chip_revision: Option<(u32, u32)>,
         min_rev_full: u16,
         flash_settings: FlashSettings,
