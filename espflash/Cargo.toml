@@ -3,19 +3,11 @@ name = "espflash"
 version = "3.0.0-dev"
 edition = "2021"
 rust-version = "1.70"
-description = "A command-line tool for flashing Espressif devices"
-repository = "https://github.com/esp-rs/espflash"
-license = "MIT OR Apache-2.0"
-keywords = [
-    "cli",
-    "embedded",
-    "esp",
-]
-categories = [
-    "command-line-utilities",
-    "development-tools",
-    "embedded",
-]
+description  = "A command-line tool for flashing Espressif devices"
+repository   = "https://github.com/esp-rs/espflash"
+license      = "MIT OR Apache-2.0"
+keywords     = ["cli", "embedded", "esp"]
+categories   = ["command-line-utilities", "development-tools", "embedded"]
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.{ archive-format }"
@@ -26,8 +18,8 @@ pkg-fmt = "zip"
 rustdoc-args = ["--cfg", "docsrs"]
 
 [[bin]]
-name = "espflash"
-path = "./src/bin/espflash.rs"
+name              = "espflash"
+path              = "./src/bin/espflash.rs"
 required-features = ["cli"]
 
 [dependencies]
@@ -64,7 +56,10 @@ strum = { version = "0.25.0", features = ["derive"] }
 thiserror = "1.0.49"
 toml = "0.8.2"
 update-informer = { version = "1.1.0", optional = true }
-xmas-elf = "0.9.0"
+xmas-elf        = "0.9.0"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.101"
 
 [features]
 default = ["cli"]

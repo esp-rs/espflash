@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [Unreleased]
 
 ### Added
+- Added reset strategies (#487)
 
 - Read esp-println generated defmt messages (#466)
 - Add --target-app-partition argument to flash command (#461)
