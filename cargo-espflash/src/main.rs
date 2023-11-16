@@ -15,6 +15,7 @@ use espflash::{
         FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     error::Error as EspflashError,
+    flasher::{FlashData, FlashSettings},
     image_format::ImageFormatKind,
     logging::initialize_logger,
     targets::Chip,
@@ -313,33 +314,32 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             println!("Partition table:   {}", path.display());
         }
 
-        let partition_table = match partition_table {
-            Some(path) => Some(parse_partition_table(path)?),
-            None => None,
-        };
+        let flash_settings = FlashSettings::new(
+            args.build_args.flash_config_args.flash_mode,
+            args.build_args.flash_config_args.flash_size,
+            args.build_args.flash_config_args.flash_freq,
+        );
+
+        let flash_data = FlashData::new(
+            &elf_data,
+            bootloader,
+            partition_table,
+            args.flash_args.partition_table_offset,
+            args.flash_args.format.or(metadata.format),
+            args.flash_args.target_app_partition,
+            flash_settings,
+        )?;
 
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
             erase_partitions(
                 &mut flasher,
-                partition_table.clone(),
+                flash_data.partition_table.clone(),
                 args.flash_args.erase_parts,
                 args.flash_args.erase_data_parts,
             )?;
         }
 
-        flash_elf_image(
-            &mut flasher,
-            &elf_data,
-            bootloader,
-            partition_table,
-            args.flash_args.target_app_partition,
-            args.flash_args.format.or(metadata.format),
-            args.build_args.flash_config_args.flash_mode,
-            args.build_args.flash_config_args.flash_size,
-            args.build_args.flash_config_args.flash_freq,
-            args.flash_args.partition_table_offset,
-            args.flash_args.min_chip_rev,
-        )?;
+        flash_elf_image(&mut flasher, flash_data)?;
     }
 
     if args.flash_args.monitor {
@@ -564,20 +564,28 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
         println!("Partition table:   {}", path.display());
     }
 
-    save_elf_as_image(
-        args.save_image_args.chip,
-        args.save_image_args.min_chip_rev,
-        &elf_data,
-        args.save_image_args.file,
-        args.format.or(metadata.format),
+    let flash_settings = FlashSettings::new(
         args.build_args.flash_config_args.flash_mode,
         args.build_args.flash_config_args.flash_size,
         args.build_args.flash_config_args.flash_freq,
+    );
+
+    let flash_data = FlashData::new(
+        &elf_data,
+        bootloader.as_deref(),
+        partition_table.as_deref(),
         args.save_image_args.partition_table_offset,
-        args.save_image_args.merge,
-        bootloader,
-        partition_table,
+        args.format.or(metadata.format),
         args.save_image_args.target_app_partition,
+        flash_settings,
+    )?;
+
+    save_elf_as_image(
+        args.save_image_args.chip,
+        args.save_image_args.file,
+        flash_data,
+        args.save_image_args.merge,
+        args.save_image_args.skip_padding,
         args.save_image_args.skip_padding,
     )?;
 

@@ -6,7 +6,7 @@ use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
-    flasher::{FlashFrequency, FlashMode, FlashSize, FLASH_WRITE_SIZE},
+    flasher::{FlashFrequency, FlashSettings, FLASH_WRITE_SIZE},
     image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatKind},
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, MAX_RAM_BLOCK_SIZE},
 };
@@ -141,14 +141,12 @@ impl Target for Esp32s2 {
         image: &'a dyn FirmwareImage<'a>,
         bootloader: Option<Vec<u8>>,
         partition_table: Option<PartitionTable>,
+        partition_table_offset: Option<u32>,
         target_app_partition: Option<String>,
         image_format: Option<ImageFormatKind>,
         _chip_revision: Option<(u32, u32)>,
         min_rev_full: u16,
-        flash_mode: Option<FlashMode>,
-        flash_size: Option<FlashSize>,
-        flash_freq: Option<FlashFrequency>,
-        partition_table_offset: Option<u32>,
+        flash_settings: FlashSettings,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
 
@@ -159,12 +157,10 @@ impl Target for Esp32s2 {
                 min_rev_full,
                 PARAMS,
                 partition_table,
+                partition_table_offset,
                 target_app_partition,
                 bootloader,
-                flash_mode,
-                flash_size,
-                flash_freq,
-                partition_table_offset,
+                flash_settings,
             )?)),
             _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp32s2, None).into()),
         }
