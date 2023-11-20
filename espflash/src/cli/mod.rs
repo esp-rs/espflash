@@ -52,12 +52,15 @@ pub struct ConnectArgs {
     /// Target device
     #[arg(short = 'c', long)]
     pub chip: Option<Chip>,
-    /// Serial port connected to target device
-    #[arg(short = 'p', long, env = "ESPFLASH_PORT")]
-    pub port: Option<String>,
     /// Require confirmation before auto-connecting to a recognized device.
     #[arg(short = 'C', long)]
     pub confirm_port: bool,
+    /// Do not use the RAM stub for loading
+    #[arg(long)]
+    pub no_stub: bool,
+    /// Serial port connected to target device
+    #[arg(short = 'p', long, env = "ESPFLASH_PORT")]
+    pub port: Option<String>,
     /// DTR pin to use for the internal UART hardware. Uses BCM numbering.
     #[cfg(feature = "raspberry")]
     #[cfg_attr(feature = "raspberry", clap(long))]
@@ -66,9 +69,6 @@ pub struct ConnectArgs {
     #[cfg(feature = "raspberry")]
     #[cfg_attr(feature = "raspberry", clap(long))]
     pub rts: Option<u8>,
-    /// Do not use the RAM stub for loading
-    #[arg(long)]
-    pub no_stub: bool,
 }
 
 /// Generate completions for the given shell
@@ -92,11 +92,9 @@ pub struct EraseRegionArgs {
     /// Connection configuration
     #[clap(flatten)]
     pub connect_args: ConnectArgs,
-
     /// Offset to start erasing from
     #[arg(value_name = "OFFSET", value_parser = parse_uint32)]
     pub addr: u32,
-
     /// Size of the region to erase
     #[arg(value_name = "SIZE", value_parser = parse_uint32)]
     pub size: u32,
@@ -132,6 +130,9 @@ pub struct FlashArgs {
     /// Image format to flash
     #[arg(long, value_enum)]
     pub format: Option<ImageFormatKind>,
+    /// Logging format.
+    #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
+    pub log_format: LogFormat,
     /// Open a serial monitor after flashing
     #[arg(short = 'M', long)]
     pub monitor: bool,
@@ -147,9 +148,6 @@ pub struct FlashArgs {
     /// Load the application to RAM instead of Flash
     #[arg(long)]
     pub ram: bool,
-    /// Logging format.
-    #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
-    pub log_format: LogFormat,
 }
 
 /// Operations for partitions tables
@@ -198,12 +196,12 @@ pub struct SaveImageArgs {
 /// Open the serial monitor without flashing
 #[derive(Debug, Args)]
 pub struct MonitorArgs {
-    /// Optional file name of the ELF image to load the symbols from
-    #[arg(short = 'e', long, value_name = "FILE")]
-    elf: Option<PathBuf>,
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
+    /// Optional file name of the ELF image to load the symbols from
+    #[arg(short = 'e', long, value_name = "FILE")]
+    elf: Option<PathBuf>,
     /// Logging format.
     #[arg(long, short = 'L', default_value = "serial")]
     pub log_format: LogFormat,
