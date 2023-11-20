@@ -49,11 +49,14 @@ pub struct ConnectArgs {
     /// Baud rate at which to communicate with target device
     #[arg(short = 'b', long, env = "ESPFLASH_BAUD")]
     pub baud: Option<u32>,
+    /// Target device
+    #[arg(short = 'c', long)]
+    pub chip: Option<Chip>,
     /// Serial port connected to target device
     #[arg(short = 'p', long, env = "ESPFLASH_PORT")]
     pub port: Option<String>,
     /// Require confirmation before auto-connecting to a recognized device.
-    #[arg(short = 'c', long)]
+    #[arg(short = 'C', long)]
     pub confirm_port: bool,
     /// DTR pin to use for the internal UART hardware. Uses BCM numbering.
     #[cfg(feature = "raspberry")]
@@ -247,6 +250,7 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
         port_info,
         args.baud,
         !args.no_stub,
+        args.chip,
     )?)
 }
 
