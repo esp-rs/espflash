@@ -82,6 +82,7 @@ impl Target for Esp32c3 {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
+        partition_table_offset: Option<u32>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
 
@@ -96,6 +97,7 @@ impl Target for Esp32c3 {
                 flash_mode,
                 flash_size,
                 flash_freq,
+                partition_table_offset,
             )?)),
             (ImageFormatKind::DirectBoot, None | Some((_, 3..))) => {
                 Ok(Box::new(DirectBootFormat::new(image, 0)?))

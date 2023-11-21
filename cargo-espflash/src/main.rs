@@ -562,6 +562,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
         args.build_args.flash_config_args.flash_mode,
         args.build_args.flash_config_args.flash_size,
         args.build_args.flash_config_args.flash_freq,
+        args.build_args.flash_config_args.partition_table_offset,
         args.save_image_args.merge,
         bootloader,
         partition_table,

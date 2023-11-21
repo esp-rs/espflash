@@ -250,6 +250,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             args.flash_config_args.flash_mode,
             args.flash_config_args.flash_size,
             args.flash_config_args.flash_freq,
+            args.flash_args.partition_table_offset,
         )?;
     }
 
@@ -305,6 +306,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
         args.flash_config_args.flash_mode,
         args.flash_config_args.flash_size,
         args.flash_config_args.flash_freq,
+        args.save_image_args.partition_table_offset,
         args.save_image_args.merge,
         args.save_image_args.bootloader,
         args.save_image_args.partition_table,

@@ -81,6 +81,7 @@ impl Target for Esp8266 {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
+        _partition_table_offset: Option<u32>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
 

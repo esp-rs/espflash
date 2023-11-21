@@ -147,6 +147,7 @@ impl Target for Esp32s2 {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
+        partition_table_offset: Option<u32>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
 
@@ -161,6 +162,7 @@ impl Target for Esp32s2 {
                 flash_mode,
                 flash_size,
                 flash_freq,
+                partition_table_offset,
             )?)),
             _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp32s2, None).into()),
         }
