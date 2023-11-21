@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Added reset strategies (#487)
-
 - Read esp-println generated defmt messages (#466)
 - Add --target-app-partition argument to flash command (#461)
 - Add --confirm-port argument to flash command (#455)
+- Add --chip argument for flash and write-bin commands (#514)
 
 ### Fixed
 

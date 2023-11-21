@@ -394,6 +394,7 @@ impl Flasher {
         port_info: UsbPortInfo,
         speed: Option<u32>,
         use_stub: bool,
+        chip: Option<Chip>,
     ) -> Result<Self, Error> {
         // Establish a connection to the device using the default baud rate of 115,200
         // and timeout of 3 seconds.
@@ -403,11 +404,19 @@ impl Flasher {
 
         // Detect which chip we are connected to.
         let magic = connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
-        let chip = Chip::from_magic(magic)?;
+        let detected_chip = Chip::from_magic(magic)?;
+        if let Some(chip) = chip {
+            if chip != detected_chip {
+                return Err(Error::ChipMismatch(
+                    chip.to_string(),
+                    detected_chip.to_string(),
+                ));
+            }
+        }
 
         let mut flasher = Flasher {
             connection,
-            chip,
+            chip: detected_chip,
             flash_size: FlashSize::_4Mb,
             spi_params: SpiAttachParams::default(),
             use_stub,

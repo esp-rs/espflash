@@ -39,6 +39,13 @@ pub enum Error {
     )]
     ChipDetectError(u32),
 
+    #[error("Chip provided ({0}) with `-c/--chip` does not match the detected chip ({1})")]
+    #[diagnostic(
+        code(espflash::chip_missmatch),
+        help("Ensure that the correct chip is selected, or remove the `-c/--chip` option to autodetect the chip")
+    )]
+    ChipMismatch(String, String),
+
     #[error("Supplied ELF image can not be run from RAM, as it includes segments mapped to ROM addresses")]
     #[diagnostic(
         code(espflash::not_ram_loadable),
