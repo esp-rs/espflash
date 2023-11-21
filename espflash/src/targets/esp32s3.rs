@@ -98,6 +98,7 @@ impl Target for Esp32s3 {
         target_app_partition: Option<String>,
         image_format: Option<ImageFormatKind>,
         _chip_revision: Option<(u32, u32)>,
+        min_rev_full: u16,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
@@ -109,6 +110,7 @@ impl Target for Esp32s3 {
             ImageFormatKind::EspBootloader => Ok(Box::new(IdfBootloaderFormat::new(
                 image,
                 Chip::Esp32s3,
+                min_rev_full,
                 PARAMS,
                 partition_table,
                 target_app_partition,
