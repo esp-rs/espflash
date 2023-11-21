@@ -951,6 +951,20 @@ impl Flasher {
         Ok(())
     }
 
+    pub fn verify_minimum_revision(&mut self, minimum: u16) -> Result<(), Error> {
+        let (major, minor) = self.chip.into_target().chip_revision(self.connection())?;
+        let revision = (major * 100 + minor) as u16;
+
+        if revision < minimum {
+            return Err(Error::UnsupportedChipRevision {
+                minimum,
+                found: revision,
+            });
+        }
+
+        Ok(())
+    }
+
     pub fn into_interface(self) -> Interface {
         self.connection.into_interface()
     }

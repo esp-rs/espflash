@@ -197,6 +197,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
 
 fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config)?;
+    flasher.verify_minimum_revision(args.flash_args.min_chip_rev)?;
 
     // If the user has provided a flash size via a command-line argument, we'll
     // override the detected (or default) value with this.

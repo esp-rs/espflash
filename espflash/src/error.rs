@@ -138,6 +138,10 @@ pub enum Error {
         frequency: FlashFrequency,
     },
 
+    #[error("Minimum supported revision is {minimum}, connected device's revision is {found}")]
+    #[diagnostic(code(espflash::unsupported_chip_revision))]
+    UnsupportedChipRevision { minimum: u16, found: u16 },
+
     #[error("Error while connecting to device")]
     #[diagnostic(transparent)]
     Connection(#[source] ConnectionError),
