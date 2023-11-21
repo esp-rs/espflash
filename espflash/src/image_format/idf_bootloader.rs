@@ -1,7 +1,7 @@
 use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
 
 use bytemuck::{bytes_of, from_bytes};
-use esp_idf_part::{Partition, PartitionTable, Type};
+use esp_idf_part::{AppType, Partition, PartitionTable, SubType, Type};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -194,16 +194,46 @@ impl<'a> ImageFormat<'a> for IdfBootloaderFormat<'a> {
     where
         'a: 'b,
     {
+        let boot_segment = RomSegment {
+            addr: self.params.boot_addr,
+            data: Cow::Borrowed(&self.bootloader),
+        };
+
+        let partitions = self.partition_table.partitions();
+        let first_partition = partitions
+            .iter()
+            .min_by(|a, b| a.offset().cmp(&b.offset()))
+            .unwrap();
+        let partition_table_segment = RomSegment {
+            addr: first_partition.offset() - 0x1000,
+            data: Cow::Owned(self.partition_table.to_bin().unwrap()),
+        };
+
+        let factory_partition = self
+            .partition_table
+            .find_by_subtype(Type::App, SubType::App(AppType::Factory));
+        let ota_partition = self
+            .partition_table
+            .find_by_subtype(Type::App, SubType::App(AppType::Ota_0));
+        let partition = factory_partition.or(ota_partition).unwrap();
+
+        if self.flash_segment.data.len() > partition.size() as usize {
+            panic!(
+                "image size ({} bytes) is larger partition size ({} bytes)",
+                self.flash_segment.data.len(),
+                partition.size()
+            );
+        }
+
+        let app_segment = RomSegment {
+            addr: partition.offset(),
+            data: Cow::Borrowed(&self.flash_segment.data),
+        };
+
         Box::new(
-            once(RomSegment {
-                addr: self.params.boot_addr,
-                data: Cow::Borrowed(&self.bootloader),
-            })
-            .chain(once(RomSegment {
-                addr: self.params.partition_addr,
-                data: Cow::Owned(self.partition_table.to_bin().unwrap()),
-            }))
-            .chain(once(self.flash_segment.borrow())),
+            once(boot_segment)
+                .chain(once(partition_table_segment))
+                .chain(once(app_segment)),
         )
     }
 
