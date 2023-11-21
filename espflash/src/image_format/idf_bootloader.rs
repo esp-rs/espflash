@@ -371,6 +371,7 @@ pub mod tests {
             None,
             None,
             None,
+            None,
         )
         .unwrap();
 
