@@ -203,7 +203,7 @@ pub struct MonitorArgs {
     #[arg(short = 'e', long, value_name = "FILE")]
     elf: Option<PathBuf>,
     /// Logging format.
-    #[arg(long, short = 'L', default_value = "serial")]
+    #[arg(long, short = 'L', default_value = "serial", requires = "elf")]
     pub log_format: LogFormat,
 }
 
