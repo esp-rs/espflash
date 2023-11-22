@@ -109,6 +109,7 @@ enum Commands {
 }
 
 #[derive(Debug, Args)]
+#[non_exhaustive]
 struct BuildArgs {
     /// Binary to build and flash
     #[arg(long)]
@@ -147,19 +148,17 @@ struct BuildArgs {
 
 /// Erase named partitions based on provided partition table
 #[derive(Debug, Args)]
+#[non_exhaustive]
 pub struct ErasePartsArgs {
     /// Connection configuration
     #[clap(flatten)]
     pub connect_args: ConnectArgs,
-
     /// Labels of the partitions to be erased
     #[arg(value_name = "LABELS", value_delimiter = ',')]
     pub erase_parts: Vec<String>,
-
     /// Input partition table
     #[arg(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
-
     /// Specify a (binary) package within a workspace which may provide a partition table
     #[arg(long)]
     pub package: Option<String>,
@@ -167,6 +166,7 @@ pub struct ErasePartsArgs {
 
 /// Build and flash an application to a target device
 #[derive(Debug, Args)]
+#[non_exhaustive]
 struct FlashArgs {
     #[clap(flatten)]
     build_args: BuildArgs,
@@ -177,11 +177,11 @@ struct FlashArgs {
 }
 
 #[derive(Debug, Args)]
+#[non_exhaustive]
 struct SaveImageArgs {
     /// Image format to flash
     #[arg(long, value_enum)]
     pub format: Option<ImageFormatKind>,
-
     #[clap(flatten)]
     build_args: BuildArgs,
     #[clap(flatten)]
