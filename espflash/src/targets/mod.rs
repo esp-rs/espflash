@@ -303,6 +303,7 @@ pub trait Target: ReadEFuse {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
+        partition_table_offset: Option<u32>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
 
     /// What is the MAC address?

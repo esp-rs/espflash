@@ -783,6 +783,7 @@ impl Flasher {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
+        partition_table_offset: Option<u32>,
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
@@ -812,6 +813,7 @@ impl Flasher {
             flash_mode,
             flash_size.or(Some(self.flash_size)),
             flash_freq,
+            partition_table_offset,
         )?;
 
         // When the `cli` feature is enabled, display the image size information.
@@ -869,6 +871,7 @@ impl Flasher {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
+        partition_table_offset: Option<u32>,
         progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         self.load_elf_to_flash_with_format(
@@ -880,6 +883,7 @@ impl Flasher {
             flash_mode,
             flash_size,
             flash_freq,
+            partition_table_offset,
             progress,
         )
     }

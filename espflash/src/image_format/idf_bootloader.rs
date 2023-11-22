@@ -27,6 +27,7 @@ pub struct IdfBootloaderFormat<'a> {
     flash_segment: RomSegment<'a>,
     app_size: u32,
     part_size: u32,
+    partition_table_offset: u32,
 }
 
 impl<'a> IdfBootloaderFormat<'a> {
@@ -40,6 +41,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
+        partition_table_offset: Option<u32>,
     ) -> Result<Self, Error> {
         let partition_table = partition_table
             .unwrap_or_else(|| params.default_partition_table(flash_size.map(|v| v.size())));
@@ -178,6 +180,17 @@ impl<'a> IdfBootloaderFormat<'a> {
             data: Cow::Owned(data),
         };
 
+        // If the user did not specify a partition offset, we need to assume that the partition
+        // offset is (first partition offset) - 0x1000, since this is the most common case.
+        let partition_table_offset = partition_table_offset.unwrap_or_else(|| {
+            let partitions = partition_table.partitions();
+            let first_partition = partitions
+                .iter()
+                .min_by(|a, b| a.offset().cmp(&b.offset()))
+                .unwrap();
+            first_partition.offset() - 0x1000
+        });
+
         Ok(Self {
             params,
             bootloader,
@@ -185,6 +198,7 @@ impl<'a> IdfBootloaderFormat<'a> {
             flash_segment,
             app_size,
             part_size,
+            partition_table_offset,
         })
     }
 }
@@ -194,16 +208,39 @@ impl<'a> ImageFormat<'a> for IdfBootloaderFormat<'a> {
     where
         'a: 'b,
     {
+        let bootloader_segment = RomSegment {
+            addr: self.params.boot_addr,
+            data: Cow::Borrowed(&self.bootloader),
+        };
+
+        let partition_table_segment = RomSegment {
+            addr: self.partition_table_offset,
+            data: Cow::Owned(self.partition_table.to_bin().unwrap()),
+        };
+
+        let app_partition = self
+            .partition_table
+            .find("factory")
+            .or_else(|| self.partition_table.find_by_type(Type::App))
+            .expect("no application partition found");
+
+        if self.flash_segment.data.len() > app_partition.size() as usize {
+            panic!(
+                "image size ({} bytes) is larger partition size ({} bytes)",
+                self.flash_segment.data.len(),
+                app_partition.size()
+            );
+        }
+
+        let app_segment = RomSegment {
+            addr: app_partition.offset(),
+            data: Cow::Borrowed(&self.flash_segment.data),
+        };
+
         Box::new(
-            once(RomSegment {
-                addr: self.params.boot_addr,
-                data: Cow::Borrowed(&self.bootloader),
-            })
-            .chain(once(RomSegment {
-                addr: self.params.partition_addr,
-                data: Cow::Owned(self.partition_table.to_bin().unwrap()),
-            }))
-            .chain(once(self.flash_segment.borrow())),
+            once(bootloader_segment)
+                .chain(once(partition_table_segment))
+                .chain(once(app_segment)),
         )
     }
 
@@ -328,6 +365,7 @@ pub mod tests {
             &image,
             Chip::Esp32,
             PARAMS,
+            None,
             None,
             None,
             None,

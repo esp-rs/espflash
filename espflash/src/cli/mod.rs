@@ -145,6 +145,9 @@ pub struct FlashArgs {
     /// Label of target app partition
     #[arg(long, value_name = "LABEL")]
     pub target_app_partition: Option<String>,
+    /// Partition table offset
+    #[arg(long, value_name = "OFFSET")]
+    pub partition_table_offset: Option<u32>,
     /// Load the application to RAM instead of Flash
     #[arg(long)]
     pub ram: bool,
@@ -185,6 +188,9 @@ pub struct SaveImageArgs {
     /// Custom partition table for merging
     #[arg(long, short = 'T', requires = "merge", value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
+    /// Partition table offset
+    #[arg(long, value_name = "OFFSET")]
+    pub partition_table_offset: Option<u32>,
     /// Label of target app partition
     #[arg(long, value_name = "LABEL")]
     pub target_app_partition: Option<String>,
@@ -333,6 +339,7 @@ pub fn save_elf_as_image(
     flash_mode: Option<FlashMode>,
     flash_size: Option<FlashSize>,
     flash_freq: Option<FlashFrequency>,
+    partition_table_offset: Option<u32>,
     merge: bool,
     bootloader_path: Option<PathBuf>,
     partition_table_path: Option<PathBuf>,
@@ -384,6 +391,7 @@ pub fn save_elf_as_image(
             flash_mode,
             flash_size,
             flash_freq,
+            partition_table_offset,
         )?;
 
         display_image_size(image.app_size(), image.part_size());
@@ -425,6 +433,7 @@ pub fn save_elf_as_image(
             flash_mode,
             flash_size,
             flash_freq,
+            partition_table_offset,
         )?;
 
         display_image_size(image.app_size(), image.part_size());
@@ -538,6 +547,7 @@ pub fn flash_elf_image(
     flash_mode: Option<FlashMode>,
     flash_size: Option<FlashSize>,
     flash_freq: Option<FlashFrequency>,
+    partition_table_offset: Option<u32>,
 ) -> Result<()> {
     // If the '--bootloader' option is provided, load the binary file at the
     // specified path.
@@ -561,6 +571,7 @@ pub fn flash_elf_image(
         flash_mode,
         flash_size,
         flash_freq,
+        partition_table_offset,
         Some(&mut EspflashProgress::default()),
     )?;
     info!("Flashing has completed!");
