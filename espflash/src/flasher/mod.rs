@@ -298,6 +298,7 @@ impl FlashData {
     pub fn new(
         bootloader: Option<&Path>,
         partition_table: Option<&Path>,
+        partition_table_offset: Option<u32>,
         image_format: Option<ImageFormatKind>,
         target_app_partition: Option<String>,
         flash_settings: FlashSettings,

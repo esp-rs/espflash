@@ -585,7 +585,6 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
         flash_data,
         args.save_image_args.merge,
         args.save_image_args.skip_padding,
-        args.save_image_args.skip_padding,
     )?;
 
     Ok(())

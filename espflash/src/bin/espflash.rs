@@ -247,6 +247,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         let flash_data = FlashData::new(
             bootloader,
             partition_table,
+            args.flash_args.partition_table_offset,
             args.flash_args.format,
             args.flash_args.target_app_partition,
             flash_settings,
