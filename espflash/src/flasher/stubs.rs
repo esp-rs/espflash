@@ -106,7 +106,7 @@ mod tests {
     fn check_stub_encodings() {
         for c in Chip::iter() {
             // Stub must be valid json
-            let s = FlashStub::get(c);
+            let s = FlashStub::get(c).unwrap();
 
             // Data decoded from b64
             let _ = s.text();
