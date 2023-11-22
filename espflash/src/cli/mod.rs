@@ -3,6 +3,7 @@
 //! The contents of this module are intended for use with the [cargo-espflash]
 //! and [espflash] command-line applications, and are likely not of much use
 //! otherwise.
+//!  feel free to opt-out by disabling the default `cli` feature.</div>
 //!
 //! [cargo-espflash]: https://crates.io/crates/cargo-espflash
 //! [espflash]: https://crates.io/crates/espflash
