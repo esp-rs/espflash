@@ -84,4 +84,3 @@ cli = [
 ]
 
 raspberry = ["dep:rppal"]
-rust-stub = []

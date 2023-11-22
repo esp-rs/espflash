@@ -1,7 +1,7 @@
 use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 
-use crate::{error::Error, targets::Chip};
+use crate::targets::Chip;
 
 /// Flash stub object (deserialized from TOML, converted from JSON as used by `esptool.py`)
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -19,62 +19,32 @@ pub struct FlashStub {
 }
 
 // Include stub objects in binary
-#[cfg(not(feature = "rust-stub"))]
-mod c_stubs {
-    pub const STUB_32: &str = include_str!("../../resources/stubs/c/stub_flasher_32.toml");
-    pub const STUB_32C2: &str = include_str!("../../resources/stubs/c/stub_flasher_32c2.toml");
-    pub const STUB_32C3: &str = include_str!("../../resources/stubs/c/stub_flasher_32c3.toml");
-    pub const STUB_32C6: &str = include_str!("../../resources/stubs/c/stub_flasher_32c6.toml");
-    pub const STUB_32S2: &str = include_str!("../../resources/stubs/c/stub_flasher_32s2.toml");
-    pub const STUB_32S3: &str = include_str!("../../resources/stubs/c/stub_flasher_32s3.toml");
-    pub const STUB_32H2: &str = include_str!("../../resources/stubs/c/stub_flasher_32h2.toml");
-    pub const STUB_8266: &str = include_str!("../../resources/stubs/c/stub_flasher_8266.toml");
-}
-#[cfg(feature = "rust-stub")]
-mod rust_stubs {
-    pub const STUB_32: &str = include_str!("../../resources/stubs/rust/stub_flasher_32.toml");
-    pub const STUB_32C2: &str = include_str!("../../resources/stubs/rust/stub_flasher_32c2.toml");
-    pub const STUB_32C3: &str = include_str!("../../resources/stubs/rust/stub_flasher_32c3.toml");
-    pub const STUB_32C6: &str = include_str!("../../resources/stubs/rust/stub_flasher_32c6.toml");
-    pub const STUB_32S2: &str = include_str!("../../resources/stubs/rust/stub_flasher_32s2.toml");
-    pub const STUB_32S3: &str = include_str!("../../resources/stubs/rust/stub_flasher_32s3.toml");
-    pub const STUB_32H2: &str = include_str!("../../resources/stubs/rust/stub_flasher_32h2.toml");
-}
+const STUB_32: &str = include_str!("../../resources/stubs/stub_flasher_32.toml");
+const STUB_32C2: &str = include_str!("../../resources/stubs/stub_flasher_32c2.toml");
+const STUB_32C3: &str = include_str!("../../resources/stubs/stub_flasher_32c3.toml");
+const STUB_32C6: &str = include_str!("../../resources/stubs/stub_flasher_32c6.toml");
+const STUB_32S2: &str = include_str!("../../resources/stubs/stub_flasher_32s2.toml");
+const STUB_32S3: &str = include_str!("../../resources/stubs/stub_flasher_32s3.toml");
+const STUB_32H2: &str = include_str!("../../resources/stubs/stub_flasher_32h2.toml");
+const STUB_8266: &str = include_str!("../../resources/stubs/stub_flasher_8266.toml");
 
 impl FlashStub {
     /// Fetch flash stub for the provided chip
-    pub fn get(chip: Chip) -> Result<FlashStub, Error> {
-        #[cfg(not(feature = "rust-stub"))]
+    pub fn get(chip: Chip) -> FlashStub {
         let s = match chip {
-            Chip::Esp32 => c_stubs::STUB_32,
-            Chip::Esp32c2 => c_stubs::STUB_32C2,
-            Chip::Esp32c3 => c_stubs::STUB_32C3,
-            Chip::Esp32c6 => c_stubs::STUB_32C6,
-            Chip::Esp32s2 => c_stubs::STUB_32S2,
-            Chip::Esp32s3 => c_stubs::STUB_32S3,
-            Chip::Esp32h2 => c_stubs::STUB_32H2,
-            Chip::Esp8266 => c_stubs::STUB_8266,
-        };
-
-        #[cfg(feature = "rust-stub")]
-        let s = match chip {
-            Chip::Esp32 => rust_stubs::STUB_32,
-            Chip::Esp32c2 => rust_stubs::STUB_32C2,
-            Chip::Esp32c3 => rust_stubs::STUB_32C3,
-            Chip::Esp32c6 => rust_stubs::STUB_32C6,
-            Chip::Esp32s2 => rust_stubs::STUB_32S2,
-            Chip::Esp32s3 => rust_stubs::STUB_32S3,
-            Chip::Esp32h2 => rust_stubs::STUB_32H2,
-            Chip::Esp8266 => {
-                return Err(Error::UnsupportedStub {
-                    chip: Chip::Esp8266,
-                });
-            }
+            Chip::Esp32 => STUB_32,
+            Chip::Esp32c2 => STUB_32C2,
+            Chip::Esp32c3 => STUB_32C3,
+            Chip::Esp32c6 => STUB_32C6,
+            Chip::Esp32s2 => STUB_32S2,
+            Chip::Esp32s3 => STUB_32S3,
+            Chip::Esp32h2 => STUB_32H2,
+            Chip::Esp8266 => STUB_8266,
         };
 
         let stub: FlashStub = toml::from_str(s).unwrap();
 
-        Ok(stub)
+        stub
     }
 
     /// Fetch stub entry point
@@ -106,7 +76,7 @@ mod tests {
     fn check_stub_encodings() {
         for c in Chip::iter() {
             // Stub must be valid json
-            let s = FlashStub::get(c).unwrap();
+            let s = FlashStub::get(c);
 
             // Data decoded from b64
             let _ = s.text();
