@@ -137,6 +137,10 @@ pub enum Error {
         frequency: FlashFrequency,
     },
 
+    #[error("Rust stub is not avaiable for {chip}")]
+    #[diagnostic(code(espflash::unsupported_stub))]
+    UnsupportedStub { chip: Chip },
+
     #[error("Error while connecting to device")]
     #[diagnostic(transparent)]
     Connection(#[source] ConnectionError),
