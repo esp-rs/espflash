@@ -13,11 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add --target-app-partition argument to flash command (#461)
 - Add --confirm-port argument to flash command (#455)
 - Add --chip argument for flash and write-bin commands (#514)
+- Add --partition-table-offset argument for specifying the partition table offset (#516)
 
 ### Fixed
 
 - Fixed printing panic backtraces when using `esp-println` and `defmt` (#496)
 - Fixed defmt parsing when data is read in parts (#503)
+- Use partition table instead of hard-coded values for the location of partitions (#516)
 
 ### Changed
 
