@@ -4,8 +4,8 @@
 //! and [espflash] command-line applications, and are likely not of much use
 //! otherwise.
 //!
-//! <div class="warning">The cli module does not provide SemVer guarantees,
-//!  feel free to opt-out by disabling the default `cli` feature.</div>
+//! Important note: The cli module DOES NOT provide SemVer guarantees,
+//! feel free to opt-out by disabling the default `cli` feature.
 //!
 //! [cargo-espflash]: https://crates.io/crates/cargo-espflash
 //! [espflash]: https://crates.io/crates/espflash

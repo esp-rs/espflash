@@ -122,6 +122,14 @@ or `cargo add espflash --no-default-features`
 > **Warning**
 > Note that the `cli` module does not provide SemVer guarantees.
 
+We disable the `default-features` to opt-out the `cli` feature, which is enabled by default; you likely will not need any of these types or functions in your application so there’s no use pulling in the extra dependencies.
+
+Just like when using `espflash` as an application, you can enable the raspberry feature to allow your dependent application to use the Raspberry Pi’s built-in UART:
+
+```toml
+espflash = { version = "2.1", default-features = false, features = ["raspberry"] }
+```
+
 ## Configuration File
 
 It's possible to specify a serial port and/or USB VID/PID values by setting them in a configuration file. The location of this file differs based on your operating system:
