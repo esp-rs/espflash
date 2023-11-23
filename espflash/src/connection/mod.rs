@@ -4,7 +4,12 @@
 //! sending/decoding of commands, and provides higher-level operations with the
 //! device.
 
-use std::{io::BufWriter, iter::zip, thread::sleep, time::Duration};
+use std::{
+    io::{BufWriter, Write},
+    iter::zip,
+    thread::sleep,
+    time::Duration,
+};
 
 use binrw::{io::Cursor, BinRead, BinReaderExt};
 use log::debug;
@@ -207,6 +212,7 @@ impl Connection {
         let mut encoder = SlipEncoder::new(&mut writer)?;
         command.write(&mut encoder)?;
         encoder.finish()?;
+        writer.flush()?;
         Ok(())
     }
 
