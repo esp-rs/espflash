@@ -3,10 +3,13 @@
 #[cfg(unix)]
 use std::{io, os::fd::AsRawFd};
 use std::{thread::sleep, time::Duration};
+use strum::{Display, EnumIter, EnumString, EnumVariantNames};
 
 use log::debug;
 
-use crate::{connection::USB_SERIAL_JTAG_PID, error::Error, interface::Interface};
+use crate::{
+    command::CommandType, connection::USB_SERIAL_JTAG_PID, error::Error, interface::Interface,
+};
 
 /// Default time to wait before releasing the boot pin after a reset
 const DEFAULT_RESET_DELAY: u64 = 50; // ms
@@ -193,6 +196,38 @@ impl ResetStrategy for UsbJtagSerialReset {
     }
 }
 
+/// Reset sequence for hard resetting the chip.
+///
+/// Can be used to reset out of the bootloader or to restart a running app.
+#[derive(Debug, Clone, Copy)]
+pub struct HardReset;
+
+impl ResetStrategy for HardReset {
+    fn reset(&self, interface: &mut Interface) -> Result<(), Error> {
+        debug!("Using HardReset reset strategy");
+
+        self.set_rts(interface, true)?;
+        sleep(Duration::from_millis(100));
+        self.set_rts(interface, false)?;
+
+        Ok(())
+    }
+}
+
+///
+#[derive(Debug, Clone, Copy)]
+pub struct SoftReset;
+
+impl ResetStrategy for SoftReset {
+    fn reset(&self, interface: &mut Interface) -> Result<(), Error> {
+        debug!("Using SoftReset reset strategy");
+        // https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/loader.py#L1461
+        // CommandType::RunUserCode.timeout() ...
+
+        Ok(())
+    }
+}
+
 /// Construct a sequence of reset strategies based on the OS and chip.
 ///
 /// Returns a [Vec] containing one or more reset strategies to be attempted
@@ -220,4 +255,37 @@ pub fn construct_reset_strategy_sequence(port_name: &str, pid: u16) -> Vec<Box<d
         Box::new(ClassicReset::new(false)),
         Box::new(ClassicReset::new(true)),
     ]
+}
+
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, EnumVariantNames,
+)]
+#[non_exhaustive]
+#[strum(serialize_all = "lowercase")]
+pub enum ResetBeforeOperation {
+    /// Uses DTR & RTS serial control lines to try to reset the chip into bootloader mode.
+    #[default]
+    DefaultReset,
+    /// Skips DTR/RTS control signal assignments and just start sending a serial synchronisation command to the chip.
+    NoReset,
+    /// Skips DTR/RTS control signal assignments and also skips the serial synchronization command.
+    NoResetNoSync,
+}
+
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, EnumVariantNames,
+)]
+#[non_exhaustive]
+pub enum ResetAfterOperation {
+    /// The DTR serial control line is used to reset the chip into a normal boot sequence.
+    #[default]
+    HardReset,
+    /// Runs the user firmware, but any subsequent reset will return to the serial bootloader.
+    SoftReset,
+    /// Leaves the chip in the serial bootloader, no reset is performed.
+    NoReset,
+    /// Leaves the chip in the stub bootloader, no reset is performed.
+    NoResetNoStub,
 }

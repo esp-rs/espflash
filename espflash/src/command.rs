@@ -42,6 +42,8 @@ pub enum CommandType {
     // Some commands supported by stub only
     EraseFlash = 0xd0,
     EraseRegion = 0xd1,
+    // https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/loader.py#L221
+    RunUserCode = 0xd3,
 }
 
 impl CommandType {
@@ -165,6 +167,7 @@ pub enum Command<'a> {
         offset: u32,
         size: u32,
     },
+    RunUserCode,
 }
 
 impl<'a> Command<'a> {
@@ -191,6 +194,7 @@ impl<'a> Command<'a> {
             Command::EraseFlash { .. } => CommandType::EraseFlash,
             Command::EraseRegion { .. } => CommandType::EraseRegion,
             Command::FlashMd5 { .. } => CommandType::FlashMd5,
+            Command::RunUserCode { .. } => CommandType::RunUserCode,
         }
     }
 
@@ -378,6 +382,9 @@ impl<'a> Command<'a> {
                 writer.write_all(&size.to_le_bytes())?;
                 writer.write_all(&(0u32.to_le_bytes()))?;
                 writer.write_all(&(0u32.to_le_bytes()))?;
+            }
+            Command::RunUserCode => {
+                write_basic(writer, &[], 0)?;
             }
         };
         Ok(())

@@ -19,15 +19,19 @@ use slip_codec::SlipDecoder;
 use self::reset::UnixTightReset;
 use self::{
     encoder::SlipEncoder,
-    reset::{construct_reset_strategy_sequence, ClassicReset, ResetStrategy, UsbJtagSerialReset},
+    reset::{
+        construct_reset_strategy_sequence, ClassicReset, HardReset, ResetAfterOperation,
+        ResetBeforeOperation, ResetStrategy, UsbJtagSerialReset,
+    },
 };
 use crate::{
     command::{Command, CommandType},
+    connection::reset::SoftReset,
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
     interface::Interface,
 };
 
-mod reset;
+pub mod reset;
 
 const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
@@ -77,14 +81,23 @@ pub struct Connection {
     serial: Interface,
     port_info: UsbPortInfo,
     decoder: SlipDecoder,
+    after_operation: ResetAfterOperation,
+    before_operation: ResetBeforeOperation,
 }
 
 impl Connection {
-    pub fn new(serial: Interface, port_info: UsbPortInfo) -> Self {
+    pub fn new(
+        serial: Interface,
+        port_info: UsbPortInfo,
+        after_operation: ResetAfterOperation,
+        before_operation: ResetBeforeOperation,
+    ) -> Self {
         Connection {
             serial,
             port_info,
             decoder: SlipDecoder::new(),
+            after_operation,
+            before_operation,
         }
     }
 
@@ -158,6 +171,28 @@ impl Connection {
 
     // Reset the device
     pub fn reset(&mut self) -> Result<(), Error> {
+        reset_after_flash(&mut self.serial, self.port_info.pid)?;
+
+        Ok(())
+    }
+    // Reset the device
+    pub fn reset_after(&mut self) -> Result<(), Error> {
+        match self.after_operation {
+            ResetAfterOperation::HardReset => HardReset.reset(&mut self.serial),
+            ResetAfterOperation::SoftReset => {
+                println!("SoftReset");
+                return Ok(());
+            }
+            ResetAfterOperation::NoReset => {
+                println!("NoReset");
+                return Ok(());
+            }
+            ResetAfterOperation::NoResetNoStub => {
+                println!("NoResetNoStub");
+                return Ok(());
+            }
+        };
+        // Implement https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/__init__.py#L931-L944
         reset_after_flash(&mut self.serial, self.port_info.pid)?;
 
         Ok(())
@@ -382,6 +417,7 @@ pub fn reset_after_flash(serial: &mut Interface, pid: u16) -> Result<(), serialp
 
         serial.write_request_to_send(false)?;
     } else {
+        // THIS IS SAME AS HARD_RESET https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/reset.py#L124-L135
         serial.write_request_to_send(true)?;
 
         sleep(Duration::from_millis(100));

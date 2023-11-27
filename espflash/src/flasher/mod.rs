@@ -18,7 +18,10 @@ use self::stubs::FlashStub;
 use crate::{
     cli::parse_partition_table,
     command::{Command, CommandType},
-    connection::Connection,
+    connection::{
+        reset::{ResetAfterOperation, ResetBeforeOperation},
+        Connection,
+    },
     elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
     error::{ConnectionError, Error, ResultExt},
     image_format::ImageFormatKind,
@@ -507,10 +510,12 @@ impl Flasher {
         verify: bool,
         skip: bool,
         chip: Option<Chip>,
+        after_operation: ResetAfterOperation,
+        before_operation: ResetBeforeOperation,
     ) -> Result<Self, Error> {
         // Establish a connection to the device using the default baud rate of 115,200
         // and timeout of 3 seconds.
-        let mut connection = Connection::new(serial, port_info);
+        let mut connection = Connection::new(serial, port_info, after_operation, before_operation);
         connection.begin()?;
         connection.set_timeout(DEFAULT_TIMEOUT)?;
 

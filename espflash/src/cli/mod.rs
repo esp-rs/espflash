@@ -33,6 +33,7 @@ use self::{
     serial::get_serial_port_info,
 };
 use crate::{
+    connection::reset::{ResetAfterOperation, ResetBeforeOperation},
     elf::ElfFirmwareImage,
     error::{Error, MissingPartition, MissingPartitionTable},
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize, Flasher, ProgressCallbacks},
@@ -50,9 +51,15 @@ mod serial;
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct ConnectArgs {
+    /// Reset operation to perform after connecting to the target
+    #[arg(short = 'a', long, default_value = "hard-reset")]
+    pub after: ResetAfterOperation,
     /// Baud rate at which to communicate with target device
-    #[arg(short = 'b', long, env = "ESPFLASH_BAUD")]
+    #[arg(short = 'B', long, env = "ESPFLASH_BAUD")]
     pub baud: Option<u32>,
+    /// Reset operation to perform before connecting to the target
+    #[arg(short = 'b', long, default_value = "default-reset")]
+    pub before: ResetBeforeOperation,
     /// Target device
     #[arg(short = 'c', long)]
     pub chip: Option<Chip>,
@@ -307,6 +314,8 @@ pub fn connect(
         !no_verify,
         !no_skip,
         args.chip,
+        args.after,
+        args.before,
     )?)
 }
 
@@ -549,8 +558,8 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
 
     info!("Erasing Flash...");
     flash.erase_flash()?;
-
-    flash.connection().reset()?;
+    // Reset after? https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/__init__.py#L931-L944
+    flash.connection().reset_after()?;
 
     Ok(())
 }
