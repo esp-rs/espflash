@@ -90,7 +90,7 @@ pub fn monitor(
     let mut stdout = ResolvingPrinter::new(elf, stdout.lock());
 
     let mut parser: Box<dyn InputParser> = match log_format {
-        LogFormat::Defmt => Box::new(parser::esp_defmt::EspDefmt::new(elf)),
+        LogFormat::Defmt => Box::new(parser::esp_defmt::EspDefmt::new(elf).unwrap()),
         LogFormat::Serial => Box::new(parser::serial::Serial),
     };
 

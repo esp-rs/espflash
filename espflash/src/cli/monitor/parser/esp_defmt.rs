@@ -79,7 +79,7 @@ impl FrameDelimiter {
 
 pub struct EspDefmt {
     delimiter: FrameDelimiter,
-    table: Option<Table>,
+    table: Table,
 }
 
 impl EspDefmt {
@@ -99,11 +99,11 @@ impl EspDefmt {
         })
     }
 
-    pub fn new(elf: Option<&[u8]>) -> Self {
-        Self {
+    pub fn new(elf: Option<&[u8]>) -> Option<Self> {
+        Self::load_table(elf).map(|table| Self {
             delimiter: FrameDelimiter::new(),
-            table: Self::load_table(elf),
-        }
+            table,
+        })
     }
 
     fn handle_raw(bytes: &[u8], out: &mut dyn Write) {
@@ -143,12 +143,7 @@ impl EspDefmt {
 
 impl InputParser for EspDefmt {
     fn feed(&mut self, bytes: &[u8], out: &mut dyn Write) {
-        let Some(table) = self.table.as_mut() else {
-            Self::handle_raw(bytes, out);
-            return;
-        };
-
-        let mut decoder = table.new_stream_decoder();
+        let mut decoder = self.table.new_stream_decoder();
 
         self.delimiter.feed(bytes, |frame| match frame {
             FrameKind::Defmt(frame) => {
