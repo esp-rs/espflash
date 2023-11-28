@@ -5,6 +5,7 @@ use crossterm::{
     QueueableCommand,
 };
 use defmt_decoder::{Frame, Table};
+use miette::{bail, miette};
 
 use crate::cli::monitor::parser::InputParser;
 
@@ -83,23 +84,29 @@ pub struct EspDefmt {
 }
 
 impl EspDefmt {
-    fn load_table(elf: Option<&[u8]>) -> Option<Table> {
-        // Load symbols from the ELF file (if provided) and initialize the context.
-        Table::parse(elf?).ok().flatten().and_then(|table| {
-            let encoding = table.encoding();
+    /// Loads symbols from the ELF file (if provided) and initializes the context.
+    fn load_table(elf: Option<&[u8]>) -> miette::Result<Table> {
+        let Some(elf) = elf else {
+            bail!("The defmt log format can not be used without an .elf file");
+        };
 
-            // We only support rzcobs encoding because it is the only way to multiplex
-            // a defmt stream and an ASCII log stream over the same serial port.
-            if encoding == defmt_decoder::Encoding::Rzcobs {
-                Some(table)
-            } else {
-                log::warn!("Unsupported defmt encoding: {:?}", encoding);
-                None
-            }
-        })
+        let table = Table::parse(elf).map_err(|e| miette!(e.to_string()))?;
+        let Some(table) = table else {
+            bail!("No defmt data was found in the .elf file");
+        };
+
+        let encoding = table.encoding();
+
+        // We only support rzcobs encoding because it is the only way to multiplex
+        // a defmt stream and an ASCII log stream over the same serial port.
+        if encoding == defmt_decoder::Encoding::Rzcobs {
+            Ok(table)
+        } else {
+            bail!("Unsupported defmt encoding: {:?}", encoding)
+        }
     }
 
-    pub fn new(elf: Option<&[u8]>) -> Option<Self> {
+    pub fn new(elf: Option<&[u8]>) -> miette::Result<Self> {
         Self::load_table(elf).map(|table| Self {
             delimiter: FrameDelimiter::new(),
             table,

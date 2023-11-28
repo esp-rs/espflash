@@ -325,9 +325,6 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         args.connect_args.baud.unwrap_or(default_baud),
         args.log_format,
     )
-    .into_diagnostic()?;
-
-    Ok(())
 }
 
 /// Convert the provided firmware image from ELF to binary

@@ -70,7 +70,7 @@ pub fn monitor(
     pid: u16,
     baud: u32,
     log_format: LogFormat,
-) -> serialport::Result<()> {
+) -> miette::Result<()> {
     println!("Commands:");
     println!("    CTRL+R    Reset chip");
     println!("    CTRL+C    Exit");
@@ -78,10 +78,14 @@ pub fn monitor(
 
     // Explicitly set the baud rate when starting the serial monitor, to allow using
     // different rates for flashing.
-    serial.serial_port_mut().set_baud_rate(baud)?;
     serial
         .serial_port_mut()
-        .set_timeout(Duration::from_millis(5))?;
+        .set_baud_rate(baud)
+        .into_diagnostic()?;
+    serial
+        .serial_port_mut()
+        .set_timeout(Duration::from_millis(5))
+        .into_diagnostic()?;
 
     // We are in raw mode until `_raw_mode` is dropped (ie. this function returns).
     let _raw_mode = RawModeGuard::new();
@@ -90,7 +94,7 @@ pub fn monitor(
     let mut stdout = ResolvingPrinter::new(elf, stdout.lock());
 
     let mut parser: Box<dyn InputParser> = match log_format {
-        LogFormat::Defmt => Box::new(parser::esp_defmt::EspDefmt::new(elf).unwrap()),
+        LogFormat::Defmt => Box::new(parser::esp_defmt::EspDefmt::new(elf)?),
         LogFormat::Serial => Box::new(parser::serial::Serial),
     };
 
@@ -100,7 +104,7 @@ pub fn monitor(
             Ok(count) => Ok(count),
             Err(e) if e.kind() == ErrorKind::TimedOut => Ok(0),
             Err(e) if e.kind() == ErrorKind::Interrupted => continue,
-            err => err,
+            err => err.into_diagnostic(),
         }?;
 
         parser.feed(&buff[0..read_count], &mut stdout);
@@ -108,13 +112,13 @@ pub fn monitor(
         // Don't forget to flush the writer!
         stdout.flush().ok();
 
-        if poll(Duration::from_secs(0))? {
-            if let Event::Key(key) = read()? {
+        if poll(Duration::from_secs(0)).into_diagnostic()? {
+            if let Event::Key(key) = read().into_diagnostic()? {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     match key.code {
                         KeyCode::Char('c') => break,
                         KeyCode::Char('r') => {
-                            reset_after_flash(&mut serial, pid)?;
+                            reset_after_flash(&mut serial, pid).into_diagnostic()?;
                             continue;
                         }
                         _ => {}
@@ -122,8 +126,11 @@ pub fn monitor(
                 }
 
                 if let Some(bytes) = handle_key_event(key) {
-                    serial.serial_port_mut().write_all(&bytes)?;
-                    serial.serial_port_mut().flush()?;
+                    serial
+                        .serial_port_mut()
+                        .write_all(&bytes)
+                        .into_diagnostic()?;
+                    serial.serial_port_mut().flush().into_diagnostic()?;
                 }
             }
         }
