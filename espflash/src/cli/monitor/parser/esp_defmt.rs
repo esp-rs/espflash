@@ -5,8 +5,30 @@ use crossterm::{
     QueueableCommand,
 };
 use defmt_decoder::{Frame, Table};
+use miette::{bail, Context, Diagnostic, Result};
+use thiserror::Error;
 
 use crate::cli::monitor::parser::InputParser;
+
+#[derive(Clone, Copy, Debug, Diagnostic, Error)]
+#[error("Could not set up defmt logger")]
+pub enum DefmtError {
+    #[error("No elf data available")]
+    #[diagnostic(code(espflash::monitor::defmt::no_elf))]
+    NoElf,
+
+    #[error("No defmt data was found in the elf file")]
+    #[diagnostic(code(espflash::monitor::defmt::no_defmt))]
+    NoDefmtData,
+
+    #[error("Failed to parse defmt data")]
+    #[diagnostic(code(espflash::monitor::defmt::parse_failed))]
+    TableParseFailed,
+
+    #[error("Unsupported defmt encoding: {0:?}. Only rzcobs is supported.")]
+    #[diagnostic(code(espflash::monitor::defmt::unsupported_encoding))]
+    UnsupportedEncoding(defmt_decoder::Encoding),
+}
 
 #[derive(Debug, PartialEq)]
 enum FrameKind<'a> {
@@ -79,31 +101,38 @@ impl FrameDelimiter {
 
 pub struct EspDefmt {
     delimiter: FrameDelimiter,
-    table: Option<Table>,
+    table: Table,
 }
 
 impl EspDefmt {
-    fn load_table(elf: Option<&[u8]>) -> Option<Table> {
-        // Load symbols from the ELF file (if provided) and initialize the context.
-        Table::parse(elf?).ok().flatten().and_then(|table| {
-            let encoding = table.encoding();
+    /// Loads symbols from the ELF file (if provided) and initializes the context.
+    fn load_table(elf: Option<&[u8]>) -> Result<Table> {
+        let Some(elf) = elf else {
+            bail!(DefmtError::NoElf);
+        };
 
-            // We only support rzcobs encoding because it is the only way to multiplex
-            // a defmt stream and an ASCII log stream over the same serial port.
-            if encoding == defmt_decoder::Encoding::Rzcobs {
-                Some(table)
-            } else {
-                log::warn!("Unsupported defmt encoding: {:?}", encoding);
-                None
-            }
-        })
+        let table = match Table::parse(elf) {
+            Ok(Some(table)) => table,
+            Ok(None) => bail!(DefmtError::NoDefmtData),
+            Err(e) => return Err(DefmtError::TableParseFailed).with_context(|| e),
+        };
+
+        let encoding = table.encoding();
+
+        // We only support rzcobs encoding because it is the only way to multiplex
+        // a defmt stream and an ASCII log stream over the same serial port.
+        if encoding == defmt_decoder::Encoding::Rzcobs {
+            Ok(table)
+        } else {
+            bail!(DefmtError::UnsupportedEncoding(encoding))
+        }
     }
 
-    pub fn new(elf: Option<&[u8]>) -> Self {
-        Self {
+    pub fn new(elf: Option<&[u8]>) -> Result<Self> {
+        Self::load_table(elf).map(|table| Self {
             delimiter: FrameDelimiter::new(),
-            table: Self::load_table(elf),
-        }
+            table,
+        })
     }
 
     fn handle_raw(bytes: &[u8], out: &mut dyn Write) {
@@ -143,12 +172,7 @@ impl EspDefmt {
 
 impl InputParser for EspDefmt {
     fn feed(&mut self, bytes: &[u8], out: &mut dyn Write) {
-        let Some(table) = self.table.as_mut() else {
-            Self::handle_raw(bytes, out);
-            return;
-        };
-
-        let mut decoder = table.new_stream_decoder();
+        let mut decoder = self.table.new_stream_decoder();
 
         self.delimiter.feed(bytes, |frame| match frame {
             FrameKind::Defmt(frame) => {

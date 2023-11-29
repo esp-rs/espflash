@@ -11,6 +11,7 @@ use strum::{FromRepr, VariantNames};
 use thiserror::Error;
 
 use crate::{
+    cli::monitor::parser::esp_defmt::DefmtError,
     command::CommandType,
     flasher::{FlashFrequency, FlashSize},
     image_format::ImageFormatKind,
@@ -159,6 +160,10 @@ pub enum Error {
     #[error(transparent)]
     #[diagnostic(transparent)]
     UnsupportedImageFormat(#[from] UnsupportedImageFormatError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Defmt(#[from] DefmtError),
 }
 
 impl From<io::Error> for Error {
