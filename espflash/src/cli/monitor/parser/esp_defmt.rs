@@ -5,9 +5,30 @@ use crossterm::{
     QueueableCommand,
 };
 use defmt_decoder::{Frame, Table};
-use miette::{bail, miette};
+use miette::{bail, Context, Diagnostic, Result};
+use thiserror::Error;
 
 use crate::cli::monitor::parser::InputParser;
+
+#[derive(Clone, Copy, Debug, Diagnostic, Error)]
+#[error("Could not set up defmt logger")]
+pub enum DefmtError {
+    #[error("No elf data available")]
+    #[diagnostic(code(espflash::monitor::defmt::no_elf))]
+    NoElf,
+
+    #[error("No defmt data was found in the elf file")]
+    #[diagnostic(code(espflash::monitor::defmt::no_defmt))]
+    NoDefmtData,
+
+    #[error("Failed to parse defmt data")]
+    #[diagnostic(code(espflash::monitor::defmt::parse_failed))]
+    TableParseFailed,
+
+    #[error("Unsupported defmt encoding: {0:?}. Only rzcobs is supported.")]
+    #[diagnostic(code(espflash::monitor::defmt::unsupported_encoding))]
+    UnsupportedEncoding(defmt_decoder::Encoding),
+}
 
 #[derive(Debug, PartialEq)]
 enum FrameKind<'a> {
@@ -85,14 +106,15 @@ pub struct EspDefmt {
 
 impl EspDefmt {
     /// Loads symbols from the ELF file (if provided) and initializes the context.
-    fn load_table(elf: Option<&[u8]>) -> miette::Result<Table> {
+    fn load_table(elf: Option<&[u8]>) -> Result<Table> {
         let Some(elf) = elf else {
-            bail!("The defmt log format can not be used without an .elf file");
+            bail!(DefmtError::NoElf);
         };
 
-        let table = Table::parse(elf).map_err(|e| miette!(e.to_string()))?;
-        let Some(table) = table else {
-            bail!("No defmt data was found in the .elf file");
+        let table = match Table::parse(elf) {
+            Ok(Some(table)) => table,
+            Ok(None) => bail!(DefmtError::NoDefmtData),
+            Err(e) => return Err(DefmtError::TableParseFailed).with_context(|| e),
         };
 
         let encoding = table.encoding();
@@ -102,11 +124,11 @@ impl EspDefmt {
         if encoding == defmt_decoder::Encoding::Rzcobs {
             Ok(table)
         } else {
-            bail!("Unsupported defmt encoding: {:?}", encoding)
+            bail!(DefmtError::UnsupportedEncoding(encoding))
         }
     }
 
-    pub fn new(elf: Option<&[u8]>) -> miette::Result<Self> {
+    pub fn new(elf: Option<&[u8]>) -> Result<Self> {
         Self::load_table(elf).map(|table| Self {
             delimiter: FrameDelimiter::new(),
             table,
