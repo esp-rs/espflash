@@ -14,6 +14,7 @@ use crate::{
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
     0x6921_506f, // ECO1 + ECO2
     0x1b31_506f, // ECO3
+    0x4361_606f, // ECO7
 ];
 
 const FLASH_RANGES: &[Range<u32>] = &[
