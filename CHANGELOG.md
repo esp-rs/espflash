@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add --confirm-port argument to flash command (#455)
 - Add --chip argument for flash and write-bin commands (#514)
 - Add --partition-table-offset argument for specifying the partition table offset (#516)
+- Add `Serialize` and `Deserialize` to `FlashFrequency`, `FlashMode` and `FlashSize`. (#528)
 
 ### Fixed
 

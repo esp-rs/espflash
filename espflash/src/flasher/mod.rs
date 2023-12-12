@@ -9,6 +9,7 @@ use std::{borrow::Cow, str::FromStr, thread::sleep};
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use esp_idf_part::PartitionTable;
 use log::{debug, info, warn};
+use serde::{Deserialize, Serialize};
 use serialport::UsbPortInfo;
 use strum::{Display, EnumIter, EnumVariantNames};
 
@@ -39,7 +40,19 @@ const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 ///
 /// Note that not all frequencies are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Display, EnumVariantNames)]
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    Display,
+    EnumVariantNames,
+    Serialize,
+    Deserialize,
+)]
 #[non_exhaustive]
 #[repr(u8)]
 pub enum FlashFrequency {
@@ -85,7 +98,7 @@ impl FlashFrequency {
 
 /// Supported flash modes
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Copy, Clone, Debug, Default, EnumVariantNames)]
+#[derive(Copy, Clone, Debug, Default, EnumVariantNames, Serialize, Deserialize)]
 #[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
 pub enum FlashMode {
@@ -104,7 +117,19 @@ pub enum FlashMode {
 ///
 /// Note that not all sizes are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Display, EnumVariantNames, EnumIter)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Display,
+    EnumVariantNames,
+    EnumIter,
+    Serialize,
+    Deserialize,
+)]
 #[non_exhaustive]
 #[repr(u8)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
