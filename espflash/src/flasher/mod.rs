@@ -203,7 +203,7 @@ impl FlashSize {
     /// Create a [FlashSize] from an [u8]
     ///
     /// [source](https://github.com/espressif/esptool/blob/f4d2510e2c897621884f433ef3f191e8fc5ff184/esptool/cmds.py#L42)
-    const fn from_detected(value: u8) -> Result<FlashSize, Error> {
+    pub const fn from_detected(value: u8) -> Result<FlashSize, Error> {
         match value {
             0x12 | 0x32 => Ok(FlashSize::_256Kb),
             0x13 | 0x33 => Ok(FlashSize::_512Kb),
