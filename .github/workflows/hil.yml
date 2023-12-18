@@ -33,30 +33,19 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Install cargo-generate (binary)
-        continue-on-error: true
-        id: binary
-        run: |
-          VERSION="$(git ls-remote --refs --sort="version:refname" --tags "https://github.com/cargo-generate/cargo-generate" | cut -d/ -f3- | tail -n1)"
-          sudo curl \
-            -L "https://github.com/cargo-generate/cargo-generate/releases/latest/download/cargo-generate-$VERSION-x86_64-unknown-linux-gnu.tar.gz" \
-            -o "/home/runner/.cargo/bin/cargo-generate.tar.gz"
-          tar xf "/home/runner/.cargo/bin/cargo-generate.tar.gz" -C "/home/runner/.cargo/bin/"
-          chmod u+x "/home/runner/.cargo/bin/cargo-generate"
 
-      - name: Install cargo-generate (source)
-        if: steps.binary.outcome != 'success'
-        run: cargo install cargo-generate
+      - uses: actions/checkout@v4
+        with:
+          repository: esp-rs/esp-hal
+          path: esp-hal
 
-      - run: cargo generate esp-rs/esp-template --name app -d mcu=esp32c3 -d advanced=false
-
-      - run: cargo build --release
-        working-directory: app
+      - run: cargo build --release --example hello_world
+        working-directory: esp-hal/esp32c3-hal
 
       - uses: actions/upload-artifact@v3
         with:
           name: esp32c3_app
-          path: /home/runner/work/espflash/espflash/app/target/riscv32imc-unknown-none-elf/release/app
+          path: esp-hal/esp32c3-hal/target/riscv32imc-unknown-none-elf/release/examples/hello_world
           if-no-files-found: error
 
   run-target:
@@ -77,4 +66,4 @@ jobs:
           target: x86_64-unknown-linux-gnu
 
       - name: Run Tests
-        run: ESPFLASH_PORT=/dev/ttyACM0 ESPFLASH_APP=esp32c3_app/app cargo test
+        run: ESPFLASH_PORT=/dev/ttyACM0 ESPFLASH_APP=esp32c3_app/hello_world cargo test
