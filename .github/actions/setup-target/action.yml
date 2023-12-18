@@ -60,7 +60,7 @@ runs:
       if: inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-unknown-linux-musl'
       shell: bash
       run: |
-        sudo apt-get update && sudo apt-get install musl-tools libudev-dev
+        sudo apt-get update && sudo apt-get -y install musl-tools libudev-dev pkg-config
 
     - name: Set environment variables
       if: inputs.arch != 'x86_64'

@@ -1,0 +1,80 @@
+name: Build and Run Integration tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+# Cancel any currently running workflows from the same PR, branch, or
+# tag when a new workflow is triggered.
+#
+# https://stackoverflow.com/a/66336834
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+
+
+jobs:
+  build:
+    name: Generate and Build App
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          target: riscv32imac-unknown-none-elf
+          components: clippy,rustfmt,rust-src
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-generate (binary)
+        continue-on-error: true
+        id: binary
+        run: |
+          VERSION="$(git ls-remote --refs --sort="version:refname" --tags "https://github.com/cargo-generate/cargo-generate" | cut -d/ -f3- | tail -n1)"
+          sudo curl \
+            -L "https://github.com/cargo-generate/cargo-generate/releases/latest/download/cargo-generate-$VERSION-x86_64-unknown-linux-gnu.tar.gz" \
+            -o "/home/runner/.cargo/bin/cargo-generate.tar.gz"
+          tar xf "/home/runner/.cargo/bin/cargo-generate.tar.gz" -C "/home/runner/.cargo/bin/"
+          chmod u+x "/home/runner/.cargo/bin/cargo-generate"
+
+      - name: Install cargo-generate (source)
+        if: steps.binary.outcome != 'success'
+        run: cargo install cargo-generate
+
+      - run: cargo generate esp-rs/esp-template --name app -d mcu=esp32c3 -d advanced=false
+
+      - run: cargo build --release
+        working-directory: app
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: esp32c3_app
+          path: /home/runner/work/espflash/espflash/app/target/riscv32imc-unknown-none-elf/release/app
+          if-no-files-found: error
+
+  run-target:
+    name: Run Tests on Target
+    if: ${{ github.repository_owner == 'esp-rs' }}
+    needs: build
+    runs-on: [self-hosted, linux, x64, esp32c3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v3
+        with:
+          name: esp32c3_app
+          path: espflash/esp32c3_app
+
+      - uses: ./.github/actions/setup-target
+        with:
+          arch: x86_64
+          target: x86_64-unknown-linux-gnu
+
+      - name: Run Tests
+        run: ESPFLASH_PORT=/dev/ttyACM0 ESPFLASH_APP=esp32c3_app/app cargo test
