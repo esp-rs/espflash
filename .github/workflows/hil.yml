@@ -23,16 +23,41 @@ jobs:
   build:
     name: Generate and Build App
     strategy:
+      matrix:
+        board:
+          - mcu: esp32
+            target: xtensa-esp32-none-elf
+          - mcu: esp32c2
+            target: riscv32imc-unknown-none-elf
+          - mcu: esp32c3
+            target: riscv32imc-unknown-none-elf
+          - mcu: esp32c6
+            target: riscv32imac-unknown-none-elf
+          - mcu: esp32h2
+            target: riscv32imac-unknown-none-elf
+          - mcu: esp32s2
+            target: xtensa-esp32s2-none-elf
+          - mcu: esp32s3
+            target: xtensa-esp32s3-none-elf
       fail-fast: false
     runs-on: ubuntu-20.04
     steps:
-      - uses: dtolnay/rust-toolchain@nightly
+
+
+      - if: matrix.board.mcu == 'esp32' || matrix.board.mcu == 'esp32s2' || matrix.board.mcu == 'esp32s3'
+        uses: esp-rs/xtensa-toolchain@v1.5
         with:
-          target: riscv32imac-unknown-none-elf
-          components: clippy,rustfmt,rust-src
+          default: true
+          buildtargets: ${{ matrix.board.mcu }}
+          ldproxy: false
+
+      - if: matrix.board.mcu != 'esp32' && matrix.board.mcu != 'esp32s2' && matrix.board.mcu != 'esp32s3'
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          target: ${{ matrix.board.target }}
+          components: rust-src
 
       - uses: Swatinem/rust-cache@v2
-
 
       - uses: actions/checkout@v4
         with:
@@ -40,25 +65,29 @@ jobs:
           path: esp-hal
 
       - run: cargo build --release --example hello_world
-        working-directory: esp-hal/esp32c3-hal
+        working-directory: esp-hal/${{ matrix.board.mcu }}-hal
 
       - uses: actions/upload-artifact@v3
         with:
-          name: esp32c3_app
-          path: esp-hal/esp32c3-hal/target/riscv32imc-unknown-none-elf/release/examples/hello_world
+          name: ${{ matrix.board.mcu }}_app
+          path: esp-hal/${{ matrix.board.mcu }}-hal/target/${{ matrix.board.target }}/release/examples/hello_world
           if-no-files-found: error
 
   run-target:
     name: Run Tests on Target
     if: ${{ github.repository_owner == 'esp-rs' }}
     needs: build
-    runs-on: [self-hosted, linux, x64, esp32c3]
+    runs-on: [self-hosted, linux, x64, "${{ matrix.board }}" ]
+    strategy:
+      matrix:
+        board: [esp32, esp32c2, esp32c3, esp32c6, esp32h2, esp32s2, esp32s3]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v3
         with:
-          name: esp32c3_app
-          path: espflash/esp32c3_app
+          name: ${{ matrix.board }}_app
+          path: espflash/${{ matrix.board }}_app
 
       - uses: ./.github/actions/setup-target
         with:
@@ -66,4 +95,4 @@ jobs:
           target: x86_64-unknown-linux-gnu
 
       - name: Run Tests
-        run: ESPFLASH_PORT=/dev/ttyACM0 ESPFLASH_APP=esp32c3_app/hello_world cargo test
+        run: ESPFLASH_PORT=/dev/ttyACM0 ESPFLASH_APP=${{ matrix.board }}_app/hello_world cargo test
