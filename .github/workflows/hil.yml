@@ -95,4 +95,4 @@ jobs:
           target: x86_64-unknown-linux-gnu
 
       - name: Run Tests
-        run: ESPFLASH_PORT=/dev/ttyACM0 ESPFLASH_APP=${{ matrix.board }}_app/hello_world cargo test
+        run: ESPFLASH_PORT=/dev/serial_ports/${{ matrix.board }} ESPFLASH_APP=${{ matrix.board }}_app/hello_world cargo test
