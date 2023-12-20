@@ -4,14 +4,20 @@ use std::thread::sleep;
 use std::time::Duration;
 
 #[test]
-fn flash() -> Result<(), Box<dyn std::error::Error>> {
+fn cli_tests() -> Result<(), Box<dyn std::error::Error>> {
     // board-info
     let mut cmd: Command = Command::cargo_bin("espflash")?;
-
     cmd.arg("board-info");
-    cmd.assert().success();
 
-    // flash
+    let binding = cmd.assert().success();
+    let output = binding.get_output();
+
+    let output_stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+    assert!(output_stdout.contains("esp32"));
+    assert!(output_stdout.contains("revision"));
+
+    // // flash
     let image = std::env::var("ESPFLASH_APP").expect("ESPFLASH_APP not set");
 
     let mut child = Command::cargo_bin("espflash")?
@@ -20,7 +26,7 @@ fn flash() -> Result<(), Box<dyn std::error::Error>> {
         // .stderr(std::process::Stdio::piped())
         .spawn()?;
 
-    // Sleep for 10 seconds
+    // // Sleep for 10 seconds
     sleep(Duration::from_secs(10));
 
     // Check if the child process is still running
@@ -41,5 +47,17 @@ fn flash() -> Result<(), Box<dyn std::error::Error>> {
     let output = child.wait_with_output().expect("Failed to read stdout");
     let output = String::from_utf8_lossy(&output.stdout).to_string();
     assert!(output.contains("Hello world!"));
+
+    // // monitor
+    // let mut cmd: Command = Command::cargo_bin("espflash")?;
+    // cmd.arg("monitor");
+
+    // let binding = cmd.assert().success();
+    // let output = binding.get_output();
+
+    // let output_stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+    // assert!(output_stdout.contains("Hello world!"));
+
     Ok(())
 }
