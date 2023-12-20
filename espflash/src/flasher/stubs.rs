@@ -23,9 +23,10 @@ const STUB_32: &str = include_str!("../../resources/stubs/stub_flasher_32.toml")
 const STUB_32C2: &str = include_str!("../../resources/stubs/stub_flasher_32c2.toml");
 const STUB_32C3: &str = include_str!("../../resources/stubs/stub_flasher_32c3.toml");
 const STUB_32C6: &str = include_str!("../../resources/stubs/stub_flasher_32c6.toml");
+const STUB_32H2: &str = include_str!("../../resources/stubs/stub_flasher_32h2.toml");
+const STUB_32P4: &str = include_str!("../../resources/stubs/stub_flasher_32p4.toml");
 const STUB_32S2: &str = include_str!("../../resources/stubs/stub_flasher_32s2.toml");
 const STUB_32S3: &str = include_str!("../../resources/stubs/stub_flasher_32s3.toml");
-const STUB_32H2: &str = include_str!("../../resources/stubs/stub_flasher_32h2.toml");
 const STUB_8266: &str = include_str!("../../resources/stubs/stub_flasher_8266.toml");
 
 impl FlashStub {
@@ -36,9 +37,10 @@ impl FlashStub {
             Chip::Esp32c2 => STUB_32C2,
             Chip::Esp32c3 => STUB_32C3,
             Chip::Esp32c6 => STUB_32C6,
+            Chip::Esp32h2 => STUB_32H2,
+            Chip::Esp32p4 => STUB_32P4,
             Chip::Esp32s2 => STUB_32S2,
             Chip::Esp32s3 => STUB_32S3,
-            Chip::Esp32h2 => STUB_32H2,
             Chip::Esp8266 => STUB_8266,
         };
 
