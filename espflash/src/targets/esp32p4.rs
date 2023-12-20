@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::ops::Range;
 
 use esp_idf_part::PartitionTable;
@@ -52,12 +51,12 @@ impl Target for Esp32p4 {
         Ok(vec!["High-Performance MCU"])
     }
 
-    fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+    fn major_chip_version(&self, _connection: &mut Connection) -> Result<u32, Error> {
         // TODO: https://github.com/espressif/esptool/blob/master/esptool/targets/esp32p4.py#L96
         Ok(0)
     }
 
-    fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+    fn minor_chip_version(&self, _connection: &mut Connection) -> Result<u32, Error> {
         // TODO: https://github.com/espressif/esptool/blob/master/esptool/targets/esp32p4.py#L92
 
         Ok(0)
