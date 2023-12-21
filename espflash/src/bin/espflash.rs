@@ -87,21 +87,21 @@ enum Commands {
 
 /// Erase named partitions based on provided partition table
 #[derive(Debug, Args)]
+#[non_exhaustive]
 pub struct ErasePartsArgs {
     /// Connection configuration
     #[clap(flatten)]
     pub connect_args: ConnectArgs,
-
     /// Labels of the partitions to be erased
     #[arg(value_name = "LABELS", value_delimiter = ',')]
     pub erase_parts: Vec<String>,
-
     /// Input partition table
     #[arg(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
+#[non_exhaustive]
 struct FlashArgs {
     /// Connection configuration
     #[clap(flatten)]
@@ -117,6 +117,7 @@ struct FlashArgs {
 }
 
 #[derive(Debug, Args)]
+#[non_exhaustive]
 struct SaveImageArgs {
     /// ELF image to flash
     image: PathBuf,
@@ -133,6 +134,7 @@ struct SaveImageArgs {
 
 /// Writes a binary file to a specific address in the chip's flash
 #[derive(Debug, Args)]
+#[non_exhaustive]
 struct WriteBinArgs {
     /// Address at which to write the binary file
     #[arg(value_parser = parse_uint32)]

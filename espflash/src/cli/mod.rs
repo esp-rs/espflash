@@ -4,6 +4,9 @@
 //! and [espflash] command-line applications, and are likely not of much use
 //! otherwise.
 //!
+//! Important note: The cli module DOES NOT provide SemVer guarantees,
+//! feel free to opt-out by disabling the default `cli` feature.
+//!
 //! [cargo-espflash]: https://crates.io/crates/cargo-espflash
 //! [espflash]: https://crates.io/crates/espflash
 
@@ -45,6 +48,7 @@ mod serial;
 
 /// Establish a connection with a target device
 #[derive(Debug, Args)]
+#[non_exhaustive]
 pub struct ConnectArgs {
     /// Baud rate at which to communicate with target device
     #[arg(short = 'b', long, env = "ESPFLASH_BAUD")]
@@ -73,6 +77,7 @@ pub struct ConnectArgs {
 
 /// Generate completions for the given shell
 #[derive(Debug, Args)]
+#[non_exhaustive]
 pub struct CompletionsArgs {
     /// Shell to generate completions for.
     pub shell: Shell,
@@ -80,6 +85,7 @@ pub struct CompletionsArgs {
 
 /// Erase entire flash of target device
 #[derive(Debug, Args)]
+#[non_exhaustive]
 pub struct EraseFlashArgs {
     /// Connection configuration
     #[clap(flatten)]
@@ -88,6 +94,7 @@ pub struct EraseFlashArgs {
 
 /// Erase specified region of flash
 #[derive(Debug, Args)]
+#[non_exhaustive]
 pub struct EraseRegionArgs {
     /// Connection configuration
     #[clap(flatten)]
@@ -102,6 +109,7 @@ pub struct EraseRegionArgs {
 
 /// Configure communication with the target device's flash
 #[derive(Debug, Args)]
+#[non_exhaustive]
 pub struct FlashConfigArgs {
     /// Flash frequency
     #[arg(short = 'f', long, value_name = "FREQ", value_enum)]
@@ -116,6 +124,7 @@ pub struct FlashConfigArgs {
 
 /// Flash an application to a target device
 #[derive(Debug, Args)]
+#[non_exhaustive]
 #[group(skip)]
 pub struct FlashArgs {
     /// Path to a binary (.bin) bootloader file
@@ -155,6 +164,7 @@ pub struct FlashArgs {
 
 /// Operations for partitions tables
 #[derive(Debug, Args)]
+#[non_exhaustive]
 pub struct PartitionTableArgs {
     /// Optional output file name, if unset will output to stdout
     #[arg(short = 'o', long, value_name = "FILE")]
@@ -172,6 +182,7 @@ pub struct PartitionTableArgs {
 
 /// Save the image to disk instead of flashing to device
 #[derive(Debug, Args)]
+#[non_exhaustive]
 #[group(skip)]
 pub struct SaveImageArgs {
     /// Custom bootloader for merging
@@ -201,6 +212,7 @@ pub struct SaveImageArgs {
 
 /// Open the serial monitor without flashing
 #[derive(Debug, Args)]
+#[non_exhaustive]
 pub struct MonitorArgs {
     /// Connection configuration
     #[clap(flatten)]

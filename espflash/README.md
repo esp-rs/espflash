@@ -11,15 +11,18 @@ Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-S2/S3**, and *
 
 ## Table of Contents
 
-- [Installation](#installation)
-- [Usage](#usage)
-  - [Permissions on Linux](#permissions-on-linux)
-  - [Windows Subsystem for Linux](#windows-subsystem-for-linux)
-  - [Cargo Runner](#cargo-runner)
-- [Configuration File](#configuration-file)
-  - [Configuration examples](#configuration-examples)
-- [License](#license)
-  - [Contribution](#contribution)
+- [espflash](#espflash)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Usage](#usage)
+    - [Permissions on Linux](#permissions-on-linux)
+    - [Windows Subsystem for Linux](#windows-subsystem-for-linux)
+    - [Cargo Runner](#cargo-runner)
+  - [Using `espflash` as a Library](#using-espflash-as-a-library)
+  - [Configuration File](#configuration-file)
+    - [Configuration Examples](#configuration-examples)
+  - [License](#license)
+    - [Contribution](#contribution)
 
 ## Installation
 
@@ -93,7 +96,7 @@ Check your Linux distribution’s documentation for more information.
 
 ### Windows Subsystem for Linux
 
-It is _not_ currently possible to use `cargo-espflash` from within WSL1. There are no plans to add support for WSL1 at this time.
+It is _not_ currently possible to use `espflash` from within WSL1. There are no plans to add support for WSL1 at this time.
 
 It is also _not_ possible to flash chips using the built-in `USB_SERIAL_JTAG` peripheral when using WSL2, because resetting also resets `USB_SERIAL_JTAG` peripheral, which then disconnects the chip from WSL2. Chips _can_ be flashed via UART using WSL2, however.
 
@@ -107,6 +110,25 @@ runner = "espflash flash --baud=921600 --monitor /dev/ttyUSB0"
 ```
 
 With this configuration you can flash and monitor you application using `cargo run`.
+
+## Using `espflash` as a Library
+
+`espflash` can be used as a library in other applications:
+```toml
+espflash = { version = "2.1", default-features = false }
+```
+or `cargo add espflash --no-default-features`
+
+> **Warning**
+> Note that the `cli` module does not provide SemVer guarantees.
+
+We disable the `default-features` to opt-out the `cli` feature, which is enabled by default; you likely will not need any of these types or functions in your application so there’s no use pulling in the extra dependencies.
+
+Just like when using `espflash` as an application, you can enable the raspberry feature to allow your dependent application to use the Raspberry Pi’s built-in UART:
+
+```toml
+espflash = { version = "2.1", default-features = false, features = ["raspberry"] }
+```
 
 ## Configuration File
 

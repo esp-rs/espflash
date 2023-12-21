@@ -25,11 +25,12 @@
 //! [espflash] can also be used as a library:
 //!
 //! ```toml
-//! espflash = { version = "2.0", default-features = false }
+//! espflash = { version = "2.1", default-features = false }
 //! ```
 //!
 //! We add `default-features` here to disable the `cli` feature, which is
-//! enabled by default; you likely will not need any of these types or functions
+//! enabled by default. Its important to note that the cli module does not
+//! provide SemVer guarantees. You likely will not need any of these types or functions
 //! in your application so there's no use pulling in the extra dependencies.
 //!
 //! Just like when using [espflash] as an application, you can enable the
@@ -37,7 +38,7 @@
 //! Pi's built-in UART:
 //!
 //! ```toml
-//! espflash = { version = "2.0", default-features = false, features = ["raspberry"] }
+//! espflash = { version = "2.1", default-features = false, features = ["raspberry"] }
 //! ```
 //!
 //! [espflash]: https://crates.io/crates/espflash
