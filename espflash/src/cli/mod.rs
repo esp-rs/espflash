@@ -134,7 +134,7 @@ pub struct FlashArgs {
     #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
     pub log_format: LogFormat,
     /// Minimum chip revision supported by image, in format: major * 100 + minor
-    #[arg(long, default_value = "0")]
+    #[arg(long, default_value = "0", value_parser = parse_chip_rev)]
     pub min_chip_rev: u16,
     /// Open a serial monitor after flashing
     #[arg(short = 'M', long)]
@@ -186,7 +186,7 @@ pub struct SaveImageArgs {
     /// File name to save the generated image to
     pub file: PathBuf,
     /// Minimum chip revision supported by image, in format: major * 100 + minor
-    #[arg(long, default_value = "0")]
+    #[arg(long, default_value = "0", value_parser = parse_chip_rev)]
     pub min_chip_rev: u16,
     /// Boolean flag to merge binaries into single binary
     #[arg(long)]
@@ -277,6 +277,36 @@ pub fn completions(args: &CompletionsArgs, app: &mut clap::Command, bin_name: &s
     clap_complete::generate(args.shell, app, bin_name, &mut std::io::stdout());
 
     Ok(())
+}
+
+/// Parses chip revision from string to major * 100 + minor format
+pub fn parse_chip_rev(chip_rev: &str) -> Result<u16> {
+    let mut split = chip_rev.split('.');
+
+    let parse_or_error = |value: Option<&str>| {
+        value
+            .ok_or_else(|| Error::ParseChipRevError {
+                chip_rev: chip_rev.to_string(),
+            })
+            .and_then(|v| {
+                v.parse::<u16>().map_err(|_| Error::ParseChipRevError {
+                    chip_rev: chip_rev.to_string(),
+                })
+            })
+            .into_diagnostic()
+    };
+
+    let major = parse_or_error(split.next())?;
+    let minor = parse_or_error(split.next())?;
+
+    if split.next().is_some() {
+        return Err(Error::ParseChipRevError {
+            chip_rev: chip_rev.to_string(),
+        })
+        .into_diagnostic();
+    }
+
+    Ok(major * 100 + minor)
 }
 
 /// Print information about a chip
