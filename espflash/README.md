@@ -21,6 +21,7 @@ Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-S2/S3**, and *
   - [Using `espflash` as a Library](#using-espflash-as-a-library)
   - [Configuration File](#configuration-file)
     - [Configuration Examples](#configuration-examples)
+  - [Logging Format](#logging-format)
   - [License](#license)
     - [Contribution](#contribution)
 
@@ -156,6 +157,16 @@ Or specify one or more USB `vid`/`pid` couple:
 vid = "303a"
 pid = "1001"
 ```
+
+## Logging Format
+
+`espflash` supports several logging formats using the `-L/--log-format` argument:
+- `serial`: Default logging format
+- `defmt`: Uses [`defmt`] logging framework. With logging format, logging strings have framing bytes to indicate that they are `defmt` messages.
+  - See [`defmt` section](https://github.com/esp-rs/esp-println?tab=readme-ov-file#defmt) of `esp-println` readme.
+  - For a detailed guide on how to use `defmt` in the `no_std` ecosystem, see [`defmt` project] of Embedded Rust (no_std) on Espressif book.
+
+[`defmt` project]: https://esp-rs.github.io/no_std-training/03_6_defmt.html
 
 ## License
 
