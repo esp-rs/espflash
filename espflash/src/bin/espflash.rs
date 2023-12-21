@@ -199,6 +199,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
 
 fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config)?;
+    flasher.verify_minimum_revision(args.flash_args.min_chip_rev)?;
 
     // If the user has provided a flash size via a command-line argument, we'll
     // override the detected (or default) value with this.
@@ -253,6 +254,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             args.flash_config_args.flash_size,
             args.flash_config_args.flash_freq,
             args.flash_args.partition_table_offset,
+            args.flash_args.min_chip_rev,
         )?;
     }
 
@@ -301,6 +303,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
 
     save_elf_as_image(
         args.save_image_args.chip,
+        args.save_image_args.min_chip_rev,
         &elf_data,
         args.save_image_args.file,
         args.format,

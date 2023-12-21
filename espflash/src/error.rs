@@ -138,6 +138,21 @@ pub enum Error {
         frequency: FlashFrequency,
     },
 
+    #[error(
+        "Minimum supported revision is {major}.{minor}, connected device's revision is {found_major}.{found_minor}"
+    )]
+    #[diagnostic(code(espflash::unsupported_chip_revision))]
+    UnsupportedChipRevision {
+        major: u16,
+        minor: u16,
+        found_major: u16,
+        found_minor: u16,
+    },
+
+    #[error("Failed to parse chip revision: {chip_rev}. Chip revision must be in the format `major.minor`")]
+    #[diagnostic(code(espflash::cli::parse_chip_rev_error))]
+    ParseChipRevError { chip_rev: String },
+
     #[error("Error while connecting to device")]
     #[diagnostic(transparent)]
     Connection(#[source] ConnectionError),

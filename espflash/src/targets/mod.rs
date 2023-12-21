@@ -300,6 +300,7 @@ pub trait Target: ReadEFuse {
         target_app_partition: Option<String>,
         image_format: Option<ImageFormatKind>,
         chip_revision: Option<(u32, u32)>,
+        min_rev_full: u16,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,

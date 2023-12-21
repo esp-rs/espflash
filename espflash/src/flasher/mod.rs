@@ -809,6 +809,7 @@ impl Flasher {
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
         partition_table_offset: Option<u32>,
+        min_rev_full: u16,
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
@@ -835,6 +836,7 @@ impl Flasher {
             target_app_partition,
             image_format,
             chip_revision,
+            min_rev_full,
             flash_mode,
             flash_size.or(Some(self.flash_size)),
             flash_freq,
@@ -897,6 +899,7 @@ impl Flasher {
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,
         partition_table_offset: Option<u32>,
+        min_rev_full: u16,
         progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         self.load_elf_to_flash_with_format(
@@ -909,6 +912,7 @@ impl Flasher {
             flash_size,
             flash_freq,
             partition_table_offset,
+            min_rev_full,
             progress,
         )
     }
@@ -972,6 +976,21 @@ impl Flasher {
             })?;
         sleep(Duration::from_secs_f32(0.05));
         self.connection.flush()?;
+
+        Ok(())
+    }
+
+    pub fn verify_minimum_revision(&mut self, minimum: u16) -> Result<(), Error> {
+        let (major, minor) = self.chip.into_target().chip_revision(self.connection())?;
+        let revision = (major * 100 + minor) as u16;
+        if revision < minimum {
+            return Err(Error::UnsupportedChipRevision {
+                major: minimum / 100,
+                minor: minimum % 100,
+                found_major: revision / 100,
+                found_minor: revision % 100,
+            });
+        }
 
         Ok(())
     }

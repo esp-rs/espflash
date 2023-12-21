@@ -142,6 +142,9 @@ pub struct FlashArgs {
     /// Logging format.
     #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
     pub log_format: LogFormat,
+    /// Minimum chip revision supported by image, in format: major.minor
+    #[arg(long, default_value = "0.0", value_parser = parse_chip_rev)]
+    pub min_chip_rev: u16,
     /// Open a serial monitor after flashing
     #[arg(short = 'M', long)]
     pub monitor: bool,
@@ -193,6 +196,9 @@ pub struct SaveImageArgs {
     pub chip: Chip,
     /// File name to save the generated image to
     pub file: PathBuf,
+    /// Minimum chip revision supported by image, in format: major.minor
+    #[arg(long, default_value = "0.0", value_parser = parse_chip_rev)]
+    pub min_chip_rev: u16,
     /// Boolean flag to merge binaries into single binary
     #[arg(long)]
     pub merge: bool,
@@ -285,6 +291,36 @@ pub fn completions(args: &CompletionsArgs, app: &mut clap::Command, bin_name: &s
     Ok(())
 }
 
+/// Parses chip revision from string to major * 100 + minor format
+pub fn parse_chip_rev(chip_rev: &str) -> Result<u16> {
+    let mut split = chip_rev.split('.');
+
+    let parse_or_error = |value: Option<&str>| {
+        value
+            .ok_or_else(|| Error::ParseChipRevError {
+                chip_rev: chip_rev.to_string(),
+            })
+            .and_then(|v| {
+                v.parse::<u16>().map_err(|_| Error::ParseChipRevError {
+                    chip_rev: chip_rev.to_string(),
+                })
+            })
+            .into_diagnostic()
+    };
+
+    let major = parse_or_error(split.next())?;
+    let minor = parse_or_error(split.next())?;
+
+    if split.next().is_some() {
+        return Err(Error::ParseChipRevError {
+            chip_rev: chip_rev.to_string(),
+        })
+        .into_diagnostic();
+    }
+
+    Ok(major * 100 + minor)
+}
+
 /// Print information about a chip
 pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
     let info = flasher.device_info()?;
@@ -342,6 +378,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
 /// Convert the provided firmware image from ELF to binary
 pub fn save_elf_as_image(
     chip: Chip,
+    min_rev_full: u16,
     elf_data: &[u8],
     image_path: PathBuf,
     image_format: Option<ImageFormatKind>,
@@ -397,6 +434,7 @@ pub fn save_elf_as_image(
             target_app_partition,
             image_format,
             None,
+            min_rev_full,
             flash_mode,
             flash_size,
             flash_freq,
@@ -439,6 +477,7 @@ pub fn save_elf_as_image(
             None,
             image_format,
             None,
+            min_rev_full,
             flash_mode,
             flash_size,
             flash_freq,
@@ -557,6 +596,7 @@ pub fn flash_elf_image(
     flash_size: Option<FlashSize>,
     flash_freq: Option<FlashFrequency>,
     partition_table_offset: Option<u32>,
+    min_rev_full: u16,
 ) -> Result<()> {
     // If the '--bootloader' option is provided, load the binary file at the
     // specified path.
@@ -581,6 +621,7 @@ pub fn flash_elf_image(
         flash_size,
         flash_freq,
         partition_table_offset,
+        min_rev_full,
         Some(&mut EspflashProgress::default()),
     )?;
     info!("Flashing has completed!");

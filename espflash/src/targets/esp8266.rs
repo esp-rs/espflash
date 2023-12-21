@@ -78,6 +78,7 @@ impl Target for Esp8266 {
         _target_app_partition: Option<String>,
         image_format: Option<ImageFormatKind>,
         _chip_revision: Option<(u32, u32)>,
+        _min_rev_full: u16,
         flash_mode: Option<FlashMode>,
         flash_size: Option<FlashSize>,
         flash_freq: Option<FlashFrequency>,

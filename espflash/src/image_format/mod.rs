@@ -56,7 +56,7 @@ struct ImageHeader {
     gd_wp_drv: u8,
     chip_id: u16,
     min_rev: u8,
-    /// Minimal chip revision supported by image, in format: major * 100 + minor
+    /// Minimum chip revision supported by image, in format: major * 100 + minor
     min_chip_rev_full: u16,
     /// Maximal chip revision supported by image, in format: major * 100 + minor
     max_chip_rev_full: u16,

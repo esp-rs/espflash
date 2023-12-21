@@ -259,6 +259,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let cargo_config = CargoConfig::load(&metadata.workspace_root, &metadata.package_root);
 
     let mut flasher = connect(&args.connect_args, config)?;
+    flasher.verify_minimum_revision(args.flash_args.min_chip_rev)?;
 
     // If the user has provided a flash size via a command-line argument, we'll
     // override the detected (or default) value with this.
@@ -329,6 +330,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             args.build_args.flash_config_args.flash_size,
             args.build_args.flash_config_args.flash_freq,
             args.flash_args.partition_table_offset,
+            args.flash_args.min_chip_rev,
         )?;
     }
 
@@ -556,6 +558,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
 
     save_elf_as_image(
         args.save_image_args.chip,
+        args.save_image_args.min_chip_rev,
         &elf_data,
         args.save_image_args.file,
         args.format.or(metadata.format),

@@ -34,6 +34,7 @@ impl<'a> IdfBootloaderFormat<'a> {
     pub fn new(
         image: &'a dyn FirmwareImage<'a>,
         chip: Chip,
+        min_rev_full: u16,
         params: Esp32Params,
         partition_table: Option<PartitionTable>,
         target_app_partition: Option<String>,
@@ -80,6 +81,7 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         header.wp_pin = WP_PIN_DISABLED;
         header.chip_id = params.chip_id;
+        header.min_chip_rev_full = min_rev_full;
         header.append_digest = 1;
 
         let mut data = bytes_of(&header).to_vec();
@@ -364,6 +366,7 @@ pub mod tests {
         let flash_image = IdfBootloaderFormat::new(
             &image,
             Chip::Esp32,
+            0,
             PARAMS,
             None,
             None,
