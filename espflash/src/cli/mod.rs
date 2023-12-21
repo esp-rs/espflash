@@ -134,7 +134,7 @@ pub struct FlashArgs {
     #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
     pub log_format: LogFormat,
     /// Minimum chip revision supported by image, in format: major.minor
-    #[arg(long, default_value = "0", value_parser = parse_chip_rev)]
+    #[arg(long, default_value = "0.0", value_parser = parse_chip_rev)]
     pub min_chip_rev: u16,
     /// Open a serial monitor after flashing
     #[arg(short = 'M', long)]
@@ -186,7 +186,7 @@ pub struct SaveImageArgs {
     /// File name to save the generated image to
     pub file: PathBuf,
     /// Minimum chip revision supported by image, in format: major.minor
-    #[arg(long, default_value = "0", value_parser = parse_chip_rev)]
+    #[arg(long, default_value = "0.0", value_parser = parse_chip_rev)]
     pub min_chip_rev: u16,
     /// Boolean flag to merge binaries into single binary
     #[arg(long)]
