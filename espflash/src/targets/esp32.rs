@@ -153,8 +153,6 @@ impl Target for Esp32 {
         image: &'a dyn FirmwareImage<'a>,
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
-        min_rev_full: u16,
-        flash_settings: FlashSettings,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         let image_format = flash_data
             .image_format
@@ -164,7 +162,7 @@ impl Target for Esp32 {
             ImageFormatKind::EspBootloader => Ok(Box::new(IdfBootloaderFormat::new(
                 image,
                 Chip::Esp32,
-                min_rev_full,
+                flash_data.min_chip_rev,
                 PARAMS,
                 flash_data.partition_table,
                 flash_data.partition_table_offset,

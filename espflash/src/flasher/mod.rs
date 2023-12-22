@@ -10,6 +10,7 @@ use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use esp_idf_part::PartitionTable;
 use log::{debug, info, warn};
 use miette::{IntoDiagnostic, Result};
+use serde::{Deserialize, Serialize};
 use serialport::UsbPortInfo;
 use strum::{Display, EnumIter, EnumVariantNames};
 
@@ -913,22 +914,10 @@ impl Flasher {
             None
         };
 
-        let flash_settings = FlashSettings::new(
-            flash_data.flash_settings.mode,
-            flash_data.flash_settings.size.or(Some(self.flash_size)),
-            flash_data.flash_settings.freq,
-        );
-
-        let image = self.chip.into_target().get_flash_image(
-            &image,
-            flash_data.bootloader,
-            flash_data.partition_table,
-            flash_data.target_app_partition,
-            flash_data.image_format,
-            chip_revision,
-            flash_data.min_chip_rev,
-            flash_settings,
-        )?;
+        let image = self
+            .chip
+            .into_target()
+            .get_flash_image(&image, flash_data, chip_revision)?;
 
         // When the `cli` feature is enabled, display the image size information.
         #[cfg(feature = "cli")]
@@ -988,35 +977,6 @@ impl Flasher {
                     })?
                     .try_into()
             })
-    }
-
-    /// Load an ELF image to flash and execute it
-    pub fn load_elf_to_flash(
-        &mut self,
-        elf_data: &[u8],
-        bootloader: Option<Vec<u8>>,
-        partition_table: Option<PartitionTable>,
-        target_app_partition: Option<String>,
-        flash_mode: Option<FlashMode>,
-        flash_size: Option<FlashSize>,
-        flash_freq: Option<FlashFrequency>,
-        partition_table_offset: Option<u32>,
-        min_rev_full: u16,
-        progress: Option<&mut dyn ProgressCallbacks>,
-    ) -> Result<(), Error> {
-        self.load_elf_to_flash_with_format(
-            elf_data,
-            bootloader,
-            partition_table,
-            target_app_partition,
-            None,
-            flash_mode,
-            flash_size,
-            flash_freq,
-            partition_table_offset,
-            min_rev_full,
-            progress,
-        )
     }
 
     pub fn change_baud(&mut self, speed: u32) -> Result<(), Error> {

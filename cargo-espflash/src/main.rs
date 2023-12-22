@@ -327,6 +327,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             args.flash_args.format.or(metadata.format),
             args.flash_args.target_app_partition,
             flash_settings,
+            args.flash_args.min_chip_rev,
         )?;
 
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
@@ -576,6 +577,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
         args.format.or(metadata.format),
         args.save_image_args.target_app_partition,
         flash_settings,
+        args.save_image_args.min_chip_rev,
     )?;
 
     save_elf_as_image(

@@ -20,6 +20,7 @@ use crate::{
     flasher::{FlashFrequency, FlashMode, FlashSize},
     targets::Chip,
 };
+
 mod direct_boot;
 mod esp8266;
 mod idf_bootloader;

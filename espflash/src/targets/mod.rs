@@ -299,8 +299,6 @@ pub trait Target: ReadEFuse {
         image: &'a dyn FirmwareImage<'a>,
         flash_data: FlashData,
         chip_revision: Option<(u32, u32)>,
-        min_rev_full: u16,
-        flash_settings: FlashSettings,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
 
     /// What is the MAC address?
