@@ -162,7 +162,7 @@ pub enum Command<'a> {
     FlashMd5 {
         offset: u32,
         size: u32,
-    }
+    },
 }
 
 impl<'a> Command<'a> {
@@ -376,7 +376,7 @@ impl<'a> Command<'a> {
                 writer.write_all(&size.to_le_bytes())?;
                 writer.write_all(&(0u32.to_le_bytes()))?;
                 writer.write_all(&(0u32.to_le_bytes()))?;
-            },
+            }
         };
         Ok(())
     }

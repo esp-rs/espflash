@@ -8,11 +8,11 @@ use std::{
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{
-        self, board_info, completions, config::Config, connect, erase_flash,
-        erase_partitions, erase_region, flash_elf_image, monitor::monitor, parse_partition_table,
-        parse_uint32, partition_table, print_board_info, save_elf_as_image, serial_monitor,
-        CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress,
-        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        self, board_info, completions, config::Config, connect, erase_flash, erase_partitions,
+        erase_region, flash_elf_image, monitor::monitor, parse_partition_table, parse_uint32,
+        partition_table, print_board_info, save_elf_as_image, serial_monitor, CompletionsArgs,
+        ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress, FlashConfigArgs,
+        MonitorArgs, PartitionTableArgs,
     },
     error::Error,
     image_format::ImageFormatKind,
