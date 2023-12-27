@@ -194,6 +194,8 @@ impl From<io::Error> for Error {
     }
 }
 
+#[cfg(feature = "serialport")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
 impl From<serialport::Error> for Error {
     fn from(err: serialport::Error) -> Self {
         Self::Connection(err.into())
@@ -251,6 +253,7 @@ pub enum ConnectionError {
     #[diagnostic(code(espflash::timeout))]
     Timeout(TimedOutCommand),
 
+    #[cfg(feature = "serialport")]
     #[error("IO error while using serial port: {0}")]
     #[diagnostic(code(espflash::serial_error))]
     Serial(#[source] serialport::Error),
@@ -262,6 +265,8 @@ impl From<io::Error> for ConnectionError {
     }
 }
 
+#[cfg(feature = "serialport")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
 impl From<serialport::Error> for ConnectionError {
     fn from(err: serialport::Error) -> Self {
         use serialport::ErrorKind;
@@ -544,6 +549,8 @@ impl<T> ResultExt for Result<T, Error> {
     }
 }
 
+#[cfg(feature = "serialport")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
 fn from_error_kind<E>(kind: io::ErrorKind, err: E) -> ConnectionError
 where
     E: Into<serialport::Error>,
