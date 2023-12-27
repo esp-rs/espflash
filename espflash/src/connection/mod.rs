@@ -261,7 +261,7 @@ impl Connection {
                     resp: response[0],
                     return_op: response[1],
                     return_length: u16::from_le_bytes(response[2..][..2].try_into().unwrap()),
-                    value: value,
+                    value,
                     error: response[response.len() - status_len],
                     status: response[response.len() - status_len + 1],
                 };
