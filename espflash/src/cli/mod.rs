@@ -231,6 +231,24 @@ pub struct MonitorArgs {
     pub log_format: LogFormat,
 }
 
+#[derive(Debug, Args)]
+#[non_exhaustive]
+pub struct ChecksumMd5Args {
+    /// Start address
+    #[clap(short, long, value_parser=parse_u32)]
+    address: u32,
+    /// Length
+    #[clap(short, long, value_parser=parse_u32)]
+    length: u32,
+    /// Connection configuration
+    #[clap(flatten)]
+    connect_args: ConnectArgs,
+}
+
+pub fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
+    parse_int::parse(input)
+}
+
 /// Select a serial port and establish a connection with a target device
 pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
     let port_info = get_serial_port_info(args, config)?;
@@ -280,6 +298,16 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
 pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(args, config)?;
     print_board_info(&mut flasher)?;
+
+    Ok(())
+}
+
+/// Connect to a target device and calculate the checksum of the given region
+pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
+    let mut flasher = connect(&args.connect_args, config)?;
+
+    let checksum = flasher.checksum_md5(args.address, args.length)?;
+    println!("0x{:x}", checksum);
 
     Ok(())
 }

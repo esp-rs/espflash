@@ -225,7 +225,13 @@ impl Connection {
                 // here is what esptool does: https://github.com/espressif/esptool/blob/master/esptool/loader.py#L458
                 // from esptool: things are a bit weird here, bear with us
 
-                // we rely on the known and expected response sizes
+                // we rely on the known and expected response sizes which should be fine for now - if that changes we need to pass the command type
+                // we are parsing the response for
+                // for most commands the response length is 10 (for the stub) or 12 (for ROM code)
+                // the MD5 command response is 44 for ROM loader, 26 for the stub
+                // see https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#response-packet
+                // see https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#status-bytes
+                // see https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#verifying-uploaded-data
                 let status_len = if response.len() == 10 || response.len() == 26 {
                     2
                 } else {

@@ -14,6 +14,7 @@ const ERASE_CHIP_TIMEOUT: Duration = Duration::from_secs(120);
 const MEM_END_TIMEOUT: Duration = Duration::from_millis(50);
 const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 const FLASH_DEFLATE_END_TIMEOUT: Duration = Duration::from_secs(10);
+const FLASH_MD5_TIMEOUT: Duration = Duration::from_secs(8);
 
 /// Types of commands that can be sent to a target device
 #[derive(Copy, Clone, Debug, Display)]
@@ -51,6 +52,7 @@ impl CommandType {
             CommandType::Sync => SYNC_TIMEOUT,
             CommandType::EraseFlash => ERASE_CHIP_TIMEOUT,
             CommandType::FlashDeflateEnd => FLASH_DEFLATE_END_TIMEOUT,
+            CommandType::FlashMd5 => FLASH_MD5_TIMEOUT,
             _ => DEFAULT_TIMEOUT,
         }
     }

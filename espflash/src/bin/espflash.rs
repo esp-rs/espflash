@@ -1,18 +1,17 @@
 use std::{
     fs::{self, File},
     io::Read,
-    num::ParseIntError,
     path::PathBuf,
 };
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{
-        self, board_info, completions, config::Config, connect, erase_flash, erase_partitions,
-        erase_region, flash_elf_image, monitor::monitor, parse_partition_table, parse_uint32,
-        partition_table, print_board_info, save_elf_as_image, serial_monitor, CompletionsArgs,
-        ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress, FlashConfigArgs,
-        MonitorArgs, PartitionTableArgs,
+        self, board_info, checksum_md5, completions, config::Config, connect, erase_flash,
+        erase_partitions, erase_region, flash_elf_image, monitor::monitor, parse_partition_table,
+        parse_uint32, partition_table, print_board_info, save_elf_as_image, serial_monitor,
+        ChecksumMd5Args, CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs,
+        EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     error::Error,
     image_format::ImageFormatKind,
@@ -147,24 +146,6 @@ struct WriteBinArgs {
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
-}
-
-#[derive(Debug, Args)]
-#[non_exhaustive]
-struct ChecksumMd5Args {
-    /// Start address
-    #[clap(short, long, value_parser=parse_u32)]
-    address: u32,
-    /// Length
-    #[clap(short, long, value_parser=parse_u32)]
-    length: u32,
-    /// Connection configuration
-    #[clap(flatten)]
-    connect_args: ConnectArgs,
-}
-
-pub fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
-    parse_int::parse(input)
 }
 
 fn main() -> Result<()> {
@@ -353,16 +334,6 @@ fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     f.read_to_end(&mut buffer).into_diagnostic()?;
 
     flasher.write_bin_to_flash(args.addr, &buffer, Some(&mut EspflashProgress::default()))?;
-
-    Ok(())
-}
-
-/// Connect to a target device and calculate the checksum of the given region
-fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config)?;
-
-    let checksum = flasher.checksum_md5(args.address, args.length)?;
-    println!("0x{:x}", checksum);
 
     Ok(())
 }
