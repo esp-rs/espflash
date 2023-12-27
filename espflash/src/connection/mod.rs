@@ -11,7 +11,6 @@ use std::{
     time::Duration,
 };
 
-use binrw::{io::Cursor, BinRead, BinReaderExt};
 use log::debug;
 use serialport::UsbPortInfo;
 use slip_codec::SlipDecoder;
@@ -34,13 +33,41 @@ const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
 pub(crate) const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
+#[derive(Debug, Copy, Clone)]
+pub enum CommandResponseValue {
+    ValueU32(u32),
+    ValueU128(u128),
+}
+
+impl TryInto<u32> for CommandResponseValue {
+    type Error = crate::error::Error;
+
+    fn try_into(self) -> Result<u32, Self::Error> {
+        match self {
+            CommandResponseValue::ValueU32(value) => Ok(value),
+            CommandResponseValue::ValueU128(_) => Err(crate::error::Error::InternalError),
+        }
+    }
+}
+
+impl TryInto<u128> for CommandResponseValue {
+    type Error = crate::error::Error;
+
+    fn try_into(self) -> Result<u128, Self::Error> {
+        match self {
+            CommandResponseValue::ValueU32(_) => Err(crate::error::Error::InternalError),
+            CommandResponseValue::ValueU128(value) => Ok(value),
+        }
+    }
+}
+
 /// A response from a target device following a command
-#[derive(Debug, Copy, Clone, BinRead)]
+#[derive(Debug, Copy, Clone)]
 pub struct CommandResponse {
     pub resp: u8,
     pub return_op: u8,
     pub return_length: u16,
-    pub value: u32,
+    pub value: CommandResponseValue,
     pub error: u8,
     pub status: u8,
 }
@@ -195,8 +222,50 @@ impl Connection {
         match self.read(10)? {
             None => Ok(None),
             Some(response) => {
-                let mut cursor = Cursor::new(response);
-                let header = cursor.read_le()?;
+                // here is what esptool does: https://github.com/espressif/esptool/blob/master/esptool/loader.py#L458
+                // from esptool: things are a bit weird here, bear with us
+
+                // we rely on the known and expected response sizes
+                let status_len = if response.len() == 10 || response.len() == 26 {
+                    2
+                } else {
+                    4
+                };
+
+                let value = match response.len() {
+                    10 | 12 => CommandResponseValue::ValueU32(u32::from_le_bytes(
+                        response[4..][..4].try_into().unwrap(),
+                    )),
+                    44 => {
+                        // MD5 is in ASCII
+                        CommandResponseValue::ValueU128(
+                            u128::from_str_radix(
+                                std::str::from_utf8(&response[8..][..32]).unwrap(),
+                                16,
+                            )
+                            .unwrap(),
+                        )
+                    }
+                    26 => {
+                        // MD5 is BE bytes
+                        CommandResponseValue::ValueU128(u128::from_be_bytes(
+                            response[8..][..16].try_into().unwrap(),
+                        ))
+                    }
+                    _ => {
+                        return Err(Error::InternalError);
+                    }
+                };
+
+                let header = CommandResponse {
+                    resp: response[0],
+                    return_op: response[1],
+                    return_length: u16::from_le_bytes(response[2..][..2].try_into().unwrap()),
+                    value: value,
+                    error: response[response.len() - status_len],
+                    status: response[response.len() - status_len + 1],
+                };
+
                 Ok(Some(header))
             }
         }
@@ -217,7 +286,7 @@ impl Connection {
     }
 
     ///  Write a command and reads the response
-    pub fn command(&mut self, command: Command) -> Result<u32, Error> {
+    pub fn command(&mut self, command: Command) -> Result<CommandResponseValue, Error> {
         let ty = command.command_type();
         self.write_command(command).for_command(ty)?;
 
@@ -247,6 +316,7 @@ impl Connection {
         self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
             connection.command(Command::ReadReg { address: reg })
         })
+        .map(|v| v.try_into().unwrap())
     }
 
     /// Write a register command with a timeout
