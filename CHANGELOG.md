@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add --partition-table-offset argument for specifying the partition table offset (#516)
 - Add `Serialize` and `Deserialize` to `FlashFrequency`, `FlashMode` and `FlashSize`. (#528)
 - Add `checksum-md5` command (#536)
+- Add verify and skipping of unchanged flash regions - add `--no-verify` and `--no-skip` (#538)
 
 ### Fixed
 
