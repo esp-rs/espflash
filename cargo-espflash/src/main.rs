@@ -244,7 +244,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
         .as_deref()
         .or(metadata_partition_table.as_deref());
 
-    let mut flash = connect(&args.connect_args, config)?;
+    let mut flash = connect(&args.connect_args, config, false, false)?;
     let partition_table = match partition_table {
         Some(path) => Some(parse_partition_table(path)?),
         None => None,
@@ -261,7 +261,12 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let metadata = PackageMetadata::load(&args.build_args.package)?;
     let cargo_config = CargoConfig::load(&metadata.workspace_root, &metadata.package_root);
 
-    let mut flasher = connect(&args.connect_args, config)?;
+    let mut flasher = connect(
+        &args.connect_args,
+        config,
+        args.flash_args.no_verify,
+        args.flash_args.no_skip,
+    )?;
     flasher.verify_minimum_revision(args.flash_args.min_chip_rev)?;
 
     // If the user has provided a flash size via a command-line argument, we'll

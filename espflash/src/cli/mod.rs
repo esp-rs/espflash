@@ -163,6 +163,12 @@ pub struct FlashArgs {
     /// Load the application to RAM instead of Flash
     #[arg(long)]
     pub ram: bool,
+    /// Don't verify the flash contents after flashing
+    #[arg(long)]
+    pub no_verify: bool,
+    /// Don't skip flashing of parts with matching checksum
+    #[arg(long)]
+    pub no_skip: bool,
 }
 
 /// Operations for partitions tables
@@ -250,7 +256,12 @@ pub fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
 }
 
 /// Select a serial port and establish a connection with a target device
-pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
+pub fn connect(
+    args: &ConnectArgs,
+    config: &Config,
+    no_verify: bool,
+    no_skip: bool,
+) -> Result<Flasher> {
     let port_info = get_serial_port_info(args, config)?;
 
     // Attempt to open the serial port and set its initial baud rate.
@@ -290,13 +301,15 @@ pub fn connect(args: &ConnectArgs, config: &Config) -> Result<Flasher> {
         port_info,
         args.baud,
         !args.no_stub,
+        !no_verify,
+        !no_skip,
         args.chip,
     )?)
 }
 
 /// Connect to a target device and print information about its chip
 pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(args, config)?;
+    let mut flasher = connect(args, config, true, true)?;
     print_board_info(&mut flasher)?;
 
     Ok(())
@@ -304,7 +317,7 @@ pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
 
 /// Connect to a target device and calculate the checksum of the given region
 pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config)?;
+    let mut flasher = connect(&args.connect_args, config, true, true)?;
 
     let checksum = flasher.checksum_md5(args.address, args.length)?;
     println!("0x{:x}", checksum);
@@ -369,7 +382,7 @@ pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
 
 /// Open a serial monitor
 pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config)?;
+    let mut flasher = connect(&args.connect_args, config, true, true)?;
     let pid = flasher.get_usb_pid()?;
 
     let elf = if let Some(elf_path) = args.elf {
@@ -585,7 +598,7 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
         return Err(Error::StubRequiredToEraseFlash).into_diagnostic();
     }
 
-    let mut flash = connect(&args.connect_args, config)?;
+    let mut flash = connect(&args.connect_args, config, true, true)?;
 
     info!("Erasing Flash...");
     flash.erase_flash()?;
@@ -600,7 +613,7 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
         return Err(Error::StubRequiredToEraseFlash).into_diagnostic();
     }
 
-    let mut flash = connect(&args.connect_args, config)?;
+    let mut flash = connect(&args.connect_args, config, true, true)?;
 
     info!(
         "Erasing region at 0x{:08x} ({} bytes)",

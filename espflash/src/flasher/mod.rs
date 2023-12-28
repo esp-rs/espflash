@@ -411,6 +411,10 @@ pub struct Flasher {
     spi_params: SpiAttachParams,
     /// Indicate RAM stub loader is in use
     use_stub: bool,
+    /// Indicate verifying flash contents after flashing
+    verify: bool,
+    /// Indicate skipping of already flashed regions
+    skip: bool,
 }
 
 impl Flasher {
@@ -419,6 +423,8 @@ impl Flasher {
         port_info: UsbPortInfo,
         speed: Option<u32>,
         use_stub: bool,
+        verify: bool,
+        skip: bool,
         chip: Option<Chip>,
     ) -> Result<Self, Error> {
         // Establish a connection to the device using the default baud rate of 115,200
@@ -445,6 +451,8 @@ impl Flasher {
             flash_size: FlashSize::_4Mb,
             spi_params: SpiAttachParams::default(),
             use_stub,
+            verify,
+            skip,
         };
 
         // Load flash stub if enabled
@@ -477,7 +485,9 @@ impl Flasher {
     }
 
     pub fn disable_watchdog(&mut self) -> Result<(), Error> {
-        let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
+        let mut target = self
+            .chip
+            .flash_target(self.spi_params, self.use_stub, false, false);
         target.begin(&mut self.connection).flashing()?;
         Ok(())
     }
@@ -814,7 +824,9 @@ impl Flasher {
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
 
-        let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
+        let mut target =
+            self.chip
+                .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
         target.begin(&mut self.connection).flashing()?;
 
         // The ESP8266 does not have readable major/minor revision numbers, so we have
@@ -878,7 +890,9 @@ impl Flasher {
         segments: &[RomSegment],
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
-        let mut target = self.chip.flash_target(self.spi_params, self.use_stub);
+        let mut target = self
+            .chip
+            .flash_target(self.spi_params, self.use_stub, false, false);
         target.begin(&mut self.connection).flashing()?;
         for segment in segments {
             target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;
