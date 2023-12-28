@@ -179,16 +179,13 @@ pub enum Error {
     #[error(transparent)]
     #[diagnostic(transparent)]
     Defmt(#[from] DefmtError),
+
+    #[error("Internal Error")]
+    InternalError,
 }
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        Self::Connection(err.into())
-    }
-}
-
-impl From<binrw::Error> for Error {
-    fn from(err: binrw::Error) -> Self {
         Self::Connection(err.into())
     }
 }
@@ -258,15 +255,6 @@ pub enum ConnectionError {
 impl From<io::Error> for ConnectionError {
     fn from(err: io::Error) -> Self {
         from_error_kind(err.kind(), err)
-    }
-}
-
-impl From<binrw::Error> for ConnectionError {
-    fn from(err: binrw::Error) -> Self {
-        match err {
-            binrw::Error::Io(e) => ConnectionError::from(e),
-            _ => unreachable!(),
-        }
     }
 }
 

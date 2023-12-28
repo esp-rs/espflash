@@ -8,11 +8,11 @@ use cargo_metadata::Message;
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{
-        self, board_info, completions, config::Config, connect, erase_flash, erase_partitions,
-        erase_region, flash_elf_image, monitor::monitor, parse_partition_table, partition_table,
-        print_board_info, save_elf_as_image, serial_monitor, CompletionsArgs, ConnectArgs,
-        EraseFlashArgs, EraseRegionArgs, EspflashProgress, FlashConfigArgs, MonitorArgs,
-        PartitionTableArgs,
+        self, board_info, checksum_md5, completions, config::Config, connect, erase_flash,
+        erase_partitions, erase_region, flash_elf_image, monitor::monitor, parse_partition_table,
+        partition_table, print_board_info, save_elf_as_image, serial_monitor, ChecksumMd5Args,
+        CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress,
+        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     error::Error as EspflashError,
     image_format::ImageFormatKind,
@@ -106,6 +106,8 @@ enum Commands {
     /// Otherwise, each segment will be saved as individual binaries, prefixed
     /// with their intended addresses in flash.
     SaveImage(SaveImageArgs),
+    /// Calculate the MD5 checksum of the given region
+    ChecksumMd5(ChecksumMd5Args),
 }
 
 #[derive(Debug, Args)]
@@ -217,6 +219,7 @@ fn main() -> Result<()> {
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
         Commands::SaveImage(args) => save_image(args),
+        Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
     }
 }
 

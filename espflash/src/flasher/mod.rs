@@ -888,6 +888,19 @@ impl Flasher {
         Ok(())
     }
 
+    /// Get MD5 of region
+    pub fn checksum_md5(&mut self, addr: u32, length: u32) -> Result<u128, Error> {
+        self.connection
+            .with_timeout(CommandType::FlashMd5.timeout(), |connection| {
+                connection
+                    .command(crate::command::Command::FlashMd5 {
+                        offset: addr,
+                        size: length,
+                    })?
+                    .try_into()
+            })
+    }
+
     /// Load an ELF image to flash and execute it
     pub fn load_elf_to_flash(
         &mut self,

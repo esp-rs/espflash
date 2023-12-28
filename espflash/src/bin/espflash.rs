@@ -7,11 +7,11 @@ use std::{
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{
-        self, board_info, completions, config::Config, connect, erase_flash, erase_partitions,
-        erase_region, flash_elf_image, monitor::monitor, parse_partition_table, parse_uint32,
-        partition_table, print_board_info, save_elf_as_image, serial_monitor, CompletionsArgs,
-        ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress, FlashConfigArgs,
-        MonitorArgs, PartitionTableArgs,
+        self, board_info, checksum_md5, completions, config::Config, connect, erase_flash,
+        erase_partitions, erase_region, flash_elf_image, monitor::monitor, parse_partition_table,
+        parse_uint32, partition_table, print_board_info, save_elf_as_image, serial_monitor,
+        ChecksumMd5Args, CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs,
+        EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     error::Error,
     image_format::ImageFormatKind,
@@ -83,6 +83,8 @@ enum Commands {
     SaveImage(SaveImageArgs),
     /// Write a binary file to a specific address in a target device's flash
     WriteBin(WriteBinArgs),
+    /// Calculate the MD5 checksum of the given region
+    ChecksumMd5(ChecksumMd5Args),
 }
 
 /// Erase named partitions based on provided partition table
@@ -176,6 +178,7 @@ fn main() -> Result<()> {
         Commands::PartitionTable(args) => partition_table(args),
         Commands::SaveImage(args) => save_image(args),
         Commands::WriteBin(args) => write_bin(args, &config),
+        Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
     }
 }
 
