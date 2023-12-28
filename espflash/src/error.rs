@@ -180,6 +180,10 @@ pub enum Error {
     #[diagnostic(transparent)]
     Defmt(#[from] DefmtError),
 
+    #[error("Verification of flash content failed")]
+    #[diagnostic(code(espflash::verify_failed))]
+    VerifyFailed,
+
     #[error("Internal Error")]
     InternalError,
 }

@@ -233,7 +233,7 @@ impl FlashTarget for Esp32Target {
                 })?;
 
             if checksum_md5.as_slice() != flash_checksum_md5.to_be_bytes() {
-                return Err(Error::Cancelled); // TODO add a new error
+                return Err(Error::VerifyFailed);
             }
         }
 
