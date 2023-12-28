@@ -187,7 +187,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
         return Err(Error::StubRequiredToEraseFlash).into_diagnostic();
     }
 
-    let mut flash = connect(&args.connect_args, config)?;
+    let mut flash = connect(&args.connect_args, config, false, false)?;
     let partition_table = match args.partition_table {
         Some(path) => Some(parse_partition_table(&path)?),
         None => None,
@@ -201,7 +201,12 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
 }
 
 fn flash(args: FlashArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config)?;
+    let mut flasher = connect(
+        &args.connect_args,
+        config,
+        args.flash_args.no_verify,
+        args.flash_args.no_skip,
+    )?;
     flasher.verify_minimum_revision(args.flash_args.min_chip_rev)?;
 
     // If the user has provided a flash size via a command-line argument, we'll
@@ -325,7 +330,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
 }
 
 fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config)?;
+    let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
 
     let mut f = File::open(&args.bin_file).into_diagnostic()?;

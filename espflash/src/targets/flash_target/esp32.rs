@@ -4,6 +4,8 @@ use flate2::{
     write::{ZlibDecoder, ZlibEncoder},
     Compression,
 };
+use log::debug;
+use md5::{Digest, Md5};
 
 use crate::{
     command::{Command, CommandType},
@@ -20,14 +22,26 @@ pub struct Esp32Target {
     chip: Chip,
     spi_attach_params: SpiAttachParams,
     use_stub: bool,
+    verify: bool,
+    skip: bool,
+    need_deflate_end: bool,
 }
 
 impl Esp32Target {
-    pub fn new(chip: Chip, spi_attach_params: SpiAttachParams, use_stub: bool) -> Self {
+    pub fn new(
+        chip: Chip,
+        spi_attach_params: SpiAttachParams,
+        use_stub: bool,
+        verify: bool,
+        skip: bool,
+    ) -> Self {
         Esp32Target {
             chip,
             spi_attach_params,
             use_stub,
+            verify,
+            skip,
+            need_deflate_end: false,
         }
     }
 }
@@ -120,6 +134,27 @@ impl FlashTarget for Esp32Target {
     ) -> Result<(), Error> {
         let addr = segment.addr;
 
+        let mut md5_hasher = Md5::new();
+        md5_hasher.update(&segment.data);
+        let checksum_md5 = md5_hasher.finalize();
+
+        if self.skip {
+            let flash_checksum_md5: u128 =
+                connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
+                    connection
+                        .command(crate::command::Command::FlashMd5 {
+                            offset: addr,
+                            size: segment.data.len() as u32,
+                        })?
+                        .try_into()
+                })?;
+
+            if checksum_md5.as_slice() == flash_checksum_md5.to_be_bytes() {
+                debug!("Skipping segment at address {:x}", addr);
+                return Ok(());
+            }
+        }
+
         let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
         encoder.write_all(&segment.data)?;
         let compressed = encoder.finish()?;
@@ -145,6 +180,7 @@ impl FlashTarget for Esp32Target {
                 Ok(())
             },
         )?;
+        self.need_deflate_end = true;
 
         let chunks = compressed.chunks(flash_write_size);
         let num_chunks = chunks.len();
@@ -185,13 +221,31 @@ impl FlashTarget for Esp32Target {
             cb.finish()
         }
 
+        if self.verify {
+            let flash_checksum_md5: u128 =
+                connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
+                    connection
+                        .command(crate::command::Command::FlashMd5 {
+                            offset: addr,
+                            size: segment.data.len() as u32,
+                        })?
+                        .try_into()
+                })?;
+
+            if checksum_md5.as_slice() != flash_checksum_md5.to_be_bytes() {
+                return Err(Error::Cancelled); // TODO add a new error
+            }
+        }
+
         Ok(())
     }
 
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error> {
-        connection.with_timeout(CommandType::FlashDeflateEnd.timeout(), |connection| {
-            connection.command(Command::FlashDeflateEnd { reboot: false })
-        })?;
+        if self.need_deflate_end {
+            connection.with_timeout(CommandType::FlashDeflateEnd.timeout(), |connection| {
+                connection.command(Command::FlashDeflateEnd { reboot: false })
+            })?;
+        }
 
         if reboot {
             connection.reset()?;
