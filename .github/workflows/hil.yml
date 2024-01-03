@@ -20,7 +20,7 @@ concurrency:
 
 
 jobs:
-  build:
+  build-app:
     name: Generate and Build App
     strategy:
       matrix:
@@ -40,9 +40,8 @@ jobs:
           - mcu: esp32s3
             target: xtensa-esp32s3-none-elf
       fail-fast: false
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
-
 
       - if: matrix.board.mcu == 'esp32' || matrix.board.mcu == 'esp32s2' || matrix.board.mcu == 'esp32s3'
         uses: esp-rs/xtensa-toolchain@v1.5
@@ -73,10 +72,31 @@ jobs:
           path: esp-hal/${{ matrix.board.mcu }}-hal/target/${{ matrix.board.target }}/release/examples/hello_world
           if-no-files-found: error
 
+  build-espflash:
+    name: Build espflash
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-target
+        with:
+          arch: x86_64
+          target: x86_64-unknown-linux-gnu
+
+      - name: Build espflash
+        run: cargo build --release
+        working-directory: espflash
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: espflash
+          path: target/release/espflash
+          if-no-files-found: error
+
   run-target:
     name: Run Tests on Target
     if: ${{ github.repository_owner == 'esp-rs' }}
-    needs: build
+    needs: [build-app, build-espflash]
     runs-on: [self-hosted, linux, x64, "${{ matrix.board }}" ]
     strategy:
       matrix:
@@ -89,11 +109,42 @@ jobs:
         with:
           name: ${{ matrix.board }}_app
           path: espflash/${{ matrix.board }}_app
-
-      - uses: ./.github/actions/setup-target
+      - uses: actions/download-artifact@v3
         with:
-          arch: x86_64
-          target: x86_64-unknown-linux-gnu
+          name: espflash
+          path: espflash_app
 
-      - name: Run Tests
-        run: ESPFLASH_PORT=/dev/serial_ports/${{ matrix.board }} ESPFLASH_APP=${{ matrix.board }}_app/hello_world cargo test
+      - run: chmod +x espflash_app/espflash
+
+      - name: board-info test
+        env:
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board }}
+        shell: bash
+        run: |
+          result=$(espflash_app/espflash board-info 2>&1)
+          echo "$result"
+
+          if ! echo "$result" | grep -q "esp32"; then
+            exit 1
+          fi
+
+      - name: flash test
+        env:
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board }}
+          ESPFLASH_APP: espflash/${{ matrix.board }}_app/hello_world
+        shell: bash
+        run: |
+          timeout 10s espflash_app/espflash flash --monitor ${{ env.ESPFLASH_APP }} 2>&1
+
+      # if ! echo "$result" | grep -q "Flashing has completed!"; then
+      # if [[ $result == *"Flashing has completed!"* && $result == *"Hello world!"* ]]; then
+        # exit 1
+      # fi
+
+      # - uses: ./.github/actions/setup-target
+      #   with:
+      #     arch: x86_64
+      #     target: x86_64-unknown-linux-gnu
+
+      # - name: Run Tests
+      #   run: ESPFLASH_PORT=/dev/serial_ports/${{ matrix.board }} ESPFLASH_APP=${{ matrix.board }}_app/hello_world cargo test
