@@ -12,12 +12,26 @@ fn cli_tests() -> Result<(), Box<dyn std::error::Error>> {
     let binding = cmd.assert().success();
     let output = binding.get_output();
 
-    let output_stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let output_stdout: String = String::from_utf8_lossy(&output.stdout).to_string();
 
     assert!(output_stdout.contains("esp32"));
     assert!(output_stdout.contains("revision"));
 
-    // // // flash
+    // flash
+    let image = std::env::var("ESPFLASH_APP").expect("ESPFLASH_APP not set");
+
+    let mut cmd: Command = Command::cargo_bin("espflash")?;
+    cmd.args(&["flash", &image]);
+    cmd.stderr(std::process::Stdio::piped());
+
+    let binding = cmd.assert().success();
+    let output = binding.get_output();
+
+    let output_stderr: String = String::from_utf8_lossy(&output.stderr).to_string();
+
+    assert!(output_stderr.contains("Flashing has completed!"));
+
+    // flash monitor
     // let image = std::env::var("ESPFLASH_APP").expect("ESPFLASH_APP not set");
 
     // let mut child = Command::cargo_bin("espflash")?
