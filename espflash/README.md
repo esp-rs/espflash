@@ -1,3 +1,4 @@
+<!-- omit in toc -->
 # espflash
 
 [![Crates.io](https://img.shields.io/crates/v/espflash?labelColor=1C2C2E&color=C96329&logo=Rust&style=flat-square)](https://crates.io/crates/espflash)
@@ -9,21 +10,20 @@ A library and command-line tool for flashing Espressif devices.
 
 Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-S2/S3**, and **ESP8266**.
 
+<!-- omit in toc -->
 ## Table of Contents
 
-- [espflash](#espflash)
-  - [Table of Contents](#table-of-contents)
-  - [Installation](#installation)
-  - [Usage](#usage)
-    - [Permissions on Linux](#permissions-on-linux)
-    - [Windows Subsystem for Linux](#windows-subsystem-for-linux)
-    - [Cargo Runner](#cargo-runner)
-  - [Using `espflash` as a Library](#using-espflash-as-a-library)
-  - [Configuration File](#configuration-file)
-    - [Configuration Examples](#configuration-examples)
-  - [Logging Format](#logging-format)
-  - [License](#license)
-    - [Contribution](#contribution)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Permissions on Linux](#permissions-on-linux)
+  - [Windows Subsystem for Linux](#windows-subsystem-for-linux)
+  - [Cargo Runner](#cargo-runner)
+- [Using `espflash` as a Library](#using-espflash-as-a-library)
+- [Configuration File](#configuration-file)
+  - [Configuration Examples](#configuration-examples)
+- [Logging Format](#logging-format)
+- [License](#license)
+  - [Contribution](#contribution)
 
 ## Installation
 
@@ -160,12 +160,13 @@ pid = "1001"
 
 ## Logging Format
 
-`espflash` supports several logging formats using the `-L/--log-format` argument:
+`espflash` `flash` and `monitor` subcommands support several logging formats using the `-L/--log-format` argument:
 - `serial`: Default logging format
 - `defmt`: Uses [`defmt`] logging framework. With logging format, logging strings have framing bytes to indicate that they are `defmt` messages.
-  - See [`defmt` section](https://github.com/esp-rs/esp-println?tab=readme-ov-file#defmt) of `esp-println` readme.
+  - See [`defmt` section] of `esp-println` readme.
   - For a detailed guide on how to use `defmt` in the `no_std` ecosystem, see [`defmt` project] of Embedded Rust (no_std) on Espressif book.
 
+[`defmt` section]: https://github.com/esp-rs/esp-println?tab=readme-ov-file#defmt
 [`defmt` project]: https://esp-rs.github.io/no_std-training/03_6_defmt.html
 
 ## License
