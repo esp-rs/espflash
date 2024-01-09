@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 use crate::{
     elf::{CodeSegment, FirmwareImage, RomSegment},
     error::Error,
-    flasher::{FlashFrequency, FlashMode, FlashSize},
+    flasher::FlashSettings,
     image_format::{
         update_checksum, ImageFormat, ImageHeader, SegmentHeader, ESP_CHECKSUM_MAGIC, ESP_MAGIC,
         WP_PIN_DISABLED,
@@ -37,15 +37,14 @@ impl<'a> IdfBootloaderFormat<'a> {
         min_rev_full: u16,
         params: Esp32Params,
         partition_table: Option<PartitionTable>,
+        partition_table_offset: Option<u32>,
         target_app_partition: Option<String>,
         bootloader: Option<Vec<u8>>,
-        flash_mode: Option<FlashMode>,
-        flash_size: Option<FlashSize>,
-        flash_freq: Option<FlashFrequency>,
-        partition_table_offset: Option<u32>,
+        flash_settings: FlashSettings,
     ) -> Result<Self, Error> {
-        let partition_table = partition_table
-            .unwrap_or_else(|| params.default_partition_table(flash_size.map(|v| v.size())));
+        let partition_table = partition_table.unwrap_or_else(|| {
+            params.default_partition_table(flash_settings.size.map(|v| v.size()))
+        });
         let mut bootloader = if let Some(bytes) = bootloader {
             Cow::Owned(bytes)
         } else {
@@ -59,13 +58,13 @@ impl<'a> IdfBootloaderFormat<'a> {
         }
 
         // update the header if a user has specified any custom arguments
-        if let Some(mode) = flash_mode {
+        if let Some(mode) = flash_settings.mode {
             header.flash_mode = mode as u8;
         }
 
         header.write_flash_config(
-            flash_size.unwrap_or_default(),
-            flash_freq.unwrap_or(params.flash_freq),
+            flash_settings.size.unwrap_or_default(),
+            flash_settings.freq.unwrap_or(params.flash_freq),
             chip,
         )?;
 
@@ -345,7 +344,7 @@ pub mod tests {
     use std::fs;
 
     use super::*;
-    use crate::elf::ElfFirmwareImage;
+    use crate::{elf::ElfFirmwareImage, image_format::FlashFrequency};
 
     // Copied from: src/targets/esp32.rs
     const PARAMS: Esp32Params = Esp32Params::new(
@@ -372,9 +371,7 @@ pub mod tests {
             None,
             None,
             None,
-            None,
-            None,
-            None,
+            FlashSettings::default(),
         )
         .unwrap();
 

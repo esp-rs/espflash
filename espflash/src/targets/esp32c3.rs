@@ -1,12 +1,10 @@
 use std::ops::Range;
 
-use esp_idf_part::PartitionTable;
-
 use crate::{
     connection::Connection,
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
-    flasher::{FlashFrequency, FlashMode, FlashSize},
+    flasher::{FlashData, FlashFrequency},
     image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target},
 };
@@ -76,32 +74,24 @@ impl Target for Esp32c3 {
     fn get_flash_image<'a>(
         &self,
         image: &'a dyn FirmwareImage<'a>,
-        bootloader: Option<Vec<u8>>,
-        partition_table: Option<PartitionTable>,
-        target_app_partition: Option<String>,
-        image_format: Option<ImageFormatKind>,
+        flash_data: FlashData,
         chip_revision: Option<(u32, u32)>,
-        min_rev_full: u16,
-        flash_mode: Option<FlashMode>,
-        flash_size: Option<FlashSize>,
-        flash_freq: Option<FlashFrequency>,
-        partition_table_offset: Option<u32>,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = image_format.unwrap_or(ImageFormatKind::EspBootloader);
+        let image_format = flash_data
+            .image_format
+            .unwrap_or(ImageFormatKind::EspBootloader);
 
         match (image_format, chip_revision) {
             (ImageFormatKind::EspBootloader, _) => Ok(Box::new(IdfBootloaderFormat::new(
                 image,
                 Chip::Esp32c3,
-                min_rev_full,
+                flash_data.min_chip_rev,
                 PARAMS,
-                partition_table,
-                target_app_partition,
-                bootloader,
-                flash_mode,
-                flash_size,
-                flash_freq,
-                partition_table_offset,
+                flash_data.partition_table,
+                flash_data.partition_table_offset,
+                flash_data.target_app_partition,
+                flash_data.bootloader,
+                flash_data.flash_settings,
             )?)),
             (ImageFormatKind::DirectBoot, None | Some((_, 3..))) => {
                 Ok(Box::new(DirectBootFormat::new(image, 0)?))

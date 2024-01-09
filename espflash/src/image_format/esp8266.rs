@@ -5,7 +5,7 @@ use bytemuck::bytes_of;
 use crate::{
     elf::{CodeSegment, FirmwareImage, RomSegment},
     error::Error,
-    flasher::{FlashFrequency, FlashMode, FlashSize},
+    flasher::FlashSettings,
     image_format::{
         update_checksum, ImageFormat, ImageHeader, SegmentHeader, ESP_CHECKSUM_MAGIC, ESP_MAGIC,
     },
@@ -22,9 +22,7 @@ pub struct Esp8266Format<'a> {
 impl<'a> Esp8266Format<'a> {
     pub fn new(
         image: &'a dyn FirmwareImage<'a>,
-        flash_mode: Option<FlashMode>,
-        flash_size: Option<FlashSize>,
-        flash_freq: Option<FlashFrequency>,
+        flash_settings: FlashSettings,
     ) -> Result<Self, Error> {
         // IROM goes into a separate plain binary
         let irom_data = merge_rom_segments(image.rom_segments(Chip::Esp8266));
@@ -37,7 +35,7 @@ impl<'a> Esp8266Format<'a> {
         );
 
         // Common header
-        let flash_mode = flash_mode.unwrap_or_default() as u8;
+        let flash_mode = flash_settings.mode.unwrap_or_default() as u8;
         let segment_count = image.ram_segments(Chip::Esp8266).count() as u8;
 
         let mut header = ImageHeader {
@@ -48,8 +46,8 @@ impl<'a> Esp8266Format<'a> {
             ..Default::default()
         };
         header.write_flash_config(
-            flash_size.unwrap_or_default(),
-            flash_freq.unwrap_or_default(),
+            flash_settings.size.unwrap_or_default(),
+            flash_settings.freq.unwrap_or_default(),
             Chip::Esp8266,
         )?;
 
@@ -178,7 +176,7 @@ mod tests {
         let expected_bin = fs::read("tests/resources/esp8266_hal_blinky.bin").unwrap();
 
         let image = ElfFirmwareImage::try_from(input_bytes.as_slice()).unwrap();
-        let flash_image = Esp8266Format::new(&image, None, None, None).unwrap();
+        let flash_image = Esp8266Format::new(&image, FlashSettings::default()).unwrap();
 
         let segments = flash_image.flash_segments().collect::<Vec<_>>();
         let buf = segments[0].data.as_ref();

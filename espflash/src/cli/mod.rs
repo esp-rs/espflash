@@ -35,7 +35,7 @@ use self::{
 use crate::{
     elf::ElfFirmwareImage,
     error::{Error, MissingPartition, MissingPartitionTable},
-    flasher::{FlashFrequency, FlashMode, FlashSize, Flasher, ProgressCallbacks},
+    flasher::{FlashData, FlashFrequency, FlashMode, FlashSize, Flasher, ProgressCallbacks},
     image_format::ImageFormatKind,
     interface::Interface,
     targets::Chip,
@@ -418,69 +418,21 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
 
 /// Convert the provided firmware image from ELF to binary
 pub fn save_elf_as_image(
-    chip: Chip,
-    min_rev_full: u16,
     elf_data: &[u8],
+    chip: Chip,
     image_path: PathBuf,
-    image_format: Option<ImageFormatKind>,
-    flash_mode: Option<FlashMode>,
-    flash_size: Option<FlashSize>,
-    flash_freq: Option<FlashFrequency>,
-    partition_table_offset: Option<u32>,
+    flash_data: FlashData,
     merge: bool,
-    bootloader_path: Option<PathBuf>,
-    partition_table_path: Option<PathBuf>,
-    target_app_partition: Option<String>,
     skip_padding: bool,
 ) -> Result<()> {
     let image = ElfFirmwareImage::try_from(elf_data)?;
 
     if merge {
-        // merge_bin is TRUE
-        // merge bootloader, partition table and app binaries
-        // basic functionality, only merge 3 binaries
-
-        // If the '-B' option is provided, load the bootloader binary file at the
-        // specified path.
-        let bootloader = if let Some(bootloader_path) = bootloader_path {
-            let path = fs::canonicalize(bootloader_path).into_diagnostic()?;
-            let data = fs::read(path).into_diagnostic()?;
-
-            Some(data)
-        } else {
-            None
-        };
-
-        // If the '-T' option is provided, load the partition table from
-        // the CSV or binary file at the specified path.
-        let partition_table = if let Some(partition_table_path) = partition_table_path {
-            let path = fs::canonicalize(partition_table_path).into_diagnostic()?;
-            let data = fs::read(path)
-                .into_diagnostic()
-                .wrap_err("Failed to open partition table")?;
-
-            let table = PartitionTable::try_from(data).into_diagnostic()?;
-
-            Some(table)
-        } else {
-            None
-        };
-
         // To get a chip revision, the connection is needed
         // For simplicity, the revision None is used
-        let image = chip.into_target().get_flash_image(
-            &image,
-            bootloader,
-            partition_table,
-            target_app_partition,
-            image_format,
-            None,
-            min_rev_full,
-            flash_mode,
-            flash_size,
-            flash_freq,
-            partition_table_offset,
-        )?;
+        let image = chip
+            .into_target()
+            .get_flash_image(&image, flash_data.clone(), None)?;
 
         display_image_size(image.app_size(), image.part_size());
 
@@ -505,25 +457,16 @@ pub fn save_elf_as_image(
             // Take flash_size as input parameter, if None, use default value of 4Mb
             let padding_bytes = vec![
                 0xffu8;
-                flash_size.unwrap_or_default().size() as usize
+                flash_data.flash_settings.size.unwrap_or_default().size()
+                    as usize
                     - file.metadata().into_diagnostic()?.len() as usize
             ];
             file.write_all(&padding_bytes).into_diagnostic()?;
         }
     } else {
-        let image = chip.into_target().get_flash_image(
-            &image,
-            None,
-            None,
-            None,
-            image_format,
-            None,
-            min_rev_full,
-            flash_mode,
-            flash_size,
-            flash_freq,
-            partition_table_offset,
-        )?;
+        let image = chip
+            .into_target()
+            .get_flash_image(&image, flash_data, None)?;
 
         display_image_size(image.app_size(), image.part_size());
 
@@ -629,42 +572,11 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
 pub fn flash_elf_image(
     flasher: &mut Flasher,
     elf_data: &[u8],
-    bootloader: Option<&Path>,
-    partition_table: Option<PartitionTable>,
-    target_app_partition: Option<String>,
-    image_format: Option<ImageFormatKind>,
-    flash_mode: Option<FlashMode>,
-    flash_size: Option<FlashSize>,
-    flash_freq: Option<FlashFrequency>,
-    partition_table_offset: Option<u32>,
-    min_rev_full: u16,
+    flash_data: FlashData,
 ) -> Result<()> {
-    // If the '--bootloader' option is provided, load the binary file at the
-    // specified path.
-    let bootloader = if let Some(path) = bootloader {
-        let path = fs::canonicalize(path).into_diagnostic()?;
-        let data = fs::read(path).into_diagnostic()?;
-
-        Some(data)
-    } else {
-        None
-    };
-
     // Load the ELF data, optionally using the provider bootloader/partition
     // table/image format, to the device's flash memory.
-    flasher.load_elf_to_flash_with_format(
-        elf_data,
-        bootloader,
-        partition_table,
-        target_app_partition,
-        image_format,
-        flash_mode,
-        flash_size,
-        flash_freq,
-        partition_table_offset,
-        min_rev_full,
-        Some(&mut EspflashProgress::default()),
-    )?;
+    flasher.load_elf_to_flash(elf_data, flash_data, Some(&mut EspflashProgress::default()))?;
     info!("Flashing has completed!");
 
     Ok(())
