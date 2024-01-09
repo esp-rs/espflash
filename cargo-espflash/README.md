@@ -1,3 +1,4 @@
+<!-- omit in toc -->
 # cargo-espflash
 
 [![Crates.io](https://img.shields.io/crates/v/cargo-espflash?labelColor=1C2C2E&color=C96329&logo=Rust&style=flat-square)](https://crates.io/crates/cargo-espflash)
@@ -8,6 +9,7 @@ Cross-compiler and Cargo extension for flashing Espressif devices.
 
 Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-S2/S3**, and **ESP8266**.
 
+<!-- omit in toc -->
 ## Table of Contents
 
 - [Installation](#installation)
@@ -17,7 +19,8 @@ Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-S2/S3**, and *
 - [Bootloader and Partition Table](#bootloader-and-partition-table)
 - [Package Metadata](#package-metadata)
 - [Configuration File](#configuration-file)
-  - [Configuration examples](#configuration-examples)
+  - [Configuration Examples](#configuration-examples)
+- [Logging Format](#logging-format)
 - [License](#license)
   - [Contribution](#contribution)
 
@@ -147,6 +150,17 @@ Or specify one or more USB `vid`/`pid` couple:
 vid = "303a"
 pid = "1001"
 ```
+
+## Logging Format
+
+`cargo-espflash` `flash` and `monitor` subcommands support several logging formats using the `-L/--log-format` argument:
+- `serial`: Default logging format
+- `defmt`: Uses [`defmt`] logging framework. With logging format, logging strings have framing bytes to indicate that they are `defmt` messages.
+  - See [`defmt` section] of `esp-println` readme.
+  - For a detailed guide on how to use `defmt` in the `no_std` ecosystem, see [`defmt` project] of Embedded Rust (no_std) on Espressif book.
+
+[`defmt` section]: https://github.com/esp-rs/esp-println?tab=readme-ov-file#defmt
+[`defmt` project]: https://esp-rs.github.io/no_std-training/03_6_defmt.html
 
 ## License
 
