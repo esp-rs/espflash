@@ -116,6 +116,10 @@ pub enum Error {
     )]
     SerialNotFound(String),
 
+    #[error("Soft reseting is currently only supported on ESP8266")]
+    #[diagnostic(code(espflash::soft_reset_not_available))]
+    SoftResetNotAvailable,
+
     #[error("Unrecognized image format '{0}'")]
     #[diagnostic(
         code(espflash::unknown_format),

@@ -8,7 +8,13 @@ use strum::{Display, EnumIter, EnumString, EnumVariantNames};
 use log::debug;
 
 use crate::{
-    command::CommandType, connection::USB_SERIAL_JTAG_PID, error::Error, interface::Interface,
+    command::{Command, CommandType},
+    connection::Connection,
+    connection::USB_SERIAL_JTAG_PID,
+    error::Error,
+    flasher,
+    interface::Interface,
+    targets::Chip,
 };
 
 /// Default time to wait before releasing the boot pin after a reset
@@ -215,17 +221,66 @@ impl ResetStrategy for HardReset {
 }
 
 ///
-#[derive(Debug, Clone, Copy)]
-pub struct SoftReset;
-
-impl ResetStrategy for SoftReset {
-    fn reset(&self, interface: &mut Interface) -> Result<(), Error> {
-        debug!("Using SoftReset reset strategy");
-        // https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/loader.py#L1461
-        // CommandType::RunUserCode.timeout() ...
-
-        Ok(())
+pub fn soft_reset(
+    connection: &mut Connection,
+    stay_in_bootloader: bool,
+    is_stub: bool,
+    chip: Chip,
+) -> Result<(), Error> {
+    debug!("Using SoftReset reset strategy");
+    if !is_stub {
+        if stay_in_bootloader {
+            return Ok(());
+        } else {
+            //  flash_begin(0,0)
+            connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
+                let num_blocks: u32 = ((0 + flasher::FLASH_WRITE_SIZE - 1)
+                    / flasher::FLASH_WRITE_SIZE)
+                    .try_into()
+                    .unwrap();
+                connection.command(Command::FlashBegin {
+                    size: 0,
+                    blocks: num_blocks.into(),
+                    block_size: flasher::FLASH_WRITE_SIZE.try_into().unwrap(),
+                    offset: 0,
+                    supports_encryption: false,
+                })
+            })?;
+            // flash_end(false)
+            connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
+                connection.write_command(Command::FlashEnd { reboot: false })
+            })?;
+        }
+    } else {
+        if stay_in_bootloader {
+            //  flash_begin(0,0)
+            connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
+                let num_blocks: u32 = ((0 + flasher::FLASH_WRITE_SIZE - 1)
+                    / flasher::FLASH_WRITE_SIZE)
+                    .try_into()
+                    .unwrap();
+                connection.command(Command::FlashBegin {
+                    size: 0,
+                    blocks: num_blocks.into(),
+                    block_size: flasher::FLASH_WRITE_SIZE.try_into().unwrap(),
+                    offset: 0,
+                    supports_encryption: false,
+                })
+            })?;
+            // flash_end(true)
+            connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
+                connection.write_command(Command::FlashEnd { reboot: true })
+            })?;
+        } else if chip != Chip::Esp8266 {
+            return Err(Error::SoftResetNotAvailable);
+        } else {
+            connection.with_timeout(CommandType::RunUserCode.timeout(), |connection| {
+                connection.command(Command::RunUserCode)
+            })?;
+        }
     }
+
+    Ok(())
 }
 
 /// Construct a sequence of reset strategies based on the OS and chip.
@@ -233,9 +288,13 @@ impl ResetStrategy for SoftReset {
 /// Returns a [Vec] containing one or more reset strategies to be attempted
 /// sequentially.
 #[allow(unused_variables)]
-pub fn construct_reset_strategy_sequence(port_name: &str, pid: u16) -> Vec<Box<dyn ResetStrategy>> {
+pub fn construct_reset_strategy_sequence(
+    port_name: &str,
+    pid: u16,
+    mode: ResetBeforeOperation,
+) -> Vec<Box<dyn ResetStrategy>> {
     // USB-JTAG/Serial mode
-    if pid == USB_SERIAL_JTAG_PID {
+    if pid == USB_SERIAL_JTAG_PID || mode == ResetBeforeOperation::UsbReset {
         return vec![Box::new(UsbJtagSerialReset)];
     }
 
@@ -271,6 +330,8 @@ pub enum ResetBeforeOperation {
     NoReset,
     /// Skips DTR/RTS control signal assignments and also skips the serial synchronization command.
     NoResetNoSync,
+    /// Reset sequence for USB-JTAG-Serial peripheral
+    UsbReset,
 }
 
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
@@ -283,6 +344,8 @@ pub enum ResetAfterOperation {
     #[default]
     HardReset,
     /// Runs the user firmware, but any subsequent reset will return to the serial bootloader.
+    ///
+    /// Only supported on ESP8266.
     SoftReset,
     /// Leaves the chip in the serial bootloader, no reset is performed.
     NoReset,

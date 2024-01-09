@@ -196,6 +196,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
 
     info!("Erasing the following partitions: {:?}", args.erase_parts);
     erase_partitions(&mut flash, partition_table, Some(args.erase_parts), None)?;
+    // TODO: reset after?
     flash.connection().reset()?;
 
     Ok(())

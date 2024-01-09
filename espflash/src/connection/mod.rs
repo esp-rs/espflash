@@ -26,9 +26,10 @@ use self::{
 };
 use crate::{
     command::{Command, CommandType},
-    connection::reset::SoftReset,
+    connection::reset::soft_reset,
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
     interface::Interface,
+    targets::Chip,
 };
 
 pub mod reset;
@@ -104,7 +105,11 @@ impl Connection {
     /// Initialize a connection with a device
     pub fn begin(&mut self) -> Result<(), Error> {
         let port_name = self.serial.serial_port().name().unwrap_or_default();
-        let reset_sequence = construct_reset_strategy_sequence(&port_name, self.port_info.pid);
+        let reset_sequence = construct_reset_strategy_sequence(
+            &port_name,
+            self.port_info.pid,
+            self.before_operation,
+        );
 
         for (_, reset_strategy) in zip(0..MAX_CONNECT_ATTEMPTS, reset_sequence.iter().cycle()) {
             match self.connect_attempt(reset_strategy) {
@@ -123,6 +128,19 @@ impl Connection {
     /// Try to connect to a device
     #[allow(clippy::borrowed_box)]
     fn connect_attempt(&mut self, reset_strategy: &Box<dyn ResetStrategy>) -> Result<(), Error> {
+        // If we're doing no_sync, we're likely communicating as a pass through
+        // with an intermediate device to the ESP32
+        if self.before_operation == ResetBeforeOperation::NoResetNoSync {
+            return Ok(());
+        }
+
+        if self.before_operation != ResetBeforeOperation::NoReset {
+            // Reset the chip to bootloader (download mode)
+            reset_strategy.reset(&mut self.serial)?;
+
+            //TODO:  Implement https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/loader.py#L565-L574 ?
+        }
+
         reset_strategy.reset(&mut self.serial)?;
         for _ in 0..MAX_SYNC_ATTEMPTS {
             self.flush()?;
@@ -176,24 +194,27 @@ impl Connection {
         Ok(())
     }
     // Reset the device
-    pub fn reset_after(&mut self) -> Result<(), Error> {
+    // Implement https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/__init__.py#L931-L944
+
+    pub fn reset_after(&mut self, is_stub: bool, chip: Chip) -> Result<(), Error> {
+        // TODO: verfify that we are not using --ram flag. Only in FlashArgs
         match self.after_operation {
             ResetAfterOperation::HardReset => HardReset.reset(&mut self.serial),
             ResetAfterOperation::SoftReset => {
-                println!("SoftReset");
+                soft_reset(self, false, is_stub, chip)?;
+                println!("Soft resetting");
                 return Ok(());
             }
             ResetAfterOperation::NoReset => {
-                println!("NoReset");
+                soft_reset(self, true, is_stub, chip)?;
+                println!("Staying in flasher stub");
                 return Ok(());
             }
             ResetAfterOperation::NoResetNoStub => {
-                println!("NoResetNoStub");
+                println!("Staying in flasher stub");
                 return Ok(());
             }
         };
-        // Implement https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/__init__.py#L931-L944
-        reset_after_flash(&mut self.serial, self.port_info.pid)?;
 
         Ok(())
     }

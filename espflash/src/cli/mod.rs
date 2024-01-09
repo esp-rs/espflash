@@ -23,7 +23,7 @@ use clap_complete::Shell;
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
-use log::{debug, info};
+use log::{debug, info, warn};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{SerialPortType, UsbPortInfo};
 
@@ -272,6 +272,15 @@ pub fn connect(
     no_verify: bool,
     no_skip: bool,
 ) -> Result<Flasher> {
+    if args.before == ResetBeforeOperation::NoReset
+        || args.before == ResetBeforeOperation::NoResetNoSync
+    {
+        warn!(
+            "Pre-connection option '{:#?}' was selected. Connection may fail if the chip is not in bootloader or flasher stub mode.",
+            args.before
+        );
+    }
+
     let port_info = get_serial_port_info(args, config)?;
 
     // Attempt to open the serial port and set its initial baud rate.
@@ -559,7 +568,10 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     info!("Erasing Flash...");
     flash.erase_flash()?;
     // Reset after? https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/__init__.py#L931-L944
-    flash.connection().reset_after()?;
+    let chip = flash.chip();
+    flash
+        .connection()
+        .reset_after(!args.connect_args.no_stub, chip)?;
 
     Ok(())
 }
