@@ -20,7 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [[bin]]
 name              = "espflash"
 path              = "./src/bin/espflash.rs"
-required-features = ["cli"]
+required-features = ["cli, serialport"]
 
 [dependencies]
 addr2line = { version = "0.21.0", optional = true }
@@ -49,7 +49,7 @@ parse_int = { version = "0.6.0", optional = true }
 regex = { version = "1.9.6", optional = true }
 rppal = { version = "0.14.1", optional = true }
 serde = { version = "1.0.188", features = ["derive"] }
-serialport = "4.2.2"
+serialport = { version = "4.2.2", optional = true }
 sha2 = "0.10.8"
 slip-codec = "0.3.4"
 strum = { version = "0.25.0", features = ["derive"] }
@@ -62,7 +62,7 @@ xmas-elf        = "0.9.0"
 libc = "0.2.101"
 
 [features]
-default = ["cli"]
+default = ["cli", "serialport"]
 cli = [
     "dep:addr2line",
     "dep:clap",
@@ -80,7 +80,9 @@ cli = [
     "dep:lazy_static",
     "dep:parse_int",
     "dep:regex",
+    "dep:serialport",
     "dep:update-informer",
 ]
+serialport = ["dep:serialport"]
 
 raspberry = ["dep:rppal"]

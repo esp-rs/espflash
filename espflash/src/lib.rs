@@ -51,11 +51,17 @@
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod cli;
 pub mod command;
+#[cfg(feature = "serialport")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
 pub mod connection;
 pub mod elf;
 pub mod error;
+#[cfg(feature = "serialport")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
 pub mod flasher;
 pub mod image_format;
+#[cfg(feature = "serialport")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
 pub mod interface;
 pub mod targets;
 
