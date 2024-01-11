@@ -20,7 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [[bin]]
 name              = "espflash"
 path              = "./src/bin/espflash.rs"
-required-features = ["cli, serialport"]
+required-features = ["cli", "serialport"]
 
 [dependencies]
 addr2line = { version = "0.21.0", optional = true }
