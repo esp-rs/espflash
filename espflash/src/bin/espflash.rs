@@ -179,8 +179,8 @@ fn main() -> Result<()> {
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
-        Commands::SaveImage(args) => save_image(args),
         Commands::ReadFlash(args) => read_flash(args, &config),
+        Commands::SaveImage(args) => save_image(args, &config),
         Commands::WriteBin(args) => write_bin(args, &config),
         Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
     }
@@ -234,8 +234,16 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
-        let bootloader = args.flash_args.bootloader.as_deref();
-        let partition_table = args.flash_args.partition_table.as_deref();
+        let bootloader = args
+            .flash_args
+            .bootloader
+            .as_deref()
+            .or(config.bootloader.as_deref());
+        let partition_table = args
+            .flash_args
+            .partition_table
+            .as_deref()
+            .or(config.partition_table.as_deref());
 
         if let Some(path) = bootloader {
             println!("Bootloader:        {}", path.display());
@@ -297,7 +305,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     }
 }
 
-fn save_image(args: SaveImageArgs) -> Result<()> {
+fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     let elf_data = fs::read(&args.image)
         .into_diagnostic()
         .wrap_err_with(|| format!("Failed to open image {}", args.image.display()))?;
@@ -310,10 +318,20 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
     }
     println!("Merge:             {}", args.save_image_args.merge);
     println!("Skip padding:      {}", args.save_image_args.skip_padding);
-    if let Some(path) = &args.save_image_args.bootloader {
+    if let Some(path) = &args
+        .save_image_args
+        .bootloader
+        .clone()
+        .or(config.bootloader.clone())
+    {
         println!("Bootloader:        {}", path.display());
     }
-    if let Some(path) = &args.save_image_args.partition_table {
+    if let Some(path) = &args
+        .save_image_args
+        .partition_table
+        .clone()
+        .or(config.partition_table.clone())
+    {
         println!("Partition table:   {}", path.display());
     }
 
@@ -324,8 +342,16 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
     );
 
     let flash_data = FlashData::new(
-        args.save_image_args.bootloader.as_deref(),
-        args.save_image_args.partition_table.as_deref(),
+        args.save_image_args
+            .bootloader
+            .clone()
+            .or(config.bootloader.clone())
+            .as_deref(),
+        args.save_image_args
+            .partition_table
+            .clone()
+            .or(config.partition_table.clone())
+            .as_deref(),
         args.save_image_args.partition_table_offset,
         args.format,
         args.save_image_args.target_app_partition,
