@@ -10,14 +10,6 @@ use thiserror::Error;
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 pub enum Error {
-    #[error("Specified bootloader path is not a .bin file")]
-    #[diagnostic(code(cargo_espflash::invalid_bootloader_path))]
-    InvalidBootloaderPath,
-
-    #[error("Specified partition table path is not a .bin or .csv file")]
-    #[diagnostic(code(cargo_espflash::invalid_partition_table_path))]
-    InvalidPartitionTablePath,
-
     #[error("The current workspace is invalid, and could not be loaded")]
     #[diagnostic(
         code(cargo_espflash::invalid_workspace),

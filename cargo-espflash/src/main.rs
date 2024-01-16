@@ -222,7 +222,7 @@ fn main() -> Result<()> {
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
         Commands::ReadFlash(args) => read_flash(args, &config),
-        Commands::SaveImage(args) => save_image(args),
+        Commands::SaveImage(args) => save_image(args, &config),
         Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
     }
 }
@@ -239,14 +239,10 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
         return Err(EspflashError::StubRequired).into_diagnostic();
     }
 
-    let metadata_partition_table = PackageMetadata::load(&args.package)
-        .ok()
-        .and_then(|m| m.partition_table);
-
     let partition_table = args
         .partition_table
         .as_deref()
-        .or(metadata_partition_table.as_deref());
+        .or(config.partition_table.as_deref());
 
     let mut flash = connect(&args.connect_args, config, false, false)?;
     let partition_table = match partition_table {
@@ -303,14 +299,14 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             .flash_args
             .bootloader
             .as_deref()
-            .or(metadata.bootloader.as_deref())
+            .or(config.bootloader.as_deref())
             .or(build_ctx.bootloader_path.as_deref());
 
         let partition_table = args
             .flash_args
             .partition_table
             .as_deref()
-            .or(metadata.partition_table.as_deref())
+            .or(config.partition_table.as_deref())
             .or(build_ctx.partition_table_path.as_deref());
 
         if let Some(path) = &bootloader {
@@ -534,7 +530,7 @@ fn build(
     Ok(build_ctx)
 }
 
-fn save_image(args: SaveImageArgs) -> Result<()> {
+fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     let metadata = PackageMetadata::load(&args.build_args.package)?;
     let cargo_config = CargoConfig::load(&metadata.workspace_root, &metadata.package_root);
 
@@ -545,7 +541,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
         .save_image_args
         .bootloader
         .as_deref()
-        .or(metadata.bootloader.as_deref())
+        .or(config.bootloader.as_deref())
         .or(build_ctx.bootloader_path.as_deref())
         .map(|p| p.to_path_buf());
 
@@ -553,7 +549,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
         .save_image_args
         .partition_table
         .as_deref()
-        .or(metadata.partition_table.as_deref())
+        .or(config.partition_table.as_deref())
         .or(build_ctx.partition_table_path.as_deref())
         .map(|p| p.to_path_buf());
 

@@ -1,4 +1,4 @@
-use std::{ffi::OsStr, path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr};
 
 use cargo::{
     core::{Package, Workspace},
@@ -14,9 +14,7 @@ use crate::error::Error;
 pub struct PackageMetadata {
     pub workspace_root: PathBuf,
     pub package_root: PathBuf,
-    pub bootloader: Option<PathBuf>,
     pub format: Option<ImageFormatKind>,
-    pub partition_table: Option<PathBuf>,
 }
 
 impl PackageMetadata {
@@ -36,19 +34,6 @@ impl PackageMetadata {
 
         let package = Self::load_package(&workspace, package_name)?;
         let metadata = Self::load_metadata(&workspace, &package)?;
-
-        if let Some(table) = &metadata.partition_table {
-            match table.extension() {
-                Some(ext) if ext == "bin" || ext == "csv" => {}
-                _ => return Err(Error::InvalidPartitionTablePath.into()),
-            }
-        }
-
-        if let Some(bootloader) = &metadata.bootloader {
-            if bootloader.extension() != Some(OsStr::new("bin")) {
-                return Err(Error::InvalidBootloaderPath.into());
-            }
-        }
 
         Ok(metadata)
     }
@@ -84,17 +69,10 @@ impl PackageMetadata {
                 Some(meta) if meta.is_table() => {
                     let meta = meta.as_table().unwrap();
 
-                    espflash_meta.bootloader = meta
-                        .get("bootloader")
-                        .map(|bl| package.root().join(bl.as_str().unwrap()));
-
+                    // TO BE REMOVED?
                     espflash_meta.format = meta
                         .get("format")
                         .map(|fmt| ImageFormatKind::from_str(fmt.as_str().unwrap()).unwrap());
-
-                    espflash_meta.partition_table = meta
-                        .get("partition_table")
-                        .map(|pt| package.root().join(pt.as_str().unwrap()));
                 }
                 _ => {}
             },
