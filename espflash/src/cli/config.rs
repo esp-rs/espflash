@@ -122,7 +122,7 @@ impl Config {
     pub fn load() -> Result<Self> {
         let file = Self::get_config_path()?;
 
-        let config = if let Ok(data) = read_to_string(file) {
+        let mut config = if let Ok(data) = read_to_string(&file) {
             toml::from_str(&data).into_diagnostic()?
         } else {
             Self::default()
@@ -141,6 +141,7 @@ impl Config {
             }
         }
 
+        config.save_path = file;
         debug!("Config: {:#?}", &config);
         Ok(config)
     }
