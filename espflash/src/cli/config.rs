@@ -7,15 +7,18 @@
 //! [cargo-espflash]: https://crates.io/crates/cargo-espflash
 //! [espflash]: https://crates.io/crates/espflash
 
-use crate::error::Error;
-use directories::ProjectDirs;
-use miette::{IntoDiagnostic, Result, WrapErr};
-use serde::{Deserialize, Serialize};
-use serialport::UsbPortInfo;
 use std::{
     fs::{create_dir_all, read_to_string, write},
     path::PathBuf,
 };
+
+use directories::ProjectDirs;
+use log::debug;
+use miette::{IntoDiagnostic, Result, WrapErr};
+use serde::{Deserialize, Serialize};
+use serialport::UsbPortInfo;
+
+use crate::error::Error;
 
 /// A configured, known serial connection
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
@@ -118,13 +121,13 @@ impl Config {
     pub fn load() -> Result<Self> {
         let file = Self::get_config_path()?;
 
-        let mut config = if let Ok(data) = read_to_string(&file) {
+        let config = if let Ok(data) = read_to_string(file) {
             toml::from_str(&data).into_diagnostic()?
         } else {
             Self::default()
         };
 
-        println!("Config: {:#?}", &config);
+        debug!("Config: {:#?}", &config);
         Ok(config)
     }
 

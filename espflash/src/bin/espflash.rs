@@ -321,16 +321,16 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     if let Some(path) = &args
         .save_image_args
         .bootloader
-        .clone()
-        .or(config.bootloader.clone())
+        .as_deref()
+        .or(config.bootloader.as_deref())
     {
         println!("Bootloader:        {}", path.display());
     }
     if let Some(path) = &args
         .save_image_args
         .partition_table
-        .clone()
-        .or(config.partition_table.clone())
+        .as_deref()
+        .or(config.partition_table.as_deref())
     {
         println!("Partition table:   {}", path.display());
     }
