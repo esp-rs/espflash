@@ -310,6 +310,17 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .into_diagnostic()
         .wrap_err_with(|| format!("Failed to open image {}", args.image.display()))?;
 
+    let bootloader = args
+        .save_image_args
+        .bootloader
+        .as_deref()
+        .or(config.bootloader.as_deref());
+    let partition_table = args
+        .save_image_args
+        .partition_table
+        .as_deref()
+        .or(config.partition_table.as_deref());
+
     // Since we have no `Flasher` instance and as such cannot print the board
     // information, we will print whatever information we _do_ have.
     println!("Chip type:         {}", args.save_image_args.chip);
@@ -318,20 +329,10 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     }
     println!("Merge:             {}", args.save_image_args.merge);
     println!("Skip padding:      {}", args.save_image_args.skip_padding);
-    if let Some(path) = &args
-        .save_image_args
-        .bootloader
-        .as_deref()
-        .or(config.bootloader.as_deref())
-    {
+    if let Some(path) = &bootloader {
         println!("Bootloader:        {}", path.display());
     }
-    if let Some(path) = &args
-        .save_image_args
-        .partition_table
-        .as_deref()
-        .or(config.partition_table.as_deref())
-    {
+    if let Some(path) = &partition_table {
         println!("Partition table:   {}", path.display());
     }
 
@@ -342,16 +343,8 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     );
 
     let flash_data = FlashData::new(
-        args.save_image_args
-            .bootloader
-            .clone()
-            .or(config.bootloader.clone())
-            .as_deref(),
-        args.save_image_args
-            .partition_table
-            .clone()
-            .or(config.partition_table.clone())
-            .as_deref(),
+        bootloader,
+        partition_table,
         args.save_image_args.partition_table_offset,
         args.format,
         args.save_image_args.target_app_partition,
