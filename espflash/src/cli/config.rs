@@ -8,6 +8,7 @@
 //! [espflash]: https://crates.io/crates/espflash
 
 use std::{
+    ffi::OsStr,
     fs::{create_dir_all, read_to_string, write},
     path::PathBuf,
 };
@@ -126,6 +127,19 @@ impl Config {
         } else {
             Self::default()
         };
+
+        if let Some(table) = &config.partition_table {
+            match table.extension() {
+                Some(ext) if ext == "bin" || ext == "csv" => {}
+                _ => return Err(Error::InvalidPartitionTablePath.into()),
+            }
+        }
+
+        if let Some(bootloader) = &config.bootloader {
+            if bootloader.extension() != Some(OsStr::new("bin")) {
+                return Err(Error::InvalidBootloaderPath.into());
+            }
+        }
 
         debug!("Config: {:#?}", &config);
         Ok(config)
