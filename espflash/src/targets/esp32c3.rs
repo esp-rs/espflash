@@ -6,7 +6,7 @@ use crate::{
     error::{Error, UnsupportedImageFormatError},
     flasher::{FlashData, FlashFrequency},
     image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
-    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target},
+    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
@@ -66,9 +66,9 @@ impl Target for Esp32c3 {
         Ok((hi << 3) + lo)
     }
 
-    fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
+    fn crystal_freq(&self, _connection: &mut Connection) -> Result<XtalFrequency, Error> {
         // The ESP32-C3's XTAL has a fixed frequency of 40MHz.
-        Ok(40)
+        Ok(XtalFrequency::_40Mhz)
     }
 
     fn get_flash_image<'a>(
@@ -76,10 +76,18 @@ impl Target for Esp32c3 {
         image: &'a dyn FirmwareImage<'a>,
         flash_data: FlashData,
         chip_revision: Option<(u32, u32)>,
+        xtal_freq: XtalFrequency,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         let image_format = flash_data
             .image_format
             .unwrap_or(ImageFormatKind::EspBootloader);
+
+        if xtal_freq != XtalFrequency::_40Mhz {
+            return Err(Error::UnsupportedFeature {
+                chip: Chip::Esp32c3,
+                feature: "the selected crystal frequency".into(),
+            });
+        }
 
         match (image_format, chip_revision) {
             (ImageFormatKind::EspBootloader, _) => Ok(Box::new(IdfBootloaderFormat::new(

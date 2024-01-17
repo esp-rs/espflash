@@ -38,7 +38,7 @@ use crate::{
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize, Flasher, ProgressCallbacks},
     image_format::ImageFormatKind,
     interface::Interface,
-    targets::Chip,
+    targets::{Chip, XtalFrequency},
 };
 
 pub mod config;
@@ -220,6 +220,9 @@ pub struct SaveImageArgs {
     /// Don't pad the image to the flash size
     #[arg(long, short = 'P', requires = "merge")]
     pub skip_padding: bool,
+    /// Cristal frequency of the target
+    #[arg(long, short = 'x')]
+    pub xtal_freq: Option<XtalFrequency>,
 }
 
 /// Open the serial monitor without flashing
@@ -372,7 +375,7 @@ pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
     } else {
         println!();
     }
-    println!("Crystal frequency: {}MHz", info.crystal_frequency);
+    println!("Crystal frequency: {}", info.crystal_frequency);
     println!("Flash size:        {}", info.flash_size);
     println!("Features:          {}", info.features.join(", "));
     println!("MAC address:       {}", info.mac_address);
@@ -400,7 +403,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     // The 26MHz ESP32-C2's need to be treated as a special case.
     let default_baud = if chip == Chip::Esp32c2
         && args.connect_args.no_stub
-        && target.crystal_freq(flasher.connection())? == 26
+        && target.crystal_freq(flasher.connection())? == XtalFrequency::_26Mhz
     {
         74_880
     } else {
@@ -424,15 +427,16 @@ pub fn save_elf_as_image(
     flash_data: FlashData,
     merge: bool,
     skip_padding: bool,
+    xtal_freq: XtalFrequency,
 ) -> Result<()> {
     let image = ElfFirmwareImage::try_from(elf_data)?;
 
     if merge {
         // To get a chip revision, the connection is needed
         // For simplicity, the revision None is used
-        let image = chip
-            .into_target()
-            .get_flash_image(&image, flash_data.clone(), None)?;
+        let image =
+            chip.into_target()
+                .get_flash_image(&image, flash_data.clone(), None, xtal_freq)?;
 
         display_image_size(image.app_size(), image.part_size());
 
@@ -466,7 +470,7 @@ pub fn save_elf_as_image(
     } else {
         let image = chip
             .into_target()
-            .get_flash_image(&image, flash_data, None)?;
+            .get_flash_image(&image, flash_data, None, xtal_freq)?;
 
         display_image_size(image.app_size(), image.part_size());
 
@@ -573,10 +577,16 @@ pub fn flash_elf_image(
     flasher: &mut Flasher,
     elf_data: &[u8],
     flash_data: FlashData,
+    xtal_freq: XtalFrequency,
 ) -> Result<()> {
     // Load the ELF data, optionally using the provider bootloader/partition
     // table/image format, to the device's flash memory.
-    flasher.load_elf_to_flash(elf_data, flash_data, Some(&mut EspflashProgress::default()))?;
+    flasher.load_elf_to_flash(
+        elf_data,
+        flash_data,
+        Some(&mut EspflashProgress::default()),
+        xtal_freq,
+    )?;
     info!("Flashing has completed!");
 
     Ok(())

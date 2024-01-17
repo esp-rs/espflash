@@ -6,7 +6,7 @@ use crate::{
     error::{Error, UnsupportedImageFormatError},
     flasher::FlashData,
     image_format::{Esp8266Format, ImageFormat, ImageFormatKind},
-    targets::{bytes_to_mac_addr, Chip, ReadEFuse, SpiRegisters, Target},
+    targets::{bytes_to_mac_addr, Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0xfff0_c101];
@@ -60,10 +60,14 @@ impl Target for Esp8266 {
         })
     }
 
-    fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
+    fn crystal_freq(&self, connection: &mut Connection) -> Result<XtalFrequency, Error> {
         let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
         let est_xtal = (connection.get_baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
-        let norm_xtal = if est_xtal > 33 { 40 } else { 26 };
+        let norm_xtal = if est_xtal > 33 {
+            XtalFrequency::_40Mhz
+        } else {
+            XtalFrequency::_26Mhz
+        };
 
         Ok(norm_xtal)
     }
@@ -73,6 +77,7 @@ impl Target for Esp8266 {
         image: &'a dyn FirmwareImage<'a>,
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
+        _xtal_freq: XtalFrequency,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         let image_format = flash_data
             .image_format

@@ -23,7 +23,7 @@ use crate::{
     error::{ConnectionError, Error, ResultExt},
     image_format::ImageFormatKind,
     interface::Interface,
-    targets::Chip,
+    targets::{Chip, XtalFrequency},
 };
 
 mod stubs;
@@ -461,7 +461,7 @@ pub struct DeviceInfo {
     /// The revision of the chip
     pub revision: Option<(u32, u32)>,
     /// The crystal frequency of the chip
-    pub crystal_frequency: u32,
+    pub crystal_frequency: XtalFrequency,
     /// The total available flash size
     pub flash_size: FlashSize,
     /// Device features
@@ -894,6 +894,7 @@ impl Flasher {
         elf_data: &[u8],
         flash_data: FlashData,
         mut progress: Option<&mut dyn ProgressCallbacks>,
+        xtal_freq: XtalFrequency,
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
 
@@ -914,10 +915,12 @@ impl Flasher {
             None
         };
 
-        let image = self
-            .chip
-            .into_target()
-            .get_flash_image(&image, flash_data, chip_revision)?;
+        let image = self.chip.into_target().get_flash_image(
+            &image,
+            flash_data,
+            chip_revision,
+            xtal_freq,
+        )?;
 
         // When the `cli` feature is enabled, display the image size information.
         #[cfg(feature = "cli")]
@@ -995,7 +998,7 @@ impl Flasher {
         // The ROM code thinks it uses a 40 MHz XTAL. Recompute the baud rate in order
         // to trick the ROM code to set the correct baud rate for a 26 MHz XTAL.
         let mut new_baud = speed;
-        if self.chip == Chip::Esp32c2 && !self.use_stub && xtal_freq == 26 {
+        if self.chip == Chip::Esp32c2 && !self.use_stub && xtal_freq == XtalFrequency::_26Mhz {
             new_baud = new_baud * 40 / 26;
         }
 
