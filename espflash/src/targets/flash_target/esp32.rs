@@ -172,9 +172,9 @@ impl FlashTarget for Esp32Target {
         let erase_size = (erase_count * FLASH_SECTOR_SIZE) as u32;
 
         connection.with_timeout(
-            CommandType::FlashDeflateBegin.timeout_for_size(erase_size),
+            CommandType::FlashDeflBegin.timeout_for_size(erase_size),
             |connection| {
-                connection.command(Command::FlashDeflateBegin {
+                connection.command(Command::FlashDeflBegin {
                     size: segment.data.len() as u32,
                     blocks: block_count as u32,
                     block_size: flash_write_size as u32,
@@ -204,9 +204,9 @@ impl FlashTarget for Esp32Target {
             decoded_size = decoder.get_ref().len();
 
             connection.with_timeout(
-                CommandType::FlashDeflateData.timeout_for_size(size as u32),
+                CommandType::FlashDeflData.timeout_for_size(size as u32),
                 |connection| {
-                    connection.command(Command::FlashDeflateData {
+                    connection.command(Command::FlashDeflData {
                         sequence: i as u32,
                         pad_to: 0,
                         pad_byte: 0xff,
@@ -246,8 +246,8 @@ impl FlashTarget for Esp32Target {
 
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error> {
         if self.need_deflate_end {
-            connection.with_timeout(CommandType::FlashDeflateEnd.timeout(), |connection| {
-                connection.command(Command::FlashDeflateEnd { reboot: false })
+            connection.with_timeout(CommandType::FlashDeflEnd.timeout(), |connection| {
+                connection.command(Command::FlashDeflEnd { reboot: false })
             })?;
         }
 

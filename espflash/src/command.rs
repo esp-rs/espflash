@@ -15,13 +15,17 @@ const MEM_END_TIMEOUT: Duration = Duration::from_millis(50);
 const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 const FLASH_DEFLATE_END_TIMEOUT: Duration = Duration::from_secs(10);
 const FLASH_MD5_TIMEOUT: Duration = Duration::from_secs(8);
+const FLASH_SECTOR_SIZE: u32 = 0x1000;
 
 /// Types of commands that can be sent to a target device
+///
+/// https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/serial-protocol.html#supported-by-stub-loader-and-rom-loader
 #[derive(Copy, Clone, Debug, Display)]
 #[non_exhaustive]
 #[repr(u8)]
 pub enum CommandType {
     Unknown = 0,
+    // Commands supported by the ESP8266 & ESP32s bootloaders
     FlashBegin = 0x02,
     FlashData = 0x03,
     FlashEnd = 0x04,
@@ -30,19 +34,26 @@ pub enum CommandType {
     MemData = 0x07,
     Sync = 0x08,
     WriteReg = 0x09,
-    ReadReg = 0x0a,
+    ReadReg = 0x0A,
+    // Commands supported by the ESP32s bootloaders
     SpiSetParams = 0x0B,
     SpiAttach = 0x0D,
-    ChangeBaud = 0x0F,
-    FlashDeflateBegin = 0x10,
-    FlashDeflateData = 0x11,
-    FlashDeflateEnd = 0x12,
+    ChangeBaudrate = 0x0F,
+    FlashDeflBegin = 0x10,
+    FlashDeflData = 0x11,
+    FlashDeflEnd = 0x12,
     FlashMd5 = 0x13,
-    FlashDetect = 0x9f,
-    // Some commands supported by stub only
-    EraseFlash = 0xd0,
-    EraseRegion = 0xd1,
-    RunUserCode = 0xd3,
+    // Not supported on ESP32
+    GetSecurityInfo = 0x14,
+    // Stub-only commands
+    EraseFlash = 0xD0,
+    EraseRegion = 0xD1,
+    ReadFlash = 0xD2,
+    RunUserCode = 0xD3,
+    // Flash encryption debug mode supported command
+    FlashEncryptedData = 0xD4,
+    // Read SPI flash manufacturer and device id - Not part of the protocol
+    FlashDetect = 0x9F,
 }
 
 impl CommandType {
@@ -52,7 +63,7 @@ impl CommandType {
             CommandType::MemEnd => MEM_END_TIMEOUT,
             CommandType::Sync => SYNC_TIMEOUT,
             CommandType::EraseFlash => ERASE_CHIP_TIMEOUT,
-            CommandType::FlashDeflateEnd => FLASH_DEFLATE_END_TIMEOUT,
+            CommandType::FlashDeflEnd => FLASH_DEFLATE_END_TIMEOUT,
             CommandType::FlashMd5 => FLASH_MD5_TIMEOUT,
             _ => DEFAULT_TIMEOUT,
         }
@@ -68,10 +79,10 @@ impl CommandType {
             )
         }
         match self {
-            CommandType::FlashBegin | CommandType::FlashDeflateBegin | CommandType::EraseRegion => {
+            CommandType::FlashBegin | CommandType::FlashDeflBegin | CommandType::EraseRegion => {
                 calc_timeout(ERASE_REGION_TIMEOUT_PER_MB, size)
             }
-            CommandType::FlashData | CommandType::FlashDeflateData => {
+            CommandType::FlashData | CommandType::FlashDeflData => {
                 calc_timeout(ERASE_WRITE_TIMEOUT_PER_MB, size)
             }
             _ => self.timeout(),
@@ -106,15 +117,15 @@ pub enum Command<'a> {
         offset: u32,
         supports_encryption: bool,
     },
+    MemEnd {
+        no_entry: bool,
+        entry: u32,
+    },
     MemData {
         data: &'a [u8],
         pad_to: usize,
         pad_byte: u8,
         sequence: u32,
-    },
-    MemEnd {
-        no_entry: bool,
-        entry: u32,
     },
     Sync,
     WriteReg {
@@ -134,39 +145,49 @@ pub enum Command<'a> {
     SpiAttachStub {
         spi_params: SpiAttachParams,
     },
-    ChangeBaud {
+    ChangeBaudrate {
         /// New baud rate
         new_baud: u32,
         /// Prior baud rate ('0' for ROM flasher)
         prior_baud: u32,
     },
-    FlashDeflateBegin {
+    FlashDeflBegin {
         size: u32,
         blocks: u32,
         block_size: u32,
         offset: u32,
         supports_encryption: bool,
     },
-    FlashDeflateData {
+    FlashDeflData {
         data: &'a [u8],
         pad_to: usize,
         pad_byte: u8,
         sequence: u32,
     },
-    FlashDeflateEnd {
+    FlashDeflEnd {
         reboot: bool,
-    },
-    FlashDetect,
-    EraseFlash,
-    EraseRegion {
-        offset: u32,
-        size: u32,
     },
     FlashMd5 {
         offset: u32,
         size: u32,
     },
+    EraseFlash,
+    EraseRegion {
+        offset: u32,
+        size: u32,
+    },
+    // TODO: https://github.com/espressif/esptool/blob/master/flasher_stub/stub_flasher.c#L382
+    ReadFlash {
+        offset: u32,
+        size: u32,
+        block_size: u32,
+        max_in_flight: u32,
+    },
+    // TODO: https://github.com/espressif/esptool/blob/master/flasher_stub/stub_flasher.c#L364
     RunUserCode,
+    // TODO: https://github.com/espressif/esptool/blob/master/flasher_stub/stub_flasher.c#L392
+    FlashEncryptedData,
+    FlashDetect,
 }
 
 impl<'a> Command<'a> {
@@ -185,15 +206,17 @@ impl<'a> Command<'a> {
             Command::SpiSetParams { .. } => CommandType::SpiSetParams,
             Command::SpiAttach { .. } => CommandType::SpiAttach,
             Command::SpiAttachStub { .. } => CommandType::SpiAttach,
-            Command::ChangeBaud { .. } => CommandType::ChangeBaud,
-            Command::FlashDeflateBegin { .. } => CommandType::FlashDeflateBegin,
-            Command::FlashDeflateData { .. } => CommandType::FlashDeflateData,
-            Command::FlashDeflateEnd { .. } => CommandType::FlashDeflateEnd,
-            Command::FlashDetect => CommandType::FlashDetect,
+            Command::ChangeBaudrate { .. } => CommandType::ChangeBaudrate,
+            Command::FlashDeflBegin { .. } => CommandType::FlashDeflBegin,
+            Command::FlashDeflData { .. } => CommandType::FlashDeflData,
+            Command::FlashDeflEnd { .. } => CommandType::FlashDeflEnd,
+            Command::FlashMd5 { .. } => CommandType::FlashMd5,
             Command::EraseFlash { .. } => CommandType::EraseFlash,
             Command::EraseRegion { .. } => CommandType::EraseRegion,
-            Command::FlashMd5 { .. } => CommandType::FlashMd5,
+            Command::ReadFlash { .. } => CommandType::ReadFlash,
             Command::RunUserCode { .. } => CommandType::RunUserCode,
+            Command::FlashEncryptedData { .. } => CommandType::FlashEncryptedData,
+            Command::FlashDetect => CommandType::FlashDetect,
         }
     }
 
@@ -317,7 +340,7 @@ impl<'a> Command<'a> {
             Command::SpiAttachStub { spi_params } => {
                 write_basic(writer, &spi_params.encode(true), 0)?;
             }
-            Command::ChangeBaud {
+            Command::ChangeBaudrate {
                 new_baud,
                 prior_baud,
             } => {
@@ -329,7 +352,7 @@ impl<'a> Command<'a> {
                 writer.write_all(&new_baud.to_le_bytes())?;
                 writer.write_all(&prior_baud.to_le_bytes())?;
             }
-            Command::FlashDeflateBegin {
+            Command::FlashDeflBegin {
                 size,
                 blocks,
                 block_size,
@@ -345,7 +368,7 @@ impl<'a> Command<'a> {
                     supports_encryption,
                 )?;
             }
-            Command::FlashDeflateData {
+            Command::FlashDeflData {
                 pad_to,
                 pad_byte,
                 data,
@@ -353,11 +376,19 @@ impl<'a> Command<'a> {
             } => {
                 data_command(writer, data, pad_to, pad_byte, sequence)?;
             }
-            Command::FlashDeflateEnd { reboot } => {
+            Command::FlashDeflEnd { reboot } => {
                 write_basic(writer, &[u8::from(!reboot)], 0)?;
             }
-            Command::FlashDetect => {
-                write_basic(writer, &[], 0)?;
+            Command::FlashMd5 { offset, size } => {
+                // length
+                writer.write_all(&(16u16.to_le_bytes()))?;
+                // checksum
+                writer.write_all(&(0u32.to_le_bytes()))?;
+                // data
+                writer.write_all(&offset.to_le_bytes())?;
+                writer.write_all(&size.to_le_bytes())?;
+                writer.write_all(&(0u32.to_le_bytes()))?;
+                writer.write_all(&(0u32.to_le_bytes()))?;
             }
             Command::EraseFlash => {
                 write_basic(writer, &[], 0)?;
@@ -371,16 +402,29 @@ impl<'a> Command<'a> {
                 writer.write_all(&offset.to_le_bytes())?;
                 writer.write_all(&size.to_le_bytes())?;
             }
-            Command::FlashMd5 { offset, size } => {
-                // length
-                writer.write_all(&(16u16.to_le_bytes()))?;
-                // checksum
-                writer.write_all(&(0u32.to_le_bytes()))?;
-                // data
+            // TODO: https://github.com/espressif/esptool/blob/16e4faeeaa3f95c6b24dfdcc498ffc33924d5f5f/esptool/loader.py#L1166
+            Command::ReadFlash {
+                offset,
+                size,
+                block_size,
+                max_in_flight,
+            } => {
                 writer.write_all(&offset.to_le_bytes())?;
                 writer.write_all(&size.to_le_bytes())?;
-                writer.write_all(&(0u32.to_le_bytes()))?;
-                writer.write_all(&(0u32.to_le_bytes()))?;
+                writer.write_all(&FLASH_SECTOR_SIZE.to_le_bytes())?;
+                writer.write_all(&(64u32.to_le_bytes()))?;
+            }
+            // TODO: https://github.com/espressif/esptool/blob/16e4faeeaa3f95c6b24dfdcc498ffc33924d5f5f/esptool/loader.py#L1496
+            // It should not send anything or expect any response
+            Command::RunUserCode => {
+                write_basic(writer, &[], 0)?;
+            }
+            // TODO:https://github.com/espressif/esptool/blob/16e4faeeaa3f95c6b24dfdcc498ffc33924d5f5f/esptool/loader.py#L900
+            Command::FlashEncryptedData => {
+                write_basic(writer, &[], 0)?;
+            }
+            Command::FlashDetect => {
+                write_basic(writer, &[], 0)?;
             }
             Command::RunUserCode => {
                 write_basic(writer, &[], 0)?;

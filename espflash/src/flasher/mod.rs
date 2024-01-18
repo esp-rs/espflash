@@ -1112,8 +1112,8 @@ impl Flasher {
         }
 
         self.connection
-            .with_timeout(CommandType::ChangeBaud.timeout(), |connection| {
-                connection.command(Command::ChangeBaud {
+            .with_timeout(CommandType::ChangeBaudrate.timeout(), |connection| {
+                connection.command(Command::ChangeBaudrate {
                     new_baud,
                     prior_baud,
                 })
