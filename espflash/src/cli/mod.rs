@@ -11,12 +11,7 @@
 //! [espflash]: https://crates.io/crates/espflash
 
 use std::num::ParseIntError;
-use std::{
-    collections::HashMap,
-    fs,
-    io::Write,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, fs, io::Write, path::PathBuf};
 
 use clap::Args;
 use clap_complete::Shell;
@@ -35,7 +30,10 @@ use self::{
 use crate::{
     elf::ElfFirmwareImage,
     error::{Error, MissingPartition, MissingPartitionTable},
-    flasher::{FlashData, FlashFrequency, FlashMode, FlashSize, Flasher, ProgressCallbacks},
+    flasher::{
+        parse_partition_table, FlashData, FlashFrequency, FlashMode, FlashSize, Flasher,
+        ProgressCallbacks,
+    },
     image_format::ImageFormatKind,
     interface::Interface,
     targets::Chip,
@@ -580,15 +578,6 @@ pub fn flash_elf_image(
     info!("Flashing has completed!");
 
     Ok(())
-}
-
-/// Parse a [PartitionTable] from the provided path
-pub fn parse_partition_table(path: &Path) -> Result<PartitionTable> {
-    let data = fs::read(path)
-        .into_diagnostic()
-        .wrap_err("Failed to open partition table")?;
-
-    PartitionTable::try_from(data).into_diagnostic()
 }
 
 /// Erase one or more partitions by label or [DataType]

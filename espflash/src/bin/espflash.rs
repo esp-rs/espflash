@@ -8,13 +8,13 @@ use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{
         self, board_info, checksum_md5, completions, config::Config, connect, erase_flash,
-        erase_partitions, erase_region, flash_elf_image, monitor::monitor, parse_partition_table,
-        parse_uint32, partition_table, print_board_info, save_elf_as_image, serial_monitor,
-        ChecksumMd5Args, CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs,
-        EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        erase_partitions, erase_region, flash_elf_image, monitor::monitor, parse_uint32,
+        partition_table, print_board_info, save_elf_as_image, serial_monitor, ChecksumMd5Args,
+        CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress,
+        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
     },
     error::Error,
-    flasher::{FlashData, FlashSettings},
+    flasher::{parse_partition_table, FlashData, FlashSettings},
     image_format::ImageFormatKind,
     logging::initialize_logger,
     targets::Chip,

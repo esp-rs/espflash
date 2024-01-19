@@ -9,14 +9,13 @@ use std::{borrow::Cow, fs, path::Path, str::FromStr, thread::sleep};
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use esp_idf_part::PartitionTable;
 use log::{debug, info, warn};
-use miette::{IntoDiagnostic, Result};
+use miette::{Context, IntoDiagnostic, Result};
 use serde::{Deserialize, Serialize};
 use serialport::UsbPortInfo;
 use strum::{Display, EnumIter, EnumVariantNames};
 
 use self::stubs::FlashStub;
 use crate::{
-    cli::parse_partition_table,
     command::{Command, CommandType},
     connection::Connection,
     elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
@@ -333,6 +332,15 @@ impl FlashData {
             min_chip_rev,
         })
     }
+}
+
+/// Parse a [PartitionTable] from the provided path
+pub fn parse_partition_table(path: &Path) -> Result<PartitionTable> {
+    let data = fs::read(path)
+        .into_diagnostic()
+        .wrap_err("Failed to open partition table")?;
+
+    PartitionTable::try_from(data).into_diagnostic()
 }
 
 /// Parameters of the attached SPI flash chip (sizes, etc).
