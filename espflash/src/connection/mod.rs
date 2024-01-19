@@ -510,6 +510,9 @@ mod encoder {
     }
 
     impl<'a, W: Write> Write for SlipEncoder<'a, W> {
+        /// Writes the given buffer replacing the END and ESC bytes
+        ///
+        /// See https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/serial-protocol.html#low-level-protocol
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
             for value in buf.iter() {
                 match *value {

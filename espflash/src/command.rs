@@ -17,6 +17,13 @@ const FLASH_DEFLATE_END_TIMEOUT: Duration = Duration::from_secs(10);
 const FLASH_MD5_TIMEOUT: Duration = Duration::from_secs(8);
 const FLASH_SECTOR_SIZE: u32 = 0x1000;
 
+/// Input data for SYNC command (36 bytes: 0x07 0x07 0x12 0x20, followed by 32 x 0x55)
+const SYNC_FRAME: [u8; 36] = [
+    0x07, 0x07, 0x12, 0x20, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+    0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+    0x55, 0x55, 0x55, 0x55,
+];
+
 /// Types of commands that can be sent to a target device
 ///
 /// https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/serial-protocol.html#supported-by-stub-loader-and-rom-loader
@@ -183,10 +190,7 @@ pub enum Command<'a> {
         block_size: u32,
         max_in_flight: u32,
     },
-    // TODO: https://github.com/espressif/esptool/blob/master/flasher_stub/stub_flasher.c#L364
     RunUserCode,
-    // TODO: https://github.com/espressif/esptool/blob/master/flasher_stub/stub_flasher.c#L392
-    FlashEncryptedData,
     FlashDetect,
 }
 
@@ -215,7 +219,6 @@ impl<'a> Command<'a> {
             Command::EraseRegion { .. } => CommandType::EraseRegion,
             Command::ReadFlash { .. } => CommandType::ReadFlash,
             Command::RunUserCode { .. } => CommandType::RunUserCode,
-            Command::FlashEncryptedData { .. } => CommandType::FlashEncryptedData,
             Command::FlashDetect => CommandType::FlashDetect,
         }
     }
@@ -227,6 +230,7 @@ impl<'a> Command<'a> {
 
     /// Write a command
     pub fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
+        // Write the Direction and Command Indentifier
         writer.write_all(&[0, self.command_type() as u8])?;
         match *self {
             Command::FlashBegin {
@@ -297,15 +301,7 @@ impl<'a> Command<'a> {
                 write_basic(writer, bytes_of(&params), 0)?;
             }
             Command::Sync => {
-                write_basic(
-                    writer,
-                    &[
-                        0x07, 0x07, 0x12, 0x20, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
-                        0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
-                        0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
-                    ],
-                    0,
-                )?;
+                write_basic(writer, &SYNC_FRAME, 0)?;
             }
             Command::WriteReg {
                 address,
@@ -377,6 +373,8 @@ impl<'a> Command<'a> {
                 data_command(writer, data, pad_to, pad_byte, sequence)?;
             }
             Command::FlashDeflEnd { reboot } => {
+                // As per the logic here: https://github.com/espressif/esptool/blob/0a9caaf04cfde6fd97c785d4811f3fde09b1b71f/flasher_stub/stub_flasher.c#L402
+                // 0 means reboot, 1 means do nothing
                 write_basic(writer, &[u8::from(!reboot)], 0)?;
             }
             Command::FlashMd5 { offset, size } => {
@@ -414,13 +412,7 @@ impl<'a> Command<'a> {
                 writer.write_all(&FLASH_SECTOR_SIZE.to_le_bytes())?;
                 writer.write_all(&(64u32.to_le_bytes()))?;
             }
-            // TODO: https://github.com/espressif/esptool/blob/16e4faeeaa3f95c6b24dfdcc498ffc33924d5f5f/esptool/loader.py#L1496
-            // It should not send anything or expect any response
             Command::RunUserCode => {
-                write_basic(writer, &[], 0)?;
-            }
-            // TODO:https://github.com/espressif/esptool/blob/16e4faeeaa3f95c6b24dfdcc498ffc33924d5f5f/esptool/loader.py#L900
-            Command::FlashEncryptedData => {
                 write_basic(writer, &[], 0)?;
             }
             Command::FlashDetect => {
@@ -469,6 +461,7 @@ fn begin_command<W: Write>(
     };
 
     let bytes = bytes_of(&params);
+    // TODO: This should also be done when using the stub? See "Input Data" for FLASH_BEGIN/FLASH_DEFL_BEGIN: "A fifth..."
     let data = if !supports_encryption {
         // The ESP32 and ESP8266 do not take the `encrypted` field, so truncate the last
         // 4 bytes of the slice where it resides.

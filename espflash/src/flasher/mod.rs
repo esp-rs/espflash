@@ -430,14 +430,22 @@ impl FlashData {
 }
 
 /// Parameters of the attached SPI flash chip (sizes, etc).
+///
+/// See https://github.com/espressif/esptool/blob/da31d9d7a1bb496995f8e30a6be259689948e43e/esptool.py#L655
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct SpiSetParams {
+    /// Flash chip ID
     fl_id: u32,
+    /// Total size in bytes
     total_size: u32,
+    /// Block size
     block_size: u32,
+    /// Sector size
     sector_size: u32,
+    /// Page size
     page_size: u32,
+    /// Status mask
     status_mask: u32,
 }
 
