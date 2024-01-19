@@ -11,7 +11,6 @@ use strum::{FromRepr, VariantNames};
 use thiserror::Error;
 
 use crate::{
-    cli::monitor::parser::esp_defmt::DefmtError,
     command::CommandType,
     flasher::{FlashFrequency, FlashSize},
     image_format::ImageFormatKind,
@@ -176,9 +175,10 @@ pub enum Error {
     #[diagnostic(transparent)]
     UnsupportedImageFormat(#[from] UnsupportedImageFormatError),
 
+    #[cfg(feature = "cli")]
     #[error(transparent)]
     #[diagnostic(transparent)]
-    Defmt(#[from] DefmtError),
+    Defmt(#[from] crate::cli::monitor::parser::esp_defmt::DefmtError),
 
     #[error("Verification of flash content failed")]
     #[diagnostic(code(espflash::verify_failed))]
