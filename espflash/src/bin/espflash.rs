@@ -127,6 +127,11 @@ pub struct ReadFlashArgs {
     /// Offset to start reading from
     #[arg(value_name = "OFFSET", value_parser = parse_uint32)]
     pub addr: u32,
+    /// Size of each individual packet of data
+    ///
+    /// Defaults to 0x1000 (FLASH_SECTOR_SIZE)
+    #[arg(long, default_value = "0x1000", value_parser = parse_uint32)]
+    pub block_size: u32,
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
@@ -136,6 +141,9 @@ pub struct ReadFlashArgs {
     /// Name of binary dump
     #[arg(value_name = "FILE")]
     pub file: PathBuf,
+    /// Maximum number of un-acked packets
+    #[arg(long, default_value = "64", value_parser = parse_uint32)]
+    pub max_in_flight: u32,
 }
 
 #[derive(Debug, Args)]
@@ -317,7 +325,13 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
-    flasher.read_flash(args.addr, args.size, args.file)?;
+    flasher.read_flash(
+        args.addr,
+        args.size,
+        args.block_size,
+        args.max_in_flight,
+        args.file,
+    )?;
 
     Ok(())
 }

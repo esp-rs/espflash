@@ -15,7 +15,6 @@ const MEM_END_TIMEOUT: Duration = Duration::from_millis(50);
 const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 const FLASH_DEFLATE_END_TIMEOUT: Duration = Duration::from_secs(10);
 const FLASH_MD5_TIMEOUT: Duration = Duration::from_secs(8);
-const FLASH_SECTOR_SIZE: u32 = 0x1000;
 
 /// Input data for SYNC command (36 bytes: 0x07 0x07 0x12 0x20, followed by 32 x 0x55)
 const SYNC_FRAME: [u8; 36] = [
@@ -187,6 +186,8 @@ pub enum Command<'a> {
     ReadFlash {
         offset: u32,
         size: u32,
+        block_size: u32,
+        max_in_flight: u32,
     },
     RunUserCode,
     FlashDetect,
@@ -398,7 +399,12 @@ impl<'a> Command<'a> {
                 writer.write_all(&offset.to_le_bytes())?;
                 writer.write_all(&size.to_le_bytes())?;
             }
-            Command::ReadFlash { offset, size } => {
+            Command::ReadFlash {
+                offset,
+                size,
+                block_size,
+                max_in_flight,
+            } => {
                 // length
                 writer.write_all(&(16u16.to_le_bytes()))?;
                 // checksum
@@ -406,8 +412,8 @@ impl<'a> Command<'a> {
                 // data
                 writer.write_all(&offset.to_le_bytes())?;
                 writer.write_all(&size.to_le_bytes())?;
-                writer.write_all(&FLASH_SECTOR_SIZE.to_le_bytes())?;
-                writer.write_all(&(64u32.to_le_bytes()))?;
+                writer.write_all(&block_size.to_le_bytes())?;
+                writer.write_all(&(max_in_flight.to_le_bytes()))?;
             }
             Command::RunUserCode => {
                 write_basic(writer, &[], 0)?;

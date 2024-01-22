@@ -1170,7 +1170,14 @@ impl Flasher {
         Ok(())
     }
 
-    pub fn read_flash(&mut self, offset: u32, size: u32, file_path: PathBuf) -> Result<(), Error> {
+    pub fn read_flash(
+        &mut self,
+        offset: u32,
+        size: u32,
+        block_size: u32,
+        max_in_flight: u32,
+        file_path: PathBuf,
+    ) -> Result<(), Error> {
         debug!("Reading 0x{:x}B from 0x{:08x}", size, offset);
 
         let mut data = Vec::new();
@@ -1183,7 +1190,12 @@ impl Flasher {
 
         self.connection
             .with_timeout(CommandType::ReadFlash.timeout(), |connection| {
-                connection.command(Command::ReadFlash { offset, size })
+                connection.command(Command::ReadFlash {
+                    offset,
+                    size,
+                    block_size,
+                    max_in_flight,
+                })
             })?;
 
         while data.len() < size as usize {
@@ -1196,8 +1208,8 @@ impl Flasher {
 
             data.extend_from_slice(&chunk);
 
-            if data.len() < size as usize && chunk.len() < FLASH_SECTOR_SIZE {
-                return Err(Error::CorruptData(FLASH_SECTOR_SIZE, chunk.len()));
+            if data.len() < size as usize && chunk.len() < block_size as usize {
+                return Err(Error::CorruptData(block_size as usize, chunk.len()));
             }
 
             self.connection.write_raw(data.len() as u32)?;
