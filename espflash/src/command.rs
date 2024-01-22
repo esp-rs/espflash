@@ -187,8 +187,6 @@ pub enum Command<'a> {
     ReadFlash {
         offset: u32,
         size: u32,
-        block_size: u32,
-        max_in_flight: u32,
     },
     RunUserCode,
     FlashDetect,
@@ -400,13 +398,12 @@ impl<'a> Command<'a> {
                 writer.write_all(&offset.to_le_bytes())?;
                 writer.write_all(&size.to_le_bytes())?;
             }
-            // TODO: https://github.com/espressif/esptool/blob/16e4faeeaa3f95c6b24dfdcc498ffc33924d5f5f/esptool/loader.py#L1166
-            Command::ReadFlash {
-                offset,
-                size,
-                block_size,
-                max_in_flight,
-            } => {
+            Command::ReadFlash { offset, size } => {
+                // length
+                writer.write_all(&(16u16.to_le_bytes()))?;
+                // checksum
+                writer.write_all(&(0u32.to_le_bytes()))?;
+                // data
                 writer.write_all(&offset.to_le_bytes())?;
                 writer.write_all(&size.to_le_bytes())?;
                 writer.write_all(&FLASH_SECTOR_SIZE.to_le_bytes())?;

@@ -39,10 +39,11 @@ const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
 pub(crate) const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum CommandResponseValue {
     ValueU32(u32),
     ValueU128(u128),
+    Vector(Vec<u8>),
 }
 
 impl TryInto<u32> for CommandResponseValue {
@@ -52,6 +53,7 @@ impl TryInto<u32> for CommandResponseValue {
         match self {
             CommandResponseValue::ValueU32(value) => Ok(value),
             CommandResponseValue::ValueU128(_) => Err(crate::error::Error::InternalError),
+            CommandResponseValue::Vector(_) => Err(crate::error::Error::InternalError),
         }
     }
 }
@@ -63,12 +65,25 @@ impl TryInto<u128> for CommandResponseValue {
         match self {
             CommandResponseValue::ValueU32(_) => Err(crate::error::Error::InternalError),
             CommandResponseValue::ValueU128(value) => Ok(value),
+            CommandResponseValue::Vector(_) => Err(crate::error::Error::InternalError),
+        }
+    }
+}
+
+impl TryInto<Vec<u8>> for CommandResponseValue {
+    type Error = crate::error::Error;
+
+    fn try_into(self) -> Result<Vec<u8>, Self::Error> {
+        match self {
+            CommandResponseValue::ValueU32(_) => Err(crate::error::Error::InternalError),
+            CommandResponseValue::ValueU128(_) => Err(crate::error::Error::InternalError),
+            CommandResponseValue::Vector(value) => Ok(value),
         }
     }
 }
 
 /// A response from a target device following a command
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct CommandResponse {
     pub resp: u8,
     pub return_op: u8,
@@ -349,9 +364,8 @@ impl Connection {
                             response[8..][..16].try_into().unwrap(),
                         ))
                     }
-                    _ => {
-                        return Err(Error::InternalError);
-                    }
+                    // TODO: Avoid cloning?
+                    _ => CommandResponseValue::Vector(response.clone()),
                 };
 
                 let header = CommandResponse {
@@ -366,6 +380,19 @@ impl Connection {
                 Ok(Some(header))
             }
         }
+    }
+
+    /// Write raw data to the serial port
+    pub fn write_raw(&mut self, data: u32) -> Result<(), Error> {
+        let serial = self.serial.serial_port_mut();
+
+        serial.clear(serialport::ClearBuffer::Input)?;
+        let mut writer = BufWriter::new(serial);
+        let mut encoder = SlipEncoder::new(&mut writer)?;
+        encoder.write_all(&data.to_le_bytes())?;
+        encoder.finish()?;
+        writer.flush()?;
+        Ok(())
     }
 
     /// Write a command to the serial port

@@ -75,6 +75,8 @@ enum Commands {
     /// '--to-binary' options, plus the ability to print a partition table
     /// in tabular format.
     PartitionTable(PartitionTableArgs),
+    /// Read SPI flash content
+    ReadFlash(ReadFlashArgs),
     /// Generate a binary application image and save it to a local disk
     ///
     /// If the '--merge' option is used, then the bootloader, partition table,
@@ -117,6 +119,23 @@ struct FlashArgs {
     flash_args: cli::FlashArgs,
     /// ELF image to flash
     image: PathBuf,
+}
+
+#[derive(Debug, Args)]
+#[non_exhaustive]
+pub struct ReadFlashArgs {
+    /// Offset to start reading from
+    #[arg(value_name = "OFFSET", value_parser = parse_uint32)]
+    pub addr: u32,
+    /// Connection configuration
+    #[clap(flatten)]
+    connect_args: ConnectArgs,
+    /// Size of the region to erase
+    #[arg(value_name = "SIZE", value_parser = parse_uint32)]
+    pub size: u32,
+    /// Name of binary dump
+    #[arg(value_name = "FILE")]
+    pub file: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -178,6 +197,7 @@ fn main() -> Result<()> {
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
         Commands::SaveImage(args) => save_image(args),
+        Commands::ReadFlash(args) => read_flash(args, &config),
         Commands::WriteBin(args) => write_bin(args, &config),
         Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
     }
@@ -292,6 +312,14 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     } else {
         Ok(())
     }
+}
+
+fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
+    let mut flasher = connect(&args.connect_args, config, false, false)?;
+    print_board_info(&mut flasher)?;
+    flasher.read_flash(args.addr, args.size, args.file)?;
+
+    Ok(())
 }
 
 fn save_image(args: SaveImageArgs) -> Result<()> {
