@@ -128,12 +128,12 @@ pub enum Error {
     #[diagnostic(code(espflash::read_flash::read_more_than_expected))]
     ReadMoreThanExpected,
 
-    #[error("Erase commands require using the RAM stub")]
+    #[error("This command requires using the RAM stub")]
     #[diagnostic(
         code(espflash::stub_required_to_erase_flash),
-        help("Don't use the `--no-stub` option with erase commands")
+        help("Don't use the `--no-stub` option with the command")
     )]
-    StubRequiredToEraseFlash,
+    StubRequired,
 
     #[cfg(feature = "serialport")]
     #[error("Incorrect serial port configuration")]

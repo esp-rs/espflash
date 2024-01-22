@@ -233,7 +233,7 @@ struct BuildContext {
 
 pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
-        return Err(EspflashError::StubRequiredToEraseFlash).into_diagnostic();
+        return Err(EspflashError::StubRequired).into_diagnostic();
     }
 
     let metadata_partition_table = PackageMetadata::load(&args.package)

@@ -213,7 +213,7 @@ fn main() -> Result<()> {
 
 pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
-        return Err(Error::StubRequiredToEraseFlash).into_diagnostic();
+        return Err(Error::StubRequired.into());
     }
 
     let mut flash = connect(&args.connect_args, config, false, false)?;
@@ -323,6 +323,10 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 }
 
 fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
+    if args.connect_args.no_stub {
+        return Err(Error::StubRequired.into());
+    }
+
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
     flasher.read_flash(

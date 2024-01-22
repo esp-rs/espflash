@@ -558,7 +558,7 @@ impl ProgressCallbacks for EspflashProgress {
 
 pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
-        return Err(Error::StubRequiredToEraseFlash).into_diagnostic();
+        return Err(Error::StubRequired.into());
     }
 
     let mut flash = connect(&args.connect_args, config, true, true)?;
@@ -575,7 +575,7 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
 
 pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
-        return Err(Error::StubRequiredToEraseFlash).into_diagnostic();
+        return Err(Error::StubRequired).into_diagnostic();
     }
 
     let mut flash = connect(&args.connect_args, config, true, true)?;
