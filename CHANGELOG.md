@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for 26 MHz bootloader for ESP32 and ESP32-C2 (#553)
 - Add CI check to verify that CHANGELOG is updated (#560)
 - Add `--before` and `--after` reset arguments (#561)
+- Add `read-flash` command (#558)
 
 ### Fixed
 

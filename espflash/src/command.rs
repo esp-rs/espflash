@@ -420,9 +420,6 @@ impl<'a> Command<'a> {
             Command::FlashDetect => {
                 write_basic(writer, &[], 0)?;
             }
-            Command::RunUserCode => {
-                write_basic(writer, &[], 0)?;
-            }
         };
         Ok(())
     }
