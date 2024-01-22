@@ -9,9 +9,9 @@ use espflash::{
     cli::{
         self, board_info, checksum_md5, completions, config::Config, connect, erase_flash,
         erase_partitions, erase_region, flash_elf_image, monitor::monitor, parse_uint32,
-        partition_table, print_board_info, save_elf_as_image, serial_monitor, ChecksumMd5Args,
-        CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress,
-        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        partition_table, print_board_info, read_flash, save_elf_as_image, serial_monitor,
+        ChecksumMd5Args, CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs,
+        EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs, ReadFlashArgs,
     },
     error::Error,
     flasher::{parse_partition_table, FlashData, FlashSettings},
@@ -119,31 +119,6 @@ struct FlashArgs {
     flash_args: cli::FlashArgs,
     /// ELF image to flash
     image: PathBuf,
-}
-
-#[derive(Debug, Args)]
-#[non_exhaustive]
-pub struct ReadFlashArgs {
-    /// Offset to start reading from
-    #[arg(value_name = "OFFSET", value_parser = parse_uint32)]
-    pub addr: u32,
-    /// Size of each individual packet of data
-    ///
-    /// Defaults to 0x1000 (FLASH_SECTOR_SIZE)
-    #[arg(long, default_value = "0x1000", value_parser = parse_uint32)]
-    pub block_size: u32,
-    /// Connection configuration
-    #[clap(flatten)]
-    connect_args: ConnectArgs,
-    /// Size of the region to erase
-    #[arg(value_name = "SIZE", value_parser = parse_uint32)]
-    pub size: u32,
-    /// Name of binary dump
-    #[arg(value_name = "FILE")]
-    pub file: PathBuf,
-    /// Maximum number of un-acked packets
-    #[arg(long, default_value = "64", value_parser = parse_uint32)]
-    pub max_in_flight: u32,
 }
 
 #[derive(Debug, Args)]
@@ -320,24 +295,6 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     } else {
         Ok(())
     }
-}
-
-fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
-    if args.connect_args.no_stub {
-        return Err(Error::StubRequired.into());
-    }
-
-    let mut flasher = connect(&args.connect_args, config, false, false)?;
-    print_board_info(&mut flasher)?;
-    flasher.read_flash(
-        args.addr,
-        args.size,
-        args.block_size,
-        args.max_in_flight,
-        args.file,
-    )?;
-
-    Ok(())
 }
 
 fn save_image(args: SaveImageArgs) -> Result<()> {

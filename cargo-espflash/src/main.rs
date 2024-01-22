@@ -10,9 +10,9 @@ use espflash::{
     cli::{
         self, board_info, checksum_md5, completions, config::Config, connect, erase_flash,
         erase_partitions, erase_region, flash_elf_image, monitor::monitor, partition_table,
-        print_board_info, save_elf_as_image, serial_monitor, ChecksumMd5Args, CompletionsArgs,
-        ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress, FlashConfigArgs,
-        MonitorArgs, PartitionTableArgs,
+        print_board_info, read_flash, save_elf_as_image, serial_monitor, ChecksumMd5Args,
+        CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress,
+        FlashConfigArgs, MonitorArgs, PartitionTableArgs, ReadFlashArgs,
     },
     error::Error as EspflashError,
     flasher::{parse_partition_table, FlashData, FlashSettings},
@@ -100,6 +100,8 @@ enum Commands {
     /// '--to-binary' options, plus the ability to print a partition table
     /// in tabular format.
     PartitionTable(PartitionTableArgs),
+    /// Read SPI flash content
+    ReadFlash(ReadFlashArgs),
     /// Generate a binary application image and save it to a local disk
     ///
     /// If the '--merge' option is used, then the bootloader, partition table,
@@ -219,6 +221,7 @@ fn main() -> Result<()> {
         Commands::Flash(args) => flash(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
+        Commands::ReadFlash(args) => read_flash(args, &config),
         Commands::SaveImage(args) => save_image(args),
         Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
     }
