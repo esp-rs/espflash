@@ -182,7 +182,6 @@ pub enum Command<'a> {
         offset: u32,
         size: u32,
     },
-    // TODO: https://github.com/espressif/esptool/blob/master/flasher_stub/stub_flasher.c#L382
     ReadFlash {
         offset: u32,
         size: u32,
@@ -464,7 +463,6 @@ fn begin_command<W: Write>(
     };
 
     let bytes = bytes_of(&params);
-    // TODO: This should also be done when using the stub? See "Input Data" for FLASH_BEGIN/FLASH_DEFL_BEGIN: "A fifth..."
     let data = if !supports_encryption {
         // The ESP32 and ESP8266 do not take the `encrypted` field, so truncate the last
         // 4 bytes of the slice where it resides.

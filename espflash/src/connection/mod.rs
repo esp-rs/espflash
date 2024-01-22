@@ -364,7 +364,6 @@ impl Connection {
                             response[8..][..16].try_into().unwrap(),
                         ))
                     }
-                    // TODO: Avoid cloning?
                     _ => CommandResponseValue::Vector(response.clone()),
                 };
 
