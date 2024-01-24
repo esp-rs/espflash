@@ -202,20 +202,18 @@ impl Connection {
             ResetAfterOperation::SoftReset => {
                 soft_reset(self, false, is_stub, chip)?;
                 println!("Soft resetting");
-                return Ok(());
+                Ok(())
             }
             ResetAfterOperation::NoReset => {
                 soft_reset(self, true, is_stub, chip)?;
                 println!("Staying in flasher stub");
-                return Ok(());
+                Ok(())
             }
             ResetAfterOperation::NoResetNoStub => {
                 println!("Staying in flasher stub");
-                return Ok(());
+                Ok(())
             }
-        };
-
-        Ok(())
+        }
     }
 
     // Reset the device to flash mode

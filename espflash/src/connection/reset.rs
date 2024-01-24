@@ -234,15 +234,15 @@ pub fn soft_reset(
         } else {
             //  flash_begin(0,0)
             connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
-                let num_blocks: u32 = ((0 + flasher::FLASH_WRITE_SIZE - 1)
-                    / flasher::FLASH_WRITE_SIZE)
-                    .try_into()
-                    .unwrap();
+                let size: u32 = 0;
+                let offset: u32 = 0;
+                let blocks: u32 = (size + flasher::FLASH_WRITE_SIZE as u32 - 1)
+                    / flasher::FLASH_WRITE_SIZE as u32;
                 connection.command(Command::FlashBegin {
-                    size: 0,
-                    blocks: num_blocks.into(),
+                    size,
+                    blocks,
                     block_size: flasher::FLASH_WRITE_SIZE.try_into().unwrap(),
-                    offset: 0,
+                    offset,
                     supports_encryption: false,
                 })
             })?;
@@ -251,33 +251,31 @@ pub fn soft_reset(
                 connection.write_command(Command::FlashEnd { reboot: false })
             })?;
         }
+    } else if stay_in_bootloader {
+        //  flash_begin(0,0)
+        connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
+            let size: u32 = 0;
+            let offset: u32 = 0;
+            let blocks: u32 =
+                (size + flasher::FLASH_WRITE_SIZE as u32 - 1) / flasher::FLASH_WRITE_SIZE as u32;
+            connection.command(Command::FlashBegin {
+                size,
+                blocks,
+                block_size: flasher::FLASH_WRITE_SIZE.try_into().unwrap(),
+                offset,
+                supports_encryption: false,
+            })
+        })?;
+        // flash_end(true)
+        connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
+            connection.write_command(Command::FlashEnd { reboot: true })
+        })?;
+    } else if chip != Chip::Esp8266 {
+        return Err(Error::SoftResetNotAvailable);
     } else {
-        if stay_in_bootloader {
-            //  flash_begin(0,0)
-            connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
-                let num_blocks: u32 = ((0 + flasher::FLASH_WRITE_SIZE - 1)
-                    / flasher::FLASH_WRITE_SIZE)
-                    .try_into()
-                    .unwrap();
-                connection.command(Command::FlashBegin {
-                    size: 0,
-                    blocks: num_blocks.into(),
-                    block_size: flasher::FLASH_WRITE_SIZE.try_into().unwrap(),
-                    offset: 0,
-                    supports_encryption: false,
-                })
-            })?;
-            // flash_end(true)
-            connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
-                connection.write_command(Command::FlashEnd { reboot: true })
-            })?;
-        } else if chip != Chip::Esp8266 {
-            return Err(Error::SoftResetNotAvailable);
-        } else {
-            connection.with_timeout(CommandType::RunUserCode.timeout(), |connection| {
-                connection.command(Command::RunUserCode)
-            })?;
-        }
+        connection.with_timeout(CommandType::RunUserCode.timeout(), |connection| {
+            connection.command(Command::RunUserCode)
+        })?;
     }
 
     Ok(())
