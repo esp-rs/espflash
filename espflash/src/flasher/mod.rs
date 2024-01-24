@@ -519,17 +519,24 @@ impl Flasher {
         connection.begin()?;
         connection.set_timeout(DEFAULT_TIMEOUT)?;
 
-        // Detect which chip we are connected to.
-        let magic = connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
-        let detected_chip = Chip::from_magic(magic)?;
-        if let Some(chip) = chip {
-            if chip != detected_chip {
-                return Err(Error::ChipMismatch(
-                    chip.to_string(),
-                    detected_chip.to_string(),
-                ));
+        let detected_chip = if before_operation != ResetBeforeOperation::NoResetNoSync {
+            // Detect which chip we are connected to.
+            let magic = connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
+            let detected_chip = Chip::from_magic(magic)?;
+            if let Some(chip) = chip {
+                if chip != detected_chip {
+                    return Err(Error::ChipMismatch(
+                        chip.to_string(),
+                        detected_chip.to_string(),
+                    ));
+                }
             }
-        }
+            detected_chip
+        } else if before_operation == ResetBeforeOperation::NoResetNoSync && chip.is_some() {
+            chip.unwrap()
+        } else {
+            return Err(Error::ChipNotProvided);
+        };
 
         let mut flasher = Flasher {
             connection,
@@ -540,6 +547,10 @@ impl Flasher {
             verify,
             skip,
         };
+
+        if before_operation == ResetBeforeOperation::NoResetNoSync {
+            return Ok(flasher);
+        }
 
         // Load flash stub if enabled
         if use_stub {

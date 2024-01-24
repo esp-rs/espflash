@@ -141,7 +141,6 @@ impl Connection {
             //TODO:  Implement https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/loader.py#L565-L574 ?
         }
 
-        reset_strategy.reset(&mut self.serial)?;
         for _ in 0..MAX_SYNC_ATTEMPTS {
             self.flush()?;
 

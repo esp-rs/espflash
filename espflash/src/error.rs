@@ -47,6 +47,13 @@ pub enum Error {
     )]
     ChipMismatch(String, String),
 
+    #[error("Chip not argument provided, this is required when using the `--before no-reset-no-sync` option")]
+    #[diagnostic(
+        code(espflash::chip_not_provided),
+        help("Ensure that you provide the `-c/--chip` option with the proper chip")
+    )]
+    ChipNotProvided,
+
     #[error("Supplied ELF image can not be run from RAM, as it includes segments mapped to ROM addresses")]
     #[diagnostic(
         code(espflash::not_ram_loadable),
