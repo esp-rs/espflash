@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add verify and skipping of unchanged flash regions - add `--no-verify` and `--no-skip` (#538)
 - Add --min-chip-rev argument to specify minimum chip revision (#252)
 - Add `serialport` feature. (#535)
+- Add support for 26 MHz bootloader for ESP32 and ESP32-C2 (#553)
 
 ### Fixed
 
