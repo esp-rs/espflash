@@ -253,12 +253,23 @@ pub enum ConnectionError {
     #[error("Invalid stub handshake response received")]
     InvalidStubHandshake,
 
+    #[error("Download mode successfully detected, but getting no sync reply")]
+    #[diagnostic(
+        code(espflash::no_sync_reply),
+        help("The serial TX path seems to be down")
+    )]
+    NoSyncReply,
+
     #[error("Received packet to large for buffer")]
     #[diagnostic(
         code(espflash::oversized_packet),
         help("Try hard-resetting the device and try again, if the error persists your ROM may be corrupted")
     )]
     OverSizedPacket,
+
+    #[error("Failed to read the available bytes on the serial port. Available bytes: {0}, Read bytes: {1}")]
+    #[diagnostic(code(espflash::read_missmatch))]
+    ReadMissmatch(u32, u32),
 
     #[error("Timeout while running {0}command")]
     #[diagnostic(code(espflash::timeout))]
@@ -268,6 +279,10 @@ pub enum ConnectionError {
     #[error("IO error while using serial port: {0}")]
     #[diagnostic(code(espflash::serial_error))]
     Serial(#[source] serialport::Error),
+
+    #[error("Wrong boot mode detected ({0})! The chip needs to be in download mode.")]
+    #[diagnostic(code(espflash::wrong_boot_mode))]
+    WrongBootMode(String),
 }
 
 impl From<io::Error> for ConnectionError {

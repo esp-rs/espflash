@@ -12,6 +12,7 @@ use std::{
 };
 
 use log::debug;
+use regex::Regex;
 use serialport::UsbPortInfo;
 use slip_codec::SlipDecoder;
 
@@ -133,12 +134,42 @@ impl Connection {
         if self.before_operation == ResetBeforeOperation::NoResetNoSync {
             return Ok(());
         }
-
+        let mut download_mode: bool = false;
+        let mut boot_mode: &str = "";
+        let mut boot_log_detected = false;
+        let mut buff: Vec<u8>;
         if self.before_operation != ResetBeforeOperation::NoReset {
             // Reset the chip to bootloader (download mode)
             reset_strategy.reset(&mut self.serial)?;
 
-            //TODO:  Implement https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/loader.py#L565-L574 ?
+            // //TODO:  Implement https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/loader.py#L565-L574 ?
+
+            let available_bytes = self.serial.serial_port_mut().bytes_to_read()?;
+            buff = vec![0; available_bytes as usize];
+            let read_bytes = self.serial.serial_port_mut().read(&mut buff)? as u32;
+
+            if read_bytes != available_bytes {
+                return Err(Error::Connection(ConnectionError::ReadMissmatch(
+                    available_bytes,
+                    read_bytes,
+                )));
+            }
+
+            let read_slice = std::str::from_utf8(&buff[..read_bytes as usize]).unwrap();
+
+            let pattern = Regex::new(r"boot:(0x[0-9a-fA-F]+)(.*waiting for download)?").unwrap();
+
+            // Search for the pattern in the read data
+            if let Some(data) = pattern.captures(read_slice) {
+                boot_log_detected = true;
+                // Boot log detected
+                boot_mode = data.get(1).map(|m| m.as_str()).unwrap_or_default();
+                download_mode = data.get(2).is_some();
+
+                // Further processing or printing the results
+                debug!("Boot Mode: {}", boot_mode);
+                debug!("Download Mode: {}", download_mode);
+            };
         }
 
         for _ in 0..MAX_SYNC_ATTEMPTS {
@@ -146,6 +177,16 @@ impl Connection {
 
             if self.sync().is_ok() {
                 return Ok(());
+            }
+        }
+
+        if boot_log_detected {
+            if download_mode {
+                return Err(Error::Connection(ConnectionError::NoSyncReply));
+            } else {
+                return Err(Error::Connection(ConnectionError::WrongBootMode(
+                    boot_mode.to_string(),
+                )));
             }
         }
 
