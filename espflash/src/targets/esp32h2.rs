@@ -8,6 +8,7 @@ use crate::{
     error::Error,
     flasher::{FlashData, FlashFrequency},
     image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
+    targets::XtalFrequency,
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0xD7B7_3E80];
@@ -61,9 +62,9 @@ impl Target for Esp32h2 {
         Ok((hi << 3) + lo)
     }
 
-    fn crystal_freq(&self, _connection: &mut Connection) -> Result<u32, Error> {
+    fn crystal_freq(&self, _connection: &mut Connection) -> Result<XtalFrequency, Error> {
         // The ESP32-H2's XTAL has a fixed frequency of 32MHz.
-        Ok(32)
+        Ok(XtalFrequency::_32Mhz)
     }
 
     fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
@@ -79,10 +80,18 @@ impl Target for Esp32h2 {
         image: &'a dyn FirmwareImage<'a>,
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
+        xtal_freq: XtalFrequency,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         let image_format = flash_data
             .image_format
             .unwrap_or(ImageFormatKind::EspBootloader);
+
+        if xtal_freq != XtalFrequency::_32Mhz {
+            return Err(Error::UnsupportedFeature {
+                chip: Chip::Esp32h2,
+                feature: "the selected crystal frequency".into(),
+            });
+        }
 
         match image_format {
             ImageFormatKind::EspBootloader => Ok(Box::new(IdfBootloaderFormat::new(

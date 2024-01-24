@@ -18,7 +18,7 @@ use espflash::{
     flasher::{FlashData, FlashSettings},
     image_format::ImageFormatKind,
     logging::initialize_logger,
-    targets::Chip,
+    targets::{Chip, XtalFrequency},
     update::check_for_update,
 };
 use log::{debug, info, LevelFilter};
@@ -339,19 +339,21 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             )?;
         }
 
-        flash_elf_image(&mut flasher, &elf_data, flash_data)?;
+        flash_elf_image(&mut flasher, &elf_data, flash_data, target_xtal_freq)?;
     }
 
     if args.flash_args.monitor {
         let pid = flasher.get_usb_pid()?;
 
         // The 26MHz ESP32-C2's need to be treated as a special case.
-        let default_baud =
-            if chip == Chip::Esp32c2 && args.connect_args.no_stub && target_xtal_freq == 26 {
-                74_880
-            } else {
-                115_200
-            };
+        let default_baud = if chip == Chip::Esp32c2
+            && args.connect_args.no_stub
+            && target_xtal_freq == XtalFrequency::_26Mhz
+        {
+            74_880
+        } else {
+            115_200
+        };
 
         monitor(
             flasher.into_interface(),
@@ -580,6 +582,11 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
         args.save_image_args.min_chip_rev,
     )?;
 
+    let xtal_freq = args
+        .save_image_args
+        .xtal_freq
+        .unwrap_or(XtalFrequency::default(args.save_image_args.chip));
+
     save_elf_as_image(
         &elf_data,
         args.save_image_args.chip,
@@ -587,6 +594,7 @@ fn save_image(args: SaveImageArgs) -> Result<()> {
         flash_data,
         args.save_image_args.merge,
         args.save_image_args.skip_padding,
+        xtal_freq,
     )?;
 
     Ok(())
