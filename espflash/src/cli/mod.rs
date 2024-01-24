@@ -588,7 +588,10 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
         args.addr, args.size
     );
     flash.erase_region(args.addr, args.size)?;
-    flash.connection().reset()?;
+    let chip = flash.chip();
+    flash
+        .connection()
+        .reset_after(!args.connect_args.no_stub, chip)?;
 
     Ok(())
 }

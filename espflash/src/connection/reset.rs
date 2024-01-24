@@ -230,9 +230,10 @@ pub fn soft_reset(
     debug!("Using SoftReset reset strategy");
     if !is_stub {
         if stay_in_bootloader {
+            // ROM bootloader is already in bootloader
             return Ok(());
         } else {
-            //  flash_begin(0,0)
+            //  'run user code' is as close to a soft reset as we can do
             connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
                 let size: u32 = 0;
                 let offset: u32 = 0;
@@ -252,7 +253,7 @@ pub fn soft_reset(
             })?;
         }
     } else if stay_in_bootloader {
-        //  flash_begin(0,0)
+        // Soft resetting from the stub loader will re-load the ROM bootloader
         connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
             let size: u32 = 0;
             let offset: u32 = 0;
@@ -266,13 +267,13 @@ pub fn soft_reset(
                 supports_encryption: false,
             })
         })?;
-        // flash_end(true)
         connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
             connection.write_command(Command::FlashEnd { reboot: true })
         })?;
     } else if chip != Chip::Esp8266 {
         return Err(Error::SoftResetNotAvailable);
     } else {
+        // Running user code from stub loader requires some hacks in the stub loader
         connection.with_timeout(CommandType::RunUserCode.timeout(), |connection| {
             connection.command(Command::RunUserCode)
         })?;

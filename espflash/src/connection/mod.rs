@@ -192,21 +192,20 @@ impl Connection {
 
         Ok(())
     }
-    // Reset the device
-    // Implement https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/__init__.py#L931-L944
 
+    // Reset the device taking into account the reset after argument
     pub fn reset_after(&mut self, is_stub: bool, chip: Chip) -> Result<(), Error> {
-        // TODO: verfify that we are not using --ram flag. Only in FlashArgs
         match self.after_operation {
             ResetAfterOperation::HardReset => HardReset.reset(&mut self.serial),
             ResetAfterOperation::SoftReset => {
-                soft_reset(self, false, is_stub, chip)?;
                 println!("Soft resetting");
+                soft_reset(self, false, is_stub, chip)?;
                 Ok(())
             }
             ResetAfterOperation::NoReset => {
+                println!("Staying in bootloader");
                 soft_reset(self, true, is_stub, chip)?;
-                println!("Staying in flasher stub");
+
                 Ok(())
             }
             ResetAfterOperation::NoResetNoStub => {

@@ -248,7 +248,7 @@ impl FlashTarget for Esp32Target {
         }
 
         if reboot {
-            connection.reset()?;
+            connection.reset_after(self.use_stub, self.chip)?;
         }
 
         Ok(())
