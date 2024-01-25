@@ -42,7 +42,6 @@ pub enum CommandType {
     // Some commands supported by stub only
     EraseFlash = 0xd0,
     EraseRegion = 0xd1,
-    // https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/loader.py#L221
     RunUserCode = 0xd3,
 }
 

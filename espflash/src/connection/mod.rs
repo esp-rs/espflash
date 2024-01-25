@@ -142,8 +142,6 @@ impl Connection {
             // Reset the chip to bootloader (download mode)
             reset_strategy.reset(&mut self.serial)?;
 
-            // //TODO:  Implement https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/loader.py#L565-L574 ?
-
             let available_bytes = self.serial.serial_port_mut().bytes_to_read()?;
             buff = vec![0; available_bytes as usize];
             let read_bytes = self.serial.serial_port_mut().read(&mut buff)? as u32;
@@ -475,7 +473,6 @@ pub fn reset_after_flash(serial: &mut Interface, pid: u16) -> Result<(), serialp
 
         serial.write_request_to_send(false)?;
     } else {
-        // THIS IS SAME AS HARD_RESET https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/reset.py#L124-L135
         serial.write_request_to_send(true)?;
 
         sleep(Duration::from_millis(100));

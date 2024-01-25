@@ -247,7 +247,6 @@ pub fn soft_reset(
                     supports_encryption: false,
                 })
             })?;
-            // flash_end(false)
             connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
                 connection.write_command(Command::FlashEnd { reboot: false })
             })?;

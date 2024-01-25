@@ -567,7 +567,6 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
 
     info!("Erasing Flash...");
     flash.erase_flash()?;
-    // Reset after? https://github.com/espressif/esptool/blob/3a82d7a2d31f509038a5947ae73c3e488be5d664/esptool/__init__.py#L931-L944
     let chip = flash.chip();
     flash
         .connection()
