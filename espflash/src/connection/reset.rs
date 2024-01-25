@@ -170,13 +170,13 @@ impl ResetStrategy for UsbJtagSerialReset {
     fn reset(&self, interface: &mut Interface) -> Result<(), Error> {
         debug!("Using UsbJtagSerial reset strategy");
 
-        self.set_dtr(interface, false)?; // Idle
         self.set_rts(interface, false)?;
+        self.set_dtr(interface, false)?; // Idle
 
         sleep(Duration::from_millis(100));
 
-        self.set_dtr(interface, true)?; // Set IO0
         self.set_rts(interface, false)?;
+        self.set_dtr(interface, true)?; // Set IO0
 
         sleep(Duration::from_millis(100));
 
@@ -186,8 +186,8 @@ impl ResetStrategy for UsbJtagSerialReset {
 
         sleep(Duration::from_millis(100));
 
-        self.set_dtr(interface, false)?;
         self.set_rts(interface, false)?;
+        self.set_dtr(interface, false)?;
 
         Ok(())
     }
