@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed defmt parsing when data is read in parts (#503)
 - Use partition table instead of hard-coded values for the location of partitions (#516)
 - Fixed a missed `flush` call that may be causing communication errors (#521)
+- Windows: Update RST/DTR order to avoid issues.
 
 ### Changed
 - Created `FlashData` and `FlashSettings` structs to reduce number of input arguments in some functions (#512)
