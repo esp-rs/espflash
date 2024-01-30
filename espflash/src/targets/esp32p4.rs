@@ -1,13 +1,13 @@
 use std::ops::Range;
 
-use super::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target};
+#[cfg(feature = "serialport")]
+use crate::connection::Connection;
 use crate::{
-    connection::Connection,
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashData, FlashFrequency},
     image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
-    targets::XtalFrequency,
+    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x0];
@@ -46,20 +46,24 @@ impl Target for Esp32p4 {
         FLASH_RANGES.iter().any(|range| range.contains(&addr))
     }
 
+    #[cfg(feature = "serialport")]
     fn chip_features(&self, _connection: &mut Connection) -> Result<Vec<&str>, Error> {
         Ok(vec!["High-Performance MCU"])
     }
 
+    #[cfg(feature = "serialport")]
     fn major_chip_version(&self, _connection: &mut Connection) -> Result<u32, Error> {
         // TODO: https://github.com/espressif/esptool/blob/master/esptool/targets/esp32p4.py#L96
         Ok(0)
     }
 
+    #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, _connection: &mut Connection) -> Result<u32, Error> {
         // TODO: https://github.com/espressif/esptool/blob/master/esptool/targets/esp32p4.py#L92
         Ok(0)
     }
 
+    #[cfg(feature = "serialport")]
     fn crystal_freq(&self, _connection: &mut Connection) -> Result<XtalFrequency, Error> {
         // The ESP32-P4's XTAL has a fixed frequency of 40MHz.
         Ok(XtalFrequency::_40Mhz)

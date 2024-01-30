@@ -1,7 +1,8 @@
 use std::ops::Range;
 
+#[cfg(feature = "serialport")]
+use crate::connection::Connection;
 use crate::{
-    connection::Connection,
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
     flasher::{FlashData, FlashFrequency, FLASH_WRITE_SIZE},
@@ -33,6 +34,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
 pub struct Esp32s2;
 
 impl Esp32s2 {
+    #[cfg(feature = "serialport")]
     /// Return if the connection is USB OTG
     fn connection_is_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
         const UARTDEV_BUF_NO: u32 = 0x3fff_fd14; // Address which indicates OTG in use
@@ -41,6 +43,7 @@ impl Esp32s2 {
         Ok(connection.read_reg(UARTDEV_BUF_NO)? == UARTDEV_BUF_NO_USB_OTG)
     }
 
+    #[cfg(feature = "serialport")]
     /// Return the block2 version based on eFuses
     fn get_block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let blk2_word4 = self.read_efuse(connection, 27)?;
@@ -49,6 +52,7 @@ impl Esp32s2 {
         Ok(block2_version)
     }
 
+    #[cfg(feature = "serialport")]
     /// Return the flash version based on eFuses
     fn get_flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let blk1_word3 = self.read_efuse(connection, 20)?;
@@ -57,6 +61,7 @@ impl Esp32s2 {
         Ok(flash_version)
     }
 
+    #[cfg(feature = "serialport")]
     /// Return the PSRAM version based on eFuses
     fn get_psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let blk1_word3 = self.read_efuse(connection, 20)?;
@@ -82,6 +87,7 @@ impl Target for Esp32s2 {
         FLASH_RANGES.iter().any(|range| range.contains(&addr))
     }
 
+    #[cfg(feature = "serialport")]
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
         let mut features = vec!["WiFi"];
 
@@ -112,10 +118,12 @@ impl Target for Esp32s2 {
         Ok(features)
     }
 
+    #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         Ok(self.read_efuse(connection, 20)? >> 18 & 0x3)
     }
 
+    #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let hi = self.read_efuse(connection, 20)? >> 20 & 0x1;
         let lo = self.read_efuse(connection, 21)? >> 4 & 0x7;
@@ -123,11 +131,13 @@ impl Target for Esp32s2 {
         Ok((hi << 3) + lo)
     }
 
+    #[cfg(feature = "serialport")]
     fn crystal_freq(&self, _connection: &mut Connection) -> Result<XtalFrequency, Error> {
         // The ESP32-S2's XTAL has a fixed frequency of 40MHz.
         Ok(XtalFrequency::_40Mhz)
     }
 
+    #[cfg(feature = "serialport")]
     fn flash_write_size(&self, connection: &mut Connection) -> Result<usize, Error> {
         Ok(if self.connection_is_usb_otg(connection)? {
             MAX_USB_BLOCK_SIZE
@@ -170,6 +180,7 @@ impl Target for Esp32s2 {
         }
     }
 
+    #[cfg(feature = "serialport")]
     fn max_ram_block_size(&self, connection: &mut Connection) -> Result<usize, Error> {
         Ok(if self.connection_is_usb_otg(connection)? {
             MAX_USB_BLOCK_SIZE
