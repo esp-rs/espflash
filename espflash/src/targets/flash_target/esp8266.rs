@@ -1,11 +1,11 @@
 use crate::{
     command::{Command, CommandType},
-    connection::Connection,
     elf::RomSegment,
     error::Error,
     flasher::{get_erase_size, ProgressCallbacks, FLASH_WRITE_SIZE},
-    targets::FlashTarget,
 };
+#[cfg(feature = "serialport")]
+use crate::{connection::Connection, targets::FlashTarget};
 
 /// Applications running from an ESP8266's flash
 #[derive(Default)]
@@ -17,6 +17,7 @@ impl Esp8266Target {
     }
 }
 
+#[cfg(feature = "serialport")]
 impl FlashTarget for Esp8266Target {
     fn begin(&mut self, connection: &mut Connection) -> Result<(), Error> {
         connection.command(Command::FlashBegin {

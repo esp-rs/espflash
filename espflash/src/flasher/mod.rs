@@ -9,23 +9,22 @@ use std::{borrow::Cow, fs, path::Path, str::FromStr, thread::sleep};
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use esp_idf_part::PartitionTable;
 use log::{debug, info, warn};
-use miette::{IntoDiagnostic, Result};
+use miette::{Context, IntoDiagnostic, Result};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "serialport")]
 use serialport::UsbPortInfo;
 use strum::{Display, EnumIter, EnumVariantNames};
 
 use self::stubs::FlashStub;
 use crate::{
-    cli::parse_partition_table,
     command::{Command, CommandType},
-    connection::Connection,
     elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
     error::{ConnectionError, Error, ResultExt},
     image_format::ImageFormatKind,
-    interface::Interface,
     targets::{Chip, XtalFrequency},
 };
-
+#[cfg(feature = "serialport")]
+use crate::{connection::Connection, interface::Interface};
 mod stubs;
 
 pub(crate) const CHECKSUM_INIT: u8 = 0xEF;
@@ -480,6 +479,7 @@ pub trait ProgressCallbacks {
     fn finish(&mut self);
 }
 
+#[cfg(feature = "serialport")]
 /// Connect to and flash a target device
 pub struct Flasher {
     /// Connection for flash operations
@@ -498,6 +498,7 @@ pub struct Flasher {
     skip: bool,
 }
 
+#[cfg(feature = "serialport")]
 impl Flasher {
     pub fn connect(
         serial: Interface,
@@ -1087,4 +1088,13 @@ pub(crate) fn checksum(data: &[u8], mut checksum: u8) -> u8 {
     }
 
     checksum
+}
+
+/// Parse a [PartitionTable] from the provided path
+pub fn parse_partition_table(path: &Path) -> Result<PartitionTable> {
+    let data = fs::read(path)
+        .into_diagnostic()
+        .wrap_err("Failed to open partition table")?;
+
+    PartitionTable::try_from(data).into_diagnostic()
 }

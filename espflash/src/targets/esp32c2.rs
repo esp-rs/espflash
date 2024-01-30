@@ -1,14 +1,13 @@
 use std::{collections::HashMap, ops::Range};
 
+#[cfg(feature = "serialport")]
+use crate::{connection::Connection, targets::bytes_to_mac_addr};
 use crate::{
-    connection::Connection,
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashData, FlashFrequency},
     image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
-    targets::{
-        bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency,
-    },
+    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
@@ -47,18 +46,22 @@ impl Target for Esp32c2 {
         FLASH_RANGES.iter().any(|range| range.contains(&addr))
     }
 
+    #[cfg(feature = "serialport")]
     fn chip_features(&self, _connection: &mut Connection) -> Result<Vec<&str>, Error> {
         Ok(vec!["WiFi", "BLE"])
     }
 
+    #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         Ok(self.read_efuse(connection, 17)? >> 20 & 0x3)
     }
 
+    #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         Ok(self.read_efuse(connection, 17)? >> 16 & 0xf)
     }
 
+    #[cfg(feature = "serialport")]
     fn crystal_freq(&self, connection: &mut Connection) -> Result<XtalFrequency, Error> {
         let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
         let est_xtal = (connection.get_baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
@@ -132,6 +135,7 @@ impl Target for Esp32c2 {
         }
     }
 
+    #[cfg(feature = "serialport")]
     /// What is the MAC address?
     fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
         let word5 = self.read_efuse(connection, 16)?;
