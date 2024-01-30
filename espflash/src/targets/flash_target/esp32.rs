@@ -7,14 +7,17 @@ use flate2::{
 use log::debug;
 use md5::{Digest, Md5};
 
+#[cfg(feature = "serialport")]
 use crate::{
     command::{Command, CommandType},
     connection::{Connection, USB_SERIAL_JTAG_PID},
+    targets::FlashTarget,
+};
+use crate::{
     elf::RomSegment,
     error::Error,
     flasher::{ProgressCallbacks, SpiAttachParams, FLASH_SECTOR_SIZE},
     targets::Chip,
-    targets::FlashTarget,
 };
 
 /// Applications running from an ESP32's (or variant's) flash
@@ -46,6 +49,7 @@ impl Esp32Target {
     }
 }
 
+#[cfg(feature = "serialport")]
 impl FlashTarget for Esp32Target {
     fn begin(&mut self, connection: &mut Connection) -> Result<(), Error> {
         connection.with_timeout(CommandType::SpiAttach.timeout(), |connection| {

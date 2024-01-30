@@ -1,15 +1,13 @@
 use std::ops::Range;
 
 #[cfg(feature = "serialport")]
-use crate::connection::Connection;
+use crate::{connection::Connection, targets::MAX_RAM_BLOCK_SIZE};
 use crate::{
     elf::FirmwareImage,
     error::{Error, UnsupportedImageFormatError},
     flasher::{FlashData, FlashFrequency, FLASH_WRITE_SIZE},
     image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatKind},
-    targets::{
-        Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency, MAX_RAM_BLOCK_SIZE,
-    },
+    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x0000_07c6];

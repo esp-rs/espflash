@@ -12,7 +12,8 @@ use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, EnumVariantNames};
 
-use self::flash_target::MAX_RAM_BLOCK_SIZE;
+#[cfg(feature = "serialport")]
+use self::flash_target::{FlashTarget, MAX_RAM_BLOCK_SIZE};
 pub use self::{
     esp32::Esp32,
     esp32c2::Esp32c2,
@@ -23,10 +24,11 @@ pub use self::{
     esp32s2::Esp32s2,
     esp32s3::Esp32s3,
     esp8266::Esp8266,
-    flash_target::{Esp32Target, Esp8266Target, FlashTarget, RamTarget},
+    flash_target::{Esp32Target, Esp8266Target, RamTarget},
 };
+#[cfg(feature = "serialport")]
+use crate::connection::Connection;
 use crate::{
-    connection::Connection,
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashData, FlashFrequency, SpiAttachParams, FLASH_WRITE_SIZE},
@@ -45,7 +47,6 @@ mod esp32p4;
 mod esp32s2;
 mod esp32s3;
 mod esp8266;
-#[cfg(feature = "serialport")]
 mod flash_target;
 
 /// Supported crystal frequencies
@@ -161,6 +162,7 @@ impl Chip {
         }
     }
 
+    #[cfg(feature = "serialport")]
     pub fn flash_target(
         &self,
         spi_params: SpiAttachParams,
@@ -174,6 +176,7 @@ impl Chip {
         }
     }
 
+    #[cfg(feature = "serialport")]
     pub fn ram_target(
         &self,
         entry: Option<u32>,
