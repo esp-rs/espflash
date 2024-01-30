@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed a missed `flush` call that may be causing communication errors (#521)
 
 ### Changed
-- Created `FlashData` and `FlashSettings` structs to reduce number of input arguments in some functions (#512)
+- Created `FlashData`, `FlashDataBuilder` and `FlashSettings` structs to reduce number of input arguments in some functions (#512, #566)
 - `espflash` will now exit with an error if `defmt` is selected but not usable (#524)
 
 ### Removed
