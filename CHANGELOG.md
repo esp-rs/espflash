@@ -10,29 +10,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added reset strategies (#487)
-- Read esp-println generated defmt messages (#466)
-- Add --target-app-partition argument to flash command (#461)
-- Add --confirm-port argument to flash command (#455)
-- Add --chip argument for flash and write-bin commands (#514)
-- Add --partition-table-offset argument for specifying the partition table offset (#516)
+- Read `esp-println` generated `defmt` messages (#466)
+- Add `--target-app-partition` argument to flash command (#461)
+- Add `--confirm-port` argument to flash command (#455)
+- Add `--chip argument` for flash and write-bin commands (#514)
+- Add `--partition-table-offset` argument for specifying the partition table offset (#516)
 - Add `Serialize` and `Deserialize` to `FlashFrequency`, `FlashMode` and `FlashSize`. (#528)
 - Add `checksum-md5` command (#536)
 - Add verify and skipping of unchanged flash regions - add `--no-verify` and `--no-skip` (#538)
-- Add --min-chip-rev argument to specify minimum chip revision (#252)
+- Add `--min-chip-rev` argument to specify minimum chip revision (#525)
 - Add `serialport` feature. (#535)
+- Add support for 26 MHz bootloader for ESP32 and ESP32-C2 (#553)
+- Add CI check to verify that CHANGELOG is updated (#560)
 
 ### Fixed
 
 - Fixed printing panic backtraces when using `esp-println` and `defmt` (#496)
-- Fixed defmt parsing when data is read in parts (#503)
+- Fixed `defmt` parsing when data is read in parts (#503)
 - Use partition table instead of hard-coded values for the location of partitions (#516)
 - Fixed a missed `flush` call that may be causing communication errors (#521)
+- Fix "SHA-256 comparison failed: [...] attempting to boot anyway..." (#567)
 - Windows: Update RST/DTR order to avoid issues.
 
 ### Changed
-- Created `FlashData` and `FlashSettings` structs to reduce number of input arguments in some functions (#512)
-
-- espflash will now exit with an error if `defmt` is selected but not usable (#524)
+- Created `FlashData`, `FlashDataBuilder` and `FlashSettings` structs to reduce number of input arguments in some functions (#512, #566)
+- `espflash` will now exit with an error if `defmt` is selected but not usable (#524)
 
 ### Removed
 

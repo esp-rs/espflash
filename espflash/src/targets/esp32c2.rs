@@ -1,12 +1,13 @@
 use std::{collections::HashMap, ops::Range};
 
+#[cfg(feature = "serialport")]
+use crate::{connection::Connection, targets::bytes_to_mac_addr};
 use crate::{
-    connection::Connection,
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashData, FlashFrequency},
     image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
-    targets::{bytes_to_mac_addr, Chip, Esp32Params, ReadEFuse, SpiRegisters, Target},
+    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
@@ -18,15 +19,6 @@ const FLASH_RANGES: &[Range<u32>] = &[
     0x4200_0000..0x4240_0000, // IROM
     0x3c00_0000..0x3c40_0000, // DROM
 ];
-
-const PARAMS: Esp32Params = Esp32Params::new(
-    0x0,
-    0x1_0000,
-    0x1f_0000,
-    12,
-    FlashFrequency::_30Mhz,
-    include_bytes!("../../resources/bootloaders/esp32c2-bootloader.bin"),
-);
 
 const UART_CLKDIV_REG: u32 = 0x6000_0014;
 const UART_CLKDIV_MASK: u32 = 0xfffff;
@@ -54,22 +46,30 @@ impl Target for Esp32c2 {
         FLASH_RANGES.iter().any(|range| range.contains(&addr))
     }
 
+    #[cfg(feature = "serialport")]
     fn chip_features(&self, _connection: &mut Connection) -> Result<Vec<&str>, Error> {
         Ok(vec!["WiFi", "BLE"])
     }
 
+    #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         Ok(self.read_efuse(connection, 17)? >> 20 & 0x3)
     }
 
+    #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         Ok(self.read_efuse(connection, 17)? >> 16 & 0xf)
     }
 
-    fn crystal_freq(&self, connection: &mut Connection) -> Result<u32, Error> {
+    #[cfg(feature = "serialport")]
+    fn crystal_freq(&self, connection: &mut Connection) -> Result<XtalFrequency, Error> {
         let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
         let est_xtal = (connection.get_baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
-        let norm_xtal = if est_xtal > 33 { 40 } else { 26 };
+        let norm_xtal = if est_xtal > 33 {
+            XtalFrequency::_40Mhz
+        } else {
+            XtalFrequency::_26Mhz
+        };
 
         Ok(norm_xtal)
     }
@@ -87,17 +87,44 @@ impl Target for Esp32c2 {
         image: &'a dyn FirmwareImage<'a>,
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
+        xtal_freq: XtalFrequency,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         let image_format = flash_data
             .image_format
             .unwrap_or(ImageFormatKind::EspBootloader);
+
+        let booloader: &'static [u8] = match xtal_freq {
+            XtalFrequency::_40Mhz => {
+                println!("Using 40MHz bootloader");
+                include_bytes!("../../resources/bootloaders/esp32c2-bootloader.bin")
+            }
+            XtalFrequency::_26Mhz => {
+                println!("Using 26MHz bootloader");
+                include_bytes!("../../resources/bootloaders/esp32c2_26-bootloader.bin")
+            }
+            _ => {
+                return Err(Error::UnsupportedFeature {
+                    chip: Chip::Esp32c2,
+                    feature: "the selected crystal frequency".into(),
+                })
+            }
+        };
+
+        let params = Esp32Params::new(
+            0x0,
+            0x1_0000,
+            0x1f_0000,
+            12,
+            FlashFrequency::_30Mhz,
+            booloader,
+        );
 
         match image_format {
             ImageFormatKind::EspBootloader => Ok(Box::new(IdfBootloaderFormat::new(
                 image,
                 Chip::Esp32c2,
                 flash_data.min_chip_rev,
-                PARAMS,
+                params,
                 flash_data.partition_table,
                 flash_data.partition_table_offset,
                 flash_data.target_app_partition,
@@ -108,6 +135,7 @@ impl Target for Esp32c2 {
         }
     }
 
+    #[cfg(feature = "serialport")]
     /// What is the MAC address?
     fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
         let word5 = self.read_efuse(connection, 16)?;
