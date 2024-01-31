@@ -2,14 +2,14 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::{
     command::{Command, CommandType},
-    connection::Connection,
     elf::RomSegment,
     error::Error,
     flasher::ProgressCallbacks,
-    targets::FlashTarget,
 };
+#[cfg(feature = "serialport")]
+use crate::{connection::Connection, targets::FlashTarget};
 
-pub(crate) const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
+pub const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 
 #[derive(Zeroable, Pod, Copy, Clone)]
 #[repr(C)]
@@ -36,6 +36,7 @@ impl Default for RamTarget {
     }
 }
 
+#[cfg(feature = "serialport")]
 impl FlashTarget for RamTarget {
     fn begin(&mut self, _connection: &mut Connection) -> Result<(), Error> {
         Ok(())

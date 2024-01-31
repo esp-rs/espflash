@@ -9,24 +9,27 @@ use std::{borrow::Cow, fs, path::Path, str::FromStr, thread::sleep};
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use esp_idf_part::PartitionTable;
 use log::{debug, info, warn};
-use miette::{IntoDiagnostic, Result};
+use miette::{Context, IntoDiagnostic, Result};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "serialport")]
 use serialport::UsbPortInfo;
 use strum::{Display, EnumIter, EnumVariantNames};
 
 use self::stubs::FlashStub;
 use crate::{
-    cli::parse_partition_table,
     command::{Command, CommandType},
+    elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
+    error::{ConnectionError, Error, ResultExt},
+    image_format::ImageFormatKind,
+    targets::{Chip, XtalFrequency},
+};
+#[cfg(feature = "serialport")]
+use crate::{
     connection::{
         reset::{ResetAfterOperation, ResetBeforeOperation},
         Connection,
     },
-    elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
-    error::{ConnectionError, Error, ResultExt},
-    image_format::ImageFormatKind,
     interface::Interface,
-    targets::{Chip, XtalFrequency},
 };
 
 mod stubs;
@@ -276,12 +279,100 @@ impl FlashSettings {
             freq: None,
         }
     }
+
     pub fn new(
         mode: Option<FlashMode>,
         size: Option<FlashSize>,
         freq: Option<FlashFrequency>,
     ) -> Self {
         FlashSettings { mode, size, freq }
+    }
+}
+
+/// Builder interface to create [`FlashData`] objects.
+pub struct FlashDataBuilder<'a> {
+    bootloader_path: Option<&'a Path>,
+    partition_table_path: Option<&'a Path>,
+    partition_table_offset: Option<u32>,
+    image_format: Option<ImageFormatKind>,
+    target_app_partition: Option<String>,
+    flash_settings: FlashSettings,
+    min_chip_rev: u16,
+}
+
+impl<'a> Default for FlashDataBuilder<'a> {
+    fn default() -> Self {
+        Self {
+            bootloader_path: Default::default(),
+            partition_table_path: Default::default(),
+            partition_table_offset: Default::default(),
+            image_format: Default::default(),
+            target_app_partition: Default::default(),
+            flash_settings: FlashSettings::default(),
+            min_chip_rev: Default::default(),
+        }
+    }
+}
+
+impl<'a> FlashDataBuilder<'a> {
+    /// Creates a new [`FlashDataBuilder`] object.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the bootloader path.
+    pub fn with_bootloader(mut self, bootloader_path: &'a Path) -> Self {
+        self.bootloader_path = Some(bootloader_path);
+        self
+    }
+
+    /// Sets the partition table path.
+    pub fn with_partition_table(mut self, partition_table_path: &'a Path) -> Self {
+        self.partition_table_path = Some(partition_table_path);
+        self
+    }
+
+    /// Sets the partition table offset.
+    pub fn with_partition_table_offset(mut self, partition_table_offset: u32) -> Self {
+        self.partition_table_offset = Some(partition_table_offset);
+        self
+    }
+
+    /// Sets the image format.
+    pub fn with_image_format(mut self, image_format: ImageFormatKind) -> Self {
+        self.image_format = Some(image_format);
+        self
+    }
+
+    /// Sets the label of the target app partition.
+    pub fn with_target_app_partition(mut self, target_app_partition: String) -> Self {
+        self.target_app_partition = Some(target_app_partition);
+        self
+    }
+
+    /// Sets the flash settings.
+    pub fn with_flash_settings(mut self, flash_settings: FlashSettings) -> Self {
+        self.flash_settings = flash_settings;
+        self
+    }
+
+    /// Sets the minimum chip revision.
+    pub fn with_min_chip_rev(mut self, min_chip_rev: u16) -> Self {
+        self.min_chip_rev = min_chip_rev;
+        self
+    }
+
+    /// Builds a [`FlashData`] object.
+    pub fn build(self) -> Result<FlashData> {
+        FlashData::new(
+            self.bootloader_path,
+            self.partition_table_path,
+            self.partition_table_offset,
+            self.image_format,
+            self.target_app_partition,
+            self.flash_settings,
+            self.min_chip_rev,
+        )
     }
 }
 
@@ -312,7 +403,7 @@ impl FlashData {
         // specified path.
         let bootloader = if let Some(path) = bootloader {
             let path = fs::canonicalize(path).into_diagnostic()?;
-            let data = fs::read(path).into_diagnostic()?;
+            let data: Vec<u8> = fs::read(path).into_diagnostic()?;
 
             Some(data)
         } else {
@@ -483,6 +574,7 @@ pub trait ProgressCallbacks {
     fn finish(&mut self);
 }
 
+#[cfg(feature = "serialport")]
 /// Connect to and flash a target device
 pub struct Flasher {
     /// Connection for flash operations
@@ -501,6 +593,7 @@ pub struct Flasher {
     skip: bool,
 }
 
+#[cfg(feature = "serialport")]
 impl Flasher {
     pub fn connect(
         serial: Interface,
@@ -1103,4 +1196,13 @@ pub(crate) fn checksum(data: &[u8], mut checksum: u8) -> u8 {
     }
 
     checksum
+}
+
+/// Parse a [PartitionTable] from the provided path
+pub fn parse_partition_table(path: &Path) -> Result<PartitionTable> {
+    let data = fs::read(path)
+        .into_diagnostic()
+        .wrap_err("Failed to open partition table")?;
+
+    PartitionTable::try_from(data).into_diagnostic()
 }

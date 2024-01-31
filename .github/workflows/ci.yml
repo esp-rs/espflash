@@ -86,7 +86,7 @@ jobs:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
 
-      - run: cargo check --lib --no-default-features ${{ matrix.platform.features }}
+      - run: cargo check -p espflash --lib --no-default-features ${{ matrix.platform.features }}
 
   msrv:
     name: Check MSRV (${{ matrix.platform.target }})

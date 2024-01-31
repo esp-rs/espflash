@@ -1,0 +1,17 @@
+name: Changelog check
+
+on:
+  pull_request:
+    # Run on labeled/unlabeled in addition to defaults to detect
+    # adding/removing skip-changelog labels.
+    types: [opened, reopened, labeled, unlabeled, synchronize]
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dangoslen/changelog-enforcer@v3
+        with:
+          changeLogPath: CHANGELOG.md
+          skipLabels: "skip-changelog"
+          missingUpdateErrorMessage: "Please add a changelog entry in the CHANGELOG.md file."

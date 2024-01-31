@@ -5,19 +5,21 @@ use std::{
     io,
 };
 
+#[cfg(feature = "cli")]
+use crate::cli::monitor::parser::esp_defmt::DefmtError;
+#[cfg(feature = "serialport")]
+use crate::interface::SerialConfigError;
+use crate::{
+    command::CommandType,
+    flasher::{FlashFrequency, FlashSize},
+    image_format::ImageFormatKind,
+    targets::Chip,
+};
+
 use miette::Diagnostic;
 use slip_codec::SlipError;
 use strum::{FromRepr, VariantNames};
 use thiserror::Error;
-
-use crate::{
-    cli::monitor::parser::esp_defmt::DefmtError,
-    command::CommandType,
-    flasher::{FlashFrequency, FlashSize},
-    image_format::ImageFormatKind,
-    interface::SerialConfigError,
-    targets::Chip,
-};
 
 /// All possible errors returned by espflash
 #[derive(Debug, Diagnostic, Error)]
@@ -95,6 +97,10 @@ pub enum Error {
     )]
     InvalidFlashSize(String),
 
+    #[cfg(not(feature = "serialport"))]
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+
     #[error("No serial ports could be detected")]
     #[diagnostic(
         code(espflash::no_serial),
@@ -109,6 +115,7 @@ pub enum Error {
     )]
     StubRequiredToEraseFlash,
 
+    #[cfg(feature = "serialport")]
     #[error("Incorrect serial port configuration")]
     #[diagnostic(
         code(espflash::serial_config),
@@ -187,6 +194,7 @@ pub enum Error {
     #[diagnostic(transparent)]
     UnsupportedImageFormat(#[from] UnsupportedImageFormatError),
 
+    #[cfg(feature = "serialport")]
     #[error(transparent)]
     #[diagnostic(transparent)]
     Defmt(#[from] DefmtError),
@@ -199,6 +207,7 @@ pub enum Error {
     InternalError,
 }
 
+#[cfg(feature = "serialport")]
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Self::Connection(err.into())
@@ -213,12 +222,14 @@ impl From<serialport::Error> for Error {
     }
 }
 
+#[cfg(feature = "serialport")]
 impl From<SlipError> for Error {
     fn from(err: SlipError) -> Self {
         Self::Connection(err.into())
     }
 }
 
+#[cfg(feature = "serialport")]
 impl From<SerialConfigError> for Error {
     fn from(err: SerialConfigError) -> Self {
         Self::SerialConfiguration(err)
@@ -285,6 +296,7 @@ pub enum ConnectionError {
     WrongBootMode(String),
 }
 
+#[cfg(feature = "serialport")]
 impl From<io::Error> for ConnectionError {
     fn from(err: io::Error) -> Self {
         from_error_kind(err.kind(), err)
@@ -305,6 +317,7 @@ impl From<serialport::Error> for ConnectionError {
     }
 }
 
+#[cfg(feature = "serialport")]
 impl From<SlipError> for ConnectionError {
     fn from(err: SlipError) -> Self {
         match err {
