@@ -73,6 +73,13 @@ impl<'a> IdfBootloaderFormat<'a> {
             bytes_of(&header).iter().copied(),
         );
 
+        // re-calculate hash of the bootloader - needed since we modified the header
+        let bootloader_len = bootloader.len();
+        let mut hasher = Sha256::new();
+        hasher.update(&bootloader[..bootloader_len - 32]);
+        let hash = hasher.finalize();
+        bootloader.to_mut()[bootloader_len - 32..].copy_from_slice(&hash);
+
         // write the header of the app
         // use the same settings as the bootloader
         // just update the entry point
