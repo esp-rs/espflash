@@ -106,9 +106,7 @@ pub struct Config {
 impl Config {
     /// Gets the path to the configuration file.
     pub fn get_config_path() -> Result<PathBuf, Error> {
-        let local_config = std::env::current_dir()?
-            .join(".config")
-            .join("espflash.toml");
+        let local_config = std::env::current_dir()?.join("espflash.toml");
         if local_config.exists() {
             return Ok(local_config);
         }
