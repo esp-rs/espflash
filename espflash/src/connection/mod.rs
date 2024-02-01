@@ -11,7 +11,7 @@ use std::{
     time::Duration,
 };
 
-use log::debug;
+use log::{debug, info};
 use regex::Regex;
 use serialport::UsbPortInfo;
 use slip_codec::SlipDecoder;
@@ -237,18 +237,18 @@ impl Connection {
         match self.after_operation {
             ResetAfterOperation::HardReset => HardReset.reset(&mut self.serial),
             ResetAfterOperation::SoftReset => {
-                println!("Soft resetting");
+                info!("Soft resetting");
                 soft_reset(self, false, is_stub, chip)?;
                 Ok(())
             }
             ResetAfterOperation::NoReset => {
-                println!("Staying in bootloader");
+                info!("Staying in bootloader");
                 soft_reset(self, true, is_stub, chip)?;
 
                 Ok(())
             }
             ResetAfterOperation::NoResetNoStub => {
-                println!("Staying in flasher stub");
+                info!("Staying in flasher stub");
                 Ok(())
             }
         }
