@@ -49,6 +49,13 @@ pub enum Error {
     )]
     ChipMismatch(String, String),
 
+    #[error("Chip not argument provided, this is required when using the `--before no-reset-no-sync` option")]
+    #[diagnostic(
+        code(espflash::chip_not_provided),
+        help("Ensure that you provide the `-c/--chip` option with the proper chip")
+    )]
+    ChipNotProvided,
+
     #[error("Supplied ELF image can not be run from RAM, as it includes segments mapped to ROM addresses")]
     #[diagnostic(
         code(espflash::not_ram_loadable),
@@ -122,6 +129,10 @@ pub enum Error {
         help("Make sure the correct device is connected to the host system")
     )]
     SerialNotFound(String),
+
+    #[error("Soft reseting is currently only supported on ESP8266")]
+    #[diagnostic(code(espflash::soft_reset_not_available))]
+    SoftResetNotAvailable,
 
     #[error("Unrecognized image format '{0}'")]
     #[diagnostic(
@@ -253,12 +264,23 @@ pub enum ConnectionError {
     #[error("Invalid stub handshake response received")]
     InvalidStubHandshake,
 
+    #[error("Download mode successfully detected, but getting no sync reply")]
+    #[diagnostic(
+        code(espflash::no_sync_reply),
+        help("The serial TX path seems to be down")
+    )]
+    NoSyncReply,
+
     #[error("Received packet to large for buffer")]
     #[diagnostic(
         code(espflash::oversized_packet),
         help("Try hard-resetting the device and try again, if the error persists your ROM may be corrupted")
     )]
     OverSizedPacket,
+
+    #[error("Failed to read the available bytes on the serial port. Available bytes: {0}, Read bytes: {1}")]
+    #[diagnostic(code(espflash::read_missmatch))]
+    ReadMissmatch(u32, u32),
 
     #[error("Timeout while running {0}command")]
     #[diagnostic(code(espflash::timeout))]
@@ -268,6 +290,10 @@ pub enum ConnectionError {
     #[error("IO error while using serial port: {0}")]
     #[diagnostic(code(espflash::serial_error))]
     Serial(#[source] serialport::Error),
+
+    #[error("Wrong boot mode detected ({0})! The chip needs to be in download mode.")]
+    #[diagnostic(code(espflash::wrong_boot_mode))]
+    WrongBootMode(String),
 }
 
 #[cfg(feature = "serialport")]

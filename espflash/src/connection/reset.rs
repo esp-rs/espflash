@@ -3,10 +3,19 @@
 #[cfg(unix)]
 use std::{io, os::fd::AsRawFd};
 use std::{thread::sleep, time::Duration};
+use strum::{Display, EnumIter, EnumString, EnumVariantNames};
 
 use log::debug;
 
-use crate::{connection::USB_SERIAL_JTAG_PID, error::Error, interface::Interface};
+use crate::{
+    command::{Command, CommandType},
+    connection::Connection,
+    connection::USB_SERIAL_JTAG_PID,
+    error::Error,
+    flasher,
+    interface::Interface,
+    targets::Chip,
+};
 
 /// Default time to wait before releasing the boot pin after a reset
 const DEFAULT_RESET_DELAY: u64 = 50; // ms
@@ -193,14 +202,97 @@ impl ResetStrategy for UsbJtagSerialReset {
     }
 }
 
+/// Reset sequence for hard resetting the chip.
+///
+/// Can be used to reset out of the bootloader or to restart a running app.
+#[derive(Debug, Clone, Copy)]
+pub struct HardReset;
+
+impl ResetStrategy for HardReset {
+    fn reset(&self, interface: &mut Interface) -> Result<(), Error> {
+        debug!("Using HardReset reset strategy");
+
+        self.set_rts(interface, true)?;
+        sleep(Duration::from_millis(100));
+        self.set_rts(interface, false)?;
+
+        Ok(())
+    }
+}
+
+///
+pub fn soft_reset(
+    connection: &mut Connection,
+    stay_in_bootloader: bool,
+    is_stub: bool,
+    chip: Chip,
+) -> Result<(), Error> {
+    debug!("Using SoftReset reset strategy");
+    if !is_stub {
+        if stay_in_bootloader {
+            // ROM bootloader is already in bootloader
+            return Ok(());
+        } else {
+            //  'run user code' is as close to a soft reset as we can do
+            connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
+                let size: u32 = 0;
+                let offset: u32 = 0;
+                let blocks: u32 = (size + flasher::FLASH_WRITE_SIZE as u32 - 1)
+                    / flasher::FLASH_WRITE_SIZE as u32;
+                connection.command(Command::FlashBegin {
+                    size,
+                    blocks,
+                    block_size: flasher::FLASH_WRITE_SIZE.try_into().unwrap(),
+                    offset,
+                    supports_encryption: false,
+                })
+            })?;
+            connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
+                connection.write_command(Command::FlashEnd { reboot: false })
+            })?;
+        }
+    } else if stay_in_bootloader {
+        // Soft resetting from the stub loader will re-load the ROM bootloader
+        connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
+            let size: u32 = 0;
+            let offset: u32 = 0;
+            let blocks: u32 =
+                (size + flasher::FLASH_WRITE_SIZE as u32 - 1) / flasher::FLASH_WRITE_SIZE as u32;
+            connection.command(Command::FlashBegin {
+                size,
+                blocks,
+                block_size: flasher::FLASH_WRITE_SIZE.try_into().unwrap(),
+                offset,
+                supports_encryption: false,
+            })
+        })?;
+        connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
+            connection.write_command(Command::FlashEnd { reboot: true })
+        })?;
+    } else if chip != Chip::Esp8266 {
+        return Err(Error::SoftResetNotAvailable);
+    } else {
+        // Running user code from stub loader requires some hacks in the stub loader
+        connection.with_timeout(CommandType::RunUserCode.timeout(), |connection| {
+            connection.command(Command::RunUserCode)
+        })?;
+    }
+
+    Ok(())
+}
+
 /// Construct a sequence of reset strategies based on the OS and chip.
 ///
 /// Returns a [Vec] containing one or more reset strategies to be attempted
 /// sequentially.
 #[allow(unused_variables)]
-pub fn construct_reset_strategy_sequence(port_name: &str, pid: u16) -> Vec<Box<dyn ResetStrategy>> {
+pub fn construct_reset_strategy_sequence(
+    port_name: &str,
+    pid: u16,
+    mode: ResetBeforeOperation,
+) -> Vec<Box<dyn ResetStrategy>> {
     // USB-JTAG/Serial mode
-    if pid == USB_SERIAL_JTAG_PID {
+    if pid == USB_SERIAL_JTAG_PID || mode == ResetBeforeOperation::UsbReset {
         return vec![Box::new(UsbJtagSerialReset)];
     }
 
@@ -220,4 +312,41 @@ pub fn construct_reset_strategy_sequence(port_name: &str, pid: u16) -> Vec<Box<d
         Box::new(ClassicReset::new(false)),
         Box::new(ClassicReset::new(true)),
     ]
+}
+
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, EnumVariantNames,
+)]
+#[non_exhaustive]
+#[strum(serialize_all = "lowercase")]
+pub enum ResetBeforeOperation {
+    /// Uses DTR & RTS serial control lines to try to reset the chip into bootloader mode.
+    #[default]
+    DefaultReset,
+    /// Skips DTR/RTS control signal assignments and just start sending a serial synchronisation command to the chip.
+    NoReset,
+    /// Skips DTR/RTS control signal assignments and also skips the serial synchronization command.
+    NoResetNoSync,
+    /// Reset sequence for USB-JTAG-Serial peripheral
+    UsbReset,
+}
+
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, EnumVariantNames,
+)]
+#[non_exhaustive]
+pub enum ResetAfterOperation {
+    /// The DTR serial control line is used to reset the chip into a normal boot sequence.
+    #[default]
+    HardReset,
+    /// Runs the user firmware, but any subsequent reset will return to the serial bootloader.
+    ///
+    /// Only supported on ESP8266.
+    SoftReset,
+    /// Leaves the chip in the serial bootloader, no reset is performed.
+    NoReset,
+    /// Leaves the chip in the stub bootloader, no reset is performed.
+    NoResetNoStub,
 }

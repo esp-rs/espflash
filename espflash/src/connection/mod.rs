@@ -11,7 +11,8 @@ use std::{
     time::Duration,
 };
 
-use log::debug;
+use log::{debug, info};
+use regex::Regex;
 use serialport::UsbPortInfo;
 use slip_codec::SlipDecoder;
 
@@ -19,15 +20,20 @@ use slip_codec::SlipDecoder;
 use self::reset::UnixTightReset;
 use self::{
     encoder::SlipEncoder,
-    reset::{construct_reset_strategy_sequence, ClassicReset, ResetStrategy, UsbJtagSerialReset},
+    reset::{
+        construct_reset_strategy_sequence, ClassicReset, HardReset, ResetAfterOperation,
+        ResetBeforeOperation, ResetStrategy, UsbJtagSerialReset,
+    },
 };
 use crate::{
     command::{Command, CommandType},
+    connection::reset::soft_reset,
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
     interface::Interface,
+    targets::Chip,
 };
 
-mod reset;
+pub mod reset;
 
 const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
@@ -77,21 +83,34 @@ pub struct Connection {
     serial: Interface,
     port_info: UsbPortInfo,
     decoder: SlipDecoder,
+    after_operation: ResetAfterOperation,
+    before_operation: ResetBeforeOperation,
 }
 
 impl Connection {
-    pub fn new(serial: Interface, port_info: UsbPortInfo) -> Self {
+    pub fn new(
+        serial: Interface,
+        port_info: UsbPortInfo,
+        after_operation: ResetAfterOperation,
+        before_operation: ResetBeforeOperation,
+    ) -> Self {
         Connection {
             serial,
             port_info,
             decoder: SlipDecoder::new(),
+            after_operation,
+            before_operation,
         }
     }
 
     /// Initialize a connection with a device
     pub fn begin(&mut self) -> Result<(), Error> {
         let port_name = self.serial.serial_port().name().unwrap_or_default();
-        let reset_sequence = construct_reset_strategy_sequence(&port_name, self.port_info.pid);
+        let reset_sequence = construct_reset_strategy_sequence(
+            &port_name,
+            self.port_info.pid,
+            self.before_operation,
+        );
 
         for (_, reset_strategy) in zip(0..MAX_CONNECT_ATTEMPTS, reset_sequence.iter().cycle()) {
             match self.connect_attempt(reset_strategy) {
@@ -110,12 +129,62 @@ impl Connection {
     /// Try to connect to a device
     #[allow(clippy::borrowed_box)]
     fn connect_attempt(&mut self, reset_strategy: &Box<dyn ResetStrategy>) -> Result<(), Error> {
-        reset_strategy.reset(&mut self.serial)?;
+        // If we're doing no_sync, we're likely communicating as a pass through
+        // with an intermediate device to the ESP32
+        if self.before_operation == ResetBeforeOperation::NoResetNoSync {
+            return Ok(());
+        }
+        let mut download_mode: bool = false;
+        let mut boot_mode: &str = "";
+        let mut boot_log_detected = false;
+        let mut buff: Vec<u8>;
+        if self.before_operation != ResetBeforeOperation::NoReset {
+            // Reset the chip to bootloader (download mode)
+            reset_strategy.reset(&mut self.serial)?;
+
+            let available_bytes = self.serial.serial_port_mut().bytes_to_read()?;
+            buff = vec![0; available_bytes as usize];
+            let read_bytes = self.serial.serial_port_mut().read(&mut buff)? as u32;
+
+            if read_bytes != available_bytes {
+                return Err(Error::Connection(ConnectionError::ReadMissmatch(
+                    available_bytes,
+                    read_bytes,
+                )));
+            }
+
+            let read_slice = std::str::from_utf8(&buff[..read_bytes as usize]).unwrap();
+
+            let pattern = Regex::new(r"boot:(0x[0-9a-fA-F]+)(.*waiting for download)?").unwrap();
+
+            // Search for the pattern in the read data
+            if let Some(data) = pattern.captures(read_slice) {
+                boot_log_detected = true;
+                // Boot log detected
+                boot_mode = data.get(1).map(|m| m.as_str()).unwrap_or_default();
+                download_mode = data.get(2).is_some();
+
+                // Further processing or printing the results
+                debug!("Boot Mode: {}", boot_mode);
+                debug!("Download Mode: {}", download_mode);
+            };
+        }
+
         for _ in 0..MAX_SYNC_ATTEMPTS {
             self.flush()?;
 
             if self.sync().is_ok() {
                 return Ok(());
+            }
+        }
+
+        if boot_log_detected {
+            if download_mode {
+                return Err(Error::Connection(ConnectionError::NoSyncReply));
+            } else {
+                return Err(Error::Connection(ConnectionError::WrongBootMode(
+                    boot_mode.to_string(),
+                )));
             }
         }
 
@@ -161,6 +230,28 @@ impl Connection {
         reset_after_flash(&mut self.serial, self.port_info.pid)?;
 
         Ok(())
+    }
+
+    // Reset the device taking into account the reset after argument
+    pub fn reset_after(&mut self, is_stub: bool, chip: Chip) -> Result<(), Error> {
+        match self.after_operation {
+            ResetAfterOperation::HardReset => HardReset.reset(&mut self.serial),
+            ResetAfterOperation::SoftReset => {
+                info!("Soft resetting");
+                soft_reset(self, false, is_stub, chip)?;
+                Ok(())
+            }
+            ResetAfterOperation::NoReset => {
+                info!("Staying in bootloader");
+                soft_reset(self, true, is_stub, chip)?;
+
+                Ok(())
+            }
+            ResetAfterOperation::NoResetNoStub => {
+                info!("Staying in flasher stub");
+                Ok(())
+            }
+        }
     }
 
     // Reset the device to flash mode

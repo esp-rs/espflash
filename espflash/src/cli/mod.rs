@@ -18,7 +18,7 @@ use clap_complete::Shell;
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
-use log::{debug, info};
+use log::{debug, info, warn};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{SerialPortType, UsbPortInfo};
 
@@ -28,6 +28,7 @@ use self::{
     serial::get_serial_port_info,
 };
 use crate::{
+    connection::reset::{ResetAfterOperation, ResetBeforeOperation},
     elf::ElfFirmwareImage,
     error::{Error, MissingPartition, MissingPartitionTable},
     flasher::{
@@ -48,9 +49,15 @@ mod serial;
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct ConnectArgs {
+    /// Reset operation to perform after connecting to the target
+    #[arg(short = 'a', long, default_value = "hard-reset")]
+    pub after: ResetAfterOperation,
     /// Baud rate at which to communicate with target device
-    #[arg(short = 'b', long, env = "ESPFLASH_BAUD")]
+    #[arg(short = 'B', long, env = "ESPFLASH_BAUD")]
     pub baud: Option<u32>,
+    /// Reset operation to perform before connecting to the target
+    #[arg(short = 'b', long, default_value = "default-reset")]
+    pub before: ResetBeforeOperation,
     /// Target device
     #[arg(short = 'c', long)]
     pub chip: Option<Chip>,
@@ -263,6 +270,15 @@ pub fn connect(
     no_verify: bool,
     no_skip: bool,
 ) -> Result<Flasher> {
+    if args.before == ResetBeforeOperation::NoReset
+        || args.before == ResetBeforeOperation::NoResetNoSync
+    {
+        warn!(
+            "Pre-connection option '{:#?}' was selected. Connection may fail if the chip is not in bootloader or flasher stub mode.",
+            args.before
+        );
+    }
+
     let port_info = get_serial_port_info(args, config)?;
 
     // Attempt to open the serial port and set its initial baud rate.
@@ -305,6 +321,8 @@ pub fn connect(
         !no_verify,
         !no_skip,
         args.chip,
+        args.after,
+        args.before,
     )?)
 }
 
@@ -547,8 +565,10 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
 
     info!("Erasing Flash...");
     flash.erase_flash()?;
-
-    flash.connection().reset()?;
+    let chip = flash.chip();
+    flash
+        .connection()
+        .reset_after(!args.connect_args.no_stub, chip)?;
 
     Ok(())
 }
@@ -565,7 +585,10 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
         args.addr, args.size
     );
     flash.erase_region(args.addr, args.size)?;
-    flash.connection().reset()?;
+    let chip = flash.chip();
+    flash
+        .connection()
+        .reset_after(!args.connect_args.no_stub, chip)?;
 
     Ok(())
 }

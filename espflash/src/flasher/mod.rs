@@ -24,7 +24,14 @@ use crate::{
     targets::{Chip, XtalFrequency},
 };
 #[cfg(feature = "serialport")]
-use crate::{connection::Connection, interface::Interface};
+use crate::{
+    connection::{
+        reset::{ResetAfterOperation, ResetBeforeOperation},
+        Connection,
+    },
+    interface::Interface,
+};
+
 mod stubs;
 
 pub(crate) const CHECKSUM_INIT: u8 = 0xEF;
@@ -596,24 +603,33 @@ impl Flasher {
         verify: bool,
         skip: bool,
         chip: Option<Chip>,
+        after_operation: ResetAfterOperation,
+        before_operation: ResetBeforeOperation,
     ) -> Result<Self, Error> {
         // Establish a connection to the device using the default baud rate of 115,200
         // and timeout of 3 seconds.
-        let mut connection = Connection::new(serial, port_info);
+        let mut connection = Connection::new(serial, port_info, after_operation, before_operation);
         connection.begin()?;
         connection.set_timeout(DEFAULT_TIMEOUT)?;
 
-        // Detect which chip we are connected to.
-        let magic = connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
-        let detected_chip = Chip::from_magic(magic)?;
-        if let Some(chip) = chip {
-            if chip != detected_chip {
-                return Err(Error::ChipMismatch(
-                    chip.to_string(),
-                    detected_chip.to_string(),
-                ));
+        let detected_chip = if before_operation != ResetBeforeOperation::NoResetNoSync {
+            // Detect which chip we are connected to.
+            let magic = connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
+            let detected_chip = Chip::from_magic(magic)?;
+            if let Some(chip) = chip {
+                if chip != detected_chip {
+                    return Err(Error::ChipMismatch(
+                        chip.to_string(),
+                        detected_chip.to_string(),
+                    ));
+                }
             }
-        }
+            detected_chip
+        } else if before_operation == ResetBeforeOperation::NoResetNoSync && chip.is_some() {
+            chip.unwrap()
+        } else {
+            return Err(Error::ChipNotProvided);
+        };
 
         let mut flasher = Flasher {
             connection,
@@ -624,6 +640,10 @@ impl Flasher {
             verify,
             skip,
         };
+
+        if before_operation == ResetBeforeOperation::NoResetNoSync {
+            return Ok(flasher);
+        }
 
         // Load flash stub if enabled
         if use_stub {
