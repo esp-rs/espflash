@@ -1,7 +1,7 @@
 # espflash
 
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/esp-rs/espflash/ci.yml?branch=main&labelColor=1C2C2E&logo=github&style=flat-square)](https://github.com/esp-rs/espflash/actions/workflows/ci.yml)
-[![Crates.io](https://img.shields.io/crates/l/espflash?labelColor=1C2C2E&style=flat-square)](https://crates.io/crates/espflash)
+![Crates.io](https://img.shields.io/crates/l/espflash?labelColor=1C2C2E&style=flat-square)
 [![Matrix](https://img.shields.io/matrix/esp-rs:matrix.org?label=join%20matrix&color=BEC5C9&labelColor=1C2C2E&logo=matrix&style=flat-square)](https://matrix.to/#/#esp-rs:matrix.org)
 
 Serial flasher utilities for Espressif devices, based loosely on [esptool.py](https://github.com/espressif/esptool/).
