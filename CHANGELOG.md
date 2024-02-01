@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use partition table instead of hard-coded values for the location of partitions (#516)
 - Fixed a missed `flush` call that may be causing communication errors (#521)
 - Fix "SHA-256 comparison failed: [...] attempting to boot anyway..." (#567)
+- Windows: Update RST/DTR order to avoid issues.
 
 ### Changed
 - Created `FlashData`, `FlashDataBuilder` and `FlashSettings` structs to reduce number of input arguments in some functions (#512, #566)
