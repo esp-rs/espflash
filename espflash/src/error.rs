@@ -56,6 +56,14 @@ pub enum Error {
     )]
     ChipNotProvided,
 
+    #[error("Corrupt data, expected {0:2x?} bytes but receved {1:2x?} bytes")]
+    #[diagnostic(code(espflash::read_flash::corrupt_data))]
+    CorruptData(usize, usize),
+
+    #[error("MD5 digest missmatch: expected {0:2x?}, received: {1:2x?}")]
+    #[diagnostic(code(espflash::read_flash::digest_missmatch))]
+    DigestMissmatch(Vec<u8>, Vec<u8>),
+
     #[error("Supplied ELF image can not be run from RAM, as it includes segments mapped to ROM addresses")]
     #[diagnostic(
         code(espflash::not_ram_loadable),
@@ -76,6 +84,14 @@ pub enum Error {
     #[error("Failed to connect to on-device flash")]
     #[diagnostic(code(espflash::flash_connect))]
     FlashConnect,
+
+    #[error("Expected MD5 digest (16 bytes), received: {0:#x} bytes")]
+    #[diagnostic(code(espflash::read_flash::incorrect_digest_length))]
+    IncorrectDigestLength(usize),
+
+    #[error("Incorrect response from the sutb/ROM loader")]
+    #[diagnostic(code(espflash::read_flash::incorrect_response))]
+    IncorrectReposnse,
 
     #[error("The provided bootloader binary is invalid")]
     InvalidBootloader,
@@ -108,12 +124,16 @@ pub enum Error {
     )]
     NoSerial,
 
-    #[error("Erase commands require using the RAM stub")]
+    #[error("Read more bytes than expected")]
+    #[diagnostic(code(espflash::read_flash::read_more_than_expected))]
+    ReadMoreThanExpected,
+
+    #[error("This command requires using the RAM stub")]
     #[diagnostic(
         code(espflash::stub_required_to_erase_flash),
-        help("Don't use the `--no-stub` option with erase commands")
+        help("Don't use the `--no-stub` option with the command")
     )]
-    StubRequiredToEraseFlash,
+    StubRequired,
 
     #[cfg(feature = "serialport")]
     #[error("Incorrect serial port configuration")]

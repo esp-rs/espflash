@@ -4,11 +4,19 @@
 //! application to a target device. It additionally provides some operations to
 //! read information from the target device.
 
-use std::{borrow::Cow, fs, path::Path, str::FromStr, thread::sleep};
+use std::{
+    borrow::Cow,
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+    str::FromStr,
+    thread::sleep,
+};
 
 use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use esp_idf_part::PartitionTable;
 use log::{debug, info, warn};
+use md5::{Digest, Md5};
 use miette::{Context, IntoDiagnostic, Result};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
@@ -430,14 +438,22 @@ impl FlashData {
 }
 
 /// Parameters of the attached SPI flash chip (sizes, etc).
+///
+/// See https://github.com/espressif/esptool/blob/da31d9d7a1bb496995f8e30a6be259689948e43e/esptool.py#L655
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct SpiSetParams {
+    /// Flash chip ID
     fl_id: u32,
+    /// Total size in bytes
     total_size: u32,
+    /// Block size
     block_size: u32,
+    /// Sector size
     sector_size: u32,
+    /// Page size
     page_size: u32,
+    /// Status mask
     status_mask: u32,
 }
 
@@ -1112,8 +1128,8 @@ impl Flasher {
         }
 
         self.connection
-            .with_timeout(CommandType::ChangeBaud.timeout(), |connection| {
-                connection.command(Command::ChangeBaud {
+            .with_timeout(CommandType::ChangeBaudrate.timeout(), |connection| {
+                connection.command(Command::ChangeBaudrate {
                     new_baud,
                     prior_baud,
                 })
@@ -1150,6 +1166,82 @@ impl Flasher {
             })?;
         sleep(Duration::from_secs_f32(0.05));
         self.connection.flush()?;
+
+        Ok(())
+    }
+
+    pub fn read_flash(
+        &mut self,
+        offset: u32,
+        size: u32,
+        block_size: u32,
+        max_in_flight: u32,
+        file_path: PathBuf,
+    ) -> Result<(), Error> {
+        debug!("Reading 0x{:x}B from 0x{:08x}", size, offset);
+
+        let mut data = Vec::new();
+
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(file_path)?;
+
+        self.connection
+            .with_timeout(CommandType::ReadFlash.timeout(), |connection| {
+                connection.command(Command::ReadFlash {
+                    offset,
+                    size,
+                    block_size,
+                    max_in_flight,
+                })
+            })?;
+
+        while data.len() < size as usize {
+            let response = self.connection.read_response()?;
+            let chunk: Vec<u8> = if let Some(response) = response {
+                response.value.try_into().unwrap()
+            } else {
+                return Err(Error::IncorrectReposnse);
+            };
+
+            data.extend_from_slice(&chunk);
+
+            if data.len() < size as usize && chunk.len() < block_size as usize {
+                return Err(Error::CorruptData(block_size as usize, chunk.len()));
+            }
+
+            self.connection.write_raw(data.len() as u32)?;
+        }
+
+        if data.len() > size as usize {
+            return Err(Error::ReadMoreThanExpected);
+        }
+
+        let response = self.connection.read_response()?;
+        let digest: Vec<u8> = if let Some(response) = response {
+            response.value.try_into().unwrap()
+        } else {
+            return Err(Error::IncorrectReposnse);
+        };
+
+        if digest.len() != 16 {
+            return Err(Error::IncorrectDigestLength(digest.len()));
+        }
+
+        let mut md5_hasher = Md5::new();
+        md5_hasher.update(&data);
+        let checksum_md5 = md5_hasher.finalize();
+
+        if digest != checksum_md5.as_slice() {
+            return Err(Error::DigestMissmatch(
+                digest,
+                checksum_md5.as_slice().to_vec(),
+            ));
+        }
+
+        file.write_all(&data)?;
 
         Ok(())
     }

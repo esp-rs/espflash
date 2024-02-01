@@ -9,9 +9,9 @@ use espflash::{
     cli::{
         self, board_info, checksum_md5, completions, config::Config, connect, erase_flash,
         erase_partitions, erase_region, flash_elf_image, monitor::monitor, parse_uint32,
-        partition_table, print_board_info, save_elf_as_image, serial_monitor, ChecksumMd5Args,
-        CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs, EspflashProgress,
-        FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        partition_table, print_board_info, read_flash, save_elf_as_image, serial_monitor,
+        ChecksumMd5Args, CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs,
+        EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs, ReadFlashArgs,
     },
     error::Error,
     flasher::{parse_partition_table, FlashData, FlashSettings},
@@ -75,6 +75,8 @@ enum Commands {
     /// '--to-binary' options, plus the ability to print a partition table
     /// in tabular format.
     PartitionTable(PartitionTableArgs),
+    /// Read SPI flash content
+    ReadFlash(ReadFlashArgs),
     /// Generate a binary application image and save it to a local disk
     ///
     /// If the '--merge' option is used, then the bootloader, partition table,
@@ -178,6 +180,7 @@ fn main() -> Result<()> {
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
         Commands::SaveImage(args) => save_image(args),
+        Commands::ReadFlash(args) => read_flash(args, &config),
         Commands::WriteBin(args) => write_bin(args, &config),
         Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
     }
@@ -185,7 +188,7 @@ fn main() -> Result<()> {
 
 pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
-        return Err(Error::StubRequiredToEraseFlash).into_diagnostic();
+        return Err(Error::StubRequired.into());
     }
 
     let mut flash = connect(&args.connect_args, config, false, false)?;
