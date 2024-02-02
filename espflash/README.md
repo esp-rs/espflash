@@ -20,7 +20,7 @@ Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**,**ESP32-S
   - [Cargo Runner](#cargo-runner)
 - [Using `espflash` as a Library](#using-espflash-as-a-library)
 - [Configuration File](#configuration-file)
-  - [Configuration Examples](#configuration-examples)
+  - [Configuration precedence](#configuration-precedence)
 - [Logging Format](#logging-format)
 - [License](#license)
   - [Contribution](#contribution)
@@ -135,30 +135,44 @@ espflash = { version = "2.1", default-features = false, features = ["raspberry"]
 
 ## Configuration File
 
-It's possible to specify a serial port and/or USB VID/PID values by setting them in a configuration file. The location of this file differs based on your operating system:
+The configuration file allows you to define various parameters for your application:
+- Serial port:
+  - By name:
+    ```toml
+    [connection]
+    serial = "/dev/ttyUSB0"
+    ```
+  - By USB VID/PID values:
+    ```toml
+    [[usb_device]]
+    vid = "303a"
+    pid = "1001"
+    ```
+- Baudrate:
+  ```toml
+  baudrate = 460800
+  ```
+- Bootloader:
+  ```toml
+  bootloader = "path/to/custom/bootloader.bin"
+  ```
+- Partition table
+  ```toml
+  partition_table = "path/to/custom/partition-table.bin"
+  ```
 
-| Operating System | Configuration Path                                                |
-| :--------------- | :---------------------------------------------------------------- |
-| Linux            | `$HOME/.config/espflash/espflash.toml`                            |
-| macOS            | `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml` |
-| Windows          | `%APPDATA%\esp\espflash\espflash.toml`                            |
+You can have a local and/or a global configuration file:
+- For local configurations, store the file under the current working directory with the name `espflash.toml`
+- Global file location differs based on your operating system:
+  - Linux: `$HOME/.config/espflash/espflash.toml`
+  - macOS: `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml`
+  - Windows: `%APPDATA%\esp\espflash\espflash.toml`
 
-### Configuration Examples
+### Configuration precedence
 
-You can either configure the serial port name like so:
-
-```
-[connection]
-serial = "/dev/ttyUSB0"
-```
-
-Or specify one or more USB `vid`/`pid` couple:
-
-```
-[[usb_device]]
-vid = "303a"
-pid = "1001"
-```
+1. Environment variables: If `ESPFLASH_PORT` or `ESPFLASH_BAUD` are set, the will be used instead of the config file value.
+2. Local configuration file
+3. Global configuration file
 
 ## Logging Format
 
