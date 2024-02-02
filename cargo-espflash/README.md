@@ -17,9 +17,8 @@ Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**, **ESP32-
   - [Permissions on Linux](#permissions-on-linux)
   - [Windows Subsystem for Linux](#windows-subsystem-for-linux)
 - [Bootloader and Partition Table](#bootloader-and-partition-table)
-- [Package Metadata](#package-metadata)
 - [Configuration File](#configuration-file)
-  - [Configuration Examples](#configuration-examples)
+  - [Configuration precedence](#configuration-precedence)
 - [Logging Format](#logging-format)
 - [License](#license)
   - [Contribution](#contribution)
@@ -83,7 +82,9 @@ Commands:
   flash            Flash an application in ELF format to a target device
   monitor          Open the serial monitor without flashing the connected target device
   partition-table  Convert partition tables between CSV and binary format
+  read-flash       Read SPI flash content
   save-image       Generate a binary application image and save it to a local disk
+  checksum-md5     Calculate the MD5 checksum of the given region
   help             Print this message or the help of the given subcommand(s)
 
 Options:
@@ -113,43 +114,46 @@ If the `--bootloader` and/or `--partition-table` options are provided then these
 
 [esp-idf-sys]: https://github.com/esp-rs/esp-idf-sys
 
-## Package Metadata
-
-You're able to specify paths to bootloader and partition table files and image format in your package's Cargo metadata for per-project configuration:
-
-```toml
-[package.metadata.espflash]
-bootloader      = "bootloader.bin" # Must be a binary file
-partition_table = "partitions.csv" # Supports CSV and binary formats
-format          = "direct-boot"    # Can be 'esp-bootloader' or 'direct-boot'
-```
-
 ## Configuration File
 
-It's possible to specify a serial port and/or USB VID/PID values by setting them in a configuration file. The location of this file differs based on your operating system:
+The configuration file allows you to define various parameters for your application:
+- Serial port:
+  - By name:
+    ```toml
+    [connection]
+    serial = "/dev/ttyUSB0"
+    ```
+  - By USB VID/PID values:
+    ```toml
+    [[usb_device]]
+    vid = "303a"
+    pid = "1001"
+    ```
+- Baudrate:
+  ```toml
+  baudrate = 460800
+  ```
+- Bootloader:
+  ```toml
+  bootloader = "path/to/custom/bootloader.bin"
+  ```
+- Partition table
+  ```toml
+  partition_table = "path/to/custom/partition-table.bin"
+  ```
 
-| Operating System | Configuration Path                                                |
-| :--------------- | :---------------------------------------------------------------- |
-| Linux            | `$HOME/.config/espflash/espflash.toml`                            |
-| macOS            | `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml` |
-| Windows          | `%APPDATA%\esp\espflash\espflash.toml`                            |
+You can have a local and/or a global configuration file:
+- For local configurations, store the file under the current working directory with the name `espflash.toml`
+- Global file location differs based on your operating system:
+  - Linux: `$HOME/.config/espflash/espflash.toml`
+  - macOS: `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml`
+  - Windows: `%APPDATA%\esp\espflash\espflash.toml`
 
-### Configuration Examples
+### Configuration precedence
 
-You can either configure the serial port name like so:
-
-```
-[connection]
-serial = "/dev/ttyUSB0"
-```
-
-Or specify one or more USB `vid`/`pid` couple:
-
-```
-[[usb_device]]
-vid = "303a"
-pid = "1001"
-```
+1. Environment variables: If `ESPFLASH_PORT` or `ESPFLASH_BAUD` are set, the will be used instead of the config file value.
+2. Local configuration file
+3. Global configuration file
 
 ## Logging Format
 

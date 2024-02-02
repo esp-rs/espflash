@@ -342,7 +342,7 @@ pub fn connect(
     Ok(Flasher::connect(
         interface,
         port_info,
-        args.baud,
+        args.baud.or(config.baudrate),
         !args.no_stub,
         !no_verify,
         !no_skip,

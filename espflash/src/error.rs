@@ -96,6 +96,10 @@ pub enum Error {
     #[error("The provided bootloader binary is invalid")]
     InvalidBootloader,
 
+    #[error("Specified bootloader path is not a .bin file")]
+    #[diagnostic(code(espflash::invalid_bootloader_path))]
+    InvalidBootloaderPath,
+
     #[error("Binary is not set up correctly to support direct boot")]
     #[diagnostic(
         code(espflash::invalid_direct_boot),
@@ -116,6 +120,10 @@ pub enum Error {
     #[cfg(not(feature = "serialport"))]
     #[error(transparent)]
     IoError(#[from] std::io::Error),
+
+    #[error("Specified partition table path is not a .bin or .csv file")]
+    #[diagnostic(code(espflash::invalid_partition_table_path))]
+    InvalidPartitionTablePath,
 
     #[error("No serial ports could be detected")]
     #[diagnostic(

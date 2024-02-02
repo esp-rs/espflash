@@ -8,14 +8,18 @@
 //! [espflash]: https://crates.io/crates/espflash
 
 use std::{
+    ffi::OsStr,
     fs::{create_dir_all, read_to_string, write},
     path::PathBuf,
 };
 
 use directories::ProjectDirs;
+use log::debug;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};
 use serialport::UsbPortInfo;
+
+use crate::error::Error;
 
 /// A configured, known serial connection
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
@@ -76,9 +80,18 @@ impl UsbDevice {
 /// Deserialized contents of a configuration file
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Config {
+    /// Baudrate
+    #[serde(default)]
+    pub baudrate: Option<u32>,
+    /// Bootloader path
+    #[serde(default)]
+    pub bootloader: Option<PathBuf>,
     /// Preferred serial port connection information
     #[serde(default)]
     pub connection: Connection,
+    /// Partition table path
+    #[serde(default)]
+    pub partition_table: Option<PathBuf>,
     /// Preferred USB devices
     #[serde(default)]
     pub usb_device: Vec<UsbDevice>,
@@ -88,17 +101,43 @@ pub struct Config {
 }
 
 impl Config {
+    /// Gets the path to the configuration file.
+    pub fn get_config_path() -> Result<PathBuf, Error> {
+        let local_config = std::env::current_dir()?.join("espflash.toml");
+        if local_config.exists() {
+            return Ok(local_config);
+        }
+
+        let project_dirs = ProjectDirs::from("rs", "esp", "espflash").unwrap();
+        let global_config = project_dirs.config_dir().join("espflash.toml");
+        Ok(global_config)
+    }
+
     /// Load configuration from the configuration file
     pub fn load() -> Result<Self> {
-        let dirs = ProjectDirs::from("rs", "esp", "espflash").unwrap();
-        let file = dirs.config_dir().join("espflash.toml");
+        let file = Self::get_config_path()?;
 
         let mut config = if let Ok(data) = read_to_string(&file) {
             toml::from_str(&data).into_diagnostic()?
         } else {
             Self::default()
         };
+
+        if let Some(table) = &config.partition_table {
+            match table.extension() {
+                Some(ext) if ext == "bin" || ext == "csv" => {}
+                _ => return Err(Error::InvalidPartitionTablePath.into()),
+            }
+        }
+
+        if let Some(bootloader) = &config.bootloader {
+            if bootloader.extension() != Some(OsStr::new("bin")) {
+                return Err(Error::InvalidBootloaderPath.into());
+            }
+        }
+
         config.save_path = file;
+        debug!("Config: {:#?}", &config);
         Ok(config)
     }
 
