@@ -92,9 +92,6 @@ pub struct Config {
     /// Partition table path
     #[serde(default)]
     pub partition_table: Option<PathBuf>,
-    /// Port
-    #[serde(default)]
-    pub port: Option<String>,
     /// Preferred USB devices
     #[serde(default)]
     pub usb_device: Vec<UsbDevice>,
