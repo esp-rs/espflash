@@ -96,6 +96,10 @@ pub enum Error {
     #[error("The provided bootloader binary is invalid")]
     InvalidBootloader,
 
+    #[error("Invalid byte sequence read from the serial port while trying to detect Boot Mode")]
+    #[diagnostic(code(espflash::invalid_serial_read))]
+    InvalidSerialRead,
+
     #[error("Specified bootloader path is not a .bin file")]
     #[diagnostic(code(espflash::invalid_bootloader_path))]
     InvalidBootloaderPath,

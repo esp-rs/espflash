@@ -7,6 +7,7 @@
 use std::{
     io::{BufWriter, Write},
     iter::zip,
+    str::from_utf8,
     thread::sleep,
     time::Duration,
 };
@@ -132,9 +133,14 @@ impl Connection {
                 Ok(_) => {
                     return Ok(());
                 }
-                Err(e) => {
-                    debug!("Failed to reset, error {:#?}, retrying", e);
-                }
+                Err(e) => match e {
+                    Error::InvalidSerialRead => {
+                        return Err(Error::InvalidSerialRead);
+                    }
+                    _ => {
+                        debug!("Failed to reset, error {:#?}, retrying", e);
+                    }
+                },
             }
         }
 
@@ -168,7 +174,10 @@ impl Connection {
                 )));
             }
 
-            let read_slice = std::str::from_utf8(&buff[..read_bytes as usize]).unwrap();
+            let read_slice = from_utf8(&buff[..read_bytes as usize]).map_err(|err| {
+                debug!("Error: {}", err);
+                return Error::InvalidSerialRead;
+            })?;
 
             let pattern = Regex::new(r"boot:(0x[0-9a-fA-F]+)(.*waiting for download)?").unwrap();
 
