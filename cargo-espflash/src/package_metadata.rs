@@ -1,10 +1,9 @@
-use std::{path::PathBuf, str::FromStr};
+use std::path::PathBuf;
 
 use cargo::{
     core::{Package, Workspace},
     util::Config,
 };
-use espflash::image_format::ImageFormatKind;
 use miette::{IntoDiagnostic, Result};
 use serde::Deserialize;
 
@@ -14,7 +13,6 @@ use crate::error::Error;
 pub struct PackageMetadata {
     pub workspace_root: PathBuf,
     pub package_root: PathBuf,
-    pub format: Option<ImageFormatKind>,
 }
 
 impl PackageMetadata {
@@ -57,27 +55,10 @@ impl PackageMetadata {
     }
 
     fn load_metadata(workspace: &Workspace, package: &Package) -> Result<PackageMetadata> {
-        let mut espflash_meta = PackageMetadata {
+        let espflash_meta = PackageMetadata {
             workspace_root: workspace.root_manifest().parent().unwrap().to_path_buf(),
             package_root: package.root().to_path_buf(),
-
-            ..PackageMetadata::default()
         };
-
-        match package.manifest().custom_metadata() {
-            Some(meta) if meta.is_table() => match meta.as_table().unwrap().get("espflash") {
-                Some(meta) if meta.is_table() => {
-                    let meta = meta.as_table().unwrap();
-
-                    // TO BE REMOVED?
-                    espflash_meta.format = meta
-                        .get("format")
-                        .map(|fmt| ImageFormatKind::from_str(fmt.as_str().unwrap()).unwrap());
-                }
-                _ => {}
-            },
-            _ => {}
-        }
 
         Ok(espflash_meta)
     }
