@@ -176,7 +176,7 @@ impl Connection {
 
             let read_slice = from_utf8(&buff[..read_bytes as usize]).map_err(|err| {
                 debug!("Error: {}", err);
-                return Error::InvalidSerialRead;
+                Error::InvalidSerialRead
             })?;
 
             let pattern = Regex::new(r"boot:(0x[0-9a-fA-F]+)(.*waiting for download)?").unwrap();
