@@ -17,7 +17,6 @@ Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**, **ESP32-
   - [Permissions on Linux](#permissions-on-linux)
   - [Windows Subsystem for Linux](#windows-subsystem-for-linux)
 - [Bootloader and Partition Table](#bootloader-and-partition-table)
-- [Package Metadata](#package-metadata)
 - [Configuration File](#configuration-file)
   - [Configuration Examples](#configuration-examples)
 - [Logging Format](#logging-format)
@@ -83,7 +82,9 @@ Commands:
   flash            Flash an application in ELF format to a target device
   monitor          Open the serial monitor without flashing the connected target device
   partition-table  Convert partition tables between CSV and binary format
+  read-flash       Read SPI flash content
   save-image       Generate a binary application image and save it to a local disk
+  checksum-md5     Calculate the MD5 checksum of the given region
   help             Print this message or the help of the given subcommand(s)
 
 Options:
@@ -112,17 +113,6 @@ It is also _not_ possible to flash chips using the built-in `USB_SERIAL_JTAG` pe
 If the `--bootloader` and/or `--partition-table` options are provided then these will be used regardless of whether or not the package depends on `esp-idf-sys`.
 
 [esp-idf-sys]: https://github.com/esp-rs/esp-idf-sys
-
-## Package Metadata
-
-You're able to specify paths to bootloader and partition table files and image format in your package's Cargo metadata for per-project configuration:
-
-```toml
-[package.metadata.espflash]
-bootloader      = "bootloader.bin" # Must be a binary file
-partition_table = "partitions.csv" # Supports CSV and binary formats
-format          = "direct-boot"    # Can be 'esp-bootloader' or 'direct-boot'
-```
 
 ## Configuration File
 

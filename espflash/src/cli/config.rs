@@ -80,15 +80,15 @@ impl UsbDevice {
 /// Deserialized contents of a configuration file
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Config {
-    /// Preferred serial port connection information
-    #[serde(default)]
-    pub connection: Connection,
-    /// Bootloader path
-    #[serde(default)]
-    pub bootloader: Option<PathBuf>,
     /// Baudrate
     #[serde(default)]
     pub baudrate: Option<u32>,
+    /// Bootloader path
+    #[serde(default)]
+    pub bootloader: Option<PathBuf>,
+    /// Preferred serial port connection information
+    #[serde(default)]
+    pub connection: Connection,
     /// Partition table path
     #[serde(default)]
     pub partition_table: Option<PathBuf>,
