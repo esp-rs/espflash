@@ -97,7 +97,10 @@ pub enum Error {
     InvalidBootloader,
 
     #[error("Invalid byte sequence read from the serial port while trying to detect Boot Mode")]
-    #[diagnostic(code(espflash::invalid_serial_read))]
+    #[diagnostic(
+        code(espflash::invalid_serial_read),
+        help("This migth be caused by a xtal frequency missmatch")
+    )]
     InvalidSerialRead,
 
     #[error("Specified bootloader path is not a .bin file")]
@@ -108,8 +111,8 @@ pub enum Error {
     #[diagnostic(
         code(espflash::invalid_direct_boot),
         help(
-            "See the following page for documentation on how to set up your binary for direct boot:\
-             https://github.com/espressif/esp32c3-direct-boot-example"
+                "See the following page for documentation on how to set up your binary for direct boot:\
+                https://github.com/espressif/esp32c3-direct-boot-example"
         )
     )]
     InvalidDirectBootBinary,
