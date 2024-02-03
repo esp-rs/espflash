@@ -99,7 +99,7 @@ pub enum Error {
     #[error("Invalid byte sequence read from the serial port while trying to detect Boot Mode")]
     #[diagnostic(
         code(espflash::invalid_serial_read),
-        help("This migth be caused by a xtal frequency missmatch")
+        help("This might be caused by a xtal frequency mismatch")
     )]
     InvalidSerialRead,
 
