@@ -15,7 +15,6 @@ use espflash::{
     },
     error::Error,
     flasher::{parse_partition_table, FlashData, FlashSettings},
-    image_format::ImageFormatKind,
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
@@ -126,9 +125,6 @@ struct FlashArgs {
 struct SaveImageArgs {
     /// ELF image to flash
     image: PathBuf,
-    /// Image format to flash
-    #[arg(long, value_enum)]
-    format: Option<ImageFormatKind>,
     /// Flashing configuration
     #[clap(flatten)]
     pub flash_config_args: FlashConfigArgs,
@@ -262,7 +258,6 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             bootloader,
             partition_table,
             args.flash_args.partition_table_offset,
-            args.flash_args.format,
             args.flash_args.target_app_partition,
             flash_settings,
             args.flash_args.min_chip_rev,
@@ -324,9 +319,6 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     // Since we have no `Flasher` instance and as such cannot print the board
     // information, we will print whatever information we _do_ have.
     println!("Chip type:         {}", args.save_image_args.chip);
-    if let Some(format) = args.format {
-        println!("Image format:      {:?}", format);
-    }
     println!("Merge:             {}", args.save_image_args.merge);
     println!("Skip padding:      {}", args.save_image_args.skip_padding);
     if let Some(path) = &bootloader {
@@ -346,7 +338,6 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         bootloader,
         partition_table,
         args.save_image_args.partition_table_offset,
-        args.format,
         args.save_image_args.target_app_partition,
         flash_settings,
         args.save_image_args.min_chip_rev,

@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::ops::Range;
+use std::{collections::HashMap, ops::Range};
 
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
@@ -7,7 +6,7 @@ use crate::{
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashData, FlashFrequency},
-    image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
+    image_format::{IdfBootloaderFormat, ImageFormat},
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
@@ -86,10 +85,6 @@ impl Target for Esp32h2 {
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
     ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = flash_data
-            .image_format
-            .unwrap_or(ImageFormatKind::EspBootloader);
-
         if xtal_freq != XtalFrequency::_32Mhz {
             return Err(Error::UnsupportedFeature {
                 chip: Chip::Esp32h2,
@@ -97,20 +92,17 @@ impl Target for Esp32h2 {
             });
         }
 
-        match image_format {
-            ImageFormatKind::EspBootloader => Ok(Box::new(IdfBootloaderFormat::new(
-                image,
-                Chip::Esp32h2,
-                flash_data.min_chip_rev,
-                PARAMS,
-                flash_data.partition_table,
-                flash_data.partition_table_offset,
-                flash_data.target_app_partition,
-                flash_data.bootloader,
-                flash_data.flash_settings,
-            )?)),
-            ImageFormatKind::DirectBoot => Ok(Box::new(DirectBootFormat::new(image, 0x0)?)),
-        }
+        Ok(Box::new(IdfBootloaderFormat::new(
+            image,
+            Chip::Esp32h2,
+            flash_data.min_chip_rev,
+            PARAMS,
+            flash_data.partition_table,
+            flash_data.partition_table_offset,
+            flash_data.target_app_partition,
+            flash_data.bootloader,
+            flash_data.flash_settings,
+        )?))
     }
 
     fn spi_registers(&self) -> SpiRegisters {
@@ -123,10 +115,6 @@ impl Target for Esp32h2 {
             mosi_length_offset: Some(0x24),
             miso_length_offset: Some(0x28),
         }
-    }
-
-    fn supported_image_formats(&self) -> &[ImageFormatKind] {
-        &[ImageFormatKind::EspBootloader, ImageFormatKind::DirectBoot]
     }
 
     fn supported_build_targets(&self) -> &[&str] {

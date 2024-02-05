@@ -1,12 +1,8 @@
 //! ESP-IDF application binary image format
 
-use std::str::FromStr;
-
 use bytemuck::{Pod, Zeroable};
-use serde::Deserialize;
-use strum::{Display, EnumVariantNames, IntoStaticStr};
 
-pub use self::{direct_boot::DirectBootFormat, idf_bootloader::IdfBootloaderFormat};
+pub use self::idf_bootloader::IdfBootloaderFormat;
 use crate::{
     elf::RomSegment,
     error::Error,
@@ -14,7 +10,6 @@ use crate::{
     targets::Chip,
 };
 
-mod direct_boot;
 mod idf_bootloader;
 
 const ESP_CHECKSUM_MAGIC: u8 = 0xef;
@@ -123,33 +118,6 @@ pub trait ImageFormat<'a>: Send {
     /// If applicable, the size of the application partition (if it can be
     /// determined)
     fn part_size(&self) -> Option<u32>;
-}
-
-/// All supported firmware image formats
-#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(
-    Debug, Copy, Clone, Eq, PartialEq, Display, IntoStaticStr, EnumVariantNames, Deserialize,
-)]
-#[non_exhaustive]
-#[strum(serialize_all = "kebab-case")]
-#[serde(rename_all = "kebab-case")]
-pub enum ImageFormatKind {
-    /// Use the second-stage bootloader from ESP-IDF
-    EspBootloader,
-    /// Use direct boot and do not use a second-stage bootloader at all
-    DirectBoot,
-}
-
-impl FromStr for ImageFormatKind {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "esp-bootloader" => Ok(Self::EspBootloader),
-            "direct-boot" => Ok(Self::DirectBoot),
-            _ => Err(Error::UnknownImageFormat(s.into())),
-        }
-    }
 }
 
 /// Update the checksum with the given data

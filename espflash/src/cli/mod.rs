@@ -34,7 +34,6 @@ use crate::{
         parse_partition_table, FlashData, FlashFrequency, FlashMode, FlashSize, Flasher,
         ProgressCallbacks,
     },
-    image_format::ImageFormatKind,
     interface::Interface,
     targets::{Chip, XtalFrequency},
 };
@@ -140,9 +139,6 @@ pub struct FlashArgs {
     /// Erase specified data partitions
     #[arg(long, value_name = "PARTS", value_enum, value_delimiter = ',')]
     pub erase_data_parts: Option<Vec<DataType>>,
-    /// Image format to flash
-    #[arg(long, value_enum)]
-    pub format: Option<ImageFormatKind>,
     /// Logging format.
     #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
     pub log_format: LogFormat,

@@ -29,7 +29,7 @@ use crate::{
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashData, FlashFrequency, SpiAttachParams, FLASH_WRITE_SIZE},
-    image_format::{ImageFormat, ImageFormatKind},
+    image_format::ImageFormat,
 };
 
 /// Max partition size is 16 MB
@@ -377,11 +377,6 @@ pub trait Target: ReadEFuse {
 
     /// SPI register addresses for a chip
     fn spi_registers(&self) -> SpiRegisters;
-
-    /// Image formats supported by a chip
-    fn supported_image_formats(&self) -> &[ImageFormatKind] {
-        &[ImageFormatKind::EspBootloader]
-    }
 
     /// Build targets supported by a chip
     fn supported_build_targets(&self) -> &[&str];

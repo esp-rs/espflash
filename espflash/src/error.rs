@@ -5,6 +5,11 @@ use std::{
     io,
 };
 
+use miette::Diagnostic;
+use slip_codec::SlipError;
+use strum::{FromRepr, VariantNames};
+use thiserror::Error;
+
 #[cfg(feature = "cli")]
 use crate::cli::monitor::parser::esp_defmt::DefmtError;
 #[cfg(feature = "serialport")]
@@ -12,14 +17,8 @@ use crate::interface::SerialConfigError;
 use crate::{
     command::CommandType,
     flasher::{FlashFrequency, FlashSize},
-    image_format::ImageFormatKind,
     targets::Chip,
 };
-
-use miette::Diagnostic;
-use slip_codec::SlipError;
-use strum::{FromRepr, VariantNames};
-use thiserror::Error;
 
 /// All possible errors returned by espflash
 #[derive(Debug, Diagnostic, Error)]
@@ -107,16 +106,6 @@ pub enum Error {
     #[diagnostic(code(espflash::invalid_bootloader_path))]
     InvalidBootloaderPath,
 
-    #[error("Binary is not set up correctly to support direct boot")]
-    #[diagnostic(
-        code(espflash::invalid_direct_boot),
-        help(
-                "See the following page for documentation on how to set up your binary for direct boot:\
-                https://github.com/espressif/esp32c3-direct-boot-example"
-        )
-    )]
-    InvalidDirectBootBinary,
-
     #[error("The flash size '{0}' is invalid")]
     #[diagnostic(
         code(espflash::invalid_flash_size),
@@ -164,13 +153,6 @@ pub enum Error {
         help("Make sure the correct device is connected to the host system")
     )]
     SerialNotFound(String),
-
-    #[error("Unrecognized image format '{0}'")]
-    #[diagnostic(
-        code(espflash::unknown_format),
-        help("The following image formats are supported: {}", ImageFormatKind::VARIANTS.join(", "))
-    )]
-    UnknownImageFormat(String),
 
     #[error("The {chip} does not support {feature}")]
     #[diagnostic(code(espflash::unsupported_feature))]
@@ -220,10 +202,6 @@ pub enum Error {
     #[error("The bootloader returned an error")]
     #[diagnostic(transparent)]
     RomError(#[from] RomError),
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    UnsupportedImageFormat(#[from] UnsupportedImageFormatError),
 
     #[cfg(feature = "serialport")]
     #[error(transparent)]
@@ -514,80 +492,6 @@ pub struct ElfError(&'static str);
 impl From<&'static str> for ElfError {
     fn from(err: &'static str) -> Self {
         ElfError(err)
-    }
-}
-
-/// Unsupported image format error
-#[derive(Debug)]
-pub struct UnsupportedImageFormatError {
-    format: ImageFormatKind,
-    chip: Chip,
-    revision: Option<(u32, u32)>,
-    context: Option<String>,
-}
-
-impl UnsupportedImageFormatError {
-    pub fn new(format: ImageFormatKind, chip: Chip, revision: Option<(u32, u32)>) -> Self {
-        Self {
-            format,
-            chip,
-            revision,
-            context: None,
-        }
-    }
-
-    /// Return a comma-separated list of supported image formats
-    fn supported_formats(&self) -> String {
-        self.chip
-            .into_target()
-            .supported_image_formats()
-            .iter()
-            .map(|format| format.into())
-            .collect::<Vec<&'static str>>()
-            .join(", ")
-    }
-
-    /// Update the context of the unsupported image format error
-    pub fn with_context(mut self, ctx: String) -> Self {
-        self.context.replace(ctx);
-
-        self
-    }
-}
-
-impl std::error::Error for UnsupportedImageFormatError {}
-
-impl Display for UnsupportedImageFormatError {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "Image format {} is not supported by the {}",
-            self.format, self.chip
-        )?;
-
-        if let Some((major, minor)) = self.revision {
-            write!(f, " revision v{major}.{minor}")?;
-        }
-
-        Ok(())
-    }
-}
-
-impl Diagnostic for UnsupportedImageFormatError {
-    fn code<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
-        Some(Box::new("espflash::unsupported_image_format"))
-    }
-
-    fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
-        if let Some(ref ctx) = self.context {
-            Some(Box::new(ctx))
-        } else {
-            Some(Box::new(format!(
-                "The following image formats are supported by the {}: {}",
-                self.chip,
-                self.supported_formats()
-            )))
-        }
     }
 }
 

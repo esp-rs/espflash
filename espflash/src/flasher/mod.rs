@@ -28,7 +28,6 @@ use crate::{
     command::{Command, CommandType},
     elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
     error::{ConnectionError, Error, ResultExt},
-    image_format::ImageFormatKind,
     targets::{Chip, XtalFrequency},
 };
 #[cfg(feature = "serialport")]
@@ -285,7 +284,6 @@ pub struct FlashDataBuilder<'a> {
     bootloader_path: Option<&'a Path>,
     partition_table_path: Option<&'a Path>,
     partition_table_offset: Option<u32>,
-    image_format: Option<ImageFormatKind>,
     target_app_partition: Option<String>,
     flash_settings: FlashSettings,
     min_chip_rev: u16,
@@ -297,7 +295,6 @@ impl<'a> Default for FlashDataBuilder<'a> {
             bootloader_path: Default::default(),
             partition_table_path: Default::default(),
             partition_table_offset: Default::default(),
-            image_format: Default::default(),
             target_app_partition: Default::default(),
             flash_settings: FlashSettings::default(),
             min_chip_rev: Default::default(),
@@ -329,12 +326,6 @@ impl<'a> FlashDataBuilder<'a> {
         self
     }
 
-    /// Sets the image format.
-    pub fn with_image_format(mut self, image_format: ImageFormatKind) -> Self {
-        self.image_format = Some(image_format);
-        self
-    }
-
     /// Sets the label of the target app partition.
     pub fn with_target_app_partition(mut self, target_app_partition: String) -> Self {
         self.target_app_partition = Some(target_app_partition);
@@ -359,7 +350,6 @@ impl<'a> FlashDataBuilder<'a> {
             self.bootloader_path,
             self.partition_table_path,
             self.partition_table_offset,
-            self.image_format,
             self.target_app_partition,
             self.flash_settings,
             self.min_chip_rev,
@@ -374,7 +364,6 @@ pub struct FlashData {
     pub bootloader: Option<Vec<u8>>,
     pub partition_table: Option<PartitionTable>,
     pub partition_table_offset: Option<u32>,
-    pub image_format: Option<ImageFormatKind>,
     pub target_app_partition: Option<String>,
     pub flash_settings: FlashSettings,
     pub min_chip_rev: u16,
@@ -385,7 +374,6 @@ impl FlashData {
         bootloader: Option<&Path>,
         partition_table: Option<&Path>,
         partition_table_offset: Option<u32>,
-        image_format: Option<ImageFormatKind>,
         target_app_partition: Option<String>,
         flash_settings: FlashSettings,
         min_chip_rev: u16,
@@ -412,7 +400,6 @@ impl FlashData {
             bootloader,
             partition_table,
             partition_table_offset,
-            image_format,
             target_app_partition,
             flash_settings,
             min_chip_rev,
