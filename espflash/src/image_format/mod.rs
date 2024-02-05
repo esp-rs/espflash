@@ -1,9 +1,4 @@
-//! Supported binary image formats
-//!
-//! Since the ESP8266 is not supported by ESP-IDF, it has its own image format
-//! which must be used. All other devices support the ESP-IDF bootloader format.
-//! Certain devices additionally support direct boot, which needs its own unique
-//! image format.
+//! ESP-IDF application binary image format
 
 use std::str::FromStr;
 
@@ -11,9 +6,7 @@ use bytemuck::{Pod, Zeroable};
 use serde::Deserialize;
 use strum::{Display, EnumVariantNames, IntoStaticStr};
 
-pub use self::{
-    direct_boot::DirectBootFormat, esp8266::Esp8266Format, idf_bootloader::IdfBootloaderFormat,
-};
+pub use self::{direct_boot::DirectBootFormat, idf_bootloader::IdfBootloaderFormat};
 use crate::{
     elf::RomSegment,
     error::Error,
@@ -22,7 +15,6 @@ use crate::{
 };
 
 mod direct_boot;
-mod esp8266;
 mod idf_bootloader;
 
 const ESP_CHECKSUM_MAGIC: u8 = 0xef;
@@ -87,11 +79,6 @@ impl Default for ImageHeader {
 }
 
 impl ImageHeader {
-    /// Header size without extended part.
-    ///
-    /// [ESP8266 header format](https://docs.espressif.com/projects/esptool/en/latest/esp8266/advanced-topics/firmware-image-format.html#file-header)
-    pub const COMMON_HEADER_LEN: u32 = 8;
-
     /// Updates flash size and speed filed.
     pub fn write_flash_config(
         &mut self,
@@ -99,7 +86,7 @@ impl ImageHeader {
         freq: FlashFrequency,
         chip: Chip,
     ) -> Result<(), Error> {
-        let flash_size = size.encode_flash_size(chip)?;
+        let flash_size = size.encode_flash_size()?;
         let flash_speed = freq.encode_flash_frequency(chip)?;
 
         // bit field

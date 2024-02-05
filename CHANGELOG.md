@@ -35,11 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Windows: Update RST/DTR order to avoid issues.
 
 ### Changed
+
 - Created `FlashData`, `FlashDataBuilder` and `FlashSettings` structs to reduce number of input arguments in some functions (#512, #566)
 - `espflash` will now exit with an error if `defmt` is selected but not usable (#524)
 - Unify configuration methods (#551)
 
 ### Removed
+
+- Remove support for the ESP8266 (#576)
 
 ## [2.1.0] - 2023-10-03
 

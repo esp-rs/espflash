@@ -31,7 +31,7 @@ const SYNC_FRAME: [u8; 36] = [
 #[repr(u8)]
 pub enum CommandType {
     Unknown = 0,
-    // Commands supported by the ESP8266 & ESP32s bootloaders
+    // Commands supported by the ESP32's bootloaders
     FlashBegin = 0x02,
     FlashData = 0x03,
     FlashEnd = 0x04,
@@ -461,7 +461,7 @@ fn begin_command<W: Write>(
 
     let bytes = bytes_of(&params);
     let data = if !supports_encryption {
-        // The ESP32 and ESP8266 do not take the `encrypted` field, so truncate the last
+        // The ESP32 does not take the `encrypted` field, so truncate the last
         // 4 bytes of the slice where it resides.
         let end = bytes.len() - 4;
         &bytes[0..end]

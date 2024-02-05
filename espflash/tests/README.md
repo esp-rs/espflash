@@ -29,17 +29,3 @@ The ELF file is located at `target/xtensa-esp32-none-elf/release/examples/blinky
 ```bash
 $ espflash save-image --chip=esp32 esp32_hal_blinky.bin esp32_hal_blinky
 ```
-
-## ESP8266
-
-```bash
-$ git clone https://github.com/esp-rs/esp8266-hal
-$ cd esp8266-hal/
-$ cargo build --release --example=blinky
-```
-
-The ELF file is located at `target/xtensa-esp8266-none-elf/release/examples/blinky`
-
-```bash
-$ espflash save-image --chip=esp8266 esp8266_hal_blinky.bin esp8266_hal_blinky
-```

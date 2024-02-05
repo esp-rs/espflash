@@ -7,7 +7,7 @@
 
 Cross-compiler and Cargo extension for flashing Espressif devices.
 
-Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**, **ESP32-S2/S3**, and **ESP8266**.
+Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**, and **ESP32-S2/S3**.
 
 <!-- omit in toc -->
 ## Table of Contents
@@ -57,6 +57,7 @@ cargo install cargo-espflash --features=raspberry
 ```
 
 By default, in Unix systems, we use the [`vendored-openssl` Cargo feature] which may require additional tools such as `perl` and `make`. To disable this feature, use:
+
 ```
 OPENSSL_NO_VENDOR=1 cargo install cargo-espflash
 ```
@@ -117,6 +118,7 @@ If the `--bootloader` and/or `--partition-table` options are provided then these
 ## Configuration File
 
 The configuration file allows you to define various parameters for your application:
+
 - Serial port:
   - By name:
     ```toml
@@ -143,6 +145,7 @@ The configuration file allows you to define various parameters for your applicat
   ```
 
 You can have a local and/or a global configuration file:
+
 - For local configurations, store the file under the current working directory with the name `espflash.toml`
 - Global file location differs based on your operating system:
   - Linux: `$HOME/.config/espflash/espflash.toml`
@@ -158,6 +161,7 @@ You can have a local and/or a global configuration file:
 ## Logging Format
 
 `cargo-espflash` `flash` and `monitor` subcommands support several logging formats using the `-L/--log-format` argument:
+
 - `serial`: Default logging format
 - `defmt`: Uses [`defmt`] logging framework. With logging format, logging strings have framing bytes to indicate that they are `defmt` messages.
   - See [`defmt` section] of `esp-println` readme.

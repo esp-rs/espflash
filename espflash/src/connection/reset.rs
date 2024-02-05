@@ -3,18 +3,16 @@
 #[cfg(unix)]
 use std::{io, os::fd::AsRawFd};
 use std::{thread::sleep, time::Duration};
-use strum::{Display, EnumIter, EnumString, EnumVariantNames};
 
 use log::debug;
+use strum::{Display, EnumIter, EnumString, EnumVariantNames};
 
 use crate::{
     command::{Command, CommandType},
-    connection::Connection,
-    connection::USB_SERIAL_JTAG_PID,
+    connection::{Connection, USB_SERIAL_JTAG_PID},
     error::Error,
     flasher,
     interface::Interface,
-    targets::Chip,
 };
 
 /// Default time to wait before releasing the boot pin after a reset
@@ -220,12 +218,11 @@ impl ResetStrategy for HardReset {
     }
 }
 
-///
+/// Perform a soft reset of the device.
 pub fn soft_reset(
     connection: &mut Connection,
     stay_in_bootloader: bool,
     is_stub: bool,
-    chip: Chip,
 ) -> Result<(), Error> {
     debug!("Using SoftReset reset strategy");
     if !is_stub {
@@ -269,8 +266,6 @@ pub fn soft_reset(
         connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
             connection.write_command(Command::FlashEnd { reboot: true })
         })?;
-    } else if chip != Chip::Esp8266 {
-        return Err(Error::SoftResetNotAvailable);
     } else {
         // Running user code from stub loader requires some hacks in the stub loader
         connection.with_timeout(CommandType::RunUserCode.timeout(), |connection| {
@@ -321,12 +316,15 @@ pub fn construct_reset_strategy_sequence(
 #[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
 pub enum ResetBeforeOperation {
-    /// Uses DTR & RTS serial control lines to try to reset the chip into bootloader mode.
+    /// Uses DTR & RTS serial control lines to try to reset the chip into
+    /// bootloader mode.
     #[default]
     DefaultReset,
-    /// Skips DTR/RTS control signal assignments and just start sending a serial synchronisation command to the chip.
+    /// Skips DTR/RTS control signal assignments and just start sending a serial
+    /// synchronisation command to the chip.
     NoReset,
-    /// Skips DTR/RTS control signal assignments and also skips the serial synchronization command.
+    /// Skips DTR/RTS control signal assignments and also skips the serial
+    /// synchronization command.
     NoResetNoSync,
     /// Reset sequence for USB-JTAG-Serial peripheral
     UsbReset,
@@ -338,13 +336,10 @@ pub enum ResetBeforeOperation {
 )]
 #[non_exhaustive]
 pub enum ResetAfterOperation {
-    /// The DTR serial control line is used to reset the chip into a normal boot sequence.
+    /// The DTR serial control line is used to reset the chip into a normal boot
+    /// sequence.
     #[default]
     HardReset,
-    /// Runs the user firmware, but any subsequent reset will return to the serial bootloader.
-    ///
-    /// Only supported on ESP8266.
-    SoftReset,
     /// Leaves the chip in the serial bootloader, no reset is performed.
     NoReset,
     /// Leaves the chip in the stub bootloader, no reset is performed.

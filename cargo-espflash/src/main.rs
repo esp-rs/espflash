@@ -164,7 +164,8 @@ pub struct ErasePartsArgs {
     /// Input partition table
     #[arg(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
-    /// Specify a (binary) package within a workspace which may provide a partition table
+    /// Specify a (binary) package within a workspace which may provide a
+    /// partition table
     #[arg(long)]
     pub package: Option<String>,
 }
@@ -244,18 +245,18 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
         .as_deref()
         .or(config.partition_table.as_deref());
 
-    let mut flash = connect(&args.connect_args, config, false, false)?;
+    let mut flasher = connect(&args.connect_args, config, false, false)?;
     let partition_table = match partition_table {
         Some(path) => Some(parse_partition_table(path)?),
         None => None,
     };
 
     info!("Erasing the following partitions: {:?}", args.erase_parts);
-    let chip: Chip = flash.chip();
-    erase_partitions(&mut flash, partition_table, Some(args.erase_parts), None)?;
-    flash
+
+    erase_partitions(&mut flasher, partition_table, Some(args.erase_parts), None)?;
+    flasher
         .connection()
-        .reset_after(!args.connect_args.no_stub, chip)?;
+        .reset_after(!args.connect_args.no_stub)?;
 
     Ok(())
 }
