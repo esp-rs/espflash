@@ -191,18 +191,18 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
         return Err(Error::StubRequired.into());
     }
 
-    let mut flash = connect(&args.connect_args, config, false, false)?;
+    let mut flasher = connect(&args.connect_args, config, false, false)?;
     let partition_table = match args.partition_table {
         Some(path) => Some(parse_partition_table(&path)?),
         None => None,
     };
 
     info!("Erasing the following partitions: {:?}", args.erase_parts);
-    let chip = flash.chip();
-    erase_partitions(&mut flash, partition_table, Some(args.erase_parts), None)?;
-    flash
+
+    erase_partitions(&mut flasher, partition_table, Some(args.erase_parts), None)?;
+    flasher
         .connection()
-        .reset_after(!args.connect_args.no_stub, chip)?;
+        .reset_after(!args.connect_args.no_stub)?;
 
     Ok(())
 }

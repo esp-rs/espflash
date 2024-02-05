@@ -31,7 +31,6 @@ use crate::{
     connection::reset::soft_reset,
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
     interface::Interface,
-    targets::Chip,
 };
 
 pub mod reset;
@@ -257,17 +256,12 @@ impl Connection {
     }
 
     // Reset the device taking into account the reset after argument
-    pub fn reset_after(&mut self, is_stub: bool, chip: Chip) -> Result<(), Error> {
+    pub fn reset_after(&mut self, is_stub: bool) -> Result<(), Error> {
         match self.after_operation {
             ResetAfterOperation::HardReset => HardReset.reset(&mut self.serial),
-            ResetAfterOperation::SoftReset => {
-                info!("Soft resetting");
-                soft_reset(self, false, is_stub, chip)?;
-                Ok(())
-            }
             ResetAfterOperation::NoReset => {
                 info!("Staying in bootloader");
-                soft_reset(self, true, is_stub, chip)?;
+                soft_reset(self, true, is_stub)?;
 
                 Ok(())
             }

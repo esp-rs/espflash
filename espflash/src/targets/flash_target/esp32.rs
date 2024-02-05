@@ -66,10 +66,11 @@ impl FlashTarget for Esp32Target {
             connection.command(command)
         })?;
 
-        // The stub usually disables these watchdog timers, however if we're not using the stub
-        // we need to disable them before flashing begins
-        // TODO: the stub doesn't appear to disable the watchdog on ESP32-S3, so we explicitly
-        //       disable the watchdog here.
+        // The stub usually disables these watchdog timers, however if we're not using
+        // the stub we need to disable them before flashing begins.
+        //
+        // TODO: the stub doesn't appear to disable the watchdog on ESP32-S3, so we
+        //       explicitly disable the watchdog here.
         if connection.get_usb_pid()? == USB_SERIAL_JTAG_PID {
             match self.chip {
                 Chip::Esp32c3 => {
@@ -252,7 +253,7 @@ impl FlashTarget for Esp32Target {
         }
 
         if reboot {
-            connection.reset_after(self.use_stub, self.chip)?;
+            connection.reset_after(self.use_stub)?;
         }
 
         Ok(())

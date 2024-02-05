@@ -1,10 +1,8 @@
 //! Flashable target devices
 //!
-//! Different devices support different boot options; the ESP8266 does not use a
-//! second-stage bootloader, nor does direct boot (only supported by certain
-//! devices). All ESP32* devices support booting via the ESP-IDF bootloader.
-//! It's also possible to write an application to and boot from RAM, where a
-//! bootloader is obviously not required either.
+//! All ESP32 devices support booting via the ESP-IDF bootloader. It's also
+//! possible to write an application to and boot from RAM, where a bootloader is
+//! obviously not required either.
 
 use std::collections::HashMap;
 
@@ -23,8 +21,7 @@ pub use self::{
     esp32p4::Esp32p4,
     esp32s2::Esp32s2,
     esp32s3::Esp32s3,
-    esp8266::Esp8266,
-    flash_target::{Esp32Target, Esp8266Target, RamTarget},
+    flash_target::{Esp32Target, RamTarget},
 };
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
@@ -46,7 +43,6 @@ mod esp32h2;
 mod esp32p4;
 mod esp32s2;
 mod esp32s3;
-mod esp8266;
 mod flash_target;
 
 /// Supported crystal frequencies
@@ -92,7 +88,6 @@ impl XtalFrequency {
             Chip::Esp32p4 => Self::_40Mhz,
             Chip::Esp32s2 => Self::_40Mhz,
             Chip::Esp32s3 => Self::_40Mhz,
-            Chip::Esp8266 => Self::_40Mhz,
         }
     }
 }
@@ -119,8 +114,6 @@ pub enum Chip {
     Esp32s2,
     /// ESP32-S3
     Esp32s3,
-    /// ESP8266
-    Esp8266,
 }
 
 impl Chip {
@@ -141,8 +134,6 @@ impl Chip {
             Ok(Chip::Esp32s2)
         } else if Esp32s3::has_magic_value(magic) {
             Ok(Chip::Esp32s3)
-        } else if Esp8266::has_magic_value(magic) {
-            Ok(Chip::Esp8266)
         } else {
             Err(Error::ChipDetectError(magic))
         }
@@ -158,7 +149,6 @@ impl Chip {
             Chip::Esp32p4 => Box::new(Esp32p4),
             Chip::Esp32s2 => Box::new(Esp32s2),
             Chip::Esp32s3 => Box::new(Esp32s3),
-            Chip::Esp8266 => Box::new(Esp8266),
         }
     }
 
@@ -170,10 +160,7 @@ impl Chip {
         verify: bool,
         skip: bool,
     ) -> Box<dyn FlashTarget> {
-        match self {
-            Chip::Esp8266 => Box::new(Esp8266Target::new()),
-            _ => Box::new(Esp32Target::new(*self, spi_params, use_stub, verify, skip)),
-        }
+        Box::new(Esp32Target::new(*self, spi_params, use_stub, verify, skip))
     }
 
     #[cfg(feature = "serialport")]

@@ -10,8 +10,7 @@
 //! [cargo-espflash]: https://crates.io/crates/cargo-espflash
 //! [espflash]: https://crates.io/crates/espflash
 
-use std::num::ParseIntError;
-use std::{collections::HashMap, fs, io::Write, path::PathBuf};
+use std::{collections::HashMap, fs, io::Write, num::ParseIntError, path::PathBuf};
 
 use clap::Args;
 use clap_complete::Shell;
@@ -590,11 +589,9 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     let mut flash = connect(&args.connect_args, config, true, true)?;
 
     info!("Erasing Flash...");
+
     flash.erase_flash()?;
-    let chip = flash.chip();
-    flash
-        .connection()
-        .reset_after(!args.connect_args.no_stub, chip)?;
+    flash.connection().reset_after(!args.connect_args.no_stub)?;
 
     Ok(())
 }
@@ -604,17 +601,17 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
         return Err(Error::StubRequired).into_diagnostic();
     }
 
-    let mut flash = connect(&args.connect_args, config, true, true)?;
+    let mut flasher = connect(&args.connect_args, config, true, true)?;
 
     info!(
         "Erasing region at 0x{:08x} ({} bytes)",
         args.addr, args.size
     );
-    flash.erase_region(args.addr, args.size)?;
-    let chip = flash.chip();
-    flash
+
+    flasher.erase_region(args.addr, args.size)?;
+    flasher
         .connection()
-        .reset_after(!args.connect_args.no_stub, chip)?;
+        .reset_after(!args.connect_args.no_stub)?;
 
     Ok(())
 }
