@@ -174,6 +174,9 @@ impl Connection {
             }
 
             let read_slice = String::from_utf8_lossy(&buff[..read_bytes as usize]).into_owned();
+            if !read_slice.contains("boot") {
+                return Err(Error::InvalidSerialRead);
+            }
 
             let pattern = Regex::new(r"boot:(0x[0-9a-fA-F]+)(.*waiting for download)?").unwrap();
 
