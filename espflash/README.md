@@ -8,7 +8,7 @@
 
 A library and command-line tool for flashing Espressif devices.
 
-Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**,**ESP32-S2/S3**, and **ESP8266**.
+Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**, and **ESP32-S2/S3**.
 
 <!-- omit in toc -->
 ## Table of Contents
@@ -117,9 +117,11 @@ With this configuration you can flash and monitor you application using `cargo r
 ## Using `espflash` as a Library
 
 `espflash` can be used as a library in other applications:
+
 ```toml
 espflash = { version = "2.1", default-features = false }
 ```
+
 or `cargo add espflash --no-default-features`
 
 > **Warning**
@@ -136,6 +138,7 @@ espflash = { version = "2.1", default-features = false, features = ["raspberry"]
 ## Configuration File
 
 The configuration file allows you to define various parameters for your application:
+
 - Serial port:
   - By name:
     ```toml
@@ -162,6 +165,7 @@ The configuration file allows you to define various parameters for your applicat
   ```
 
 You can have a local and/or a global configuration file:
+
 - For local configurations, store the file under the current working directory with the name `espflash.toml`
 - Global file location differs based on your operating system:
   - Linux: `$HOME/.config/espflash/espflash.toml`
@@ -177,6 +181,7 @@ You can have a local and/or a global configuration file:
 ## Logging Format
 
 `espflash` `flash` and `monitor` subcommands support several logging formats using the `-L/--log-format` argument:
+
 - `serial`: Default logging format
 - `defmt`: Uses [`defmt`] logging framework. With logging format, logging strings have framing bytes to indicate that they are `defmt` messages.
   - See [`defmt` section] of `esp-println` readme.

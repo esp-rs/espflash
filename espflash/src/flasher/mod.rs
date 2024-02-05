@@ -987,8 +987,6 @@ impl Flasher {
                 .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
         target.begin(&mut self.connection).flashing()?;
 
-        // The ESP8266 does not have readable major/minor revision numbers, so we have
-        // nothing to return if targeting it.
         let chip_revision = Some(
             self.chip
                 .into_target()
