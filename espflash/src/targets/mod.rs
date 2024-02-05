@@ -29,7 +29,7 @@ use crate::{
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashData, FlashFrequency, SpiAttachParams, FLASH_WRITE_SIZE},
-    image_format::ImageFormat,
+    image_format::IdfBootloaderFormat,
 };
 
 /// Max partition size is 16 MB
@@ -354,7 +354,7 @@ pub trait Target: ReadEFuse {
         flash_data: FlashData,
         chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
-    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error>;
+    ) -> Result<IdfBootloaderFormat<'a>, Error>;
 
     #[cfg(feature = "serialport")]
     /// What is the MAC address?

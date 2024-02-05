@@ -6,7 +6,7 @@ use crate::{
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashData, FlashFrequency},
-    image_format::{IdfBootloaderFormat, ImageFormat},
+    image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
@@ -155,7 +155,7 @@ impl Target for Esp32 {
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
-    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
+    ) -> Result<IdfBootloaderFormat<'a>, Error> {
         let booloader: &'static [u8] = match xtal_freq {
             XtalFrequency::_40Mhz => {
                 include_bytes!("../../resources/bootloaders/esp32-bootloader.bin")
@@ -180,7 +180,7 @@ impl Target for Esp32 {
             booloader,
         );
 
-        Ok(Box::new(IdfBootloaderFormat::new(
+        IdfBootloaderFormat::new(
             image,
             Chip::Esp32,
             flash_data.min_chip_rev,
@@ -190,7 +190,7 @@ impl Target for Esp32 {
             flash_data.target_app_partition,
             flash_data.bootloader,
             flash_data.flash_settings,
-        )?))
+        )
     }
 
     #[cfg(feature = "serialport")]
