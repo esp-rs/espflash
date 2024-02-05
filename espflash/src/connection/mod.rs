@@ -7,7 +7,6 @@
 use std::{
     io::{BufWriter, Write},
     iter::zip,
-    str::from_utf8,
     thread::sleep,
     time::Duration,
 };
@@ -155,7 +154,7 @@ impl Connection {
             return Ok(());
         }
         let mut download_mode: bool = false;
-        let mut boot_mode: &str = "";
+        let mut boot_mode = String::new();
         let mut boot_log_detected = false;
         let mut buff: Vec<u8>;
         if self.before_operation != ResetBeforeOperation::NoReset {
@@ -173,18 +172,22 @@ impl Connection {
                 )));
             }
 
-            let read_slice = from_utf8(&buff[..read_bytes as usize]).map_err(|err| {
-                debug!("Error: {}", err);
-                Error::InvalidSerialRead
-            })?;
+            let read_slice = String::from_utf8_lossy(&buff[..read_bytes as usize]).into_owned();
+            if !read_slice.contains("boot") {
+                return Err(Error::InvalidSerialRead);
+            }
 
             let pattern = Regex::new(r"boot:(0x[0-9a-fA-F]+)(.*waiting for download)?").unwrap();
 
             // Search for the pattern in the read data
-            if let Some(data) = pattern.captures(read_slice) {
+            if let Some(data) = pattern.captures(&read_slice) {
                 boot_log_detected = true;
                 // Boot log detected
-                boot_mode = data.get(1).map(|m| m.as_str()).unwrap_or_default();
+                boot_mode = data
+                    .get(1)
+                    .map(|m| m.as_str())
+                    .unwrap_or_default()
+                    .to_string();
                 download_mode = data.get(2).is_some();
 
                 // Further processing or printing the results

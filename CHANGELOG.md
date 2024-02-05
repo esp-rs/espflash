@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed a missed `flush` call that may be causing communication errors (#521)
 - Fix "SHA-256 comparison failed: [...] attempting to boot anyway..." (#567)
 - Windows: Update RST/DTR order to avoid issues.
+- Tolerate non-utf8 data in boot detection (#573)
 
 ### Changed
 
