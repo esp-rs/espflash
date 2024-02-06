@@ -21,7 +21,7 @@ use crossterm::{
 };
 use log::error;
 use miette::{IntoDiagnostic, Result};
-use strum::{Display, EnumIter, EnumString, EnumVariantNames};
+use strum::{Display, EnumIter, EnumString, VariantNames};
 
 use crate::{
     cli::monitor::parser::{InputParser, ResolvingPrinter},
@@ -35,7 +35,7 @@ mod line_endings;
 mod symbols;
 
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, EnumVariantNames)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames)]
 #[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
 pub enum LogFormat {

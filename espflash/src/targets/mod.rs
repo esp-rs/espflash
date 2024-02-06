@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
 use serde::{Deserialize, Serialize};
-use strum::{Display, EnumIter, EnumString, EnumVariantNames};
+use strum::{Display, EnumIter, EnumString, VariantNames};
 
 #[cfg(feature = "serialport")]
 use self::flash_target::{FlashTarget, MAX_RAM_BLOCK_SIZE};
@@ -50,17 +50,7 @@ mod flash_target;
 /// Note that not all frequencies are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(
-    Debug,
-    Default,
-    Clone,
-    Copy,
-    Hash,
-    PartialEq,
-    Eq,
-    Display,
-    EnumVariantNames,
-    Serialize,
-    Deserialize,
+    Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Display, VariantNames, Serialize, Deserialize,
 )]
 #[non_exhaustive]
 #[repr(u32)]
@@ -94,7 +84,7 @@ impl XtalFrequency {
 
 /// All supported devices
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, EnumVariantNames)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames)]
 #[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
 pub enum Chip {

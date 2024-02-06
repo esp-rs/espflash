@@ -212,6 +212,11 @@ pub enum Error {
     #[diagnostic(code(espflash::verify_failed))]
     VerifyFailed,
 
+    #[cfg(feature = "cli")]
+    #[error(transparent)]
+    #[diagnostic(code(espflash::dialoguer_error))]
+    DialoguerError(#[from] dialoguer::Error),
+
     #[error("Internal Error")]
     InternalError,
 }

@@ -21,7 +21,8 @@ use miette::{Context, IntoDiagnostic, Result};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
 use serialport::UsbPortInfo;
-use strum::{Display, EnumIter, EnumVariantNames};
+use strum::IntoEnumIterator;
+use strum::{Display, EnumIter, VariantNames};
 
 use self::stubs::FlashStub;
 use crate::{
@@ -54,17 +55,7 @@ const EXPECTED_STUB_HANDSHAKE: &str = "OHAI";
 /// Note that not all frequencies are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(
-    Debug,
-    Default,
-    Clone,
-    Copy,
-    Hash,
-    PartialEq,
-    Eq,
-    Display,
-    EnumVariantNames,
-    Serialize,
-    Deserialize,
+    Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Display, VariantNames, Serialize, Deserialize,
 )]
 #[non_exhaustive]
 #[repr(u8)]
@@ -111,7 +102,7 @@ impl FlashFrequency {
 
 /// Supported flash modes
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Copy, Clone, Debug, Default, EnumVariantNames, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, VariantNames, Serialize, Deserialize)]
 #[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
 pub enum FlashMode {
@@ -138,7 +129,7 @@ pub enum FlashMode {
     Eq,
     PartialEq,
     Display,
-    EnumVariantNames,
+    VariantNames,
     EnumIter,
     Serialize,
     Deserialize,
@@ -240,7 +231,6 @@ impl FromStr for FlashSize {
     type Err = Error;
     /// Create a [FlashSize] from a string
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use strum::{IntoEnumIterator, VariantNames};
         let upper = s.to_uppercase();
         FlashSize::VARIANTS
             .iter()
