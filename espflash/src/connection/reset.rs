@@ -5,7 +5,7 @@ use std::{io, os::fd::AsRawFd};
 use std::{thread::sleep, time::Duration};
 
 use log::debug;
-use strum::{Display, EnumIter, EnumString, EnumVariantNames};
+use strum::{Display, EnumIter, EnumString, VariantNames};
 
 use crate::{
     command::{Command, CommandType},
@@ -311,7 +311,7 @@ pub fn construct_reset_strategy_sequence(
 
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, EnumVariantNames,
+    Debug, Default, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames,
 )]
 #[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
@@ -332,7 +332,7 @@ pub enum ResetBeforeOperation {
 
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, EnumVariantNames,
+    Debug, Default, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames,
 )]
 #[non_exhaustive]
 pub enum ResetAfterOperation {

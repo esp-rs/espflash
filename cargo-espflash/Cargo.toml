@@ -15,19 +15,19 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "zip"
 
 [dependencies]
-cargo_metadata = "0.18.0"
-clap = { version = "4.4.6", features = ["derive", "wrap_help"] }
-env_logger = "0.10.0"
+cargo_metadata = "0.18.1"
+clap = { version = "4.4.18", features = ["derive", "wrap_help"] }
+env_logger = "0.10.2"
 esp-idf-part = "0.4.1"
 espflash = { version = "3.0.0-dev", path = "../espflash" }
 log = "0.4.20"
-miette = { version = "5.10.0", features = ["fancy"] }
-serde = { version = "1.0.188", features = ["derive"] }
-thiserror = "1.0.49"
-toml = "0.8.2"
+miette = { version = "7.0.0", features = ["fancy"] }
+serde = { version = "1.0.196", features = ["derive"] }
+thiserror = "1.0.56"
+toml = "0.8.10"
 
 [target.'cfg(unix)'.dependencies]
-cargo = { version = "0.73.1", features = ["vendored-openssl"] }
+cargo = { version = "0.76.0", features = ["vendored-openssl"] }
 
 [target.'cfg(windows)'.dependencies]
-cargo = "0.73.1"
+cargo = "0.76.0"
