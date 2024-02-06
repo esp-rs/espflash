@@ -4,9 +4,9 @@ use std::ops::Range;
 use crate::{connection::Connection, targets::bytes_to_mac_addr};
 use crate::{
     elf::FirmwareImage,
-    error::{Error, UnsupportedImageFormatError},
+    error::Error,
     flasher::{FlashData, FlashFrequency},
-    image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatKind},
+    image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
@@ -155,11 +155,7 @@ impl Target for Esp32 {
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
-    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = flash_data
-            .image_format
-            .unwrap_or(ImageFormatKind::EspBootloader);
-
+    ) -> Result<IdfBootloaderFormat<'a>, Error> {
         let booloader: &'static [u8] = match xtal_freq {
             XtalFrequency::_40Mhz => {
                 include_bytes!("../../resources/bootloaders/esp32-bootloader.bin")
@@ -184,20 +180,17 @@ impl Target for Esp32 {
             booloader,
         );
 
-        match image_format {
-            ImageFormatKind::EspBootloader => Ok(Box::new(IdfBootloaderFormat::new(
-                image,
-                Chip::Esp32,
-                flash_data.min_chip_rev,
-                params,
-                flash_data.partition_table,
-                flash_data.partition_table_offset,
-                flash_data.target_app_partition,
-                flash_data.bootloader,
-                flash_data.flash_settings,
-            )?)),
-            _ => Err(UnsupportedImageFormatError::new(image_format, Chip::Esp32, None).into()),
-        }
+        IdfBootloaderFormat::new(
+            image,
+            Chip::Esp32,
+            flash_data.min_chip_rev,
+            params,
+            flash_data.partition_table,
+            flash_data.partition_table_offset,
+            flash_data.target_app_partition,
+            flash_data.bootloader,
+            flash_data.flash_settings,
+        )
     }
 
     #[cfg(feature = "serialport")]

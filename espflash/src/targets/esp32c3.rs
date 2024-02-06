@@ -4,9 +4,9 @@ use std::ops::Range;
 use crate::connection::Connection;
 use crate::{
     elf::FirmwareImage,
-    error::{Error, UnsupportedImageFormatError},
+    error::Error,
     flasher::{FlashData, FlashFrequency},
-    image_format::{DirectBootFormat, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
+    image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
@@ -80,13 +80,9 @@ impl Target for Esp32c3 {
         &self,
         image: &'a dyn FirmwareImage<'a>,
         flash_data: FlashData,
-        chip_revision: Option<(u32, u32)>,
+        _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
-    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
-        let image_format = flash_data
-            .image_format
-            .unwrap_or(ImageFormatKind::EspBootloader);
-
+    ) -> Result<IdfBootloaderFormat<'a>, Error> {
         if xtal_freq != XtalFrequency::_40Mhz {
             return Err(Error::UnsupportedFeature {
                 chip: Chip::Esp32c3,
@@ -94,30 +90,17 @@ impl Target for Esp32c3 {
             });
         }
 
-        match (image_format, chip_revision) {
-            (ImageFormatKind::EspBootloader, _) => Ok(Box::new(IdfBootloaderFormat::new(
-                image,
-                Chip::Esp32c3,
-                flash_data.min_chip_rev,
-                PARAMS,
-                flash_data.partition_table,
-                flash_data.partition_table_offset,
-                flash_data.target_app_partition,
-                flash_data.bootloader,
-                flash_data.flash_settings,
-            )?)),
-            (ImageFormatKind::DirectBoot, None | Some((_, 3..))) => {
-                Ok(Box::new(DirectBootFormat::new(image, 0)?))
-            }
-            _ => Err(
-                UnsupportedImageFormatError::new(image_format, Chip::Esp32c3, chip_revision)
-                    .with_context(format!(
-                        "The {} only supports direct-boot starting with revision 3 (v0.3)",
-                        Chip::Esp32c3,
-                    ))
-                    .into(),
-            ),
-        }
+        IdfBootloaderFormat::new(
+            image,
+            Chip::Esp32c3,
+            flash_data.min_chip_rev,
+            PARAMS,
+            flash_data.partition_table,
+            flash_data.partition_table_offset,
+            flash_data.target_app_partition,
+            flash_data.bootloader,
+            flash_data.flash_settings,
+        )
     }
 
     fn spi_registers(&self) -> SpiRegisters {
@@ -130,10 +113,6 @@ impl Target for Esp32c3 {
             mosi_length_offset: Some(0x24),
             miso_length_offset: Some(0x28),
         }
-    }
-
-    fn supported_image_formats(&self) -> &[ImageFormatKind] {
-        &[ImageFormatKind::EspBootloader, ImageFormatKind::DirectBoot]
     }
 
     fn supported_build_targets(&self) -> &[&str] {
