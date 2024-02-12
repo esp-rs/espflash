@@ -38,14 +38,21 @@ fn resolve_addresses(
         let name = symbols.get_name(addr);
         let location = symbols.get_location(addr);
 
-        let name = name.as_deref().unwrap_or("??");
-        let output = if let Some((file, line_num)) = location {
-            format!("{matched} - {name}\r\n    at {file}:{line_num}\r\n")
-        } else {
-            format!("{matched} - {name}\r\n    at ??:??\r\n")
-        };
+        if let Some(name) = name {
+            let output = if line.trim() == format!("0x{:x}", addr) {
+                if let Some((file, line_num)) = location {
+                    format!("{name}\r\n    at {file}:{line_num}\r\n")
+                } else {
+                    format!("{name}\r\n    at ??:??\r\n")
+                }
+            } else if let Some((file, line_num)) = location {
+                format!("{matched} - {name}\r\n    at {file}:{line_num}\r\n")
+            } else {
+                format!("{matched} - {name}\r\n    at ??:??\r\n")
+            };
 
-        out.queue(PrintStyledContent(output.with(Color::Yellow)))?;
+            out.queue(PrintStyledContent(output.with(Color::Yellow)))?;
+        }
     }
 
     Ok(())
