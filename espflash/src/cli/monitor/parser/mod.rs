@@ -45,12 +45,10 @@ fn resolve_addresses(
                 } else {
                     format!("{name}\r\n    at ??:??\r\n")
                 }
+            } else if let Some((file, line_num)) = location {
+                format!("{matched} - {name}\r\n    at {file}:{line_num}\r\n")
             } else {
-                if let Some((file, line_num)) = location {
-                    format!("{matched} - {name}\r\n    at {file}:{line_num}\r\n")
-                } else {
-                    format!("{matched} - {name}\r\n    at ??:??\r\n")
-                }
+                format!("{matched} - {name}\r\n    at ??:??\r\n")
             };
 
             out.queue(PrintStyledContent(output.with(Color::Yellow)))?;
