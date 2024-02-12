@@ -39,11 +39,20 @@ fn resolve_addresses(
         let location = symbols.get_location(addr);
 
         if let Some(name) = name {
-            let output = if let Some((file, line_num)) = location {
-                format!("{matched} - {name}\r\n    at {file}:{line_num}\r\n")
+            let output = if line.trim() == format!("0x{:x}", addr) {
+                if let Some((file, line_num)) = location {
+                    format!("{name}\r\n    at {file}:{line_num}\r\n")
+                } else {
+                    format!("{name}\r\n    at ??:??\r\n")
+                }
             } else {
-                format!("{matched} - {name}\r\n    at ??:??\r\n")
+                if let Some((file, line_num)) = location {
+                    format!("{matched} - {name}\r\n    at {file}:{line_num}\r\n")
+                } else {
+                    format!("{matched} - {name}\r\n    at ??:??\r\n")
+                }
             };
+
             out.queue(PrintStyledContent(output.with(Color::Yellow)))?;
         }
     }
