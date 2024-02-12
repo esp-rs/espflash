@@ -2,7 +2,7 @@ use std::error::Error;
 
 use addr2line::{
     gimli::{EndianRcSlice, RunTimeEndian},
-    object::{read::File, Object},
+    object::{read::File, Object, ObjectSegment},
     Context, LookupResult,
 };
 
@@ -23,6 +23,13 @@ impl<'sym> Symbols<'sym> {
 
     /// Returns the name of the function at the given address, if one can be found.
     pub fn get_name(&self, addr: u64) -> Option<String> {
+        // no need to try an address not contained in any segment
+        if !self.file.segments().any(|segment| {
+            (segment.address()..(segment.address() + segment.size())).contains(&addr)
+        }) {
+            return None;
+        }
+
         // The basic steps here are:
         //   1. find which frame `addr` is in
         //   2. look up and demangle the function name
@@ -44,10 +51,10 @@ impl<'sym> Symbols<'sym> {
                     .and_then(|name| name.demangle().map(|s| s.into_owned()).ok())
             })
             .or_else(|| {
-                self.file
-                    .symbol_map()
-                    .get(addr)
-                    .map(|sym| sym.name().to_string())
+                self.file.symbol_map().get(addr).map(|sym| {
+                    addr2line::demangle_auto(std::borrow::Cow::Borrowed(sym.name()), None)
+                        .to_string()
+                })
             })
     }
 
