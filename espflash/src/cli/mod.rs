@@ -442,6 +442,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         && args.connect_args.no_stub
         && target.crystal_freq(flasher.connection())? == XtalFrequency::_26Mhz
     {
+        // 115_200 * 26 MHz / 40 MHz = 74_880
         74_880
     } else {
         115_200

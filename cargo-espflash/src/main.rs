@@ -348,6 +348,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             && args.connect_args.no_stub
             && target_xtal_freq == XtalFrequency::_26Mhz
         {
+            // 115_200 * 26 MHz / 40 MHz = 74_880
             74_880
         } else {
             115_200
