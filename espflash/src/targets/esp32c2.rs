@@ -20,6 +20,7 @@ const FLASH_RANGES: &[Range<u32>] = &[
     0x3c00_0000..0x3c40_0000, // DROM
 ];
 
+// UART0_BASE_REG + 0x14
 const UART_CLKDIV_REG: u32 = 0x6000_0014;
 const UART_CLKDIV_MASK: u32 = 0xfffff;
 
@@ -64,7 +65,9 @@ impl Target for Esp32c2 {
     #[cfg(feature = "serialport")]
     fn crystal_freq(&self, connection: &mut Connection) -> Result<XtalFrequency, Error> {
         let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
+        println!("UART_DIV: {:#x}", uart_div);
         let est_xtal = (connection.get_baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
+        println!("Estimated XTAL: {}MHz", est_xtal);
         let norm_xtal = if est_xtal > 33 {
             XtalFrequency::_40Mhz
         } else {

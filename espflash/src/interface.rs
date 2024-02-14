@@ -57,6 +57,7 @@ fn write_gpio(gpio: &mut OutputPin, level: bool) {
 
 /// Open a serial port
 fn open_port(port_info: &SerialPortInfo) -> Result<Port> {
+    // serialport::new(&port_info.port_name, 74_880)
     serialport::new(&port_info.port_name, 115_200)
         .flow_control(FlowControl::None)
         .open_native()
