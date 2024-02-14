@@ -131,14 +131,9 @@ impl Connection {
                 Ok(_) => {
                     return Ok(());
                 }
-                Err(e) => match e {
-                    Error::InvalidSerialRead => {
-                        return Err(Error::InvalidSerialRead);
-                    }
-                    _ => {
-                        debug!("Failed to reset, error {:#?}, retrying", e);
-                    }
-                },
+                Err(e) => {
+                    debug!("Failed to reset, error {:#?}, retrying", e);
+                }
             }
         }
 
