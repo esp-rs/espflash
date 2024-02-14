@@ -11,9 +11,9 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
     thread::sleep,
+    time::Duration,
 };
 
-use bytemuck::{Pod, Zeroable, __core::time::Duration};
 use esp_idf_part::PartitionTable;
 use log::{debug, info, warn};
 use md5::{Digest, Md5};
@@ -496,32 +496,6 @@ impl SpiAttachParams {
 /// List of SPI parameters to try while detecting flash size
 const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
     [SpiAttachParams::default(), SpiAttachParams::esp32_pico_d4()];
-
-#[derive(Zeroable, Pod, Copy, Clone, Debug)]
-#[repr(C)]
-struct BlockParams {
-    size: u32,
-    sequence: u32,
-    dummy1: u32,
-    dummy2: u32,
-}
-
-#[derive(Zeroable, Pod, Copy, Clone, Debug)]
-#[repr(C)]
-struct BeginParams {
-    size: u32,
-    blocks: u32,
-    block_size: u32,
-    offset: u32,
-    encrypted: u32,
-}
-
-#[derive(Zeroable, Pod, Copy, Clone)]
-#[repr(C)]
-struct EntryParams {
-    no_entry: u32,
-    entry: u32,
-}
 
 /// Information about the connected device
 #[derive(Debug, Clone)]
