@@ -43,11 +43,9 @@ jobs:
           - os: "ubuntu-22.04"
             target: "aarch64-unknown-linux-gnu"
             arch: "arm64"
-            features: "--features=raspberry"
           - os: "ubuntu-22.04"
             target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
-            features: "--features=raspberry"
     runs-on: ${{ matrix.platform.os }}
 
     steps:
@@ -59,7 +57,7 @@ jobs:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
 
-      - run: cargo check ${{ matrix.platform.features }}
+      - run: cargo check
 
   check-lib:
     name: Check lib (${{ matrix.platform.target }})
@@ -71,10 +69,8 @@ jobs:
             arch: "x86_64"
           - target: "aarch64-unknown-linux-gnu"
             arch: "arm64"
-            features: "--features=raspberry"
           - target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
-            features: "--features=raspberry"
     runs-on: ubuntu-22.04
 
     steps:
@@ -86,7 +82,7 @@ jobs:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
 
-      - run: cargo check -p espflash --lib --no-default-features ${{ matrix.platform.features }}
+      - run: cargo check -p espflash --lib --no-default-features
 
   msrv:
     name: Check MSRV (${{ matrix.platform.target }})
@@ -98,10 +94,8 @@ jobs:
             arch: "x86_64"
           - target: "aarch64-unknown-linux-gnu"
             arch: "arm64"
-            features: "--features=raspberry"
           - target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
-            features: "--features=raspberry"
     runs-on: ubuntu-22.04
 
     steps:
@@ -114,7 +108,7 @@ jobs:
           target: ${{ matrix.platform.target }}
           toolchain: "1.73"
 
-      - run: cargo check ${{ matrix.platform.features }}
+      - run: cargo check
 
   # --------------------------------------------------------------------------
   # Test
@@ -129,10 +123,8 @@ jobs:
             arch: "x86_64"
           - target: "aarch64-unknown-linux-gnu"
             arch: "arm64"
-            features: "--features=raspberry"
           - target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
-            features: "--features=raspberry"
     runs-on: ubuntu-22.04
 
     steps:
@@ -144,7 +136,7 @@ jobs:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
 
-      - run: cargo test --lib ${{ matrix.platform.features }}
+      - run: cargo test --lib
 
   # --------------------------------------------------------------------------
   # Lint
@@ -159,10 +151,8 @@ jobs:
             arch: "x86_64"
           - target: "aarch64-unknown-linux-gnu"
             arch: "arm64"
-            features: "--features=raspberry"
           - target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
-            features: "--features=raspberry"
     runs-on: ubuntu-22.04
 
     steps:
@@ -175,7 +165,7 @@ jobs:
           target: ${{ matrix.platform.target }}
           components: clippy
 
-      - run: cargo clippy ${{ matrix.platform.features }} -- -D warnings -A clippy::too_many_arguments
+      - run: cargo clippy -- -D warnings -A clippy::too_many_arguments
 
   rustfmt:
     name: Rustfmt

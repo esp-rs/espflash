@@ -50,12 +50,6 @@ Alternatively, you can use [cargo-binstall] to download pre-compiled artifacts f
 cargo binstall cargo-espflash
 ```
 
-If you would like to flash from a Raspberry Pi using the built-in UART peripheral, you can enable the `raspberry` feature (note that this is not available if using [cargo-binstall]):
-
-```bash
-cargo install cargo-espflash --features=raspberry
-```
-
 By default, in Unix systems, we use the [`vendored-openssl` Cargo feature] which may require additional tools such as `perl` and `make`. To disable this feature, use:
 
 ```

@@ -68,14 +68,6 @@ pub struct ConnectArgs {
     /// Serial port connected to target device
     #[arg(short = 'p', long, env = "ESPFLASH_PORT")]
     pub port: Option<String>,
-    /// DTR pin to use for the internal UART hardware. Uses BCM numbering.
-    #[cfg(feature = "raspberry")]
-    #[cfg_attr(feature = "raspberry", clap(long))]
-    pub dtr: Option<u8>,
-    /// RTS pin to use for the internal UART hardware. Uses BCM numbering.
-    #[cfg(feature = "raspberry")]
-    #[cfg_attr(feature = "raspberry", clap(long))]
-    pub rts: Option<u8>,
 }
 
 /// Generate completions for the given shell
@@ -306,15 +298,7 @@ pub fn connect(
     info!("Serial port: '{}'", port_info.port_name);
     info!("Connecting...");
 
-    #[cfg(feature = "raspberry")]
-    let (dtr, rts) = (
-        args.dtr.or(config.connection.dtr),
-        args.rts.or(config.connection.rts),
-    );
-    #[cfg(not(feature = "raspberry"))]
-    let (dtr, rts) = (None, None);
-
-    let interface = Interface::new(&port_info, dtr, rts)
+    let interface = Interface::new(&port_info)
         .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
 
     // NOTE: since `get_serial_port_info` filters out all PCI Port and Bluetooth

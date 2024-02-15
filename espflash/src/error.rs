@@ -12,8 +12,6 @@ use thiserror::Error;
 
 #[cfg(feature = "cli")]
 use crate::cli::monitor::parser::esp_defmt::DefmtError;
-#[cfg(feature = "serialport")]
-use crate::interface::SerialConfigError;
 use crate::{
     command::CommandType,
     flasher::{FlashFrequency, FlashSize},
@@ -139,14 +137,6 @@ pub enum Error {
     )]
     StubRequired,
 
-    #[cfg(feature = "serialport")]
-    #[error("Incorrect serial port configuration")]
-    #[diagnostic(
-        code(espflash::serial_config),
-        help("Make sure you have specified the DTR signal if you are using an internal UART peripherial")
-    )]
-    SerialConfiguration(SerialConfigError),
-
     #[error("The serial port '{0}' could not be found")]
     #[diagnostic(
         code(espflash::serial_not_found),
@@ -240,13 +230,6 @@ impl From<serialport::Error> for Error {
 impl From<SlipError> for Error {
     fn from(err: SlipError) -> Self {
         Self::Connection(err.into())
-    }
-}
-
-#[cfg(feature = "serialport")]
-impl From<SerialConfigError> for Error {
-    fn from(err: SerialConfigError) -> Self {
-        Self::SerialConfiguration(err)
     }
 }
 

@@ -26,12 +26,6 @@ use crate::error::Error;
 pub struct Connection {
     /// Name of the serial port used for communication
     pub serial: Option<String>,
-    /// Data Transmit Ready pin
-    #[cfg(feature = "raspberry")]
-    pub dtr: Option<u8>,
-    /// Ready To Send pin
-    #[cfg(feature = "raspberry")]
-    pub rts: Option<u8>,
 }
 
 /// A configured, known USB device
