@@ -344,10 +344,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         let pid = flasher.get_usb_pid()?;
 
         // The 26MHz ESP32-C2's need to be treated as a special case.
-        let default_baud = if chip == Chip::Esp32c2
-            && args.connect_args.no_stub
-            && target_xtal_freq == XtalFrequency::_26Mhz
-        {
+        let default_baud = if chip == Chip::Esp32c2 && target_xtal_freq == XtalFrequency::_26Mhz {
             // 115_200 * 26 MHz / 40 MHz = 74_880
             74_880
         } else {
