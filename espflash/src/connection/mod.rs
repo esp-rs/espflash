@@ -454,7 +454,6 @@ impl Connection {
     }
 
     pub(crate) fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
-        // println!("Reading from serial port");
         let mut tmp = Vec::with_capacity(1024);
         loop {
             self.decoder.decode(&mut self.serial, &mut tmp)?;
