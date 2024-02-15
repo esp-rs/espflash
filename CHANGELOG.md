@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unify configuration methods (#551)
 - MSRV bumped to `1.73.0` (#578)
 - Improved symbol resolving (#581)
-- Update ESP32 and ESP32-C2 stubs (#584)
+- Update ESP32-C2 stub (#584)
 
 ### Removed
 
