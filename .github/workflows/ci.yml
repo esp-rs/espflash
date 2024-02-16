@@ -106,7 +106,7 @@ jobs:
         with:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
-          toolchain: "1.73"
+          toolchain: "1.74"
 
       - run: cargo check
 

@@ -125,7 +125,7 @@ pub enum Error {
 
     #[error("This command requires using the RAM stub")]
     #[diagnostic(
-        code(espflash::stub_required_to_erase_flash),
+        code(espflash::stub_required),
         help("Don't use the `--no-stub` option with the command")
     )]
     StubRequired,
