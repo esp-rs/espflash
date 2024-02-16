@@ -41,9 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Create `FlashData`, `FlashDataBuilder` and `FlashSettings` structs to reduce number of input arguments in some functions (#512, #566)
 - `espflash` will now exit with an error if `defmt` is selected but not usable (#524)
 - Unify configuration methods (#551)
-- MSRV bumped to `1.73.0` (#578)
 - Improved symbol resolving (#581)
 - Update ESP32-C2 stub (#584)
+- MSRV bumped to `1.74.0` (#586)
 
 ### Removed
 
