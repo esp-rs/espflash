@@ -1,6 +1,6 @@
 [package]
 name = "espflash"
-version = "3.0.0-dev"
+version = "3.0.0-rc.1"
 edition = "2021"
 rust-version = "1.73"
 description  = "A command-line tool for flashing Espressif devices"
@@ -29,15 +29,15 @@ bytemuck = { version = "1.14.1", features = ["derive"] }
 clap = { version = "4.4.18", features = ["derive", "env", "wrap_help"], optional = true }
 clap_complete = { version = "4.4.10", optional = true }
 comfy-table = { version = "7.1.0", optional = true }
-crossterm = { version = "0.25.0", optional = true } # 0.26.x causes issues on Windows
+crossterm = { version = "0.25.0", optional = true } # 0.26.x and 0.27.x causes issues on Windows
 ctrlc = { version = "3.4.2", optional = true }
 # defmt dependencies are pinned since defmt does not guarantee MSRV even for patch releases
-defmt-decoder = { version = "=0.3.9", features = ["unstable"], optional = true }
-defmt-parser = { version = "=0.3.3", features = ["unstable"], optional = true }
+defmt-decoder = { version = "=0.3.10", features = ["unstable"], optional = true }
+defmt-parser = { version = "=0.3.4", features = ["unstable"], optional = true }
 dialoguer = { version = "0.11.0", optional = true }
 directories = { version = "5.0.1", optional = true }
-env_logger = { version = "0.10.2", optional = true }
-esp-idf-part = "0.4.1"
+env_logger = { version = "0.11.2", optional = true }
+esp-idf-part = "0.5.0"
 flate2 = "1.0.28"
 hex = { version = "0.4.3", features = ["serde"], optional = true }
 indicatif = { version = "0.17.7", optional = true }
