@@ -39,9 +39,6 @@ pub mod elf;
 pub mod error;
 pub mod flasher;
 pub mod image_format;
-#[cfg(feature = "serialport")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
-pub mod interface;
 pub mod targets;
 
 /// Logging utilities

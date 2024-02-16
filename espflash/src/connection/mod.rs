@@ -483,7 +483,7 @@ impl Connection {
         Ok(())
     }
 
-    /// Turn a serial port into a Interface
+    /// Turn a serial port into a [Port]
     pub fn into_serial(self) -> Port {
         self.serial
     }

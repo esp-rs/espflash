@@ -1191,10 +1191,6 @@ impl Flasher {
 
         Ok(())
     }
-
-    // pub fn into_interface(self) -> Interface {
-    //     self.connection.into_interface()
-    // }
 }
 
 pub(crate) fn checksum(data: &[u8], mut checksum: u8) -> u8 {

@@ -64,7 +64,7 @@ impl Drop for RawModeGuard {
     }
 }
 
-/// Open a serial monitor on the given interface, using the given input parser.
+/// Open a serial monitor on the given serial port, using the given input parser.
 pub fn monitor(
     mut serial: Port,
     elf: Option<&[u8]>,
