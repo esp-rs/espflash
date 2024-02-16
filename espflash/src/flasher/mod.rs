@@ -25,19 +25,16 @@ use strum::IntoEnumIterator;
 use strum::{Display, EnumIter, VariantNames};
 
 use self::stubs::FlashStub;
+#[cfg(feature = "serialport")]
+use crate::connection::{
+    reset::{ResetAfterOperation, ResetBeforeOperation},
+    Connection, Port,
+};
 use crate::{
     command::{Command, CommandType},
     elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
     error::{ConnectionError, Error, ResultExt},
     targets::{Chip, XtalFrequency},
-};
-#[cfg(feature = "serialport")]
-use crate::{
-    connection::{
-        reset::{ResetAfterOperation, ResetBeforeOperation},
-        Connection,
-    },
-    interface::Interface,
 };
 
 mod stubs;
@@ -546,7 +543,7 @@ pub struct Flasher {
 #[cfg(feature = "serialport")]
 impl Flasher {
     pub fn connect(
-        serial: Interface,
+        serial: Port,
         port_info: UsbPortInfo,
         speed: Option<u32>,
         use_stub: bool,
@@ -1045,6 +1042,10 @@ impl Flasher {
         Ok(())
     }
 
+    pub fn into_serial(self) -> Port {
+        self.connection.into_serial()
+    }
+
     pub fn get_usb_pid(&self) -> Result<u16, Error> {
         self.connection.get_usb_pid()
     }
@@ -1163,10 +1164,6 @@ impl Flasher {
         }
 
         Ok(())
-    }
-
-    pub fn into_interface(self) -> Interface {
-        self.connection.into_interface()
     }
 }
 

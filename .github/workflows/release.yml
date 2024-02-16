@@ -24,11 +24,9 @@ jobs:
           - os: "ubuntu-20.04"
             target: "aarch64-unknown-linux-gnu"
             arch: "arm64"
-            features: "--features=raspberry"
           - os: "ubuntu-20.04"
             target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
-            features: "--features=raspberry"
           # Windows
           - os: "windows-2022"
             target: "x86_64-pc-windows-msvc"
@@ -50,7 +48,6 @@ jobs:
         with:
           arch: ${{ matrix.platform.arch }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          features: ${{ matrix.platform.features }}
           target: ${{ matrix.platform.target }}
           runs_on: ${{ matrix.platform.os }}
 

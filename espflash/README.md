@@ -52,12 +52,6 @@ Alternatively, you can use [cargo-binstall] to download pre-compiled artifacts f
 cargo binstall espflash
 ```
 
-If you would like to flash from a Raspberry Pi using the built-in UART peripheral, you can enable the `raspberry` feature (note that this is not available if using [cargo-binstall]):
-
-```bash
-cargo install espflash --features=raspberry
-```
-
 [libuv]: https://libuv.org/
 [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
 [releases]: https://github.com/esp-rs/espflash/releases
@@ -128,12 +122,6 @@ or `cargo add espflash --no-default-features`
 > Note that the `cli` module does not provide SemVer guarantees.
 
 We disable the `default-features` to opt-out the `cli` feature, which is enabled by default; you likely will not need any of these types or functions in your application so there’s no use pulling in the extra dependencies.
-
-Just like when using `espflash` as an application, you can enable the raspberry feature to allow your dependent application to use the Raspberry Pi’s built-in UART:
-
-```toml
-espflash = { version = "2.1", default-features = false, features = ["raspberry"] }
-```
 
 ## Configuration File
 

@@ -4,8 +4,6 @@ inputs:
     required: false
   github_token:
     required: true
-  features:
-    required: false
   target:
     required: true
   runs_on:
@@ -22,7 +20,7 @@ runs:
     - name: Build
       shell: bash
       run: |
-        cargo build --release --all --target ${{ inputs.target }} ${{ inputs.features }}
+        cargo build --release --all --target ${{ inputs.target }}
 
     - name: Compress (Unix)
       if: ${{ inputs.runs_on != 'windows-2022' }}

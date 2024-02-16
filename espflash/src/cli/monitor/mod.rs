@@ -11,7 +11,7 @@
 //! in our monitor the output is displayed immediately upon reading.
 
 use std::{
-    io::{stdout, ErrorKind, Write},
+    io::{stdout, ErrorKind, Read, Write},
     time::Duration,
 };
 
@@ -21,12 +21,13 @@ use crossterm::{
 };
 use log::error;
 use miette::{IntoDiagnostic, Result};
+#[cfg(feature = "serialport")]
+use serialport::SerialPort;
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
 use crate::{
     cli::monitor::parser::{InputParser, ResolvingPrinter},
-    connection::reset_after_flash,
-    interface::Interface,
+    connection::{reset_after_flash, Port},
 };
 
 pub mod parser;
@@ -63,9 +64,9 @@ impl Drop for RawModeGuard {
     }
 }
 
-/// Open a serial monitor on the given interface, using the given input parser.
+/// Open a serial monitor on the given serial port, using the given input parser.
 pub fn monitor(
-    mut serial: Interface,
+    mut serial: Port,
     elf: Option<&[u8]>,
     pid: u16,
     baud: u32,
@@ -78,12 +79,8 @@ pub fn monitor(
 
     // Explicitly set the baud rate when starting the serial monitor, to allow using
     // different rates for flashing.
+    serial.set_baud_rate(baud).into_diagnostic()?;
     serial
-        .serial_port_mut()
-        .set_baud_rate(baud)
-        .into_diagnostic()?;
-    serial
-        .serial_port_mut()
         .set_timeout(Duration::from_millis(5))
         .into_diagnostic()?;
 
@@ -100,7 +97,7 @@ pub fn monitor(
 
     let mut buff = [0; 1024];
     loop {
-        let read_count = match serial.serial_port_mut().read(&mut buff) {
+        let read_count = match serial.read(&mut buff) {
             Ok(count) => Ok(count),
             Err(e) if e.kind() == ErrorKind::TimedOut => Ok(0),
             Err(e) if e.kind() == ErrorKind::Interrupted => continue,
@@ -126,11 +123,8 @@ pub fn monitor(
                 }
 
                 if let Some(bytes) = handle_key_event(key) {
-                    serial
-                        .serial_port_mut()
-                        .write_all(&bytes)
-                        .into_diagnostic()?;
-                    serial.serial_port_mut().flush().into_diagnostic()?;
+                    serial.write_all(&bytes).into_diagnostic()?;
+                    serial.flush().into_diagnostic()?;
                 }
             }
         }

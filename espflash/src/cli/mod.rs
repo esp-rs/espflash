@@ -19,7 +19,7 @@ use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
 use log::{debug, info, warn};
 use miette::{IntoDiagnostic, Result, WrapErr};
-use serialport::{SerialPortType, UsbPortInfo};
+use serialport::{FlowControl, SerialPortType, UsbPortInfo};
 
 use self::{
     config::Config,
@@ -34,7 +34,6 @@ use crate::{
         parse_partition_table, FlashData, FlashFrequency, FlashMode, FlashSize, Flasher,
         ProgressCallbacks,
     },
-    interface::Interface,
     targets::{Chip, XtalFrequency},
 };
 
@@ -68,14 +67,6 @@ pub struct ConnectArgs {
     /// Serial port connected to target device
     #[arg(short = 'p', long, env = "ESPFLASH_PORT")]
     pub port: Option<String>,
-    /// DTR pin to use for the internal UART hardware. Uses BCM numbering.
-    #[cfg(feature = "raspberry")]
-    #[cfg_attr(feature = "raspberry", clap(long))]
-    pub dtr: Option<u8>,
-    /// RTS pin to use for the internal UART hardware. Uses BCM numbering.
-    #[cfg(feature = "raspberry")]
-    #[cfg_attr(feature = "raspberry", clap(long))]
-    pub rts: Option<u8>,
 }
 
 /// Generate completions for the given shell
@@ -306,15 +297,10 @@ pub fn connect(
     info!("Serial port: '{}'", port_info.port_name);
     info!("Connecting...");
 
-    #[cfg(feature = "raspberry")]
-    let (dtr, rts) = (
-        args.dtr.or(config.connection.dtr),
-        args.rts.or(config.connection.rts),
-    );
-    #[cfg(not(feature = "raspberry"))]
-    let (dtr, rts) = (None, None);
-
-    let interface = Interface::new(&port_info, dtr, rts)
+    let serial_port = serialport::new(&port_info.port_name, 115_200)
+        .flow_control(FlowControl::None)
+        .open_native()
+        .map_err(Error::from)
         .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
 
     // NOTE: since `get_serial_port_info` filters out all PCI Port and Bluetooth
@@ -335,7 +321,7 @@ pub fn connect(
     };
 
     Ok(Flasher::connect(
-        interface,
+        *Box::new(serial_port),
         port_info,
         args.baud.or(config.baudrate),
         !args.no_stub,
@@ -448,7 +434,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     };
 
     monitor(
-        flasher.into_interface(),
+        flasher.into_serial(),
         elf.as_deref(),
         pid,
         args.connect_args.baud.unwrap_or(default_baud),

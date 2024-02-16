@@ -287,7 +287,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         };
 
         monitor(
-            flasher.into_interface(),
+            flasher.into_serial(),
             Some(&elf_data),
             pid,
             args.flash_args.monitor_baud.unwrap_or(default_baud),

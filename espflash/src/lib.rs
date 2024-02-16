@@ -9,17 +9,6 @@
 //! $ cargo binstall espflash
 //! ```
 //!
-//! Flashing via a Raspberry Pi's internal UART is also possible, however this
-//! functionality is gated behind the `raspberry` feature; if you would like to
-//! enable this simply enable the feature when installing:
-//!
-//! ```bash
-//! $ cargo install espflash --feature=raspberry
-//! ```
-//!
-//! Note that this feature can only be enabled on a Raspberry Pi, as it depends
-//! on the [rppal] package which will not build on most systems.
-//!
 //! ## As a library
 //!
 //! [espflash] can also be used as a library:
@@ -32,14 +21,6 @@
 //! enabled by default. Its important to note that the cli module does not
 //! provide SemVer guarantees. You likely will not need any of these types or functions
 //! in your application so there's no use pulling in the extra dependencies.
-//!
-//! Just like when using [espflash] as an application, you can enable the
-//! `raspberry` feature to allow your dependent application to use the Raspberry
-//! Pi's built-in UART:
-//!
-//! ```toml
-//! espflash = { version = "2.1", default-features = false, features = ["raspberry"] }
-//! ```
 //!
 //! [espflash]: https://crates.io/crates/espflash
 //! [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
@@ -58,9 +39,6 @@ pub mod elf;
 pub mod error;
 pub mod flasher;
 pub mod image_format;
-#[cfg(feature = "serialport")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
-pub mod interface;
 pub mod targets;
 
 /// Logging utilities
