@@ -11,7 +11,7 @@
 //! in our monitor the output is displayed immediately upon reading.
 
 use std::{
-    io::{stdout, ErrorKind, Write},
+    io::{stdout, ErrorKind, Read, Write},
     time::Duration,
 };
 
@@ -27,7 +27,7 @@ use strum::{Display, EnumIter, EnumString, VariantNames};
 
 use crate::{
     cli::monitor::parser::{InputParser, ResolvingPrinter},
-    connection::reset_after_flash,
+    connection::{reset_after_flash, Port},
 };
 
 pub mod parser;
@@ -66,7 +66,7 @@ impl Drop for RawModeGuard {
 
 /// Open a serial monitor on the given interface, using the given input parser.
 pub fn monitor(
-    mut serial: Box<dyn SerialPort>,
+    mut serial: Port,
     elf: Option<&[u8]>,
     pid: u16,
     baud: u32,
@@ -115,7 +115,7 @@ pub fn monitor(
                     match key.code {
                         KeyCode::Char('c') => break,
                         KeyCode::Char('r') => {
-                            reset_after_flash(&mut *serial, pid).into_diagnostic()?;
+                            reset_after_flash(&mut serial, pid).into_diagnostic()?;
                             continue;
                         }
                         _ => {}

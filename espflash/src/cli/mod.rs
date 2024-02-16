@@ -321,7 +321,7 @@ pub fn connect(
     };
 
     Ok(Flasher::connect(
-        Box::new(serial_port),
+        *Box::new(serial_port),
         port_info,
         args.baud.or(config.baudrate),
         !args.no_stub,

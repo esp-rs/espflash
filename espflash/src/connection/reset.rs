@@ -1,15 +1,11 @@
 //! This entire module is copied from `esptool.py` (https://github.com/espressif/esptool/blob/a8586d02b1305ebc687d31783437a7f4d4dbb70f/esptool/reset.py)
 
 #[cfg(unix)]
-use std::{
-    any::Any,
-    io,
-    os::fd::{AsRawFd, RawFd},
-};
+use std::{io, os::fd::AsRawFd};
 use std::{thread::sleep, time::Duration};
 
 use log::debug;
-use serialport::{SerialPort, TTYPort};
+use serialport::SerialPort;
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
 #[cfg(unix)]
@@ -17,7 +13,7 @@ use libc::ioctl;
 
 use crate::{
     command::{Command, CommandType},
-    connection::{Connection, USB_SERIAL_JTAG_PID},
+    connection::{Connection, Port, USB_SERIAL_JTAG_PID},
     error::Error,
     flasher,
 };
@@ -29,15 +25,15 @@ const EXTRA_RESET_DELAY: u64 = 500; // ms
 
 /// Some strategy for resting a target device
 pub trait ResetStrategy {
-    fn reset(&self, serial_port: &mut dyn SerialPort) -> Result<(), Error>;
+    fn reset(&self, serial_port: &mut Port) -> Result<(), Error>;
 
-    fn set_dtr(&self, serial_port: &mut dyn SerialPort, level: bool) -> Result<(), Error> {
+    fn set_dtr(&self, serial_port: &mut Port, level: bool) -> Result<(), Error> {
         serial_port.write_data_terminal_ready(level)?;
 
         Ok(())
     }
 
-    fn set_rts(&self, serial_port: &mut dyn SerialPort, level: bool) -> Result<(), Error> {
+    fn set_rts(&self, serial_port: &mut Port, level: bool) -> Result<(), Error> {
         serial_port.write_request_to_send(level)?;
 
         Ok(())
@@ -46,7 +42,7 @@ pub trait ResetStrategy {
     #[cfg(unix)]
     fn set_dtr_rts(
         &self,
-        serial_port: &mut dyn SerialPort,
+        serial_port: &mut Port,
         dtr_level: bool,
         rts_level: bool,
     ) -> Result<(), Error> {
@@ -96,7 +92,7 @@ impl ClassicReset {
 }
 
 impl ResetStrategy for ClassicReset {
-    fn reset(&self, serial_port: &mut dyn SerialPort) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
         debug!(
             "Using Classic reset strategy with delay of {}ms",
             self.delay
@@ -156,16 +152,16 @@ impl UnixTightReset {
 //     }
 // }
 
-#[cfg(unix)]
-impl AsRawFd for SerialPort {
-    fn as_raw_fd(&self) -> RawFd {
-        self.serial_port.as_raw_fd()
-    }
-}
+// #[cfg(unix)]
+// impl AsRawFd for SerialPort {
+//     fn as_raw_fd(&self) -> RawFd {
+//         self.serial_port.as_raw_fd()
+//     }
+// }
 
 #[cfg(unix)]
 impl ResetStrategy for UnixTightReset {
-    fn reset(&self, serial_port: &mut dyn SerialPort) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
         debug!(
             "Using UnixTight reset strategy with delay of {}ms",
             self.delay
@@ -198,7 +194,7 @@ impl ResetStrategy for UnixTightReset {
 pub struct UsbJtagSerialReset;
 
 impl ResetStrategy for UsbJtagSerialReset {
-    fn reset(&self, serial_port: &mut dyn SerialPort) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
         debug!("Using UsbJtagSerial reset strategy");
 
         self.set_rts(serial_port, false)?;
@@ -231,7 +227,7 @@ impl ResetStrategy for UsbJtagSerialReset {
 pub struct HardReset;
 
 impl ResetStrategy for HardReset {
-    fn reset(&self, serial_port: &mut dyn SerialPort) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
         debug!("Using HardReset reset strategy");
 
         self.set_rts(serial_port, true)?;

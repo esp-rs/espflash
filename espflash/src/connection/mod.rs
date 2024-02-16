@@ -5,7 +5,7 @@
 //! device.
 
 use std::{
-    io::{BufWriter, Write},
+    io::{BufWriter, Read, Write},
     iter::zip,
     thread::sleep,
     time::Duration,
@@ -98,7 +98,7 @@ pub struct CommandResponse {
 
 /// An established connection with a target device
 pub struct Connection {
-    serial: Box<dyn SerialPort>,
+    serial: Port,
     port_info: UsbPortInfo,
     decoder: SlipDecoder,
     after_operation: ResetAfterOperation,
@@ -107,7 +107,7 @@ pub struct Connection {
 
 impl Connection {
     pub fn new(
-        serial: Box<dyn SerialPort>,
+        serial: Port,
         port_info: UsbPortInfo,
         after_operation: ResetAfterOperation,
         before_operation: ResetBeforeOperation,
@@ -163,7 +163,7 @@ impl Connection {
         let mut buff: Vec<u8>;
         if self.before_operation != ResetBeforeOperation::NoReset {
             // Reset the chip to bootloader (download mode)
-            reset_strategy.reset(&mut *self.serial)?;
+            reset_strategy.reset(&mut self.serial)?;
 
             let available_bytes = self.serial.bytes_to_read()?;
             buff = vec![0; available_bytes as usize];
@@ -257,7 +257,7 @@ impl Connection {
 
     // Reset the device
     pub fn reset(&mut self) -> Result<(), Error> {
-        reset_after_flash(&mut *self.serial, self.port_info.pid)?;
+        reset_after_flash(&mut self.serial, self.port_info.pid)?;
 
         Ok(())
     }
@@ -265,7 +265,7 @@ impl Connection {
     // Reset the device taking into account the reset after argument
     pub fn reset_after(&mut self, is_stub: bool) -> Result<(), Error> {
         match self.after_operation {
-            ResetAfterOperation::HardReset => HardReset.reset(&mut *self.serial),
+            ResetAfterOperation::HardReset => HardReset.reset(&mut self.serial),
             ResetAfterOperation::NoReset => {
                 info!("Staying in bootloader");
                 soft_reset(self, true, is_stub)?;
@@ -282,17 +282,17 @@ impl Connection {
     // Reset the device to flash mode
     pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
         if self.port_info.pid == USB_SERIAL_JTAG_PID {
-            UsbJtagSerialReset.reset(&mut *self.serial)
+            UsbJtagSerialReset.reset(&mut self.serial)
         } else {
             #[cfg(unix)]
             if UnixTightReset::new(extra_delay)
-                .reset(&mut *self.serial)
+                .reset(&mut self.serial)
                 .is_ok()
             {
                 return Ok(());
             }
 
-            ClassicReset::new(extra_delay).reset(&mut *self.serial)
+            ClassicReset::new(extra_delay).reset(&mut self.serial)
         }
     }
 
@@ -320,7 +320,8 @@ impl Connection {
         F: FnMut(&mut Connection) -> Result<T, Error>,
     {
         let old_timeout = {
-            let serial = self.serial.as_mut();
+            let mut binding = Box::new(&mut self.serial);
+            let serial = binding.as_mut();
             let old_timeout = serial.timeout();
             serial.set_timeout(timeout)?;
             old_timeout
@@ -393,7 +394,8 @@ impl Connection {
 
     /// Write raw data to the serial port
     pub fn write_raw(&mut self, data: u32) -> Result<(), Error> {
-        let serial = self.serial.as_mut();
+        let mut binding = Box::new(&mut self.serial);
+        let serial = binding.as_mut();
         serial.clear(serialport::ClearBuffer::Input)?;
         let mut writer = BufWriter::new(serial);
         let mut encoder = SlipEncoder::new(&mut writer)?;
@@ -406,7 +408,8 @@ impl Connection {
     /// Write a command to the serial port
     pub fn write_command(&mut self, command: Command) -> Result<(), Error> {
         debug!("Writing command: {:?}", command);
-        let serial = self.serial.as_mut();
+        let mut binding = Box::new(&mut self.serial);
+        let serial = binding.as_mut();
 
         serial.clear(serialport::ClearBuffer::Input)?;
         let mut writer = BufWriter::new(serial);
@@ -481,7 +484,7 @@ impl Connection {
     }
 
     /// Turn a serial port into a Interface
-    pub fn into_serial(self) -> Box<dyn SerialPort> {
+    pub fn into_serial(self) -> Port {
         self.serial
     }
 

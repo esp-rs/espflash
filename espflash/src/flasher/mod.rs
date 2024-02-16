@@ -20,7 +20,7 @@ use md5::{Digest, Md5};
 use miette::{Context, IntoDiagnostic, Result};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
-use serialport::{SerialPort, UsbPortInfo};
+use serialport::UsbPortInfo;
 use strum::IntoEnumIterator;
 use strum::{Display, EnumIter, VariantNames};
 
@@ -28,7 +28,7 @@ use self::stubs::FlashStub;
 #[cfg(feature = "serialport")]
 use crate::connection::{
     reset::{ResetAfterOperation, ResetBeforeOperation},
-    Connection,
+    Connection, Port,
 };
 use crate::{
     command::{Command, CommandType},
@@ -569,7 +569,7 @@ pub struct Flasher {
 #[cfg(feature = "serialport")]
 impl Flasher {
     pub fn connect(
-        serial: Box<dyn SerialPort>,
+        serial: Port,
         port_info: UsbPortInfo,
         speed: Option<u32>,
         use_stub: bool,
@@ -1068,7 +1068,7 @@ impl Flasher {
         Ok(())
     }
 
-    pub fn into_serial(self) -> Box<dyn SerialPort> {
+    pub fn into_serial(self) -> Port {
         self.connection.into_serial()
     }
 
