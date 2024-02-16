@@ -131,14 +131,9 @@ impl Connection {
                 Ok(_) => {
                     return Ok(());
                 }
-                Err(e) => match e {
-                    Error::InvalidSerialRead => {
-                        return Err(Error::InvalidSerialRead);
-                    }
-                    _ => {
-                        debug!("Failed to reset, error {:#?}, retrying", e);
-                    }
-                },
+                Err(e) => {
+                    debug!("Failed to reset, error {:#?}, retrying", e);
+                }
             }
         }
 
@@ -173,9 +168,6 @@ impl Connection {
             }
 
             let read_slice = String::from_utf8_lossy(&buff[..read_bytes as usize]).into_owned();
-            if !read_slice.contains("boot") {
-                return Err(Error::InvalidSerialRead);
-            }
 
             let pattern = Regex::new(r"boot:(0x[0-9a-fA-F]+)(.*waiting for download)?").unwrap();
 

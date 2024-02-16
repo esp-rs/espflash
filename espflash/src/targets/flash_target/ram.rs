@@ -1,5 +1,3 @@
-use bytemuck::{Pod, Zeroable};
-
 use crate::{
     command::{Command, CommandType},
     elf::RomSegment,
@@ -10,13 +8,6 @@ use crate::{
 use crate::{connection::Connection, targets::FlashTarget};
 
 pub const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
-
-#[derive(Zeroable, Pod, Copy, Clone)]
-#[repr(C)]
-struct EntryParams {
-    no_entry: u32,
-    entry: u32,
-}
 
 /// Applications running in the target device's RAM
 pub struct RamTarget {

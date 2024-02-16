@@ -20,6 +20,7 @@ const FLASH_RANGES: &[Range<u32>] = &[
     0x3c00_0000..0x3c40_0000, // DROM
 ];
 
+// UART0_BASE_REG + 0x14
 const UART_CLKDIV_REG: u32 = 0x6000_0014;
 const UART_CLKDIV_MASK: u32 = 0xfffff;
 

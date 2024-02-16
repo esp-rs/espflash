@@ -27,13 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed printing panic backtraces when using `esp-println` and `defmt` (#496)
-- Fixed `defmt` parsing when data is read in parts (#503)
+- Fix printing panic backtraces when using `esp-println` and `defmt` (#496)
+- Fix `defmt` parsing when data is read in parts (#503)
 - Use partition table instead of hard-coded values for the location of partitions (#516)
-- Fixed a missed `flush` call that may be causing communication errors (#521)
+- Fix a missed `flush` call that may be causing communication errors (#521)
 - Fix "SHA-256 comparison failed: [...] attempting to boot anyway..." (#567)
 - Windows: Update RST/DTR order to avoid issues.
 - Tolerate non-utf8 data in boot detection (#573)
+- Fix flash/monitoring of 26mhz targets (#584)
 
 ### Changed
 
@@ -42,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unify configuration methods (#551)
 - MSRV bumped to `1.73.0` (#578)
 - Improved symbol resolving (#581)
+- Update ESP32-C2 stub (#584)
 
 ### Removed
 
