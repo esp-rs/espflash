@@ -141,24 +141,6 @@ impl UnixTightReset {
     }
 }
 
-// // Extension trait to provide as_mut_any method for trait objects
-// trait AsMutAny {
-//     fn as_mut_any(&mut self) -> &mut dyn Any;
-// }
-
-// impl AsMutAny for dyn SerialPort {
-//     fn as_mut_any(&mut self) -> &mut dyn Any {
-//         self
-//     }
-// }
-
-// #[cfg(unix)]
-// impl AsRawFd for SerialPort {
-//     fn as_raw_fd(&self) -> RawFd {
-//         self.serial_port.as_raw_fd()
-//     }
-// }
-
 #[cfg(unix)]
 impl ResetStrategy for UnixTightReset {
     fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
@@ -166,18 +148,14 @@ impl ResetStrategy for UnixTightReset {
             "Using UnixTight reset strategy with delay of {}ms",
             self.delay
         );
-        // let tty_port = serial_port as &mut TTYPort;
-        // let tty_port = serial_port.as_mut_any().downcast_mut::<TTYPort>().unwrap();
-        // let tty_port = serial_port.as_any().downcast_mut::<TTYPort>().unwrap();
-        // .downcast_mut::<TTYPort>().unwrap();
 
-        // self.set_dtr_rts(serial_port, false, false)?;
-        // self.set_dtr_rts(serial_port, true, true)?;
-        // self.set_dtr_rts(serial_port, false, true)?; // IO = HIGH, EN = LOW, chip in reset
+        self.set_dtr_rts(serial_port, false, false)?;
+        self.set_dtr_rts(serial_port, true, true)?;
+        self.set_dtr_rts(serial_port, false, true)?; // IO = HIGH, EN = LOW, chip in reset
 
         sleep(Duration::from_millis(100));
 
-        // self.set_dtr_rts(serial_port, true, false)?; // IO0 = LOW, EN = HIGH, chip out of reset
+        self.set_dtr_rts(serial_port, true, false)?; // IO0 = LOW, EN = HIGH, chip out of reset
 
         sleep(Duration::from_millis(self.delay));
 

@@ -495,7 +495,7 @@ impl Connection {
 }
 
 /// Reset the target device when flashing has completed
-pub fn reset_after_flash(serial: &mut dyn SerialPort, pid: u16) -> Result<(), serialport::Error> {
+pub fn reset_after_flash(serial: &mut Port, pid: u16) -> Result<(), serialport::Error> {
     sleep(Duration::from_millis(100));
 
     if pid == USB_SERIAL_JTAG_PID {
