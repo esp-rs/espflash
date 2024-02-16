@@ -13,7 +13,7 @@ use std::{
 
 use log::{debug, info};
 use regex::Regex;
-use serialport::UsbPortInfo;
+use serialport::{SerialPort, UsbPortInfo};
 use slip_codec::SlipDecoder;
 
 #[cfg(unix)]
@@ -29,7 +29,6 @@ use crate::{
     command::{Command, CommandType},
     connection::reset::soft_reset,
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
-    interface::Interface,
 };
 
 pub mod reset;
@@ -37,6 +36,11 @@ pub mod reset;
 const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
 pub(crate) const USB_SERIAL_JTAG_PID: u16 = 0x1001;
+
+#[cfg(unix)]
+pub type Port = serialport::TTYPort;
+#[cfg(windows)]
+pub type Port = serialport::COMPort;
 
 #[derive(Debug, Clone)]
 pub enum CommandResponseValue {
@@ -94,7 +98,7 @@ pub struct CommandResponse {
 
 /// An established connection with a target device
 pub struct Connection {
-    serial: Interface,
+    serial: Box<dyn SerialPort>,
     port_info: UsbPortInfo,
     decoder: SlipDecoder,
     after_operation: ResetAfterOperation,
@@ -103,7 +107,7 @@ pub struct Connection {
 
 impl Connection {
     pub fn new(
-        serial: Interface,
+        serial: Box<dyn SerialPort>,
         port_info: UsbPortInfo,
         after_operation: ResetAfterOperation,
         before_operation: ResetBeforeOperation,
@@ -119,7 +123,7 @@ impl Connection {
 
     /// Initialize a connection with a device
     pub fn begin(&mut self) -> Result<(), Error> {
-        let port_name = self.serial.serial_port().name().unwrap_or_default();
+        let port_name = self.serial.name().unwrap_or_default();
         let reset_sequence = construct_reset_strategy_sequence(
             &port_name,
             self.port_info.pid,
@@ -159,11 +163,11 @@ impl Connection {
         let mut buff: Vec<u8>;
         if self.before_operation != ResetBeforeOperation::NoReset {
             // Reset the chip to bootloader (download mode)
-            reset_strategy.reset(&mut self.serial)?;
+            reset_strategy.reset(&mut *self.serial)?;
 
-            let available_bytes = self.serial.serial_port_mut().bytes_to_read()?;
+            let available_bytes = self.serial.bytes_to_read()?;
             buff = vec![0; available_bytes as usize];
-            let read_bytes = self.serial.serial_port_mut().read(&mut buff)? as u32;
+            let read_bytes = self.serial.read(&mut buff)? as u32;
 
             if read_bytes != available_bytes {
                 return Err(Error::Connection(ConnectionError::ReadMissmatch(
@@ -253,7 +257,7 @@ impl Connection {
 
     // Reset the device
     pub fn reset(&mut self) -> Result<(), Error> {
-        reset_after_flash(&mut self.serial, self.port_info.pid)?;
+        reset_after_flash(&mut *self.serial, self.port_info.pid)?;
 
         Ok(())
     }
@@ -261,7 +265,7 @@ impl Connection {
     // Reset the device taking into account the reset after argument
     pub fn reset_after(&mut self, is_stub: bool) -> Result<(), Error> {
         match self.after_operation {
-            ResetAfterOperation::HardReset => HardReset.reset(&mut self.serial),
+            ResetAfterOperation::HardReset => HardReset.reset(&mut *self.serial),
             ResetAfterOperation::NoReset => {
                 info!("Staying in bootloader");
                 soft_reset(self, true, is_stub)?;
@@ -278,36 +282,36 @@ impl Connection {
     // Reset the device to flash mode
     pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
         if self.port_info.pid == USB_SERIAL_JTAG_PID {
-            UsbJtagSerialReset.reset(&mut self.serial)
+            UsbJtagSerialReset.reset(&mut *self.serial)
         } else {
             #[cfg(unix)]
             if UnixTightReset::new(extra_delay)
-                .reset(&mut self.serial)
+                .reset(&mut *self.serial)
                 .is_ok()
             {
                 return Ok(());
             }
 
-            ClassicReset::new(extra_delay).reset(&mut self.serial)
+            ClassicReset::new(extra_delay).reset(&mut *self.serial)
         }
     }
 
     /// Set timeout for the serial port
     pub fn set_timeout(&mut self, timeout: Duration) -> Result<(), Error> {
-        self.serial.serial_port_mut().set_timeout(timeout)?;
+        self.serial.set_timeout(timeout)?;
         Ok(())
     }
 
     /// Set baud rate for the serial port
     pub fn set_baud(&mut self, speed: u32) -> Result<(), Error> {
-        self.serial.serial_port_mut().set_baud_rate(speed)?;
+        self.serial.set_baud_rate(speed)?;
 
         Ok(())
     }
 
     /// Get the current baud rate of the serial port
     pub fn get_baud(&self) -> Result<u32, Error> {
-        Ok(self.serial.serial_port().baud_rate()?)
+        Ok(self.serial.baud_rate()?)
     }
 
     /// Run a command with a timeout defined by the command type
@@ -316,7 +320,7 @@ impl Connection {
         F: FnMut(&mut Connection) -> Result<T, Error>,
     {
         let old_timeout = {
-            let serial = self.serial.serial_port_mut();
+            let serial = self.serial.as_mut();
             let old_timeout = serial.timeout();
             serial.set_timeout(timeout)?;
             old_timeout
@@ -324,7 +328,7 @@ impl Connection {
 
         let result = f(self);
 
-        self.serial.serial_port_mut().set_timeout(old_timeout)?;
+        self.serial.set_timeout(old_timeout)?;
 
         result
     }
@@ -389,8 +393,7 @@ impl Connection {
 
     /// Write raw data to the serial port
     pub fn write_raw(&mut self, data: u32) -> Result<(), Error> {
-        let serial = self.serial.serial_port_mut();
-
+        let serial = self.serial.as_mut();
         serial.clear(serialport::ClearBuffer::Input)?;
         let mut writer = BufWriter::new(serial);
         let mut encoder = SlipEncoder::new(&mut writer)?;
@@ -403,7 +406,7 @@ impl Connection {
     /// Write a command to the serial port
     pub fn write_command(&mut self, command: Command) -> Result<(), Error> {
         debug!("Writing command: {:?}", command);
-        let serial = self.serial.serial_port_mut();
+        let serial = self.serial.as_mut();
 
         serial.clear(serialport::ClearBuffer::Input)?;
         let mut writer = BufWriter::new(serial);
@@ -473,12 +476,12 @@ impl Connection {
 
     /// Flush the serial port
     pub fn flush(&mut self) -> Result<(), Error> {
-        self.serial.serial_port_mut().flush()?;
+        self.serial.flush()?;
         Ok(())
     }
 
     /// Turn a serial port into a Interface
-    pub fn into_interface(self) -> Interface {
+    pub fn into_serial(self) -> Box<dyn SerialPort> {
         self.serial
     }
 
@@ -489,7 +492,7 @@ impl Connection {
 }
 
 /// Reset the target device when flashing has completed
-pub fn reset_after_flash(serial: &mut Interface, pid: u16) -> Result<(), serialport::Error> {
+pub fn reset_after_flash(serial: &mut dyn SerialPort, pid: u16) -> Result<(), serialport::Error> {
     sleep(Duration::from_millis(100));
 
     if pid == USB_SERIAL_JTAG_PID {

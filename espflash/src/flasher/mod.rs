@@ -20,24 +20,21 @@ use md5::{Digest, Md5};
 use miette::{Context, IntoDiagnostic, Result};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
-use serialport::UsbPortInfo;
+use serialport::{SerialPort, UsbPortInfo};
 use strum::IntoEnumIterator;
 use strum::{Display, EnumIter, VariantNames};
 
 use self::stubs::FlashStub;
+#[cfg(feature = "serialport")]
+use crate::connection::{
+    reset::{ResetAfterOperation, ResetBeforeOperation},
+    Connection,
+};
 use crate::{
     command::{Command, CommandType},
     elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
     error::{ConnectionError, Error, ResultExt},
     targets::{Chip, XtalFrequency},
-};
-#[cfg(feature = "serialport")]
-use crate::{
-    connection::{
-        reset::{ResetAfterOperation, ResetBeforeOperation},
-        Connection,
-    },
-    interface::Interface,
 };
 
 mod stubs;
@@ -572,7 +569,7 @@ pub struct Flasher {
 #[cfg(feature = "serialport")]
 impl Flasher {
     pub fn connect(
-        serial: Interface,
+        serial: Box<dyn SerialPort>,
         port_info: UsbPortInfo,
         speed: Option<u32>,
         use_stub: bool,
@@ -1071,6 +1068,10 @@ impl Flasher {
         Ok(())
     }
 
+    pub fn into_serial(self) -> Box<dyn SerialPort> {
+        self.connection.into_serial()
+    }
+
     pub fn get_usb_pid(&self) -> Result<u16, Error> {
         self.connection.get_usb_pid()
     }
@@ -1191,9 +1192,9 @@ impl Flasher {
         Ok(())
     }
 
-    pub fn into_interface(self) -> Interface {
-        self.connection.into_interface()
-    }
+    // pub fn into_interface(self) -> Interface {
+    //     self.connection.into_interface()
+    // }
 }
 
 pub(crate) fn checksum(data: &[u8], mut checksum: u8) -> u8 {

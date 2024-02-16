@@ -1,18 +1,25 @@
 //! This entire module is copied from `esptool.py` (https://github.com/espressif/esptool/blob/a8586d02b1305ebc687d31783437a7f4d4dbb70f/esptool/reset.py)
 
 #[cfg(unix)]
-use std::{io, os::fd::AsRawFd};
+use std::{
+    any::Any,
+    io,
+    os::fd::{AsRawFd, RawFd},
+};
 use std::{thread::sleep, time::Duration};
 
 use log::debug;
+use serialport::{SerialPort, TTYPort};
 use strum::{Display, EnumIter, EnumString, VariantNames};
+
+#[cfg(unix)]
+use libc::ioctl;
 
 use crate::{
     command::{Command, CommandType},
     connection::{Connection, USB_SERIAL_JTAG_PID},
     error::Error,
     flasher,
-    interface::Interface,
 };
 
 /// Default time to wait before releasing the boot pin after a reset
@@ -20,23 +27,18 @@ const DEFAULT_RESET_DELAY: u64 = 50; // ms
 /// Amount of time to wait if the default reset delay does not work
 const EXTRA_RESET_DELAY: u64 = 500; // ms
 
-#[cfg(unix)]
-use libc::ioctl;
-
 /// Some strategy for resting a target device
 pub trait ResetStrategy {
-    fn reset(&self, interface: &mut Interface) -> Result<(), Error>;
+    fn reset(&self, serial_port: &mut dyn SerialPort) -> Result<(), Error>;
 
-    fn set_dtr(&self, interface: &mut Interface, level: bool) -> Result<(), Error> {
-        interface
-            .serial_port_mut()
-            .write_data_terminal_ready(level)?;
+    fn set_dtr(&self, serial_port: &mut dyn SerialPort, level: bool) -> Result<(), Error> {
+        serial_port.write_data_terminal_ready(level)?;
 
         Ok(())
     }
 
-    fn set_rts(&self, interface: &mut Interface, level: bool) -> Result<(), Error> {
-        interface.serial_port_mut().write_request_to_send(level)?;
+    fn set_rts(&self, serial_port: &mut dyn SerialPort, level: bool) -> Result<(), Error> {
+        serial_port.write_request_to_send(level)?;
 
         Ok(())
     }
@@ -44,11 +46,11 @@ pub trait ResetStrategy {
     #[cfg(unix)]
     fn set_dtr_rts(
         &self,
-        interface: &mut Interface,
+        serial_port: &mut dyn SerialPort,
         dtr_level: bool,
         rts_level: bool,
     ) -> Result<(), Error> {
-        let fd = interface.as_raw_fd();
+        let fd = serial_port.as_raw_fd();
         let mut status: i32 = 0;
         match unsafe { ioctl(fd, libc::TIOCMGET, &status) } {
             0 => (),
@@ -94,29 +96,29 @@ impl ClassicReset {
 }
 
 impl ResetStrategy for ClassicReset {
-    fn reset(&self, interface: &mut Interface) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut dyn SerialPort) -> Result<(), Error> {
         debug!(
             "Using Classic reset strategy with delay of {}ms",
             self.delay
         );
-        self.set_rts(interface, false)?;
-        self.set_dtr(interface, false)?;
+        self.set_rts(serial_port, false)?;
+        self.set_dtr(serial_port, false)?;
 
-        self.set_rts(interface, true)?;
-        self.set_dtr(interface, true)?;
+        self.set_rts(serial_port, true)?;
+        self.set_dtr(serial_port, true)?;
 
-        self.set_rts(interface, true)?; // EN = LOW, chip in reset
-        self.set_dtr(interface, false)?; // IO0 = HIGH
+        self.set_rts(serial_port, true)?; // EN = LOW, chip in reset
+        self.set_dtr(serial_port, false)?; // IO0 = HIGH
 
         sleep(Duration::from_millis(100));
 
-        self.set_rts(interface, false)?; // EN = HIGH, chip out of reset
-        self.set_dtr(interface, true)?; // IO0 = LOW
+        self.set_rts(serial_port, false)?; // EN = HIGH, chip out of reset
+        self.set_dtr(serial_port, true)?; // IO0 = LOW
 
         sleep(Duration::from_millis(self.delay));
 
-        self.set_rts(interface, false)?;
-        self.set_dtr(interface, false)?; // IO0 = HIGH, done
+        self.set_rts(serial_port, false)?;
+        self.set_dtr(serial_port, false)?; // IO0 = HIGH, done
 
         Ok(())
     }
@@ -143,26 +145,48 @@ impl UnixTightReset {
     }
 }
 
+// // Extension trait to provide as_mut_any method for trait objects
+// trait AsMutAny {
+//     fn as_mut_any(&mut self) -> &mut dyn Any;
+// }
+
+// impl AsMutAny for dyn SerialPort {
+//     fn as_mut_any(&mut self) -> &mut dyn Any {
+//         self
+//     }
+// }
+
+#[cfg(unix)]
+impl AsRawFd for SerialPort {
+    fn as_raw_fd(&self) -> RawFd {
+        self.serial_port.as_raw_fd()
+    }
+}
+
 #[cfg(unix)]
 impl ResetStrategy for UnixTightReset {
-    fn reset(&self, interface: &mut Interface) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut dyn SerialPort) -> Result<(), Error> {
         debug!(
             "Using UnixTight reset strategy with delay of {}ms",
             self.delay
         );
+        // let tty_port = serial_port as &mut TTYPort;
+        // let tty_port = serial_port.as_mut_any().downcast_mut::<TTYPort>().unwrap();
+        // let tty_port = serial_port.as_any().downcast_mut::<TTYPort>().unwrap();
+        // .downcast_mut::<TTYPort>().unwrap();
 
-        self.set_dtr_rts(interface, false, false)?;
-        self.set_dtr_rts(interface, true, true)?;
-        self.set_dtr_rts(interface, false, true)?; // IO = HIGH, EN = LOW, chip in reset
+        // self.set_dtr_rts(serial_port, false, false)?;
+        // self.set_dtr_rts(serial_port, true, true)?;
+        // self.set_dtr_rts(serial_port, false, true)?; // IO = HIGH, EN = LOW, chip in reset
 
         sleep(Duration::from_millis(100));
 
-        self.set_dtr_rts(interface, true, false)?; // IO0 = LOW, EN = HIGH, chip out of reset
+        // self.set_dtr_rts(serial_port, true, false)?; // IO0 = LOW, EN = HIGH, chip out of reset
 
         sleep(Duration::from_millis(self.delay));
 
-        self.set_dtr_rts(interface, false, false)?; // IO0 = HIGH, done
-        self.set_dtr(interface, false)?; // Needed in some environments to ensure IO0 = HIGH
+        self.set_dtr_rts(serial_port, false, false)?; // IO0 = HIGH, done
+        self.set_dtr(serial_port, false)?; // Needed in some environments to ensure IO0 = HIGH
 
         Ok(())
     }
@@ -174,27 +198,27 @@ impl ResetStrategy for UnixTightReset {
 pub struct UsbJtagSerialReset;
 
 impl ResetStrategy for UsbJtagSerialReset {
-    fn reset(&self, interface: &mut Interface) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut dyn SerialPort) -> Result<(), Error> {
         debug!("Using UsbJtagSerial reset strategy");
 
-        self.set_rts(interface, false)?;
-        self.set_dtr(interface, false)?; // Idle
+        self.set_rts(serial_port, false)?;
+        self.set_dtr(serial_port, false)?; // Idle
 
         sleep(Duration::from_millis(100));
 
-        self.set_rts(interface, false)?;
-        self.set_dtr(interface, true)?; // Set IO0
+        self.set_rts(serial_port, false)?;
+        self.set_dtr(serial_port, true)?; // Set IO0
 
         sleep(Duration::from_millis(100));
 
-        self.set_rts(interface, true)?; // Reset. Calls inverted to go through (1,1) instead of (0,0)
-        self.set_dtr(interface, false)?;
-        self.set_rts(interface, true)?; // RTS set as Windows only propagates DTR on RTS setting
+        self.set_rts(serial_port, true)?; // Reset. Calls inverted to go through (1,1) instead of (0,0)
+        self.set_dtr(serial_port, false)?;
+        self.set_rts(serial_port, true)?; // RTS set as Windows only propagates DTR on RTS setting
 
         sleep(Duration::from_millis(100));
 
-        self.set_rts(interface, false)?;
-        self.set_dtr(interface, false)?;
+        self.set_rts(serial_port, false)?;
+        self.set_dtr(serial_port, false)?;
 
         Ok(())
     }
@@ -207,12 +231,12 @@ impl ResetStrategy for UsbJtagSerialReset {
 pub struct HardReset;
 
 impl ResetStrategy for HardReset {
-    fn reset(&self, interface: &mut Interface) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut dyn SerialPort) -> Result<(), Error> {
         debug!("Using HardReset reset strategy");
 
-        self.set_rts(interface, true)?;
+        self.set_rts(serial_port, true)?;
         sleep(Duration::from_millis(100));
-        self.set_rts(interface, false)?;
+        self.set_rts(serial_port, false)?;
 
         Ok(())
     }
