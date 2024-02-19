@@ -4,7 +4,7 @@ use flate2::{
     write::{ZlibDecoder, ZlibEncoder},
     Compression,
 };
-use log::debug;
+use log::info;
 use md5::{Digest, Md5};
 
 #[cfg(feature = "serialport")]
@@ -155,7 +155,10 @@ impl FlashTarget for Esp32Target {
                 })?;
 
             if checksum_md5.as_slice() == flash_checksum_md5.to_be_bytes() {
-                debug!("Skipping segment at address {:x}", addr);
+                info!(
+                    "Segment at address '0x{:x}' has not changed, skipping write",
+                    addr
+                );
                 return Ok(());
             }
         }
