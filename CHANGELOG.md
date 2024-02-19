@@ -8,10 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Add `--list-all-ports` connection argument to avoid serial port filtering (#590)
 
 ### Fixed
 
 ### Changed
+- Non-linux-musl: Only list the available USB Ports by default (#590)
+
 
 ### Removed
 
