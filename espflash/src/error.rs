@@ -115,7 +115,7 @@ pub enum Error {
     #[error("No serial ports could be detected")]
     #[diagnostic(
         code(espflash::no_serial),
-        help("Make sure you have connected a device to the host system")
+        help("Make sure you have connected a device to the host system. If the device is connected but not listed, try using the `--list-all-ports` flag.")
     )]
     NoSerial,
 
