@@ -202,6 +202,12 @@ pub enum Error {
 
     #[error("Internal Error")]
     InternalError,
+
+    #[error("Failed to open file: {0}")]
+    FileOpenError(String, #[source] std::io::Error),
+
+    #[error("Failed to parse partition table")]
+    Partition(#[from] esp_idf_part::Error),
 }
 
 #[cfg(feature = "serialport")]
