@@ -17,7 +17,6 @@ use std::{
 use esp_idf_part::PartitionTable;
 use log::{debug, info, warn};
 use md5::{Digest, Md5};
-use miette::{Context, IntoDiagnostic, Result};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
 use serialport::UsbPortInfo;
@@ -332,7 +331,7 @@ impl<'a> FlashDataBuilder<'a> {
     }
 
     /// Builds a [`FlashData`] object.
-    pub fn build(self) -> Result<FlashData> {
+    pub fn build(self) -> Result<FlashData, Error> {
         FlashData::new(
             self.bootloader_path,
             self.partition_table_path,
@@ -364,12 +363,13 @@ impl FlashData {
         target_app_partition: Option<String>,
         flash_settings: FlashSettings,
         min_chip_rev: u16,
-    ) -> Result<Self> {
+    ) -> Result<Self, Error> {
         // If the '--bootloader' option is provided, load the binary file at the
         // specified path.
         let bootloader = if let Some(path) = bootloader {
-            let path = fs::canonicalize(path).into_diagnostic()?;
-            let data: Vec<u8> = fs::read(path).into_diagnostic()?;
+            let data = fs::canonicalize(path)
+                .and_then(fs::read)
+                .map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
 
             Some(data)
         } else {
@@ -1176,10 +1176,8 @@ pub(crate) fn checksum(data: &[u8], mut checksum: u8) -> u8 {
 }
 
 /// Parse a [PartitionTable] from the provided path
-pub fn parse_partition_table(path: &Path) -> Result<PartitionTable> {
-    let data = fs::read(path)
-        .into_diagnostic()
-        .wrap_err("Failed to open partition table")?;
+pub fn parse_partition_table(path: &Path) -> Result<PartitionTable, Error> {
+    let data = fs::read(path).map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
 
-    PartitionTable::try_from(data).into_diagnostic()
+    Ok(PartitionTable::try_from(data)?)
 }
