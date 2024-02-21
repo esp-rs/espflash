@@ -154,6 +154,19 @@ jobs:
             exit 1
           fi
 
+      - name: erase/read flash test
+        env:
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board }}
+        run: |
+          result=$(espflash_app/espflash erase-flash)
+          if [[ ! $result =~ "Flash has been erased!" ]]; then
+            exit 1
+          fi
+          espflash  read-flash  0 0x200 flash_content.bin
+          if hexdump -v -e '/1 "%02x"' "flash_content.bin" | grep -qv '^ff*$'; then
+              exit 1
+          fi
+
       # - uses: ./.github/actions/setup-target
       #   with:
       #     arch: x86_64

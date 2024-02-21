@@ -579,6 +579,8 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     flash.erase_flash()?;
     flash.connection().reset_after(!args.connect_args.no_stub)?;
 
+    info!("Flash has been erased!");
+
     Ok(())
 }
 
