@@ -25,7 +25,7 @@ const EXTRA_RESET_DELAY: u64 = 500; // ms
 
 /// Some strategy for resting a target device
 pub trait ResetStrategy {
-    fn reset(&self, serial_port: &mut Port) -> Result<(), Error>;
+    fn reset(&self, serial_port: &mut Port, pid: Option<u16>) -> Result<(), Error>;
 
     fn set_dtr(&self, serial_port: &mut Port, level: bool) -> Result<(), Error> {
         serial_port.write_data_terminal_ready(level)?;
@@ -92,7 +92,7 @@ impl ClassicReset {
 }
 
 impl ResetStrategy for ClassicReset {
-    fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut Port, _pid: Option<u16>) -> Result<(), Error> {
         debug!(
             "Using Classic reset strategy with delay of {}ms",
             self.delay
@@ -143,7 +143,7 @@ impl UnixTightReset {
 
 #[cfg(unix)]
 impl ResetStrategy for UnixTightReset {
-    fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut Port, _pid: Option<u16>) -> Result<(), Error> {
         debug!(
             "Using UnixTight reset strategy with delay of {}ms",
             self.delay
@@ -172,7 +172,7 @@ impl ResetStrategy for UnixTightReset {
 pub struct UsbJtagSerialReset;
 
 impl ResetStrategy for UsbJtagSerialReset {
-    fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut Port, _pid: Option<u16>) -> Result<(), Error> {
         debug!("Using UsbJtagSerial reset strategy");
 
         self.set_rts(serial_port, false)?;
@@ -205,12 +205,23 @@ impl ResetStrategy for UsbJtagSerialReset {
 pub struct HardReset;
 
 impl ResetStrategy for HardReset {
-    fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut Port, pid: Option<u16>) -> Result<(), Error> {
         debug!("Using HardReset reset strategy");
 
         self.set_rts(serial_port, true)?;
-        sleep(Duration::from_millis(100));
-        self.set_rts(serial_port, false)?;
+        if let Some(pid) = pid {
+            if pid == USB_SERIAL_JTAG_PID {
+                sleep(Duration::from_millis(200));
+                self.set_rts(serial_port, false)?;
+                sleep(Duration::from_millis(200));
+            } else {
+                sleep(Duration::from_millis(100));
+                self.set_rts(serial_port, false)?;
+            }
+        } else {
+            sleep(Duration::from_millis(100));
+            self.set_rts(serial_port, false)?;
+        }
 
         Ok(())
     }

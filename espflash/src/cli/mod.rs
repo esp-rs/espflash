@@ -568,12 +568,13 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
         return Err(Error::StubRequired.into());
     }
 
-    let mut flash = connect(&args.connect_args, config, true, true)?;
-
+    let mut flasher = connect(&args.connect_args, config, true, true)?;
     info!("Erasing Flash...");
 
-    flash.erase_flash()?;
-    flash.connection().reset_after(!args.connect_args.no_stub)?;
+    flasher.erase_flash()?;
+    flasher
+        .connection()
+        .reset_after(!args.connect_args.no_stub)?;
 
     Ok(())
 }
