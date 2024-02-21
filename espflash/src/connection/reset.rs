@@ -13,7 +13,7 @@ use libc::ioctl;
 
 use crate::{
     command::{Command, CommandType},
-    connection::{Connection, Port, USB_SERIAL_JTAG_PID},
+    connection::{reset_after_flash, Connection, Port, USB_SERIAL_JTAG_PID},
     error::Error,
     flasher,
 };
@@ -208,20 +208,9 @@ impl ResetStrategy for HardReset {
     fn reset(&self, serial_port: &mut Port, pid: Option<u16>) -> Result<(), Error> {
         debug!("Using HardReset reset strategy");
 
-        self.set_rts(serial_port, true)?;
-        if let Some(pid) = pid {
-            if pid == USB_SERIAL_JTAG_PID {
-                sleep(Duration::from_millis(200));
-                self.set_rts(serial_port, false)?;
-                sleep(Duration::from_millis(200));
-            } else {
-                sleep(Duration::from_millis(100));
-                self.set_rts(serial_port, false)?;
-            }
-        } else {
-            sleep(Duration::from_millis(100));
-            self.set_rts(serial_port, false)?;
-        }
+        // Using esptool HardReset strategy (https://github.com/espressif/esptool/blob/3301d0ff4638d4db1760a22540dbd9d07c55ec37/esptool/reset.py#L132-L153)
+        // leads to https://github.com/esp-rs/espflash/issues/592 in Windows.
+        reset_after_flash(serial_port, pid.unwrap_or_default())?;
 
         Ok(())
     }
