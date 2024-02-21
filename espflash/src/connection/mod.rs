@@ -21,7 +21,7 @@ use self::reset::UnixTightReset;
 use self::{
     encoder::SlipEncoder,
     reset::{
-        construct_reset_strategy_sequence, ClassicReset, HardReset, ResetAfterOperation,
+        construct_reset_strategy_sequence, hard_reset, ClassicReset, ResetAfterOperation,
         ResetBeforeOperation, ResetStrategy, UsbJtagSerialReset,
     },
 };
@@ -158,7 +158,7 @@ impl Connection {
         let mut buff: Vec<u8>;
         if self.before_operation != ResetBeforeOperation::NoReset {
             // Reset the chip to bootloader (download mode)
-            reset_strategy.reset(&mut self.serial, None)?;
+            reset_strategy.reset(&mut self.serial)?;
 
             let available_bytes = self.serial.bytes_to_read()?;
             buff = vec![0; available_bytes as usize];
@@ -259,7 +259,7 @@ impl Connection {
         let pid = self.get_usb_pid()?;
 
         match self.after_operation {
-            ResetAfterOperation::HardReset => HardReset.reset(&mut self.serial, Some(pid)),
+            ResetAfterOperation::HardReset => hard_reset(&mut self.serial, pid),
             ResetAfterOperation::NoReset => {
                 info!("Staying in bootloader");
                 soft_reset(self, true, is_stub)?;
@@ -276,17 +276,17 @@ impl Connection {
     // Reset the device to flash mode
     pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
         if self.port_info.pid == USB_SERIAL_JTAG_PID {
-            UsbJtagSerialReset.reset(&mut self.serial, None)
+            UsbJtagSerialReset.reset(&mut self.serial)
         } else {
             #[cfg(unix)]
             if UnixTightReset::new(extra_delay)
-                .reset(&mut self.serial, None)
+                .reset(&mut self.serial)
                 .is_ok()
             {
                 return Ok(());
             }
 
-            ClassicReset::new(extra_delay).reset(&mut self.serial, None)
+            ClassicReset::new(extra_delay).reset(&mut self.serial)
         }
     }
 

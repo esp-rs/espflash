@@ -25,7 +25,7 @@ const EXTRA_RESET_DELAY: u64 = 500; // ms
 
 /// Some strategy for resting a target device
 pub trait ResetStrategy {
-    fn reset(&self, serial_port: &mut Port, pid: Option<u16>) -> Result<(), Error>;
+    fn reset(&self, serial_port: &mut Port) -> Result<(), Error>;
 
     fn set_dtr(&self, serial_port: &mut Port, level: bool) -> Result<(), Error> {
         serial_port.write_data_terminal_ready(level)?;
@@ -92,7 +92,7 @@ impl ClassicReset {
 }
 
 impl ResetStrategy for ClassicReset {
-    fn reset(&self, serial_port: &mut Port, _pid: Option<u16>) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
         debug!(
             "Using Classic reset strategy with delay of {}ms",
             self.delay
@@ -143,7 +143,7 @@ impl UnixTightReset {
 
 #[cfg(unix)]
 impl ResetStrategy for UnixTightReset {
-    fn reset(&self, serial_port: &mut Port, _pid: Option<u16>) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
         debug!(
             "Using UnixTight reset strategy with delay of {}ms",
             self.delay
@@ -172,7 +172,7 @@ impl ResetStrategy for UnixTightReset {
 pub struct UsbJtagSerialReset;
 
 impl ResetStrategy for UsbJtagSerialReset {
-    fn reset(&self, serial_port: &mut Port, _pid: Option<u16>) -> Result<(), Error> {
+    fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
         debug!("Using UsbJtagSerial reset strategy");
 
         self.set_rts(serial_port, false)?;
@@ -199,21 +199,15 @@ impl ResetStrategy for UsbJtagSerialReset {
 }
 
 /// Reset sequence for hard resetting the chip.
-///
-/// Can be used to reset out of the bootloader or to restart a running app.
-#[derive(Debug, Clone, Copy)]
-pub struct HardReset;
+pub fn hard_reset(serial_port: &mut Port, pid: u16) -> Result<(), Error> {
+    debug!("Using HardReset reset strategy");
 
-impl ResetStrategy for HardReset {
-    fn reset(&self, serial_port: &mut Port, pid: Option<u16>) -> Result<(), Error> {
-        debug!("Using HardReset reset strategy");
+    // Using esptool HardReset strategy (https://github.com/espressif/esptool/blob/3301d0ff4638d4db1760a22540dbd9d07c55ec37/esptool/reset.py#L132-L153)
+    // leads to https://github.com/esp-rs/espflash/issues/592 in Windows, using `reset_after_flash` instead works fine for all platforms.
+    // We had similar issues in the past: https://github.com/esp-rs/espflash/pull/157
+    reset_after_flash(serial_port, pid)?;
 
-        // Using esptool HardReset strategy (https://github.com/espressif/esptool/blob/3301d0ff4638d4db1760a22540dbd9d07c55ec37/esptool/reset.py#L132-L153)
-        // leads to https://github.com/esp-rs/espflash/issues/592 in Windows.
-        reset_after_flash(serial_port, pid.unwrap_or_default())?;
-
-        Ok(())
-    }
+    Ok(())
 }
 
 /// Perform a soft reset of the device.
