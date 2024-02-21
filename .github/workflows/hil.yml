@@ -158,15 +158,44 @@ jobs:
         env:
           ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board }}
         run: |
-          result=$(espflash_app/espflash erase-flash)
+          result=$(espflash_app/espflash erase-flash 2>&1)
+          echo "$result"
           if [[ ! $result =~ "Flash has been erased!" ]]; then
             exit 1
           fi
-          espflash  read-flash  0 0x200 flash_content.bin
+          result=$(espflash_app/espflash read-flash  0 0x200 flash_content.bin 2>&1)
+          echo "$result"
+          if [[ ! $result =~ "Flash content suscesfully read and written to" ]]; then
+            exit 1
+          fi
+          echo "Checking if flash is empty"
           if hexdump -v -e '/1 "%02x"' "flash_content.bin" | grep -qv '^ff*$'; then
               exit 1
           fi
+          echo "Flash is empty!"
 
+      - name: save-image/write-bin test
+        env:
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board }}
+          ESPFLASH_APP: espflash/${{ matrix.board }}_app/hello_world
+        run: |
+          result=$(espflash_app/espflash save-image --merge --chip ${{ matrix.board }} ${{ env.ESPFLASH_APP }} app.bin 2>&1)
+          echo "$result"
+          if [[ ! $result =~ "Image suscesfully saved!" ]]; then
+            exit 1
+          fi
+          echo "Writting binary"
+          result=$(espflash_app/espflash write-bin 0x0 app.bin 2>&1)
+          echo "$result"
+          if [[ ! $result =~ "Binary suscesfully written to flash!" ]]; then
+            exit 1
+          fi
+          echo "Monitoring..."
+          result=$(timeout 5s espflash_app/espflash monitor --non-interactive || true)
+          echo "$result"
+          if ! echo "$result" | grep -q "Hello world!"; then
+            exit 1
+          fi
       # - uses: ./.github/actions/setup-target
       #   with:
       #     arch: x86_64
