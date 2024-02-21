@@ -21,8 +21,8 @@ use self::reset::UnixTightReset;
 use self::{
     encoder::SlipEncoder,
     reset::{
-        construct_reset_strategy_sequence, hard_reset, ClassicReset, ResetAfterOperation,
-        ResetBeforeOperation, ResetStrategy, UsbJtagSerialReset,
+        construct_reset_strategy_sequence, hard_reset, reset_after_flash, ClassicReset,
+        ResetAfterOperation, ResetBeforeOperation, ResetStrategy, UsbJtagSerialReset,
     },
 };
 use crate::{
@@ -486,33 +486,6 @@ impl Connection {
     pub fn get_usb_pid(&self) -> Result<u16, Error> {
         Ok(self.port_info.pid)
     }
-}
-
-/// Reset the target device when flashing has completed
-pub fn reset_after_flash(serial: &mut Port, pid: u16) -> Result<(), serialport::Error> {
-    sleep(Duration::from_millis(100));
-
-    if pid == USB_SERIAL_JTAG_PID {
-        serial.write_data_terminal_ready(false)?;
-
-        sleep(Duration::from_millis(100));
-
-        serial.write_request_to_send(true)?;
-        serial.write_data_terminal_ready(false)?;
-        serial.write_request_to_send(true)?;
-
-        sleep(Duration::from_millis(100));
-
-        serial.write_request_to_send(false)?;
-    } else {
-        serial.write_request_to_send(true)?;
-
-        sleep(Duration::from_millis(100));
-
-        serial.write_request_to_send(false)?;
-    }
-
-    Ok(())
 }
 
 mod encoder {

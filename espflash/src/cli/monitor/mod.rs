@@ -27,7 +27,7 @@ use strum::{Display, EnumIter, EnumString, VariantNames};
 
 use crate::{
     cli::monitor::parser::{InputParser, ResolvingPrinter},
-    connection::{reset_after_flash, Port},
+    connection::{reset::reset_after_flash, Port},
 };
 
 pub mod parser;

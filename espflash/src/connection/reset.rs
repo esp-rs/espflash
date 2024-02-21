@@ -1,4 +1,4 @@
-//! This entire module is copied from `esptool.py` (https://github.com/espressif/esptool/blob/a8586d02b1305ebc687d31783437a7f4d4dbb70f/esptool/reset.py)
+//! Most of this module is copied from `esptool.py` (https://github.com/espressif/esptool/blob/a8586d02b1305ebc687d31783437a7f4d4dbb70f/esptool/reset.py)
 
 #[cfg(unix)]
 use std::{io, os::fd::AsRawFd};
@@ -13,7 +13,7 @@ use libc::ioctl;
 
 use crate::{
     command::{Command, CommandType},
-    connection::{reset_after_flash, Connection, Port, USB_SERIAL_JTAG_PID},
+    connection::{Connection, Port, USB_SERIAL_JTAG_PID},
     error::Error,
     flasher,
 };
@@ -196,6 +196,33 @@ impl ResetStrategy for UsbJtagSerialReset {
 
         Ok(())
     }
+}
+
+/// Reset the target device
+pub fn reset_after_flash(serial: &mut Port, pid: u16) -> Result<(), serialport::Error> {
+    sleep(Duration::from_millis(100));
+
+    if pid == USB_SERIAL_JTAG_PID {
+        serial.write_data_terminal_ready(false)?;
+
+        sleep(Duration::from_millis(100));
+
+        serial.write_request_to_send(true)?;
+        serial.write_data_terminal_ready(false)?;
+        serial.write_request_to_send(true)?;
+
+        sleep(Duration::from_millis(100));
+
+        serial.write_request_to_send(false)?;
+    } else {
+        serial.write_request_to_send(true)?;
+
+        sleep(Duration::from_millis(100));
+
+        serial.write_request_to_send(false)?;
+    }
+
+    Ok(())
 }
 
 /// Reset sequence for hard resetting the chip.
