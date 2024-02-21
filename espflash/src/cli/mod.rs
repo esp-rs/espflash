@@ -252,6 +252,9 @@ pub struct MonitorArgs {
     /// Optional file name of the ELF image to load the symbols from
     #[arg(short = 'e', long, value_name = "FILE")]
     elf: Option<PathBuf>,
+    /// Avoids asking the user for interactions like resetting the device
+    #[arg(long)]
+    non_interactive: bool,
     /// Logging format.
     #[arg(long, short = 'L', default_value = "serial", requires = "elf")]
     pub log_format: LogFormat,
@@ -439,6 +442,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         pid,
         args.connect_args.baud.unwrap_or(default_baud),
         args.log_format,
+        !args.non_interactive,
     )
 }
 

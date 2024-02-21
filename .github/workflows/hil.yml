@@ -4,7 +4,11 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - "**/ci.yml"
   push:
+    paths-ignore:
+      - "**/ci.yml"
   workflow_dispatch:
 
 env:
@@ -121,10 +125,9 @@ jobs:
           ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board }}
         shell: bash
         run: |
-          result=$(espflash_app/espflash board-info 2>&1)
+          result=$(espflash_app/espflash board-info)
           echo "$result"
-
-          if ! echo "$result" | grep -q "esp32"; then
+          if [[ $? -ne 0 || ! "$result" =~ "esp32" ]]; then
             exit 1
           fi
 
@@ -134,12 +137,22 @@ jobs:
           ESPFLASH_APP: espflash/${{ matrix.board }}_app/hello_world
         shell: bash
         run: |
-          timeout 10s espflash_app/espflash flash --monitor ${{ env.ESPFLASH_APP }} 2>&1
+          result=$(espflash_app/espflash flash ${{ env.ESPFLASH_APP }} 2>&1)
+          echo "$result"
+          if [[ ! $result =~ "Flashing has completed!" ]]; then
+            exit 1
+          fi
 
-      # if ! echo "$result" | grep -q "Flashing has completed!"; then
-      # if [[ $result == *"Flashing has completed!"* && $result == *"Hello world!"* ]]; then
-        # exit 1
-      # fi
+      - name: monitor test
+        env:
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board }}
+        shell: bash
+        run: |
+          result=$(timeout 5s espflash_app/espflash monitor --non-interactive || true)
+          echo "$result"
+          if ! echo "$result" | grep -q "Hello world!"; then
+            exit 1
+          fi
 
       # - uses: ./.github/actions/setup-target
       #   with:

@@ -71,11 +71,16 @@ pub fn monitor(
     pid: u16,
     baud: u32,
     log_format: LogFormat,
+    interactive_mode: bool,
 ) -> miette::Result<()> {
-    println!("Commands:");
-    println!("    CTRL+R    Reset chip");
-    println!("    CTRL+C    Exit");
-    println!();
+    if interactive_mode {
+        println!("Commands:");
+        println!("    CTRL+R    Reset chip");
+        println!("    CTRL+C    Exit");
+        println!();
+    } else {
+        reset_after_flash(&mut serial, pid).into_diagnostic()?;
+    }
 
     // Explicitly set the baud rate when starting the serial monitor, to allow using
     // different rates for flashing.
@@ -109,7 +114,7 @@ pub fn monitor(
         // Don't forget to flush the writer!
         stdout.flush().ok();
 
-        if poll(Duration::from_secs(0)).into_diagnostic()? {
+        if interactive_mode && poll(Duration::from_secs(0)).into_diagnostic()? {
             if let Event::Key(key) = read().into_diagnostic()? {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     match key.code {
