@@ -1,4 +1,4 @@
-//! This entire module is copied from `esptool.py` (https://github.com/espressif/esptool/blob/a8586d02b1305ebc687d31783437a7f4d4dbb70f/esptool/reset.py)
+//! Most of this module is copied from `esptool.py` (https://github.com/espressif/esptool/blob/a8586d02b1305ebc687d31783437a7f4d4dbb70f/esptool/reset.py)
 
 #[cfg(unix)]
 use std::{io, os::fd::AsRawFd};
@@ -198,22 +198,43 @@ impl ResetStrategy for UsbJtagSerialReset {
     }
 }
 
-/// Reset sequence for hard resetting the chip.
-///
-/// Can be used to reset out of the bootloader or to restart a running app.
-#[derive(Debug, Clone, Copy)]
-pub struct HardReset;
+/// Reset the target device
+pub fn reset_after_flash(serial: &mut Port, pid: u16) -> Result<(), serialport::Error> {
+    sleep(Duration::from_millis(100));
 
-impl ResetStrategy for HardReset {
-    fn reset(&self, serial_port: &mut Port) -> Result<(), Error> {
-        debug!("Using HardReset reset strategy");
+    if pid == USB_SERIAL_JTAG_PID {
+        serial.write_data_terminal_ready(false)?;
 
-        self.set_rts(serial_port, true)?;
         sleep(Duration::from_millis(100));
-        self.set_rts(serial_port, false)?;
 
-        Ok(())
+        serial.write_request_to_send(true)?;
+        serial.write_data_terminal_ready(false)?;
+        serial.write_request_to_send(true)?;
+
+        sleep(Duration::from_millis(100));
+
+        serial.write_request_to_send(false)?;
+    } else {
+        serial.write_request_to_send(true)?;
+
+        sleep(Duration::from_millis(100));
+
+        serial.write_request_to_send(false)?;
     }
+
+    Ok(())
+}
+
+/// Reset sequence for hard resetting the chip.
+pub fn hard_reset(serial_port: &mut Port, pid: u16) -> Result<(), Error> {
+    debug!("Using HardReset reset strategy");
+
+    // Using esptool HardReset strategy (https://github.com/espressif/esptool/blob/3301d0ff4638d4db1760a22540dbd9d07c55ec37/esptool/reset.py#L132-L153)
+    // leads to https://github.com/esp-rs/espflash/issues/592 in Windows, using `reset_after_flash` instead works fine for all platforms.
+    // We had similar issues in the past: https://github.com/esp-rs/espflash/pull/157
+    reset_after_flash(serial_port, pid)?;
+
+    Ok(())
 }
 
 /// Perform a soft reset of the device.

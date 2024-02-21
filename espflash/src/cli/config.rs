@@ -101,6 +101,12 @@ impl Config {
         if local_config.exists() {
             return Ok(local_config);
         }
+        if let Some(parent_folder) = std::env::current_dir()?.parent() {
+            let workspace_config = parent_folder.join("espflash.toml");
+            if workspace_config.exists() {
+                return Ok(workspace_config);
+            }
+        }
 
         let project_dirs = ProjectDirs::from("rs", "esp", "espflash").unwrap();
         let global_config = project_dirs.config_dir().join("espflash.toml");
