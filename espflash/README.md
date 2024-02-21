@@ -154,7 +154,7 @@ The configuration file allows you to define various parameters for your applicat
 
 You can have a local and/or a global configuration file:
 
-- For local configurations, store the file under the current working directory with the name `espflash.toml`
+- For local configurations, store the file under the current working directory or in the parent directory (to support Cargo workspaces) with the name `espflash.toml`
 - Global file location differs based on your operating system:
   - Linux: `$HOME/.config/espflash/espflash.toml`
   - macOS: `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml`
