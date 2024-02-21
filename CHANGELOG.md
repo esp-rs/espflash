@@ -10,10 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Fixed
+- Change the `hard_reset` sequence to fix Windows issues (#594)
 
 ### Changed
-
 - `FlashData::new` now returns `crate::Error` (#591)
+- Moved `reset_after_flash` method to `reset` module (#594)
 
 ### Removed
 
