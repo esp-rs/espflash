@@ -164,7 +164,7 @@ jobs:
           fi
           result=$(espflash_app/espflash read-flash  0 0x200 flash_content.bin 2>&1)
           echo "$result"
-          if [[ ! $result =~ "Flash content suscesfully read and written to" ]]; then
+          if [[ ! $result =~ "Flash content successfully read and written to" ]]; then
             exit 1
           fi
           echo "Checking if flash is empty"
@@ -180,13 +180,13 @@ jobs:
         run: |
           result=$(espflash_app/espflash save-image --merge --chip ${{ matrix.board }} ${{ env.ESPFLASH_APP }} app.bin 2>&1)
           echo "$result"
-          if [[ ! $result =~ "Image suscesfully saved!" ]]; then
+          if [[ ! $result =~ "Image successfully saved!" ]]; then
             exit 1
           fi
           echo "Writting binary"
           result=$(espflash_app/espflash write-bin 0x0 app.bin 2>&1)
           echo "$result"
-          if [[ ! $result =~ "Binary suscesfully written to flash!" ]]; then
+          if [[ ! $result =~ "Binary successfully written to flash!" ]]; then
             exit 1
           fi
           echo "Monitoring..."

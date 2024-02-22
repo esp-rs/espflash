@@ -200,6 +200,8 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
         .connection()
         .reset_after(!args.connect_args.no_stub)?;
 
+    info!("Specified partitions successfully erased!");
+
     Ok(())
 }
 

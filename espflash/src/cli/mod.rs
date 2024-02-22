@@ -513,7 +513,7 @@ pub fn save_elf_as_image(
         }
     }
 
-    info!("Image suscesfully saved!");
+    info!("Image successfully saved!");
 
     Ok(())
 }

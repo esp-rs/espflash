@@ -976,7 +976,7 @@ impl Flasher {
         };
         self.write_bins_to_flash(&[segment], progress)?;
 
-        info!("Binary suscesfully written to flash!");
+        info!("Binary successfully written to flash!");
 
         Ok(())
     }
@@ -1153,7 +1153,7 @@ impl Flasher {
         file.write_all(&data)?;
 
         info!(
-            "Flash content suscesfully read and written to '{}'!",
+            "Flash content successfully read and written to '{}'!",
             file_path.display()
         );
 
