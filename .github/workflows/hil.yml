@@ -31,8 +31,8 @@ jobs:
         board:
           - mcu: esp32
             target: xtensa-esp32-none-elf
-          # - mcu: esp32c2
-          #   target: riscv32imc-unknown-none-elf
+          - mcu: esp32c2
+            target: riscv32imc-unknown-none-elf
           - mcu: esp32c3
             target: riscv32imc-unknown-none-elf
           - mcu: esp32c6
@@ -104,8 +104,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, "${{ matrix.board }}" ]
     strategy:
       matrix:
-        # board: [esp32, esp32c2, esp32c3, esp32c6, esp32h2, esp32s2, esp32s3]
-        board: [esp32, esp32c3, esp32c6, esp32h2, esp32s2, esp32s3]
+        board: [esp32, esp32c2, esp32c3, esp32c6, esp32h2, esp32s2, esp32s3]
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
