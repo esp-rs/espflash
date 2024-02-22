@@ -196,10 +196,5 @@ jobs:
           if ! echo "$result" | grep -q "Hello world!"; then
             exit 1
           fi
-      # - uses: ./.github/actions/setup-target
-      #   with:
-      #     arch: x86_64
-      #     target: x86_64-unknown-linux-gnu
 
-      # - name: Run Tests
-      #   run: ESPFLASH_PORT=/dev/serial_ports/${{ matrix.board }} ESPFLASH_APP=${{ matrix.board }}_app/hello_world cargo test
+
