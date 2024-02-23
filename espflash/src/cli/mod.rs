@@ -61,6 +61,9 @@ pub struct ConnectArgs {
     /// Require confirmation before auto-connecting to a recognized device.
     #[arg(short = 'C', long)]
     pub confirm_port: bool,
+    /// List all available ports.
+    #[arg(long)]
+    pub list_all_ports: bool,
     /// Do not use the RAM stub for loading
     #[arg(long)]
     pub no_stub: bool,

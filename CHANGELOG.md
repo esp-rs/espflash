@@ -8,12 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Add `--list-all-ports` connection argument to avoid serial port filtering (#590)
 - Allow config file to live in parent folder (#595)
 
 ### Fixed
 - Change the `hard_reset` sequence to fix Windows issues (#594)
 
 ### Changed
+- Non-linux-musl: Only list the available USB Ports by default (#590)
 - `FlashData::new` now returns `crate::Error` (#591)
 - Moved `reset_after_flash` method to `reset` module (#594)
 

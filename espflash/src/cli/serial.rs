@@ -33,7 +33,7 @@ pub fn get_serial_port_info(
     // doesn't work (on Windows) with "dummy" device paths like `COM4`. That's
     // the reason we need to handle Windows/Posix differently.
 
-    let ports = detect_usb_serial_ports().unwrap_or_default();
+    let ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
 
     if let Some(serial) = &matches.port {
         find_serial_port(&ports, serial)
@@ -108,7 +108,7 @@ fn find_serial_port(ports: &[SerialPortInfo], name: &str) -> Result<SerialPortIn
 /// Linux we can do some manual parsing of sysfs to get the relevant bits
 /// without udev
 #[cfg(all(target_os = "linux", target_env = "musl"))]
-fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
+fn detect_usb_serial_ports(_list_all_ports: bool) -> Result<Vec<SerialPortInfo>> {
     use std::{
         fs::{read_link, read_to_string},
         path::PathBuf,
@@ -166,20 +166,24 @@ fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
 
 /// Returns a vector with available USB serial ports.
 #[cfg(not(all(target_os = "linux", target_env = "musl")))]
-fn detect_usb_serial_ports() -> Result<Vec<SerialPortInfo>> {
+fn detect_usb_serial_ports(list_all_ports: bool) -> Result<Vec<SerialPortInfo>> {
     let ports = available_ports().into_diagnostic()?;
     let ports = ports
         .into_iter()
         .filter(|port_info| {
-            matches!(
-                &port_info.port_type,
-                SerialPortType::UsbPort(..) |
-                // Allow PciPort. The user may want to use it.
-                // The port might have been misdetected by the system as PCI.
-                SerialPortType::PciPort |
-                // Good luck.
-                SerialPortType::Unknown
-            )
+            if list_all_ports {
+                matches!(
+                    &port_info.port_type,
+                    SerialPortType::UsbPort(..) |
+                    // Allow PciPort. The user may want to use it.
+                    // The port might have been misdetected by the system as PCI.
+                    SerialPortType::PciPort |
+                    // Good luck.
+                    SerialPortType::Unknown
+                )
+            } else {
+                matches!(&port_info.port_type, SerialPortType::UsbPort(..))
+            }
         })
         .collect::<Vec<_>>();
 
