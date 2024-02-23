@@ -1,4 +1,4 @@
-name: Build and Run Integration tests
+name: HIL
 
 on:
   pull_request:
@@ -6,9 +6,11 @@ on:
       - main
     paths-ignore:
       - "**/ci.yml"
+      - "**/*.md"
   push:
     paths-ignore:
       - "**/ci.yml"
+      - "**/*.md"
   workflow_dispatch:
 
 env:
@@ -24,58 +26,6 @@ concurrency:
 
 
 jobs:
-  build-app:
-    name: Generate and Build App
-    strategy:
-      matrix:
-        board:
-          - mcu: esp32
-            target: xtensa-esp32-none-elf
-          - mcu: esp32c2
-            target: riscv32imc-unknown-none-elf
-          - mcu: esp32c3
-            target: riscv32imc-unknown-none-elf
-          - mcu: esp32c6
-            target: riscv32imac-unknown-none-elf
-          - mcu: esp32h2
-            target: riscv32imac-unknown-none-elf
-          - mcu: esp32s2
-            target: xtensa-esp32s2-none-elf
-          - mcu: esp32s3
-            target: xtensa-esp32s3-none-elf
-      fail-fast: false
-    runs-on: ubuntu-22.04
-    steps:
-
-      - if: matrix.board.mcu == 'esp32' || matrix.board.mcu == 'esp32s2' || matrix.board.mcu == 'esp32s3'
-        uses: esp-rs/xtensa-toolchain@v1.5
-        with:
-          default: true
-          buildtargets: ${{ matrix.board.mcu }}
-          ldproxy: false
-
-      - if: matrix.board.mcu != 'esp32' && matrix.board.mcu != 'esp32s2' && matrix.board.mcu != 'esp32s3'
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          target: ${{ matrix.board.target }}
-          components: rust-src
-
-      - uses: Swatinem/rust-cache@v2
-
-      - uses: actions/checkout@v4
-        with:
-          repository: esp-rs/esp-hal
-          path: esp-hal
-
-      - run: cargo build --release --example hello_world
-        working-directory: esp-hal/${{ matrix.board.mcu }}-hal
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.board.mcu }}_app
-          path: esp-hal/${{ matrix.board.mcu }}-hal/target/${{ matrix.board.target }}/release/examples/hello_world
-          if-no-files-found: error
-
   build-espflash:
     name: Build espflash
     runs-on: ubuntu-20.04
@@ -98,9 +48,9 @@ jobs:
           if-no-files-found: error
 
   run-target:
-    name: Run Tests on Target
+    name: ${{ matrix.board.mcu }}${{ matrix.board.freq }}
     if: ${{ github.repository_owner == 'esp-rs' }}
-    needs: [build-app, build-espflash]
+    needs: build-espflash
     runs-on: [self-hosted, linux, x64, "${{ matrix.board.mcu }}${{ matrix.board.freq }}" ]
     strategy:
       matrix:
@@ -108,6 +58,7 @@ jobs:
           - mcu: esp32
           - mcu: esp32c2
             freq: -26mhz
+            flag: -x 26mhz
           - mcu: esp32c3
           - mcu: esp32c6
           - mcu: esp32h2
@@ -116,10 +67,6 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v3
-        with:
-          name: ${{ matrix.board.mcu }}_app
-          path: espflash/${{ matrix.board.mcu }}_app
       - uses: actions/download-artifact@v3
         with:
           name: espflash
@@ -141,7 +88,7 @@ jobs:
       - name: flash test
         env:
           ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
-          ESPFLASH_APP: espflash/${{ matrix.board.mcu }}_app/hello_world
+          ESPFLASH_APP: espflash/resources/apps/${{ matrix.board.mcu }}
         shell: bash
         run: |
           result=$(espflash_app/espflash flash ${{ env.ESPFLASH_APP }} 2>&1)
@@ -184,9 +131,9 @@ jobs:
       - name: save-image/write-bin test
         env:
           ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
-          ESPFLASH_APP: espflash/${{ matrix.board.mcu }}_app/hello_world
+          ESPFLASH_APP: espflash/resources/apps/${{ matrix.board.mcu }}
         run: |
-          result=$(espflash_app/espflash save-image --merge --chip ${{ matrix.board.mcu }} ${{ env.ESPFLASH_APP }} app.bin 2>&1)
+          result=$(espflash_app/espflash save-image --merge --chip ${{ matrix.board.mcu }} ${{ matrix.board.flag }} ${{ env.ESPFLASH_APP }} app.bin 2>&1)
           echo "$result"
           if [[ ! $result =~ "Image successfully saved!" ]]; then
             exit 1

@@ -6,9 +6,11 @@ on:
       - main
     paths-ignore:
       - "**/hil.yml"
+      - "**/*.md"
   push:
     paths-ignore:
       - "**/hil.yml"
+      - "**/*.md"
   workflow_dispatch:
 
 env:
