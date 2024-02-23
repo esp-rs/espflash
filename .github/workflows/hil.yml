@@ -101,17 +101,25 @@ jobs:
     name: Run Tests on Target
     if: ${{ github.repository_owner == 'esp-rs' }}
     needs: [build-app, build-espflash]
-    runs-on: [self-hosted, linux, x64, "${{ matrix.board }}" ]
+    runs-on: [self-hosted, linux, x64, "${{ matrix.board.mcu }}${{ matrix.board.freq }}" ]
     strategy:
       matrix:
-        board: [esp32, esp32c2, esp32c3, esp32c6, esp32h2, esp32s2, esp32s3]
+        board:
+          - mcu: esp32
+          - mcu: esp32c2
+            freq: -26mhz
+          - mcu: esp32c3
+          - mcu: esp32c6
+          - mcu: esp32h2
+          - mcu: esp32s2
+          - mcu: esp32s3
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v3
         with:
-          name: ${{ matrix.board }}_app
-          path: espflash/${{ matrix.board }}_app
+          name: ${{ matrix.board.mcu }}_app
+          path: espflash/${{ matrix.board.mcu }}_app
       - uses: actions/download-artifact@v3
         with:
           name: espflash
@@ -121,7 +129,7 @@ jobs:
 
       - name: board-info test
         env:
-          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board }}
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
         shell: bash
         run: |
           result=$(espflash_app/espflash board-info)
@@ -132,8 +140,8 @@ jobs:
 
       - name: flash test
         env:
-          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board }}
-          ESPFLASH_APP: espflash/${{ matrix.board }}_app/hello_world
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
+          ESPFLASH_APP: espflash/${{ matrix.board.mcu }}_app/hello_world
         shell: bash
         run: |
           result=$(espflash_app/espflash flash ${{ env.ESPFLASH_APP }} 2>&1)
@@ -144,7 +152,7 @@ jobs:
 
       - name: monitor test
         env:
-          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board }}
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
         shell: bash
         run: |
           result=$(timeout 5s espflash_app/espflash monitor --non-interactive || true)
@@ -155,7 +163,7 @@ jobs:
 
       - name: erase/read flash test
         env:
-          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board }}
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
         run: |
           result=$(espflash_app/espflash erase-flash 2>&1)
           echo "$result"
@@ -175,10 +183,10 @@ jobs:
 
       - name: save-image/write-bin test
         env:
-          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board }}
-          ESPFLASH_APP: espflash/${{ matrix.board }}_app/hello_world
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
+          ESPFLASH_APP: espflash/${{ matrix.board.mcu }}_app/hello_world
         run: |
-          result=$(espflash_app/espflash save-image --merge --chip ${{ matrix.board }} ${{ env.ESPFLASH_APP }} app.bin 2>&1)
+          result=$(espflash_app/espflash save-image --merge --chip ${{ matrix.board.mcu }} ${{ env.ESPFLASH_APP }} app.bin 2>&1)
           echo "$result"
           if [[ ! $result =~ "Image successfully saved!" ]]; then
             exit 1
