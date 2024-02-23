@@ -1,0 +1,154 @@
+name: HIL
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - "**/ci.yml"
+      - "**/*.md"
+  push:
+    paths-ignore:
+      - "**/ci.yml"
+      - "**/*.md"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+# Cancel any currently running workflows from the same PR, branch, or
+# tag when a new workflow is triggered.
+#
+# https://stackoverflow.com/a/66336834
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+
+
+jobs:
+  build-espflash:
+    name: Build espflash
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-target
+        with:
+          arch: x86_64
+          target: x86_64-unknown-linux-gnu
+
+      - name: Build espflash
+        run: cargo build --release
+        working-directory: espflash
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: espflash
+          path: target/release/espflash
+          if-no-files-found: error
+
+  run-target:
+    name: ${{ matrix.board.mcu }}${{ matrix.board.freq }}
+    if: ${{ github.repository_owner == 'esp-rs' }}
+    needs: build-espflash
+    runs-on: [self-hosted, linux, x64, "${{ matrix.board.mcu }}${{ matrix.board.freq }}" ]
+    strategy:
+      matrix:
+        board:
+          - mcu: esp32
+          - mcu: esp32c2
+            freq: -26mhz
+            flag: -x 26mhz
+          - mcu: esp32c3
+          - mcu: esp32c6
+          - mcu: esp32h2
+          - mcu: esp32s2
+          - mcu: esp32s3
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v3
+        with:
+          name: espflash
+          path: espflash_app
+
+      - run: chmod +x espflash_app/espflash
+
+      - name: board-info test
+        env:
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
+        shell: bash
+        run: |
+          result=$(espflash_app/espflash board-info)
+          echo "$result"
+          if [[ $? -ne 0 || ! "$result" =~ "esp32" ]]; then
+            exit 1
+          fi
+
+      - name: flash test
+        env:
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
+          ESPFLASH_APP: espflash/resources/apps/${{ matrix.board.mcu }}
+        shell: bash
+        run: |
+          result=$(espflash_app/espflash flash ${{ env.ESPFLASH_APP }} 2>&1)
+          echo "$result"
+          if [[ ! $result =~ "Flashing has completed!" ]]; then
+            exit 1
+          fi
+
+      - name: monitor test
+        env:
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
+        shell: bash
+        run: |
+          result=$(timeout 5s espflash_app/espflash monitor --non-interactive || true)
+          echo "$result"
+          if ! echo "$result" | grep -q "Hello world!"; then
+            exit 1
+          fi
+
+      - name: erase/read flash test
+        env:
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
+        run: |
+          result=$(espflash_app/espflash erase-flash 2>&1)
+          echo "$result"
+          if [[ ! $result =~ "Flash has been erased!" ]]; then
+            exit 1
+          fi
+          result=$(espflash_app/espflash read-flash  0 0x200 flash_content.bin 2>&1)
+          echo "$result"
+          if [[ ! $result =~ "Flash content successfully read and written to" ]]; then
+            exit 1
+          fi
+          echo "Checking if flash is empty"
+          if hexdump -v -e '/1 "%02x"' "flash_content.bin" | grep -qv '^ff*$'; then
+              exit 1
+          fi
+          echo "Flash is empty!"
+
+      - name: save-image/write-bin test
+        env:
+          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
+          ESPFLASH_APP: espflash/resources/apps/${{ matrix.board.mcu }}
+        run: |
+          result=$(espflash_app/espflash save-image --merge --chip ${{ matrix.board.mcu }} ${{ matrix.board.flag }} ${{ env.ESPFLASH_APP }} app.bin 2>&1)
+          echo "$result"
+          if [[ ! $result =~ "Image successfully saved!" ]]; then
+            exit 1
+          fi
+          echo "Writting binary"
+          result=$(espflash_app/espflash write-bin 0x0 app.bin 2>&1)
+          echo "$result"
+          if [[ ! $result =~ "Binary successfully written to flash!" ]]; then
+            exit 1
+          fi
+          echo "Monitoring..."
+          result=$(timeout 5s espflash_app/espflash monitor --non-interactive || true)
+          echo "$result"
+          if ! echo "$result" | grep -q "Hello world!"; then
+            exit 1
+          fi
+
+

@@ -83,4 +83,3 @@ cli = [
     "dep:update-informer",
 ]
 serialport = ["dep:serialport"]
-

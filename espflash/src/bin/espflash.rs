@@ -200,6 +200,8 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
         .connection()
         .reset_after(!args.connect_args.no_stub)?;
 
+    info!("Specified partitions successfully erased!");
+
     Ok(())
 }
 
@@ -292,6 +294,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             pid,
             args.flash_args.monitor_baud.unwrap_or(default_baud),
             args.flash_args.log_format,
+            true,
         )
     } else {
         Ok(())

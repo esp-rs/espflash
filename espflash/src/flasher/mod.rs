@@ -974,7 +974,11 @@ impl Flasher {
             addr,
             data: Cow::from(data),
         };
-        self.write_bins_to_flash(&[segment], progress)
+        self.write_bins_to_flash(&[segment], progress)?;
+
+        info!("Binary successfully written to flash!");
+
+        Ok(())
     }
 
     /// Load multiple bin images to flash at specific addresses
@@ -1091,7 +1095,7 @@ impl Flasher {
             .write(true)
             .truncate(true)
             .create(true)
-            .open(file_path)?;
+            .open(&file_path)?;
 
         self.connection
             .with_timeout(CommandType::ReadFlash.timeout(), |connection| {
@@ -1147,6 +1151,11 @@ impl Flasher {
         }
 
         file.write_all(&data)?;
+
+        info!(
+            "Flash content successfully read and written to '{}'!",
+            file_path.display()
+        );
 
         Ok(())
     }
