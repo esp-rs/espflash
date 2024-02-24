@@ -61,7 +61,7 @@ xmas-elf        = "0.9.1"
 libc = "0.2.153"
 
 [features]
-default = ["cli", "serialport"]
+default = ["cli"]
 cli = [
     "dep:addr2line",
     "dep:clap",
@@ -79,7 +79,7 @@ cli = [
     "dep:lazy_static",
     "dep:parse_int",
     "dep:regex",
-    "dep:serialport",
     "dep:update-informer",
+    "serialport",
 ]
 serialport = ["dep:serialport"]
