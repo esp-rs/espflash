@@ -24,7 +24,6 @@
 //!
 //! [espflash]: https://crates.io/crates/espflash
 //! [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
-//! [rppal]: https://docs.rs/rppal/latest/rppal/
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
