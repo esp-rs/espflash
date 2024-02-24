@@ -60,24 +60,28 @@ pub enum Error {
 }
 
 /// TOML deserialization error
+#[cfg(feature = "cli")]
 #[derive(Debug)]
 pub struct TomlError {
     err: toml::de::Error,
     source: String,
 }
 
+#[cfg(feature = "cli")]
 impl TomlError {
     pub fn new(err: toml::de::Error, source: String) -> Self {
         Self { err, source }
     }
 }
 
+#[cfg(feature = "cli")]
 impl Display for TomlError {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "Failed to parse toml")
     }
 }
 
+#[cfg(feature = "cli")]
 impl Diagnostic for TomlError {
     fn source_code(&self) -> Option<&dyn SourceCode> {
         Some(&self.source)
@@ -92,6 +96,7 @@ impl Diagnostic for TomlError {
 }
 
 // NOTE: no `source` on purpose to prevent duplicating the message
+#[cfg(feature = "cli")]
 impl std::error::Error for TomlError {}
 
 /// Unsupported target error
