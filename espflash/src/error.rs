@@ -6,6 +6,7 @@ use std::{
 };
 
 use miette::Diagnostic;
+#[cfg(feature = "serialport")]
 use slip_codec::SlipError;
 use strum::{FromRepr, VariantNames};
 use thiserror::Error;

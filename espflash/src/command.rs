@@ -1,4 +1,4 @@
-//! Send commands to a target device
+//! Commands to work with a flasher stub running on a target device
 
 use std::{io::Write, mem::size_of, time::Duration};
 

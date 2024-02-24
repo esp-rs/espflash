@@ -80,7 +80,6 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup-target
@@ -89,6 +88,8 @@ jobs:
           target: ${{ matrix.platform.target }}
 
       - run: cargo check -p espflash --lib --no-default-features
+      - run: cargo check -p espflash --lib --no-default-features --features flashing
+      - run: cargo check -p espflash --lib --no-default-features --features serialport
 
   msrv:
     name: Check MSRV (${{ matrix.platform.target }})
