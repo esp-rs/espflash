@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add `--list-all-ports` connection argument to avoid serial port filtering (#590)
 - Allow config file to live in parent folder (#595)
+- Add `flashing` feature that enables stubs and commands without the serialport feature (#599)
 
 ### Fixed
 - Change the `hard_reset` sequence to fix Windows issues (#594)
