@@ -10,7 +10,7 @@ use thiserror::Error;
 
 #[cfg(feature = "cli")]
 use crate::cli::monitor::parser::esp_defmt::DefmtError;
-#[cfg(feature = "flashing")]
+#[cfg(feature = "serialport")]
 use crate::command::CommandType;
 use crate::flash_data::{FlashFrequency, FlashSize};
 use crate::targets::Chip;
@@ -276,9 +276,9 @@ pub enum ConnectionError {
     #[diagnostic(code(espflash::read_missmatch))]
     ReadMissmatch(u32, u32),
 
+    #[cfg(feature = "serialport")]
     #[error("Timeout while running {0}command")]
     #[diagnostic(code(espflash::timeout))]
-    #[cfg(feature = "flashing")]
     Timeout(TimedOutCommand),
 
     #[cfg(feature = "serialport")]
@@ -326,12 +326,12 @@ impl From<SlipError> for ConnectionError {
 
 /// An executed command which has timed out
 #[derive(Clone, Debug, Default)]
-#[cfg(feature = "flashing")]
+#[cfg(feature = "serialport")]
 pub struct TimedOutCommand {
     command: Option<CommandType>,
 }
 
-#[cfg(feature = "flashing")]
+#[cfg(feature = "serialport")]
 impl Display for TimedOutCommand {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match &self.command {
@@ -341,7 +341,7 @@ impl Display for TimedOutCommand {
     }
 }
 
-#[cfg(feature = "flashing")]
+#[cfg(feature = "serialport")]
 impl From<CommandType> for TimedOutCommand {
     fn from(ct: CommandType) -> Self {
         TimedOutCommand { command: Some(ct) }
@@ -488,7 +488,7 @@ impl From<&'static str> for ElfError {
     }
 }
 
-#[cfg(feature = "flashing")]
+#[cfg(feature = "serialport")]
 pub(crate) trait ResultExt {
     /// Mark an error as having occurred during the flashing stage
     fn flashing(self) -> Self;
@@ -496,7 +496,7 @@ pub(crate) trait ResultExt {
     fn for_command(self, command: CommandType) -> Self;
 }
 
-#[cfg(feature = "flashing")]
+#[cfg(feature = "serialport")]
 impl<T> ResultExt for Result<T, Error> {
     fn flashing(self) -> Self {
         match self {

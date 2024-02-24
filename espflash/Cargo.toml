@@ -84,7 +84,4 @@ cli = [
 ]
 
 # enables connecting to a device via serial port
-serialport = ["flashing", "dep:serialport", "dep:slip-codec", "dep:regex"]
-
-# enables flash stubs and stub commands
-flashing = ["dep:toml"]
+serialport = ["dep:serialport", "dep:slip-codec", "dep:regex", "dep:toml"]
