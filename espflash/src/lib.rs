@@ -38,9 +38,11 @@ pub mod command;
 pub mod connection;
 pub mod elf;
 pub mod error;
+pub mod flash_data;
 #[cfg(feature = "flashing")]
 pub mod flasher;
 pub mod image_format;
+pub mod progress;
 pub mod targets;
 
 /// Logging utilities

@@ -5,7 +5,7 @@ use crate::{connection::Connection, targets::bytes_to_mac_addr};
 use crate::{
     elf::FirmwareImage,
     error::Error,
-    flasher::{FlashData, FlashFrequency},
+    flash_data::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };

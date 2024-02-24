@@ -1,11 +1,11 @@
 use std::ops::Range;
 
 #[cfg(feature = "serialport")]
-use crate::{connection::Connection, targets::MAX_RAM_BLOCK_SIZE};
+use crate::{connection::Connection, flash_data::FLASH_WRITE_SIZE, targets::MAX_RAM_BLOCK_SIZE};
 use crate::{
     elf::FirmwareImage,
     error::Error,
-    flasher::{FlashData, FlashFrequency, FLASH_WRITE_SIZE},
+    flash_data::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };

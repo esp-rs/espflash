@@ -25,10 +25,12 @@ pub use self::{
 };
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
+#[cfg(feature = "serialport")]
+use crate::flash_data::{SpiAttachParams, FLASH_WRITE_SIZE};
 use crate::{
     elf::FirmwareImage,
     error::Error,
-    flasher::{FlashData, FlashFrequency, SpiAttachParams, FLASH_WRITE_SIZE},
+    flash_data::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
 };
 

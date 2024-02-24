@@ -14,7 +14,7 @@ use espflash::{
         EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs, ReadFlashArgs,
     },
     error::Error,
-    flasher::{parse_partition_table, FlashData, FlashSettings},
+    flash_data::{parse_partition_table, FlashData, FlashSettings},
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,

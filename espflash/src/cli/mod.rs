@@ -30,10 +30,9 @@ use crate::{
     connection::reset::{ResetAfterOperation, ResetBeforeOperation},
     elf::ElfFirmwareImage,
     error::{Error, MissingPartition, MissingPartitionTable},
-    flasher::{
-        parse_partition_table, FlashData, FlashFrequency, FlashMode, FlashSize, Flasher,
-        ProgressCallbacks,
-    },
+    flash_data::{parse_partition_table, FlashData, FlashFrequency, FlashMode, FlashSize},
+    flasher::Flasher,
+    progress::ProgressCallbacks,
     targets::{Chip, XtalFrequency},
 };
 

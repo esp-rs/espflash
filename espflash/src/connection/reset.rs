@@ -15,7 +15,7 @@ use crate::{
     command::{Command, CommandType},
     connection::{Connection, Port, USB_SERIAL_JTAG_PID},
     error::Error,
-    flasher,
+    flash_data::FLASH_WRITE_SIZE,
 };
 
 /// Default time to wait before releasing the boot pin after a reset
@@ -253,12 +253,11 @@ pub fn soft_reset(
             connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
                 let size: u32 = 0;
                 let offset: u32 = 0;
-                let blocks: u32 = (size + flasher::FLASH_WRITE_SIZE as u32 - 1)
-                    / flasher::FLASH_WRITE_SIZE as u32;
+                let blocks: u32 = (size + FLASH_WRITE_SIZE as u32 - 1) / FLASH_WRITE_SIZE as u32;
                 connection.command(Command::FlashBegin {
                     size,
                     blocks,
-                    block_size: flasher::FLASH_WRITE_SIZE.try_into().unwrap(),
+                    block_size: FLASH_WRITE_SIZE.try_into().unwrap(),
                     offset,
                     supports_encryption: false,
                 })
@@ -272,12 +271,11 @@ pub fn soft_reset(
         connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
             let size: u32 = 0;
             let offset: u32 = 0;
-            let blocks: u32 =
-                (size + flasher::FLASH_WRITE_SIZE as u32 - 1) / flasher::FLASH_WRITE_SIZE as u32;
+            let blocks: u32 = (size + FLASH_WRITE_SIZE as u32 - 1) / FLASH_WRITE_SIZE as u32;
             connection.command(Command::FlashBegin {
                 size,
                 blocks,
-                block_size: flasher::FLASH_WRITE_SIZE.try_into().unwrap(),
+                block_size: FLASH_WRITE_SIZE.try_into().unwrap(),
                 offset,
                 supports_encryption: false,
             })

@@ -5,7 +5,8 @@ use std::{io::Write, mem::size_of, time::Duration};
 use bytemuck::{bytes_of, Pod, Zeroable};
 use strum::Display;
 
-use crate::flasher::{checksum, SpiAttachParams, SpiSetParams, CHECKSUM_INIT};
+use crate::flash_data::{SpiAttachParams, SpiSetParams, CHECKSUM_INIT};
+use crate::flasher::checksum;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 const ERASE_REGION_TIMEOUT_PER_MB: Duration = Duration::from_secs(30);
