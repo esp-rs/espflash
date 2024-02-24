@@ -15,7 +15,7 @@ use crate::{
     command::{Command, CommandType},
     connection::{Connection, Port, USB_SERIAL_JTAG_PID},
     error::Error,
-    flash_data::FLASH_WRITE_SIZE,
+    flasher::FLASH_WRITE_SIZE,
 };
 
 /// Default time to wait before releasing the boot pin after a reset

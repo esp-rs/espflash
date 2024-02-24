@@ -2,7 +2,7 @@
 use crate::{
     command::{Command, CommandType},
     connection::Connection,
-    progress::ProgressCallbacks,
+    flasher::ProgressCallbacks,
     targets::FlashTarget,
 };
 use crate::{elf::RomSegment, error::Error};

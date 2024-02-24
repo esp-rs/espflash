@@ -1,10 +1,10 @@
 //! Library and application errors
 
+#[cfg(feature = "serialport")]
 use std::fmt::{Display, Formatter};
 
 use miette::Diagnostic;
-#[cfg(feature = "serialport")]
-use slip_codec::SlipError;
+use std::io;
 use strum::VariantNames;
 use thiserror::Error;
 
@@ -12,8 +12,12 @@ use thiserror::Error;
 use crate::cli::monitor::parser::esp_defmt::DefmtError;
 #[cfg(feature = "serialport")]
 use crate::command::CommandType;
-use crate::flash_data::{FlashFrequency, FlashSize};
-use crate::targets::Chip;
+use crate::{
+    flasher::{FlashFrequency, FlashSize},
+    targets::Chip,
+};
+#[cfg(feature = "serialport")]
+use slip_codec::SlipError;
 
 /// All possible errors returned by espflash
 #[derive(Debug, Diagnostic, Error)]
@@ -103,7 +107,7 @@ pub enum Error {
 
     #[cfg(not(feature = "serialport"))]
     #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    IoError(#[from] io::Error),
 
     #[error("Specified partition table path is not a .bin or .csv file")]
     #[diagnostic(code(espflash::invalid_partition_table_path))]
@@ -202,15 +206,15 @@ pub enum Error {
     InternalError,
 
     #[error("Failed to open file: {0}")]
-    FileOpenError(String, #[source] std::io::Error),
+    FileOpenError(String, #[source] io::Error),
 
     #[error("Failed to parse partition table")]
     Partition(#[from] esp_idf_part::Error),
 }
 
 #[cfg(feature = "serialport")]
-impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Self {
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
         Self::Connection(err.into())
     }
 }
@@ -292,8 +296,8 @@ pub enum ConnectionError {
 }
 
 #[cfg(feature = "serialport")]
-impl From<std::io::Error> for ConnectionError {
-    fn from(err: std::io::Error) -> Self {
+impl From<io::Error> for ConnectionError {
+    fn from(err: io::Error) -> Self {
         from_error_kind(err.kind(), err)
     }
 }
@@ -520,11 +524,11 @@ impl<T> ResultExt for Result<T, Error> {
 
 #[cfg(feature = "serialport")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
-fn from_error_kind<E>(kind: std::io::ErrorKind, err: E) -> ConnectionError
+fn from_error_kind<E>(kind: io::ErrorKind, err: E) -> ConnectionError
 where
     E: Into<serialport::Error>,
 {
-    use std::io::ErrorKind;
+    use io::ErrorKind;
 
     match kind {
         ErrorKind::TimedOut => ConnectionError::Timeout(TimedOutCommand::default()),

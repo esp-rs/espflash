@@ -10,28 +10,25 @@ use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
-#[cfg(feature = "serialport")]
-use self::flash_target::{FlashTarget, MAX_RAM_BLOCK_SIZE};
-pub use self::{
-    esp32::Esp32,
-    esp32c2::Esp32c2,
-    esp32c3::Esp32c3,
-    esp32c6::Esp32c6,
-    esp32h2::Esp32h2,
-    esp32p4::Esp32p4,
-    esp32s2::Esp32s2,
-    esp32s3::Esp32s3,
-    flash_target::{Esp32Target, RamTarget},
-};
-#[cfg(feature = "serialport")]
-use crate::connection::Connection;
-#[cfg(feature = "serialport")]
-use crate::flash_data::{SpiAttachParams, FLASH_WRITE_SIZE};
 use crate::{
     elf::FirmwareImage,
     error::Error,
-    flash_data::{FlashData, FlashFrequency},
+    flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
+    targets::{
+        esp32::Esp32, esp32c2::Esp32c2, esp32c3::Esp32c3, esp32c6::Esp32c6, esp32h2::Esp32h2,
+        esp32p4::Esp32p4, esp32s2::Esp32s2, esp32s3::Esp32s3,
+    },
+};
+
+#[cfg(feature = "serialport")]
+pub use self::flash_target::{Esp32Target, RamTarget};
+
+#[cfg(feature = "serialport")]
+use crate::{
+    connection::Connection,
+    flasher::{SpiAttachParams, FLASH_WRITE_SIZE},
+    targets::flash_target::{FlashTarget, MAX_RAM_BLOCK_SIZE},
 };
 
 /// Max partition size is 16 MB
@@ -45,7 +42,9 @@ mod esp32h2;
 mod esp32p4;
 mod esp32s2;
 mod esp32s3;
-mod flash_target;
+
+#[cfg(feature = "serialport")]
+pub(crate) mod flash_target;
 
 /// Supported crystal frequencies
 ///

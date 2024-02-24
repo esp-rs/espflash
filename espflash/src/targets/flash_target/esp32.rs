@@ -11,13 +11,13 @@ use md5::{Digest, Md5};
 use crate::{
     command::{Command, CommandType},
     connection::{Connection, USB_SERIAL_JTAG_PID},
-    progress::ProgressCallbacks,
+    flasher::ProgressCallbacks,
     targets::FlashTarget,
 };
 use crate::{
     elf::RomSegment,
     error::Error,
-    flash_data::{SpiAttachParams, FLASH_SECTOR_SIZE},
+    flasher::{SpiAttachParams, FLASH_SECTOR_SIZE},
     targets::Chip,
 };
 

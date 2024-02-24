@@ -5,7 +5,7 @@ use crate::{connection::Connection, targets::bytes_to_mac_addr};
 use crate::{
     elf::FirmwareImage,
     error::Error,
-    flash_data::{FlashData, FlashFrequency},
+    flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
@@ -21,9 +21,12 @@ const FLASH_RANGES: &[Range<u32>] = &[
 ];
 
 // UART0_BASE_REG + 0x14
+#[cfg(feature = "serialport")]
 const UART_CLKDIV_REG: u32 = 0x6000_0014;
+#[cfg(feature = "serialport")]
 const UART_CLKDIV_MASK: u32 = 0xfffff;
 
+#[cfg(feature = "serialport")]
 const XTAL_CLK_DIVIDER: u32 = 1;
 
 /// ESP32-C2 Target

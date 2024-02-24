@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use crate::{
     elf::{CodeSegment, FirmwareImage, RomSegment},
     error::Error,
-    flash_data::{FlashFrequency, FlashMode, FlashSettings, FlashSize},
+    flasher::{FlashFrequency, FlashMode, FlashSettings, FlashSize},
     targets::{Chip, Esp32Params},
 };
 
