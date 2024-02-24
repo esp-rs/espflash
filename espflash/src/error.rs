@@ -8,7 +8,8 @@ use std::{
 use miette::Diagnostic;
 #[cfg(feature = "serialport")]
 use slip_codec::SlipError;
-use strum::{FromRepr, VariantNames};
+#[cfg(feature = "serialpot")]
+use strum::FromRepr;
 use thiserror::Error;
 
 #[cfg(feature = "cli")]
@@ -184,6 +185,7 @@ pub enum Error {
     InvalidElf(#[from] ElfError),
 
     #[error("The bootloader returned an error")]
+    #[cfg(feature = "serialpot")]
     #[diagnostic(transparent)]
     RomError(#[from] RomError),
 
@@ -351,6 +353,7 @@ impl From<CommandType> for TimedOutCommand {
 #[derive(Clone, Copy, Debug, Default, Diagnostic, Error, FromRepr)]
 #[non_exhaustive]
 #[repr(u8)]
+#[cfg(feature = "serialpot")]
 pub enum RomErrorKind {
     #[error("Invalid message received")]
     #[diagnostic(code(espflash::rom::invalid_message))]
@@ -426,6 +429,7 @@ pub enum RomErrorKind {
     Other = 0xff,
 }
 
+#[cfg(feature = "serialpot")]
 impl From<u8> for RomErrorKind {
     fn from(raw: u8) -> Self {
         Self::from_repr(raw).unwrap_or_default()
@@ -435,6 +439,7 @@ impl From<u8> for RomErrorKind {
 /// An error originating from a device's ROM functionality
 #[derive(Clone, Copy, Debug, Diagnostic, Error)]
 #[error("Error while running {command} command")]
+#[cfg(feature = "serialpot")]
 #[non_exhaustive]
 pub struct RomError {
     command: CommandType,
@@ -442,6 +447,7 @@ pub struct RomError {
     kind: RomErrorKind,
 }
 
+#[cfg(feature = "serialpot")]
 impl RomError {
     pub fn new(command: CommandType, kind: RomErrorKind) -> RomError {
         RomError { command, kind }
