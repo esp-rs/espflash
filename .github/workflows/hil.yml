@@ -41,7 +41,7 @@ jobs:
         run: cargo build --release
         working-directory: espflash
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: espflash
           path: target/release/espflash
@@ -67,7 +67,7 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: espflash
           path: espflash_app
