@@ -1,11 +1,11 @@
 use std::ops::Range;
 
 #[cfg(feature = "serialport")]
-use crate::{connection::Connection, targets::MAX_RAM_BLOCK_SIZE};
+use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE, targets::MAX_RAM_BLOCK_SIZE};
 use crate::{
     elf::FirmwareImage,
     error::Error,
-    flasher::{FlashData, FlashFrequency, FLASH_WRITE_SIZE},
+    flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
@@ -17,6 +17,7 @@ const FLASH_RANGES: &[Range<u32>] = &[
     0x3f00_0000..0x3f3f_0000, // DROM
 ];
 
+#[cfg(feature = "serialport")]
 const MAX_USB_BLOCK_SIZE: usize = 0x800;
 
 const PARAMS: Esp32Params = Esp32Params::new(

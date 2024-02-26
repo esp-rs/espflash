@@ -18,9 +18,11 @@ const FLASH_RANGES: &[Range<u32>] = &[
 ];
 
 // UART0_BASE_REG + 0x14
+#[cfg(feature = "serialport")]
 const UART_CLKDIV_REG: u32 = 0x3ff4_0014;
+#[cfg(feature = "serialport")]
 const UART_CLKDIV_MASK: u32 = 0xfffff;
-
+#[cfg(feature = "serialport")]
 const XTAL_CLK_DIVIDER: u32 = 1;
 
 /// ESP32 Target

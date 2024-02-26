@@ -44,24 +44,24 @@ indicatif = { version = "0.17.7", optional = true }
 lazy_static = { version = "1.4.0", optional = true }
 log = "0.4.20"
 md-5 = "0.10.6"
-miette = { version = "7.0.0", features = ["fancy"] }
+miette = { version = "7.0.0" }
 parse_int = { version = "0.6.0", optional = true }
 regex = { version = "1.10.3", optional = true }
 serde = { version = "1.0.196", features = ["derive"] }
 serialport = { version = "4.3.0", optional = true }
 sha2 = "0.10.8"
-slip-codec = "0.4.0"
+slip-codec = { version = "0.4.0", optional = true }
 strum = { version = "0.26.1", features = ["derive"] }
 thiserror = "1.0.56"
-toml = "0.8.10"
+toml = { version = "0.8.10", optional = true }
 update-informer = { version = "1.1.0", optional = true }
-xmas-elf        = "0.9.1"
+xmas-elf        = { version = "0.9.1" }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.153"
 
 [features]
-default = ["cli", "serialport"]
+default = ["cli"]
 cli = [
     "dep:addr2line",
     "dep:clap",
@@ -78,8 +78,11 @@ cli = [
     "dep:indicatif",
     "dep:lazy_static",
     "dep:parse_int",
-    "dep:regex",
-    "dep:serialport",
+    "dep:toml",
     "dep:update-informer",
+    "serialport",
+    "miette/fancy"
 ]
-serialport = ["dep:serialport"]
+
+# enables connecting to a device via serial port
+serialport = ["dep:serialport", "dep:slip-codec", "dep:regex", "dep:toml"]

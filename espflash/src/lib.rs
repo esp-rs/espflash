@@ -24,13 +24,13 @@
 //!
 //! [espflash]: https://crates.io/crates/espflash
 //! [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
-//! [rppal]: https://docs.rs/rppal/latest/rppal/
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(feature = "cli")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod cli;
+#[cfg(feature = "serialport")]
 pub mod command;
 #[cfg(feature = "serialport")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]

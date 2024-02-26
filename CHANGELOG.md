@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Non-linux-musl: Only list the available USB Ports by default (#590)
 - `FlashData::new` now returns `crate::Error` (#591)
 - Moved `reset_after_flash` method to `reset` module (#594)
+- The `command` module now requires `serialport`. (#599)
 
 ### Removed
 

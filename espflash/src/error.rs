@@ -1,22 +1,23 @@
 //! Library and application errors
 
-use std::{
-    fmt::{Display, Formatter},
-    io,
-};
+#[cfg(feature = "serialport")]
+use std::fmt::{Display, Formatter};
 
 use miette::Diagnostic;
-use slip_codec::SlipError;
-use strum::{FromRepr, VariantNames};
+use std::io;
+use strum::VariantNames;
 use thiserror::Error;
 
 #[cfg(feature = "cli")]
 use crate::cli::monitor::parser::esp_defmt::DefmtError;
+#[cfg(feature = "serialport")]
+use crate::command::CommandType;
 use crate::{
-    command::CommandType,
     flasher::{FlashFrequency, FlashSize},
     targets::Chip,
 };
+#[cfg(feature = "serialport")]
+use slip_codec::SlipError;
 
 /// All possible errors returned by espflash
 #[derive(Debug, Diagnostic, Error)]
@@ -106,7 +107,7 @@ pub enum Error {
 
     #[cfg(not(feature = "serialport"))]
     #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    IoError(#[from] io::Error),
 
     #[error("Specified partition table path is not a .bin or .csv file")]
     #[diagnostic(code(espflash::invalid_partition_table_path))]
@@ -183,10 +184,11 @@ pub enum Error {
     InvalidElf(#[from] ElfError),
 
     #[error("The bootloader returned an error")]
+    #[cfg(feature = "serialport")]
     #[diagnostic(transparent)]
     RomError(#[from] RomError),
 
-    #[cfg(feature = "serialport")]
+    #[cfg(feature = "cli")]
     #[error(transparent)]
     #[diagnostic(transparent)]
     Defmt(#[from] DefmtError),
@@ -204,7 +206,7 @@ pub enum Error {
     InternalError,
 
     #[error("Failed to open file: {0}")]
-    FileOpenError(String, #[source] std::io::Error),
+    FileOpenError(String, #[source] io::Error),
 
     #[error("Failed to parse partition table")]
     Partition(#[from] esp_idf_part::Error),
@@ -278,6 +280,7 @@ pub enum ConnectionError {
     #[diagnostic(code(espflash::read_missmatch))]
     ReadMissmatch(u32, u32),
 
+    #[cfg(feature = "serialport")]
     #[error("Timeout while running {0}command")]
     #[diagnostic(code(espflash::timeout))]
     Timeout(TimedOutCommand),
@@ -327,10 +330,12 @@ impl From<SlipError> for ConnectionError {
 
 /// An executed command which has timed out
 #[derive(Clone, Debug, Default)]
+#[cfg(feature = "serialport")]
 pub struct TimedOutCommand {
     command: Option<CommandType>,
 }
 
+#[cfg(feature = "serialport")]
 impl Display for TimedOutCommand {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match &self.command {
@@ -340,6 +345,7 @@ impl Display for TimedOutCommand {
     }
 }
 
+#[cfg(feature = "serialport")]
 impl From<CommandType> for TimedOutCommand {
     fn from(ct: CommandType) -> Self {
         TimedOutCommand { command: Some(ct) }
@@ -347,9 +353,10 @@ impl From<CommandType> for TimedOutCommand {
 }
 
 /// Errors originating from a device's ROM functionality
-#[derive(Clone, Copy, Debug, Default, Diagnostic, Error, FromRepr)]
+#[derive(Clone, Copy, Debug, Default, Diagnostic, Error, strum::FromRepr)]
 #[non_exhaustive]
 #[repr(u8)]
+#[cfg(feature = "serialport")]
 pub enum RomErrorKind {
     #[error("Invalid message received")]
     #[diagnostic(code(espflash::rom::invalid_message))]
@@ -425,6 +432,7 @@ pub enum RomErrorKind {
     Other = 0xff,
 }
 
+#[cfg(feature = "serialport")]
 impl From<u8> for RomErrorKind {
     fn from(raw: u8) -> Self {
         Self::from_repr(raw).unwrap_or_default()
@@ -434,6 +442,7 @@ impl From<u8> for RomErrorKind {
 /// An error originating from a device's ROM functionality
 #[derive(Clone, Copy, Debug, Diagnostic, Error)]
 #[error("Error while running {command} command")]
+#[cfg(feature = "serialport")]
 #[non_exhaustive]
 pub struct RomError {
     command: CommandType,
@@ -441,6 +450,7 @@ pub struct RomError {
     kind: RomErrorKind,
 }
 
+#[cfg(feature = "serialport")]
 impl RomError {
     pub fn new(command: CommandType, kind: RomErrorKind) -> RomError {
         RomError { command, kind }
@@ -482,6 +492,7 @@ impl From<&'static str> for ElfError {
     }
 }
 
+#[cfg(feature = "serialport")]
 pub(crate) trait ResultExt {
     /// Mark an error as having occurred during the flashing stage
     fn flashing(self) -> Self;
@@ -489,6 +500,7 @@ pub(crate) trait ResultExt {
     fn for_command(self, command: CommandType) -> Self;
 }
 
+#[cfg(feature = "serialport")]
 impl<T> ResultExt for Result<T, Error> {
     fn flashing(self) -> Self {
         match self {
@@ -516,7 +528,7 @@ fn from_error_kind<E>(kind: io::ErrorKind, err: E) -> ConnectionError
 where
     E: Into<serialport::Error>,
 {
-    use std::io::ErrorKind;
+    use io::ErrorKind;
 
     match kind {
         ErrorKind::TimedOut => ConnectionError::Timeout(TimedOutCommand::default()),

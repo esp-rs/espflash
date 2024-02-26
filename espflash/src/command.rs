@@ -1,11 +1,11 @@
-//! Send commands to a target device
+//! Commands to work with a flasher stub running on a target device
 
 use std::{io::Write, mem::size_of, time::Duration};
 
 use bytemuck::{bytes_of, Pod, Zeroable};
 use strum::Display;
 
-use crate::flasher::{checksum, SpiAttachParams, SpiSetParams, CHECKSUM_INIT};
+use crate::flasher::{SpiAttachParams, SpiSetParams};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 const ERASE_REGION_TIMEOUT_PER_MB: Duration = Duration::from_secs(30);
@@ -512,4 +512,14 @@ fn data_command<W: Write>(
         writer.write_all(&[pad_byte])?;
     }
     Ok(())
+}
+
+const CHECKSUM_INIT: u8 = 0xEF;
+
+fn checksum(data: &[u8], mut checksum: u8) -> u8 {
+    for byte in data {
+        checksum ^= *byte;
+    }
+
+    checksum
 }

@@ -4,18 +4,16 @@
 //! application to a target device. It additionally provides some operations to
 //! read information from the target device.
 
-use std::{
-    borrow::Cow,
-    fs,
-    io::Write,
-    path::{Path, PathBuf},
-    str::FromStr,
-    thread::sleep,
-    time::Duration,
-};
+use std::{fs, path::Path, str::FromStr};
+
+#[cfg(feature = "serialport")]
+use std::{borrow::Cow, io::Write, path::PathBuf, thread::sleep, time::Duration};
 
 use esp_idf_part::PartitionTable;
+
+#[cfg(feature = "serialport")]
 use log::{debug, info, warn};
+#[cfg(feature = "serialport")]
 use md5::{Digest, Md5};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
@@ -23,28 +21,33 @@ use serialport::UsbPortInfo;
 use strum::IntoEnumIterator;
 use strum::{Display, EnumIter, VariantNames};
 
-use self::stubs::FlashStub;
-#[cfg(feature = "serialport")]
-use crate::connection::{
-    reset::{ResetAfterOperation, ResetBeforeOperation},
-    Connection, Port,
-};
 use crate::{
-    command::{Command, CommandType},
-    elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
-    error::{ConnectionError, Error, ResultExt},
+    error::Error,
     targets::{Chip, XtalFrequency},
 };
 
-mod stubs;
+#[cfg(feature = "serialport")]
+use crate::{
+    command::{Command, CommandType},
+    connection::{
+        reset::{ResetAfterOperation, ResetBeforeOperation},
+        Connection, Port,
+    },
+    elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
+    error::{ConnectionError, ResultExt},
+    flasher::stubs::{
+        FlashStub, CHIP_DETECT_MAGIC_REG_ADDR, DEFAULT_TIMEOUT, EXPECTED_STUB_HANDSHAKE,
+    },
+};
 
-pub(crate) const CHECKSUM_INIT: u8 = 0xEF;
-pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
-pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
+#[cfg(feature = "serialport")]
+pub use crate::targets::flash_target::ProgressCallbacks;
 
-const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
-const EXPECTED_STUB_HANDSHAKE: &str = "OHAI";
+#[cfg(feature = "serialport")]
+pub(crate) use stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
+
+#[cfg(feature = "serialport")]
+pub(crate) mod stubs;
 
 /// Supported flash frequencies
 ///
@@ -490,10 +493,6 @@ impl SpiAttachParams {
     }
 }
 
-/// List of SPI parameters to try while detecting flash size
-const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
-    [SpiAttachParams::default(), SpiAttachParams::esp32_pico_d4()];
-
 /// Information about the connected device
 #[derive(Debug, Clone)]
 pub struct DeviceInfo {
@@ -511,15 +510,17 @@ pub struct DeviceInfo {
     pub mac_address: String,
 }
 
-/// Progress update callbacks
-pub trait ProgressCallbacks {
-    /// Initialize some progress report
-    fn init(&mut self, addr: u32, total: usize);
-    /// Update some progress report
-    fn update(&mut self, current: usize);
-    /// Finish some progress report
-    fn finish(&mut self);
+/// Parse a [PartitionTable] from the provided path
+pub fn parse_partition_table(path: &Path) -> Result<PartitionTable, Error> {
+    let data = fs::read(path).map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
+
+    Ok(PartitionTable::try_from(data)?)
 }
+
+#[cfg(feature = "serialport")]
+/// List of SPI parameters to try while detecting flash size
+pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
+    [SpiAttachParams::default(), SpiAttachParams::esp32_pico_d4()];
 
 #[cfg(feature = "serialport")]
 /// Connect to and flash a target device
@@ -1174,19 +1175,4 @@ impl Flasher {
 
         Ok(())
     }
-}
-
-pub(crate) fn checksum(data: &[u8], mut checksum: u8) -> u8 {
-    for byte in data {
-        checksum ^= *byte;
-    }
-
-    checksum
-}
-
-/// Parse a [PartitionTable] from the provided path
-pub fn parse_partition_table(path: &Path) -> Result<PartitionTable, Error> {
-    let data = fs::read(path).map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
-
-    Ok(PartitionTable::try_from(data)?)
 }

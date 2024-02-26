@@ -1,11 +1,11 @@
+#[cfg(feature = "serialport")]
 use crate::{
     command::{Command, CommandType},
-    elf::RomSegment,
-    error::Error,
+    connection::Connection,
     flasher::ProgressCallbacks,
+    targets::FlashTarget,
 };
-#[cfg(feature = "serialport")]
-use crate::{connection::Connection, targets::FlashTarget};
+use crate::{elf::RomSegment, error::Error};
 
 pub const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 
