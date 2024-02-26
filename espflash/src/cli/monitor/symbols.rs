@@ -2,7 +2,7 @@ use std::error::Error;
 
 use addr2line::{
     gimli::{EndianRcSlice, RunTimeEndian},
-    object::{read::File, Object, ObjectSegment},
+    object::{read::File, Object, ObjectSegment, ObjectSymbol},
     Context, LookupResult,
 };
 
@@ -51,10 +51,22 @@ impl<'sym> Symbols<'sym> {
                     .and_then(|name| name.demangle().map(|s| s.into_owned()).ok())
             })
             .or_else(|| {
-                self.file.symbol_map().get(addr).map(|sym| {
-                    addr2line::demangle_auto(std::borrow::Cow::Borrowed(sym.name()), None)
-                        .to_string()
-                })
+                // Don't use `symbol_map().get(addr)` - it's documentation says "Get the symbol before the given address." which might be totally wrong
+                let symbol = self.file.symbols().find(|symbol| {
+                    (symbol.address()..=(symbol.address() + symbol.size())).contains(&addr)
+                });
+
+                if let Some(symbol) = symbol {
+                    match symbol.name() {
+                        Ok(name) if !name.is_empty() => Some(
+                            addr2line::demangle_auto(std::borrow::Cow::Borrowed(name), None)
+                                .to_string(),
+                        ),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
             })
     }
 
