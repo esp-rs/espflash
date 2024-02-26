@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Change the `hard_reset` sequence to fix Windows issues (#594)
+- Improve resolving non-code addresses (#603)
 
 ### Changed
 - Non-linux-musl: Only list the available USB Ports by default (#590)
