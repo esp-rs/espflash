@@ -24,10 +24,10 @@ required-features = ["cli", "serialport"]
 
 [dependencies]
 addr2line = { version = "0.21.0", optional = true }
-base64 = "0.21.7"
-bytemuck = { version = "1.14.1", features = ["derive"] }
-clap = { version = "4.4.18", features = ["derive", "env", "wrap_help"], optional = true }
-clap_complete = { version = "4.4.10", optional = true }
+base64 = "0.22.0"
+bytemuck = { version = "1.14.3", features = ["derive"] }
+clap = { version = "4.5.1", features = ["derive", "env", "wrap_help"], optional = true }
+clap_complete = { version = "4.5.1", optional = true }
 comfy-table = { version = "7.1.0", optional = true }
 crossterm = { version = "0.25.0", optional = true } # 0.26.x and 0.27.x causes issues on Windows
 ctrlc = { version = "3.4.2", optional = true }
@@ -40,19 +40,19 @@ env_logger = { version = "0.11.2", optional = true }
 esp-idf-part = "0.5.0"
 flate2 = "1.0.28"
 hex = { version = "0.4.3", features = ["serde"], optional = true }
-indicatif = { version = "0.17.7", optional = true }
+indicatif = { version = "0.17.8", optional = true }
 lazy_static = { version = "1.4.0", optional = true }
-log = "0.4.20"
+log = "0.4.21"
 md-5 = "0.10.6"
-miette = { version = "7.0.0" }
+miette = { version = "7.1.0" }
 parse_int = { version = "0.6.0", optional = true }
 regex = { version = "1.10.3", optional = true }
-serde = { version = "1.0.196", features = ["derive"] }
+serde = { version = "1.0.197", features = ["derive"] }
 serialport = { version = "4.3.0", optional = true }
 sha2 = "0.10.8"
 slip-codec = { version = "0.4.0", optional = true }
 strum = { version = "0.26.1", features = ["derive"] }
-thiserror = "1.0.56"
+thiserror = "1.0.57"
 toml = { version = "0.8.10", optional = true }
 update-informer = { version = "1.1.0", optional = true }
 xmas-elf        = { version = "0.9.1" }
