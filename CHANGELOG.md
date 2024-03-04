@@ -5,23 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.0-rc.2] - 2024-03-04
 
 ### Added
+
 - Add `--list-all-ports` connection argument to avoid serial port filtering (#590)
 - Allow config file to live in parent folder (#595)
 
 ### Fixed
+
 - Change the `hard_reset` sequence to fix Windows issues (#594)
 - Improve resolving non-code addresses (#603)
 
 ### Changed
+
 - Non-linux-musl: Only list the available USB Ports by default (#590)
 - `FlashData::new` now returns `crate::Error` (#591)
 - Moved `reset_after_flash` method to `reset` module (#594)
 - The `command` module now requires `serialport`. (#599)
-
-### Removed
 
 ## [3.0.0-rc.1] - 2024-02-16
 
@@ -224,7 +225,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-09-21
 
-[Unreleased]: https://github.com/esp-rs/espflash/compare/v3.0.0-rc.1...HEAD
+[3.0.0-rc.2]: https://github.com/esp-rs/espflash/compare/v3.0.0-rc.1...v3.0.0-rc.2
 [3.0.0-rc.1]: https://github.com/esp-rs/espflash/compare/v2.1.0...v3.0.0-rc.1
 [2.1.0]: https://github.com/esp-rs/espflash/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/esp-rs/espflash/compare/v2.0.0...v2.0.1
