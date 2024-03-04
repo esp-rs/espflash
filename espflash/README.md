@@ -29,13 +29,11 @@ Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**, and **ES
 
 If you are installing `espflash` from source (ie. using `cargo install`) then you must have `rustc>=1.74.0` installed on your system.
 
-If you are running **macOS** or **Linux** then [libuv] must also be installed; this is available via most popular package managers. If you are running **Windows** you can ignore this step.
+If you are running **Linux** then [libudev] must also be installed; this is available via most popular package managers. If you are running **Windows** or **macOS** you can ignore this step.
 
 ```bash
-# macOS
-brew install libuv
 # Debian/Ubuntu/etc.
-apt-get install libuv-dev
+apt-get install libudev-dev
 # Fedora
 dnf install systemd-devel
 ```
@@ -52,7 +50,7 @@ Alternatively, you can use [cargo-binstall] to download pre-compiled artifacts f
 cargo binstall espflash
 ```
 
-[libuv]: https://libuv.org/
+[libudev]: https://www.freedesktop.org/software/systemd/man/latest/libudev.html
 [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
 [releases]: https://github.com/esp-rs/espflash/releases
 
