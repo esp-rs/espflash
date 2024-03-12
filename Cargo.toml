@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["cargo-espflash", "espflash"]
+members  = ["cargo-espflash", "espflash"]
 
 [profile.release]
-lto = "thin"
+lto   = "thin"
 strip = true
