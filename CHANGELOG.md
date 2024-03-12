@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix timeout while changing the baudrate for some ESP32-S3 targets (#607)
 
 ### Changed
-- Update ESP32-S3 stub (#607)
+- Update ESP32, ESP32-C2, ESP32-C3, ESP32-C6, ESP32-H2, ESP32-S2, ESP32-S3 stub (#607, #610)
 
 ### Removed
 
