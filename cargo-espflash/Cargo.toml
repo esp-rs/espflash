@@ -1,13 +1,18 @@
 [package]
 name = "cargo-espflash"
-version = "3.0.0-rc.2"
+version = "3.0.0"
 edition = "2021"
 rust-version = "1.74"
-description  = "Cargo subcommand for flashing Espressif devices"
-repository   = "https://github.com/esp-rs/espflash"
-license      = "MIT OR Apache-2.0"
-keywords     = ["cargo", "cli", "embedded", "esp"]
-categories   = ["command-line-utilities", "development-tools", "development-tools::cargo-plugins", "embedded"]
+description = "Cargo subcommand for flashing Espressif devices"
+repository = "https://github.com/esp-rs/espflash"
+license = "MIT OR Apache-2.0"
+keywords = ["cargo", "cli", "embedded", "esp"]
+categories = [
+    "command-line-utilities",
+    "development-tools",
+    "development-tools::cargo-plugins",
+    "embedded",
+]
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.{ archive-format }"
@@ -16,15 +21,15 @@ pkg-fmt = "zip"
 
 [dependencies]
 cargo_metadata = "0.18.1"
-clap = { version = "4.5.1", features = ["derive", "wrap_help"] }
-env_logger = "0.11.2"
-esp-idf-part = "0.5.0"
-espflash = { version = "3.0.0-rc.2", path = "../espflash" }
-log = "0.4.21"
-miette = { version = "7.1.0", features = ["fancy"] }
-serde = { version = "1.0.197", features = ["derive"] }
-thiserror = "1.0.57"
-toml = "0.8.10"
+clap           = { version = "4.5.2", features = ["derive", "wrap_help"] }
+env_logger     = "0.11.3"
+esp-idf-part   = "0.5.0"
+espflash       = { version = "3.0.0", path = "../espflash" }
+log            = "0.4.21"
+miette         = { version = "7.2.0", features = ["fancy"] }
+serde          = { version = "1.0.197", features = ["derive"] }
+thiserror      = "1.0.58"
+toml           = "0.8.11"
 
 [target.'cfg(unix)'.dependencies]
 cargo = { version = "0.77.0", features = ["vendored-openssl"] }
