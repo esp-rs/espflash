@@ -198,7 +198,7 @@ pub struct ReadFlashArgs {
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
-    /// Size of the region to erase
+    /// Size of the region to read
     #[arg(value_name = "SIZE", value_parser = parse_uint32)]
     pub size: u32,
     /// Name of binary dump
