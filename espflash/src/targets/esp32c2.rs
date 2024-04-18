@@ -1,5 +1,7 @@
 use std::{collections::HashMap, ops::Range};
 
+use log::debug;
+
 #[cfg(feature = "serialport")]
 use crate::{connection::Connection, targets::bytes_to_mac_addr};
 use crate::{
@@ -95,11 +97,11 @@ impl Target for Esp32c2 {
     ) -> Result<IdfBootloaderFormat<'a>, Error> {
         let booloader: &'static [u8] = match xtal_freq {
             XtalFrequency::_40Mhz => {
-                println!("Using 40MHz bootloader");
+                debug!("Using 40MHz bootloader");
                 include_bytes!("../../resources/bootloaders/esp32c2-bootloader.bin")
             }
             XtalFrequency::_26Mhz => {
-                println!("Using 26MHz bootloader");
+                debug!("Using 26MHz bootloader");
                 include_bytes!("../../resources/bootloaders/esp32c2_26-bootloader.bin")
             }
             _ => {
