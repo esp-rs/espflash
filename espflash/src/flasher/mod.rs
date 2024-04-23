@@ -60,27 +60,38 @@ pub(crate) mod stubs;
 #[repr(u8)]
 pub enum FlashFrequency {
     /// 12 MHz
+    #[serde(rename = "12MHz")]
     _12Mhz,
     /// 15 MHz
+    #[serde(rename = "15MHz")]
     _15Mhz,
     /// 16 MHz
+    #[serde(rename = "16MHz")]
     _16Mhz,
     /// 20 MHz
+    #[serde(rename = "20MHz")]
     _20Mhz,
     /// 24 MHz
+    #[serde(rename = "24MHz")]
     _24Mhz,
     /// 26 MHz
+    #[serde(rename = "26MHz")]
     _26Mhz,
     /// 30 MHz
+    #[serde(rename = "30MHz")]
     _30Mhz,
     /// 40 MHz
+    #[serde(rename = "40MHz")]
     #[default]
     _40Mhz,
     /// 48 MHz
+    #[serde(rename = "48MHz")]
     _48Mhz,
     /// 60 MHz
+    #[serde(rename = "60MHz")]
     _60Mhz,
     /// 80 MHz
+    #[serde(rename = "80MHz")]
     _80Mhz,
 }
 
@@ -104,6 +115,7 @@ impl FlashFrequency {
 #[derive(Copy, Clone, Debug, Default, VariantNames, Serialize, Deserialize)]
 #[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum FlashMode {
     /// Quad I/O (4 pins used for address & data)
     Qio,
@@ -139,27 +151,38 @@ pub enum FlashMode {
 #[doc(alias("esp_image_flash_size_t"))]
 pub enum FlashSize {
     /// 256 KB
+    #[serde(rename = "256KB")]
     _256Kb,
     /// 512 KB
+    #[serde(rename = "512KB")]
     _512Kb,
     /// 1 MB
+    #[serde(rename = "1MB")]
     _1Mb,
     /// 2 MB
+    #[serde(rename = "2MB")]
     _2Mb,
     /// 4 MB
     #[default]
+    #[serde(rename = "4MB")]
     _4Mb,
     /// 8 MB
+    #[serde(rename = "8MB")]
     _8Mb,
     /// 16 MB
+    #[serde(rename = "16MB")]
     _16Mb,
     /// 32 MB
+    #[serde(rename = "32MB")]
     _32Mb,
     /// 64 MB
+    #[serde(rename = "64MB")]
     _64Mb,
     /// 128 MB
+    #[serde(rename = "128MB")]
     _128Mb,
     /// 256 MB
+    #[serde(rename = "256MB")]
     _256Mb,
 }
 
