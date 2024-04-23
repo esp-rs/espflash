@@ -242,11 +242,12 @@ impl FromStr for FlashSize {
 }
 
 /// Flash settings to use when flashing a device
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Default)]
 #[non_exhaustive]
 pub struct FlashSettings {
     pub mode: Option<FlashMode>,
     pub size: Option<FlashSize>,
+    #[serde(rename = "frequency")]
     pub freq: Option<FlashFrequency>,
 }
 

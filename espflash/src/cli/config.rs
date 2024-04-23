@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use serialport::UsbPortInfo;
 
 use crate::error::Error;
+use crate::flasher::FlashSettings;
 
 /// A configured, known serial connection
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
@@ -89,6 +90,9 @@ pub struct Config {
     /// Preferred USB devices
     #[serde(default)]
     pub usb_device: Vec<UsbDevice>,
+    /// Flash settings
+    #[serde(default)]
+    pub flash: FlashSettings,
     /// Path of the file to save the configuration to
     #[serde(skip)]
     save_path: PathBuf,
