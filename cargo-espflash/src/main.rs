@@ -4,7 +4,7 @@ use std::{
     process::{exit, Command, ExitStatus, Stdio},
 };
 
-use cargo_metadata::Message;
+use cargo_metadata::{Message, MetadataCommand};
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{
@@ -375,6 +375,12 @@ fn build(
         .or_else(|| cargo_config.target())
         .ok_or_else(|| NoTargetError::new(Some(chip)))?;
 
+    let mut metadata_cmd = MetadataCommand::new();
+    if let Some(features) = &build_options.features {
+        metadata_cmd.features(cargo_metadata::CargoOpt::SomeFeatures(features.clone()));
+    }
+    let metadata = metadata_cmd.exec().into_diagnostic()?;
+
     if !chip.into_target().supports_build_target(target) {
         return Err(UnsupportedTargetError::new(target, chip).into());
     }
@@ -466,9 +472,19 @@ fn build(
 
     for message in messages {
         match message.into_diagnostic()? {
-            Message::BuildScriptExecuted(script)
-                if script.package_id.repr.starts_with("esp-idf-sys") =>
-            {
+            Message::BuildScriptExecuted(script) => {
+                // We can't use the `Index` implementation on `Metadata` because `-Zbuild-std`
+                // pulls in dependencies not listed in the metadata which then causes the `Index`
+                // implementation to panic.
+                let Some(package) = metadata.packages.iter().find(|p| p.id == script.package_id)
+                else {
+                    continue;
+                };
+
+                if package.name != "esp-idf-sys" {
+                    continue;
+                }
+
                 // If the `esp-idf-sys` package is being used, attempt to use the bootloader and
                 // partition table compiled by `embuild` instead.
                 let build_path = PathBuf::from(script.out_dir).join("build");
