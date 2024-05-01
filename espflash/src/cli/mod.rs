@@ -136,6 +136,9 @@ pub struct FlashArgs {
     /// Logging format.
     #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
     pub log_format: LogFormat,
+    /// Logging format.
+    #[arg(long, short = 'O', requires = "monitor")]
+    pub log_output: Option<String>,
     /// Minimum chip revision supported by image, in format: major.minor
     #[arg(long, default_value = "0.0", value_parser = parse_chip_rev)]
     pub min_chip_rev: u16,
@@ -261,6 +264,9 @@ pub struct MonitorArgs {
     /// Logging format.
     #[arg(long, short = 'L', default_value = "serial", requires = "elf")]
     pub log_format: LogFormat,
+    /// Logging format.
+    #[arg(long, short = 'O')]
+    pub log_output: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -445,6 +451,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         pid,
         args.connect_args.baud.unwrap_or(default_baud),
         args.log_format,
+        args.log_output,
         !args.non_interactive,
     )
 }

@@ -10,10 +10,14 @@
 //! call are not displayed until `println!()` is subsequently called, where as
 //! in our monitor the output is displayed immediately upon reading.
 
+use regex::Regex;
 use std::{
-    io::{stdout, ErrorKind, Read, Write},
+    fs::{File, OpenOptions},
+    io::{stdout, BufWriter, ErrorKind, Read, Write},
     time::Duration,
 };
+
+use chrono::Local;
 
 use crossterm::{
     event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers},
@@ -71,6 +75,7 @@ pub fn monitor(
     pid: u16,
     baud: u32,
     log_format: LogFormat,
+    log_path: Option<String>,
     interactive_mode: bool,
 ) -> miette::Result<()> {
     if interactive_mode {
@@ -101,9 +106,34 @@ pub fn monitor(
     };
 
     let mut buff = [0; 1024];
+    let mut log_file: Option<BufWriter<File>> = if let Some(log_path) = log_path.as_ref() {
+        let log_file_obj = OpenOptions::new().create(true).append(true).open(log_path);
+        if let Err(err) = log_file_obj.as_ref() {
+            println!("error opening log_file: {:?}", err);
+        }
+        log_file_obj.map(BufWriter::new).ok()
+    } else {
+        None
+    };
+
     loop {
         let read_count = match serial.read(&mut buff) {
-            Ok(count) => Ok(count),
+            Ok(count) => {
+                if let Some(log_file) = log_file.as_mut() {
+                    let line = String::from_utf8(buff.to_vec()).unwrap();
+                    if let Err(err) = log_file
+                        .write_all(strip_ansi_formatting_and_apply_timestamp(&line).as_bytes())
+                    {
+                        println!(
+                            "could not write line {} to log file: {}",
+                            line,
+                            err.to_string()
+                        );
+                    }
+                    log_file.write_all(b"\n").ok();
+                }
+                Ok(count)
+            }
             Err(e) if e.kind() == ErrorKind::TimedOut => Ok(0),
             Err(e) if e.kind() == ErrorKind::Interrupted => continue,
             err => err.into_diagnostic(),
@@ -112,6 +142,9 @@ pub fn monitor(
         parser.feed(&buff[0..read_count], &mut stdout);
 
         // Don't forget to flush the writer!
+        if let Some(log_file) = log_file.as_mut() {
+            log_file.flush().ok();
+        }
         stdout.flush().ok();
 
         if interactive_mode && poll(Duration::from_secs(0)).into_diagnostic()? {
@@ -136,6 +169,15 @@ pub fn monitor(
     }
 
     Ok(())
+}
+
+fn strip_ansi_formatting_and_apply_timestamp(line_str: &str) -> String {
+    let re = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
+    let line_str = re.replace_all(line_str, "").to_string();
+    let re = Regex::new(r";[0-9]*m").unwrap();
+    let line_str = re.replace_all(&line_str, "").to_string();
+    let current_time = Local::now().format("%+");
+    format!("{current_time} - {line_str}")
 }
 
 // Converts key events from crossterm into appropriate character/escape

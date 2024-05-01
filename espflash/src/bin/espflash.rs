@@ -294,6 +294,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             pid,
             args.flash_args.monitor_baud.unwrap_or(default_baud),
             args.flash_args.log_format,
+            args.flash_args.log_output,
             true,
         )
     } else {
