@@ -254,13 +254,13 @@ pub struct SaveImageArgs {
 pub struct MonitorArgs {
     /// Connection configuration
     #[clap(flatten)]
-    connect_args: ConnectArgs,
+    pub connect_args: ConnectArgs,
     /// Optional file name of the ELF image to load the symbols from
     #[arg(short = 'e', long, value_name = "FILE")]
-    elf: Option<PathBuf>,
+    pub elf: Option<PathBuf>,
     /// Avoids asking the user for interactions like resetting the device
     #[arg(long)]
-    non_interactive: bool,
+    pub non_interactive: bool,
     /// Logging format.
     #[arg(long, short = 'L', default_value = "serial", requires = "elf")]
     pub log_format: LogFormat,
