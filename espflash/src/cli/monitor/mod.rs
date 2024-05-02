@@ -124,11 +124,7 @@ pub fn monitor(
                     if let Err(err) = log_file
                         .write_all(strip_ansi_formatting_and_apply_timestamp(&line).as_bytes())
                     {
-                        println!(
-                            "could not write line {} to log file: {}",
-                            line,
-                            err.to_string()
-                        );
+                        println!("could not write line {} to log file: {}", line, err);
                     }
                     log_file.write_all(b"\n").ok();
                 }
