@@ -43,7 +43,7 @@ pub mod monitor;
 mod serial;
 
 /// Establish a connection with a target device
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Clone)]
 #[non_exhaustive]
 pub struct ConnectArgs {
     /// Reset operation to perform after connecting to the target
@@ -120,7 +120,7 @@ pub struct FlashConfigArgs {
 }
 
 /// Flash an application to a target device
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Clone)]
 #[non_exhaustive]
 #[group(skip)]
 pub struct FlashArgs {
@@ -249,7 +249,7 @@ pub struct SaveImageArgs {
 }
 
 /// Open the serial monitor without flashing
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Clone)]
 #[non_exhaustive]
 pub struct MonitorArgs {
     /// Connection configuration
@@ -419,11 +419,11 @@ pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
 }
 
 /// Open a serial monitor
-pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
+pub fn serial_monitor(args: &MonitorArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
     let pid = flasher.get_usb_pid()?;
 
-    let elf = if let Some(elf_path) = args.elf {
+    let elf = if let Some(elf_path) = &args.elf {
         let path = fs::canonicalize(elf_path).into_diagnostic()?;
         let data = fs::read(path).into_diagnostic()?;
 
@@ -451,7 +451,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         pid,
         args.connect_args.baud.unwrap_or(default_baud),
         args.log_format,
-        args.log_output,
+        args.log_output.clone(),
         !args.non_interactive,
     )
 }

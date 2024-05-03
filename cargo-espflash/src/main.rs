@@ -112,7 +112,7 @@ enum Commands {
     ChecksumMd5(ChecksumMd5Args),
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Clone)]
 #[non_exhaustive]
 struct BuildArgs {
     /// Binary to build and flash
@@ -170,7 +170,7 @@ pub struct ErasePartsArgs {
 }
 
 /// Build and flash an application to a target device
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Clone)]
 #[non_exhaustive]
 struct FlashArgs {
     #[clap(flatten)]
