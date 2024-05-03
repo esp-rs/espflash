@@ -216,7 +216,7 @@ fn main() -> Result<()> {
         Commands::EraseParts(args) => erase_parts(args, &config),
         Commands::EraseRegion(args) => erase_region(args, &config),
         Commands::Flash(args) => flash(args, &config),
-        Commands::Monitor(args) => serial_monitor(args, &config),
+        Commands::Monitor(args) => serial_monitor(&args, &config),
         Commands::PartitionTable(args) => partition_table(args),
         Commands::ReadFlash(args) => read_flash(args, &config),
         Commands::SaveImage(args) => save_image(args, &config),

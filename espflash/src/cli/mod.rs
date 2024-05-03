@@ -105,7 +105,7 @@ pub struct EraseRegionArgs {
 }
 
 /// Configure communication with the target device's flash
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Clone)]
 #[non_exhaustive]
 pub struct FlashConfigArgs {
     /// Flash frequency
