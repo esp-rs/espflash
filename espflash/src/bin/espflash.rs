@@ -8,13 +8,14 @@ use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{
         self, board_info, checksum_md5, completions, config::Config, connect, erase_flash,
-        erase_partitions, erase_region, flash_elf_image, monitor::monitor, parse_uint32,
-        partition_table, print_board_info, read_flash, save_elf_as_image, serial_monitor,
-        ChecksumMd5Args, CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs,
-        EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs, ReadFlashArgs,
+        erase_partitions, erase_region, flash_elf_image, make_flash_data, monitor::monitor,
+        parse_uint32, partition_table, print_board_info, read_flash, save_elf_as_image,
+        serial_monitor, ChecksumMd5Args, CompletionsArgs, ConnectArgs, EraseFlashArgs,
+        EraseRegionArgs, EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
+        ReadFlashArgs,
     },
     error::Error,
-    flasher::{parse_partition_table, FlashData, FlashSettings},
+    flasher::parse_partition_table,
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
@@ -161,7 +162,7 @@ fn main() -> Result<()> {
     // displayed.
     check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
-    // Load any user configuraiton, if present.
+    // Load any user configuration, if present.
     let config = Config::load()?;
 
     // Execute the correct action based on the provided subcommand and its
@@ -212,11 +213,13 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         args.flash_args.no_verify,
         args.flash_args.no_skip,
     )?;
-    flasher.verify_minimum_revision(args.flash_args.min_chip_rev)?;
+    flasher.verify_minimum_revision(args.flash_args.image.min_chip_rev)?;
 
     // If the user has provided a flash size via a command-line argument, we'll
     // override the detected (or default) value with this.
     if let Some(flash_size) = args.flash_config_args.flash_size {
+        flasher.set_flash_size(flash_size);
+    } else if let Some(flash_size) = config.flash.size {
         flasher.set_flash_size(flash_size);
     }
 
@@ -232,37 +235,12 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
-        let bootloader = args
-            .flash_args
-            .bootloader
-            .as_deref()
-            .or(config.bootloader.as_deref());
-        let partition_table = args
-            .flash_args
-            .partition_table
-            .as_deref()
-            .or(config.partition_table.as_deref());
-
-        if let Some(path) = bootloader {
-            println!("Bootloader:        {}", path.display());
-        }
-        if let Some(path) = partition_table {
-            println!("Partition table:   {}", path.display());
-        }
-
-        let flash_settings = FlashSettings::new(
-            args.flash_config_args.flash_mode,
-            args.flash_config_args.flash_size,
-            args.flash_config_args.flash_freq,
-        );
-
-        let flash_data = FlashData::new(
-            bootloader,
-            partition_table,
-            args.flash_args.partition_table_offset,
-            args.flash_args.target_app_partition,
-            flash_settings,
-            args.flash_args.min_chip_rev,
+        let flash_data = make_flash_data(
+            args.flash_args.image,
+            &args.flash_config_args,
+            config,
+            None,
+            None,
         )?;
 
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
@@ -306,42 +284,18 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .into_diagnostic()
         .wrap_err_with(|| format!("Failed to open image {}", args.image.display()))?;
 
-    let bootloader = args
-        .save_image_args
-        .bootloader
-        .as_deref()
-        .or(config.bootloader.as_deref());
-    let partition_table = args
-        .save_image_args
-        .partition_table
-        .as_deref()
-        .or(config.partition_table.as_deref());
-
     // Since we have no `Flasher` instance and as such cannot print the board
     // information, we will print whatever information we _do_ have.
     println!("Chip type:         {}", args.save_image_args.chip);
     println!("Merge:             {}", args.save_image_args.merge);
     println!("Skip padding:      {}", args.save_image_args.skip_padding);
-    if let Some(path) = &bootloader {
-        println!("Bootloader:        {}", path.display());
-    }
-    if let Some(path) = &partition_table {
-        println!("Partition table:   {}", path.display());
-    }
 
-    let flash_settings = FlashSettings::new(
-        args.flash_config_args.flash_mode,
-        args.flash_config_args.flash_size,
-        args.flash_config_args.flash_freq,
-    );
-
-    let flash_data = FlashData::new(
-        bootloader,
-        partition_table,
-        args.save_image_args.partition_table_offset,
-        args.save_image_args.target_app_partition,
-        flash_settings,
-        args.save_image_args.min_chip_rev,
+    let flash_data = make_flash_data(
+        args.save_image_args.image,
+        &args.flash_config_args,
+        config,
+        None,
+        None,
     )?;
 
     let xtal_freq = args

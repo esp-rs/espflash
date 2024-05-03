@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Support loading flash size, frequency, and mode from the config file (#627)
 
 ### Fixed
 - Fixed help text for size parameter of read-flash subcommand

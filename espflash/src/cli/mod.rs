@@ -10,7 +10,13 @@
 //! [cargo-espflash]: https://crates.io/crates/cargo-espflash
 //! [espflash]: https://crates.io/crates/espflash
 
-use std::{collections::HashMap, fs, io::Write, num::ParseIntError, path::PathBuf};
+use std::{
+    collections::HashMap,
+    fs,
+    io::Write,
+    num::ParseIntError,
+    path::{Path, PathBuf},
+};
 
 use clap::Args;
 use clap_complete::Shell;
@@ -31,8 +37,8 @@ use crate::{
     elf::ElfFirmwareImage,
     error::{Error, MissingPartition, MissingPartitionTable},
     flasher::{
-        parse_partition_table, FlashData, FlashFrequency, FlashMode, FlashSize, Flasher,
-        ProgressCallbacks,
+        parse_partition_table, FlashData, FlashFrequency, FlashMode, FlashSettings, FlashSize,
+        Flasher, ProgressCallbacks,
     },
     targets::{Chip, XtalFrequency},
 };
@@ -124,9 +130,6 @@ pub struct FlashConfigArgs {
 #[non_exhaustive]
 #[group(skip)]
 pub struct FlashArgs {
-    /// Path to a binary (.bin) bootloader file
-    #[arg(long, value_name = "FILE")]
-    pub bootloader: Option<PathBuf>,
     /// Erase partitions by label
     #[arg(long, value_name = "LABELS", value_delimiter = ',')]
     pub erase_parts: Option<Vec<String>>,
@@ -136,24 +139,12 @@ pub struct FlashArgs {
     /// Logging format.
     #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
     pub log_format: LogFormat,
-    /// Minimum chip revision supported by image, in format: major.minor
-    #[arg(long, default_value = "0.0", value_parser = parse_chip_rev)]
-    pub min_chip_rev: u16,
     /// Open a serial monitor after flashing
     #[arg(short = 'M', long)]
     pub monitor: bool,
     /// Baud rate at which to read console output
     #[arg(long, requires = "monitor", value_name = "BAUD")]
     pub monitor_baud: Option<u32>,
-    /// Path to a CSV file containing partition table
-    #[arg(long, value_name = "FILE")]
-    pub partition_table: Option<PathBuf>,
-    /// Label of target app partition
-    #[arg(long, value_name = "LABEL")]
-    pub target_app_partition: Option<String>,
-    /// Partition table offset
-    #[arg(long, value_name = "OFFSET")]
-    pub partition_table_offset: Option<u32>,
     /// Load the application to RAM instead of Flash
     #[arg(long)]
     pub ram: bool,
@@ -163,6 +154,8 @@ pub struct FlashArgs {
     /// Don't skip flashing of parts with matching checksum
     #[arg(long)]
     pub no_skip: bool,
+    #[clap(flatten)]
+    pub image: ImageArgs,
 }
 
 /// Operations for partitions tables
@@ -214,22 +207,33 @@ pub struct ReadFlashArgs {
 #[non_exhaustive]
 #[group(skip)]
 pub struct SaveImageArgs {
-    /// Custom bootloader for merging
-    #[arg(long, value_name = "FILE")]
-    pub bootloader: Option<PathBuf>,
     /// Chip to create an image for
     #[arg(long, value_enum)]
     pub chip: Chip,
     /// File name to save the generated image to
     pub file: PathBuf,
-    /// Minimum chip revision supported by image, in format: major.minor
-    #[arg(long, default_value = "0.0", value_parser = parse_chip_rev)]
-    pub min_chip_rev: u16,
     /// Boolean flag to merge binaries into single binary
     #[arg(long)]
     pub merge: bool,
-    /// Custom partition table for merging
-    #[arg(long, short = 'T', requires = "merge", value_name = "FILE")]
+    /// Don't pad the image to the flash size
+    #[arg(long, short = 'P', requires = "merge")]
+    pub skip_padding: bool,
+    /// Cristal frequency of the target
+    #[arg(long, short = 'x')]
+    pub xtal_freq: Option<XtalFrequency>,
+    #[clap(flatten)]
+    pub image: ImageArgs,
+}
+
+#[derive(Debug, Args)]
+#[non_exhaustive]
+#[group(skip)]
+pub struct ImageArgs {
+    /// Path to a binary (.bin) bootloader file
+    #[arg(long, value_name = "FILE")]
+    pub bootloader: Option<PathBuf>,
+    /// Path to a CSV file containing partition table
+    #[arg(long, short = 'T', value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Partition table offset
     #[arg(long, value_name = "OFFSET")]
@@ -237,12 +241,9 @@ pub struct SaveImageArgs {
     /// Label of target app partition
     #[arg(long, value_name = "LABEL")]
     pub target_app_partition: Option<String>,
-    /// Don't pad the image to the flash size
-    #[arg(long, short = 'P', requires = "merge")]
-    pub skip_padding: bool,
-    /// Cristal frequency of the target
-    #[arg(long, short = 'x')]
-    pub xtal_freq: Option<XtalFrequency>,
+    /// Minimum chip revision supported by image, in format: major.minor
+    #[arg(long, default_value = "0.0", value_parser = parse_chip_rev)]
+    pub min_chip_rev: u16,
 }
 
 /// Open the serial monitor without flashing
@@ -797,4 +798,48 @@ fn pretty_print(table: PartitionTable) {
 /// Parses a string as a 32-bit unsigned integer.
 pub fn parse_uint32(input: &str) -> Result<u32, ParseIntError> {
     parse_int::parse(input)
+}
+
+pub fn make_flash_settings(flash_config_args: &FlashConfigArgs, config: &Config) -> FlashSettings {
+    FlashSettings::new(
+        flash_config_args.flash_mode.or(config.flash.mode),
+        flash_config_args.flash_size.or(config.flash.size),
+        flash_config_args.flash_freq.or(config.flash.freq),
+    )
+}
+
+pub fn make_flash_data(
+    image_args: ImageArgs,
+    flash_config_args: &FlashConfigArgs,
+    config: &Config,
+    default_bootloader: Option<&Path>,
+    default_partition_table: Option<&Path>,
+) -> Result<FlashData, Error> {
+    let bootloader = image_args
+        .bootloader
+        .as_deref()
+        .or(config.bootloader.as_deref())
+        .or(default_bootloader);
+    let partition_table = image_args
+        .partition_table
+        .as_deref()
+        .or(config.partition_table.as_deref())
+        .or(default_partition_table);
+
+    if let Some(path) = &bootloader {
+        println!("Bootloader:        {}", path.display());
+    }
+    if let Some(path) = &partition_table {
+        println!("Partition table:   {}", path.display());
+    }
+
+    let flash_settings = make_flash_settings(flash_config_args, config);
+    FlashData::new(
+        bootloader,
+        partition_table,
+        image_args.partition_table_offset,
+        image_args.target_app_partition,
+        flash_settings,
+        image_args.min_chip_rev,
+    )
 }

@@ -149,6 +149,13 @@ The configuration file allows you to define various parameters for your applicat
   ```toml
   partition_table = "path/to/custom/partition-table.bin"
   ```
+- Flash settings
+  ```toml
+  [flash]
+  mode = "qio"
+  size = "8MB"
+  frequency = "80MHz"
+  ```
 
 You can have a local and/or a global configuration file:
 
