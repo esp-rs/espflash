@@ -111,7 +111,7 @@ fn find_serial_port(ports: &[SerialPortInfo], name: &str) -> Result<SerialPortIn
 fn detect_usb_serial_ports(_list_all_ports: bool) -> Result<Vec<SerialPortInfo>> {
     use std::{
         fs::{read_link, read_to_string},
-        path::PathBuf,
+        path::{Path, PathBuf},
     };
 
     use serialport::UsbPortInfo;
@@ -120,8 +120,12 @@ fn detect_usb_serial_ports(_list_all_ports: bool) -> Result<Vec<SerialPortInfo>>
     let ports = ports
         .into_iter()
         .filter_map(|port_info| {
-            // With musl, the paths we get are `/sys/class/tty/*`
-            let path = PathBuf::from(&port_info.port_name);
+            // With musl, the paths we get are `/sys/class/tty/*` or `/dev/*`
+            // In case of `/dev/*` we transform them into `/sys/class/tty/*`
+            let path = match AsRef::<Path>::as_ref(&port_info.port_name).strip_prefix("/dev/") {
+                Ok(rem) => PathBuf::from("/sys/class/tty/").join(rem),
+                Err(_) => PathBuf::from(&port_info.port_name)
+            };
 
             // This will give something like:
             // `/sys/devices/pci0000:00/0000:00:07.1/0000:0c:00.3/usb5/5-3/5-3.1/5-3.1:1.0/ttyUSB0/tty/ttyUSB0`
