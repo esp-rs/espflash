@@ -124,7 +124,7 @@ fn detect_usb_serial_ports(_list_all_ports: bool) -> Result<Vec<SerialPortInfo>>
             // In case of `/dev/*` we transform them into `/sys/class/tty/*`
             let path = match AsRef::<Path>::as_ref(&port_info.port_name).strip_prefix("/dev/") {
                 Ok(rem) => PathBuf::from("/sys/class/tty/").join(rem),
-                Err(_) => PathBuf::from(&port_info.port_name)
+                Err(_) => PathBuf::from(&port_info.port_name),
             };
 
             // This will give something like:
