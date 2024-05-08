@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed help text for size parameter of read-flash subcommand
+- Fixed port detection on `musl` when detection returns paths starting with `/dev/`
 
 ### Changed
 
