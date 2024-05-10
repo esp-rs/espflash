@@ -187,7 +187,7 @@ pub struct PartitionTableArgs {
 }
 
 /// Reads the content of flash memory and saves it to a file
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 #[non_exhaustive]
 pub struct ReadFlashArgs {
     /// Offset to start reading from
@@ -200,7 +200,7 @@ pub struct ReadFlashArgs {
     pub block_size: u32,
     /// Connection configuration
     #[clap(flatten)]
-    connect_args: ConnectArgs,
+    pub connect_args: ConnectArgs,
     /// Size of the region to read
     #[arg(value_name = "SIZE", value_parser = parse_uint32)]
     pub size: u32,
