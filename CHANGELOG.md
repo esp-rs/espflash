@@ -17,9 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed behavior of the --target-app-partition flag (#634)
 
 ### Changed
+- Update ESP32, ESP32-C2, ESP32-C3, ESP32-C6, ESP32-H2, ESP32-S2, ESP32-S3 stub (#638)
 
 ### Removed
-
 
 ## [3.0.0] - 2024-03-13
 
