@@ -259,7 +259,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         let app_size = data.len() as u32;
         let part_size = target_app_partition.size();
 
-        // The size of the application must not exceed the size of the factory
+        // The size of the application must not exceed the size of the target app
         // partition.
         if app_size as f32 / part_size as f32 > 1.0 {
             return Err(Error::ElfTooBig(app_size, part_size));
@@ -307,22 +307,8 @@ impl<'a> IdfBootloaderFormat<'a> {
             data: Cow::Owned(self.partition_table.to_bin().unwrap()),
         };
 
-        let app_partition = self
-            .partition_table
-            .find("factory")
-            .or_else(|| self.partition_table.find_by_type(Type::App))
-            .expect("no application partition found");
-
-        if self.flash_segment.data.len() > app_partition.size() as usize {
-            panic!(
-                "image size ({} bytes) is larger partition size ({} bytes)",
-                self.flash_segment.data.len(),
-                app_partition.size()
-            );
-        }
-
         let app_segment = RomSegment {
-            addr: app_partition.offset(),
+            addr: self.flash_segment.addr,
             data: Cow::Borrowed(&self.flash_segment.data),
         };
 

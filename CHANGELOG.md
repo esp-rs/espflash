@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed help text for size parameter of read-flash subcommand
 - Fixed port detection on `musl` when detection returns paths starting with `/dev/`
 - [cargo-espflash]: Always resolve package_id from metadata when finding bootloader and partition table (#632)
+- Fixed behavior of the --target-app-partition flag (#634)
 
 ### Changed
 
