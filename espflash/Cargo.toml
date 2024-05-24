@@ -1,6 +1,6 @@
 [package]
 name         = "espflash"
-version      = "3.0.1-dev"
+version      = "3.1.0"
 edition      = "2021"
 rust-version = "1.74"
 description  = "A command-line tool for flashing Espressif devices"
