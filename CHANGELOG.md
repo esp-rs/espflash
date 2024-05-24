@@ -5,21 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.1.0] - 2024-05-24
 
 ### Added
 - Support loading flash size, frequency, and mode from the config file (#627)
 
 ### Fixed
-- Fixed help text for size parameter of read-flash subcommand
+- Fixed help text for `size` parameter of `read-flash` subcommand
 - Fixed port detection on `musl` when detection returns paths starting with `/dev/`
 - [cargo-espflash]: Always resolve package_id from metadata when finding bootloader and partition table (#632)
-- Fixed behavior of the --target-app-partition flag (#634)
+- Fixed behavior of the `--target-app-partition` flag (#634)
 
 ### Changed
 - Update ESP32, ESP32-C2, ESP32-C3, ESP32-C6, ESP32-H2, ESP32-S2, ESP32-S3 stub (#638)
-
-### Removed
 
 ## [3.0.0] - 2024-03-13
 
@@ -249,7 +247,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-09-21
 
-[Unreleased]: https://github.com/esp-rs/espflash/compare/v3.0.0...HEAD
+[3.1.0]: https://github.com/esp-rs/espflash/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/esp-rs/espflash/compare/v3.0.0-rc.2...v3.0.0
 [3.0.0-rc.2]: https://github.com/esp-rs/espflash/compare/v3.0.0-rc.1...v3.0.0-rc.2
 [3.0.0-rc.1]: https://github.com/esp-rs/espflash/compare/v2.1.0...v3.0.0-rc.1
