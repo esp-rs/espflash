@@ -17,7 +17,7 @@ runs:
   steps:
     - name: Replace target string
       if: inputs.arch != 'x86_64'
-      uses: mad9000/actions-find-and-replace-string@3
+      uses: mad9000/actions-find-and-replace-string@5
       id: findandreplace
       with:
         source: ${{ inputs.target }}
