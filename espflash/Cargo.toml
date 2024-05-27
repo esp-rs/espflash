@@ -1,6 +1,6 @@
 [package]
 name         = "espflash"
-version      = "3.0.1-dev"
+version      = "3.1.0"
 edition      = "2021"
 rust-version = "1.74"
 description  = "A command-line tool for flashing Espressif devices"
@@ -23,20 +23,20 @@ path              = "./src/bin/espflash.rs"
 required-features = ["cli", "serialport"]
 
 [dependencies]
-addr2line = { version = "0.21.0", optional = true }
-base64 = "0.22.0"
-bytemuck = { version = "1.14.3", features = ["derive"] }
-clap = { version = "4.5.2", features = [
+addr2line = { version = "0.22.0", optional = true }
+base64 = "0.22.1"
+bytemuck = { version = "1.16.0", features = ["derive"] }
+clap = { version = "4.5.4", features = [
     "derive",
     "env",
     "wrap_help",
 ], optional = true }
-clap_complete = { version = "4.5.1", optional = true }
-comfy-table = { version = "7.1.0", optional = true }
+clap_complete = { version = "4.5.2", optional = true }
+comfy-table = { version = "7.1.1", optional = true }
 crossterm = { version = "0.27.0", optional = true } # 0.26.x and 0.27.x causes issues on Windows
 ctrlc = { version = "3.4.4", optional = true }
 # defmt dependencies are pinned since defmt does not guarantee MSRV even for patch releases
-defmt-decoder = { version = "=0.3.10", features = [
+defmt-decoder = { version = "0.3.11", features = [
     "unstable",
 ], optional = true }
 defmt-parser = { version = "=0.3.4", features = ["unstable"], optional = true }
@@ -44,7 +44,7 @@ dialoguer = { version = "0.11.0", optional = true }
 directories = { version = "5.0.1", optional = true }
 env_logger = { version = "0.11.3", optional = true }
 esp-idf-part = "0.5.0"
-flate2 = "1.0.28"
+flate2 = "1.0.30"
 hex = { version = "0.4.3", features = ["serde"], optional = true }
 indicatif = { version = "0.17.8", optional = true }
 lazy_static = { version = "1.4.0", optional = true }
@@ -52,19 +52,19 @@ log = "0.4.21"
 md-5 = "0.10.6"
 miette = "7.2.0"
 parse_int = { version = "0.6.0", optional = true }
-regex = { version = "1.10.3", optional = true }
-serde = { version = "1.0.197", features = ["derive"] }
+regex = { version = "1.10.4", optional = true }
+serde = { version = "1.0.202", features = ["derive"] }
 serialport = { version = "4.3.0", optional = true }
 sha2 = "0.10.8"
 slip-codec = { version = "0.4.0", optional = true }
 strum = { version = "0.26.2", features = ["derive"] }
-thiserror = "1.0.58"
-toml = { version = "0.8.11", optional = true }
+thiserror = "1.0.61"
+toml = { version = "0.8.13", optional = true }
 update-informer = { version = "1.1.0", optional = true }
 xmas-elf = "0.9.1"
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.153"
+libc = "0.2.155"
 
 [features]
 default = ["cli"]

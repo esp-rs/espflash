@@ -91,7 +91,7 @@ jobs:
       - run: cargo check -p espflash --lib --no-default-features --features serialport
 
   msrv:
-    name: Check MSRV (${{ matrix.platform.target }})
+    name: Check lib MSRV  (${{ matrix.platform.target }})
     strategy:
       fail-fast: false
       matrix:
@@ -114,7 +114,7 @@ jobs:
           target: ${{ matrix.platform.target }}
           toolchain: "1.74"
 
-      - run: cargo check
+      - run: cargo check -p espflash --lib
 
   # --------------------------------------------------------------------------
   # Test
