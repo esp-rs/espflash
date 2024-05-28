@@ -215,7 +215,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
 fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
     let mut args = args.clone();
     args.no_stub = true;
-    let mut flash = connect(&args, config)?;
+    let mut flash = connect(&args, config, true, true)?;
     info!("Resetting target device");
     flash.connection().reset()?;
 
@@ -223,7 +223,7 @@ fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
 }
 
 fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
-    connect(&args, config)?;
+    connect(&args, config, true, true)?;
     info!("Holding target device in reset");
 
     Ok(())
