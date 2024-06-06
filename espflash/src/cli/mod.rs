@@ -49,7 +49,7 @@ pub mod monitor;
 mod serial;
 
 /// Establish a connection with a target device
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Clone)]
 #[non_exhaustive]
 pub struct ConnectArgs {
     /// Reset operation to perform after connecting to the target
