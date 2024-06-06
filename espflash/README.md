@@ -68,9 +68,11 @@ Commands:
   erase-parts      Erase specified partitions
   erase-region     Erase specified region
   flash            Flash an application in ELF format to a connected target device
+  hold-in-reset    Hold the target device in reset
   monitor          Open the serial monitor without flashing the connected target device
   partition-table  Convert partition tables between CSV and binary format
   read-flash       Read SPI flash content
+  reset            Reset the target device
   save-image       Generate a binary application image and save it to a local disk
   write-bin        Write a binary file to a specific address in a target device's flash
   checksum-md5     Calculate the MD5 checksum of the given region
