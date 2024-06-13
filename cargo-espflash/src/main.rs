@@ -128,6 +128,9 @@ struct BuildArgs {
     /// Comma delimited list of build features
     #[arg(long, use_value_delimiter = true)]
     pub features: Option<Vec<String>>,
+    /// Do not activate the `default` feature
+    #[arg(long)]
+    pub no_default_features: bool,
     /// Require Cargo.lock and cache are up to date
     #[arg(long)]
     pub frozen: bool,
@@ -373,6 +376,9 @@ fn build(
         .ok_or_else(|| NoTargetError::new(Some(chip)))?;
 
     let mut metadata_cmd = MetadataCommand::new();
+    if build_options.no_default_features {
+        metadata_cmd.features(cargo_metadata::CargoOpt::NoDefaultFeatures);
+    }
     if let Some(features) = &build_options.features {
         metadata_cmd.features(cargo_metadata::CargoOpt::SomeFeatures(features.clone()));
     }
@@ -433,6 +439,10 @@ fn build(
     if let Some(package) = &build_options.package {
         args.push("--package".to_string());
         args.push(package.to_string());
+    }
+
+    if build_options.no_default_features {
+        args.push("--no-default-features".to_string());
     }
 
     if let Some(features) = &build_options.features {
