@@ -2,15 +2,7 @@ name: HIL
 
 on:
   pull_request:
-    branches:
-      - main
-    paths-ignore:
-      - "**/ci.yml"
-      - "**/*.md"
   push:
-    paths-ignore:
-      - "**/ci.yml"
-      - "**/*.md"
   workflow_dispatch:
     inputs:
       repository:
@@ -21,6 +13,8 @@ on:
         description: "Branch, tag or SHA to checkout."
         required: true
         default: "main"
+  merge_group:
+
 env:
   CARGO_TERM_COLOR: always
 
