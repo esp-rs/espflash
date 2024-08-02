@@ -8,8 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Add `hold-in-reset` and `reset` subcommands
-- [cargo-espflash]: Add `--no-default-features` flag to mirror cargo features behavior 
+- Add `hold-in-reset` and `reset` subcommands (#644)
+- [cargo-espflash]: Add `--no-default-features` flag to mirror cargo features behavior (#647)
+
+### Fixed
+- Downgrade crossterm and update time crates (#659)
+
+### Changed
+
 
 ## [3.1.0] - 2024-05-24
 
