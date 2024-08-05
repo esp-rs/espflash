@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use cargo::{
     core::{Package, Workspace},
-    util::Config,
+    util::GlobalContext,
 };
 use miette::{IntoDiagnostic, Result};
 use serde::Deserialize;
@@ -25,7 +25,7 @@ impl PackageMetadata {
         }
 
         let manifest_path = manifest_path.canonicalize().into_diagnostic()?;
-        let config = Config::default().map_err(|_| Error::InvalidWorkspace)?;
+        let config = GlobalContext::default().map_err(|_| Error::InvalidWorkspace)?;
 
         let workspace =
             Workspace::new(&manifest_path, &config).map_err(|_| Error::InvalidWorkspace)?;
