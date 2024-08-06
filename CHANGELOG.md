@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add `hold-in-reset` and `reset` subcommands (#644)
 - [cargo-espflash]: Add `--no-default-features` flag to mirror cargo features behavior (#647)
+- Update `cargo` and `bytemuck` dependencies adapting code (#666)
 
 ### Fixed
 - Downgrade crossterm and update time crates (#659)
