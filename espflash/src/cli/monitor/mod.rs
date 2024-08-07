@@ -15,6 +15,7 @@ use std::{
     time::Duration,
 };
 
+use crossterm::event::KeyEventKind;
 use crossterm::{
     event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode},
@@ -116,20 +117,22 @@ pub fn monitor(
 
         if interactive_mode && poll(Duration::from_secs(0)).into_diagnostic()? {
             if let Event::Key(key) = read().into_diagnostic()? {
-                if key.modifiers.contains(KeyModifiers::CONTROL) {
-                    match key.code {
-                        KeyCode::Char('c') => break,
-                        KeyCode::Char('r') => {
-                            reset_after_flash(&mut serial, pid).into_diagnostic()?;
-                            continue;
+                if key.kind == KeyEventKind::Press {
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        match key.code {
+                            KeyCode::Char('c') => break,
+                            KeyCode::Char('r') => {
+                                reset_after_flash(&mut serial, pid).into_diagnostic()?;
+                                continue;
+                            }
+                            _ => {}
                         }
-                        _ => {}
                     }
-                }
 
-                if let Some(bytes) = handle_key_event(key) {
-                    serial.write_all(&bytes).into_diagnostic()?;
-                    serial.flush().into_diagnostic()?;
+                    if let Some(bytes) = handle_key_event(key) {
+                        serial.write_all(&bytes).into_diagnostic()?;
+                        serial.flush().into_diagnostic()?;
+                    }
                 }
             }
         }

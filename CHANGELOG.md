@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Downgrade crossterm and update time crates (#659)
+- Monitor now only sends key presses on key down events
 
 ### Changed
 
