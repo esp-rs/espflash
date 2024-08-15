@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Fixed
+
+### Changed
+
+## [3.1.1] - 2024-08-15
+
+### Added
 - Add `hold-in-reset` and `reset` subcommands (#644)
 - [cargo-espflash]: Add `--no-default-features` flag to mirror cargo features behavior (#647)
 
@@ -260,6 +268,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-09-21
 
+[3.1.1]: https://github.com/esp-rs/espflash/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/esp-rs/espflash/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/esp-rs/espflash/compare/v3.0.0-rc.2...v3.0.0
 [3.0.0-rc.2]: https://github.com/esp-rs/espflash/compare/v3.0.0-rc.1...v3.0.0-rc.2
