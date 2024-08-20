@@ -18,7 +18,6 @@ use espflash::{
     flasher::parse_partition_table,
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
-    update::check_for_update,
 };
 use log::{debug, info, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};
@@ -205,11 +204,6 @@ fn main() -> Result<()> {
     // message and terminate if the invocation is not correct.
     let CargoSubcommand::Espflash { subcommand: args } = Cli::parse().subcommand;
     debug!("{:#?}", args);
-
-    // Only check for updates once the command-line arguments have been processed,
-    // to avoid printing any update notifications when the help message is
-    // displayed.
-    check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     // Load any user configuration, if present.
     let config = Config::load()?;
