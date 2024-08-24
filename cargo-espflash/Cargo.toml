@@ -1,6 +1,6 @@
 [package]
 name = "cargo-espflash"
-version = "3.1.1"
+version = "3.1.2"
 edition = "2021"
 rust-version = "1.74"
 description = "Cargo subcommand for flashing Espressif devices"

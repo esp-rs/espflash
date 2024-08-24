@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+## 3.1.2 - 2024-08-24
+
+### Added
+
+### Fixed
+
+- Update cargo version to v0.81.0 to fix (#671)
+### Changed
 ## [3.1.1] - 2024-08-15
 
 ### Added
