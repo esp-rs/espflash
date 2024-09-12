@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Fixed
+- espflash defmt log didn't display timestamp, according to [defmt doc](https://defmt.ferrous-systems.com/timestamps).
 
 ### Changed
 
