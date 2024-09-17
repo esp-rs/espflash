@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Fixed
+- Fixed `partition-table-offset` argument to accept offsets in hexadecimal (#682)
 
 ### Changed
 
