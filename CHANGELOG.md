@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed `partition-table-offset` argument to accept offsets in hexadecimal (#682)
+- Fixed pattern matching to detect download mode over multiple lines (#685)
 
 ### Changed
 
