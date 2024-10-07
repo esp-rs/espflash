@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add new chip detect magic value, ability to read chip revision for ESP32-P4 (#686)
+
 ### Fixed
 - Fixed `partition-table-offset` argument to accept offsets in hexadecimal (#682)
 

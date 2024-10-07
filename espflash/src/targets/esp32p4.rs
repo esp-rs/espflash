@@ -10,7 +10,7 @@ use crate::{
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
-const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x0];
+const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x0, 0x0ADDBAD0];
 
 const FLASH_RANGES: &[Range<u32>] = &[
     0x4000_0000..0x4C00_0000, // IROM
@@ -20,7 +20,7 @@ const FLASH_RANGES: &[Range<u32>] = &[
 const PARAMS: Esp32Params = Esp32Params::new(
     0x2000,
     0x1_0000,
-    0x3f_0000, // TODO: Update
+    0x3f_0000,
     18,
     FlashFrequency::_40Mhz,
     include_bytes!("../../resources/bootloaders/esp32p4-bootloader.bin"),
@@ -52,15 +52,13 @@ impl Target for Esp32p4 {
     }
 
     #[cfg(feature = "serialport")]
-    fn major_chip_version(&self, _connection: &mut Connection) -> Result<u32, Error> {
-        // TODO: https://github.com/espressif/esptool/blob/master/esptool/targets/esp32p4.py#L96
-        Ok(0)
+    fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        Ok(self.read_efuse(connection, 19)? >> 4 & 0x03)
     }
 
     #[cfg(feature = "serialport")]
-    fn minor_chip_version(&self, _connection: &mut Connection) -> Result<u32, Error> {
-        // TODO: https://github.com/espressif/esptool/blob/master/esptool/targets/esp32p4.py#L92
-        Ok(0)
+    fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        Ok(self.read_efuse(connection, 19)? & 0x0F)
     }
 
     #[cfg(feature = "serialport")]
