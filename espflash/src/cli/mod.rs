@@ -236,7 +236,7 @@ pub struct ImageArgs {
     #[arg(long, short = 'T', value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Partition table offset
-    #[arg(long, value_name = "OFFSET")]
+    #[arg(long, value_name = "OFFSET", value_parser = parse_uint32)]
     pub partition_table_offset: Option<u32>,
     /// Label of target app partition
     #[arg(long, value_name = "LABEL")]
@@ -842,4 +842,23 @@ pub fn make_flash_data(
         flash_settings,
         image_args.min_chip_rev,
     )
+}
+
+mod test {
+    use crate::cli::FlashArgs;
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct TestParser {
+        #[clap(flatten)]
+        args: FlashArgs,
+    }
+
+    #[test]
+    fn test_parse_hex_partition_table_offset() {
+        let command = "command --partition-table-offset 0x8000";
+        let iter = command.split_whitespace();
+        let parser = TestParser::parse_from(iter);
+        assert_eq!(parser.args.image.partition_table_offset, Some(0x8000));
+    }
 }
