@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add new chip detect magic value, ability to read chip revision for ESP32-P4 (#686)
 
 ### Fixed
+
 - Fixed `partition-table-offset` argument to accept offsets in hexadecimal (#682)
+- espflash defmt log didn't display timestamp, according to [defmt doc](https://defmt.ferrous-systems.com/timestamps). (#680)
 
 ### Changed
 

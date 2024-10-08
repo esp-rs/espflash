@@ -1,9 +1,6 @@
 use std::io::Write;
 
-use crossterm::{
-    style::{Color, Print, PrintStyledContent, Stylize},
-    QueueableCommand,
-};
+use crossterm::{style::Print, QueueableCommand};
 use defmt_decoder::{Frame, Table};
 use miette::{bail, Context, Diagnostic, Result};
 use thiserror::Error;
@@ -140,31 +137,8 @@ impl EspDefmt {
     }
 
     fn handle_defmt(frame: Frame<'_>, out: &mut dyn Write) {
-        match frame.level() {
-            Some(level) => {
-                let color = match level {
-                    defmt_parser::Level::Trace => Color::Cyan,
-                    defmt_parser::Level::Debug => Color::Blue,
-                    defmt_parser::Level::Info => Color::Green,
-                    defmt_parser::Level::Warn => Color::Yellow,
-                    defmt_parser::Level::Error => Color::Red,
-                };
-
-                // Print the level before each line.
-                let level = level.as_str().to_uppercase();
-                for line in frame.display_message().to_string().lines() {
-                    out.queue(PrintStyledContent(
-                        format!("[{level}] - {line}\r\n").with(color),
-                    ))
-                    .unwrap();
-                }
-            }
-            None => {
-                out.queue(Print(frame.display_message().to_string()))
-                    .unwrap();
-                out.queue(Print("\r\n")).unwrap();
-            }
-        }
+        out.queue(Print(frame.display(true).to_string())).unwrap();
+        out.queue(Print("\r\n")).unwrap();
 
         out.flush().unwrap();
     }
