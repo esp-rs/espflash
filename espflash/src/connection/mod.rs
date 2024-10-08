@@ -173,8 +173,8 @@ impl Connection {
 
             let read_slice = String::from_utf8_lossy(&buff[..read_bytes as usize]).into_owned();
 
-            let pattern = 
-                Regex::new(r"boot:(0x[0-9a-fA-F]+)([\s\S]*waiting for download)?").unwrap();
+            let pattern =
+                 Regex::new(r"boot:(0x[0-9a-fA-F]+)([\s\S]*waiting for download)?").unwrap();
 
             // Search for the pattern in the read data
             if let Some(data) = pattern.captures(&read_slice) {
