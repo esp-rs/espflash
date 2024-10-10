@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed `partition-table-offset` argument to accept offsets in hexadecimal (#682)
 - espflash defmt log didn't display timestamp, according to [defmt doc](https://defmt.ferrous-systems.com/timestamps). (#680)
+- Fixed pattern matching to detect download mode over multiple lines (#685)
 
 ### Changed
 
