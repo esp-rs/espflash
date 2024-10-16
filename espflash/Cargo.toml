@@ -25,16 +25,16 @@ required-features = ["cli", "serialport"]
 [dependencies]
 addr2line = { version = "0.22.0", optional = true }
 base64 = "0.22.1"
-bytemuck = { version = "1.16.3", features = ["derive"] }
-clap = { version = "4.5.4", features = [
+bytemuck = { version = "1.19.0", features = ["derive"] }
+clap = { version = "4.5.20", features = [
     "derive",
     "env",
     "wrap_help",
 ], optional = true }
-clap_complete = { version = "4.5.2", optional = true }
+clap_complete = { version = "4.5.3", optional = true }
 comfy-table = { version = "7.1.1", optional = true }
 crossterm = { version = "0.25.0", optional = true } # 0.26.x and 0.27.x causes issues on Windows
-ctrlc = { version = "3.4.4", optional = true }
+ctrlc = { version = "3.4.5", optional = true }
 # defmt dependencies are pinned since defmt does not guarantee MSRV even for patch releases
 defmt-decoder = { version = "0.3.11", features = [
     "unstable",
@@ -42,29 +42,29 @@ defmt-decoder = { version = "0.3.11", features = [
 defmt-parser = { version = "=0.3.4", features = ["unstable"], optional = true }
 dialoguer = { version = "0.11.0", optional = true }
 directories = { version = "5.0.1", optional = true }
-env_logger = { version = "0.11.3", optional = true }
+env_logger = { version = "0.11.5", optional = true }
 esp-idf-part = "0.5.0"
-flate2 = "1.0.30"
+flate2 = "1.0.34"
 hex = { version = "0.4.3", features = ["serde"], optional = true }
 indicatif = { version = "0.17.8", optional = true }
-lazy_static = { version = "1.4.0", optional = true }
-log = "0.4.21"
+lazy_static = { version = "1.5.0", optional = true }
+log = "0.4.22"
 md-5 = "0.10.6"
 miette = "7.2.0"
 parse_int = { version = "0.6.0", optional = true }
-regex = { version = "1.10.4", optional = true }
-serde = { version = "1.0.202", features = ["derive"] }
-serialport = { version = "4.3.0", optional = true }
+regex = { version = "1.11.0", optional = true }
+serde = { version = "1.0.210", features = ["derive"] }
+serialport = { version = "4.5.1", optional = true }
 sha2 = "0.10.8"
 slip-codec = { version = "0.4.0", optional = true }
-strum = { version = "0.26.2", features = ["derive"] }
-thiserror = "1.0.61"
-toml = { version = "0.8.13", optional = true }
+strum = { version = "0.26.3", features = ["derive"] }
+thiserror = "1.0.64"
+toml = { version = "0.8.19", optional = true }
 update-informer = { version = "1.1.0", optional = true }
 xmas-elf = "0.9.1"
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.155"
+libc = "0.2.159"
 
 [features]
 default = ["cli"]
