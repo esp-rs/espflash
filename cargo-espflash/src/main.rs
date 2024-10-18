@@ -52,6 +52,7 @@ enum CargoSubcommand {
         #[clap(subcommand)]
         subcommand: Commands,
 
+        /// Do not check for updates
         #[clap(short, long, global = true, action)]
         skip_update_check: bool,
     },
