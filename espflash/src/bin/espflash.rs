@@ -28,6 +28,10 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 pub struct Cli {
     #[command(subcommand)]
     subcommand: Commands,
+
+    /// Do not check for updates
+    #[clap(short, long, global = true, action)]
+    skip_update_check: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -158,13 +162,16 @@ fn main() -> Result<()> {
 
     // Attempt to parse any provided comand-line arguments, or print the help
     // message and terminate if the invocation is not correct.
-    let args = Cli::parse().subcommand;
-    debug!("{:#?}", args);
+    let cli = Cli::parse();
+    let args = cli.subcommand;
+    debug!("{:#?}, {:#?}", args, cli.skip_update_check);
 
     // Only check for updates once the command-line arguments have been processed,
     // to avoid printing any update notifications when the help message is
     // displayed.
-    check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    if !cli.skip_update_check {
+        check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    }
 
     // Load any user configuration, if present.
     let config = Config::load()?;
