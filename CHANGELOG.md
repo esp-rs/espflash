@@ -9,51 +9,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [3.2.0]
+
+### Added
+
 - Add new chip detect magic value, ability to read chip revision for ESP32-P4 (#686)
+- Add skip update check option (#689)
 
 ### Fixed
 
 - Fixed `partition-table-offset` argument to accept offsets in hexadecimal (#682)
 - espflash defmt log didn't display timestamp, according to [defmt doc](https://defmt.ferrous-systems.com/timestamps). (#680)
 - Fixed pattern matching to detect download mode over multiple lines (#685)
-- Add an option to prevent update checks (#689)
-
-### Changed
 
 ## [3.1.1] - 2024-08-15
 
 ### Added
+
 - Add `hold-in-reset` and `reset` subcommands (#644)
 - [cargo-espflash]: Add `--no-default-features` flag to mirror cargo features behavior (#647)
 - Update `cargo` and `bytemuck` dependencies adapting code (#666)
 
 ### Fixed
+
 - Downgrade crossterm and update time crates (#659)
 - Monitor now only sends key presses on key down events
 
 ### Changed
 
-
 ## [3.1.0] - 2024-05-24
 
 ### Added
+
 - Support loading flash size, frequency, and mode from the config file (#627)
 
 ### Fixed
+
 - Fixed help text for `size` parameter of `read-flash` subcommand
 - Fixed port detection on `musl` when detection returns paths starting with `/dev/`
 - [cargo-espflash]: Always resolve package_id from metadata when finding bootloader and partition table (#632)
 - Fixed behavior of the `--target-app-partition` flag (#634)
 
 ### Changed
+
 - Update ESP32, ESP32-C2, ESP32-C3, ESP32-C6, ESP32-H2, ESP32-S2, ESP32-S3 stub (#638)
 
 ## [3.0.0] - 2024-03-13
 
 ### Fixed
+
 - Fix timeout while changing the baudrate for some ESP32-S3 targets (#607)
 
 ### Changed
+
 - Update ESP32, ESP32-C2, ESP32-C3, ESP32-C6, ESP32-H2, ESP32-S2, ESP32-S3 stub (#607, #610)
 
 ## [3.0.0-rc.2] - 2024-03-04
@@ -276,6 +290,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-09-21
 
+[Unreleased]: https://github.com/esp-rs/espflash/compare/v3.2.0...HEAD
+[3.2.0]: https://github.com/esp-rs/espflash/compare/v3.1.1...v3.2.0
 [3.1.1]: https://github.com/esp-rs/espflash/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/esp-rs/espflash/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/esp-rs/espflash/compare/v3.0.0-rc.2...v3.0.0
