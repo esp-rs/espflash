@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Only filter the list of available serial ports if a port has not been specified via CLI option or configuration file (#693)
+
 ### Removed
 
 ## [3.2.0]

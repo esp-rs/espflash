@@ -33,13 +33,14 @@ pub fn get_serial_port_info(
     // doesn't work (on Windows) with "dummy" device paths like `COM4`. That's
     // the reason we need to handle Windows/Posix differently.
 
-    let ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
-
     if let Some(serial) = &matches.port {
+        let ports = detect_usb_serial_ports(true).unwrap_or_default();
         find_serial_port(&ports, serial)
     } else if let Some(serial) = &config.connection.serial {
+        let ports = detect_usb_serial_ports(true).unwrap_or_default();
         find_serial_port(&ports, serial)
     } else {
+        let ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
         let (port, matches) = select_serial_port(ports, config, matches.confirm_port)?;
 
         match &port.port_type {
