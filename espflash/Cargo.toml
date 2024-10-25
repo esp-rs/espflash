@@ -54,7 +54,7 @@ miette = "7.2.0"
 parse_int = { version = "0.6.0", optional = true }
 regex = { version = "1.11.0", optional = true }
 serde = { version = "1.0.210", features = ["derive"] }
-serialport = { version = "4.5.1", optional = true }
+serialport = { version = "4.6.0", optional = true }
 sha2 = "0.10.8"
 slip-codec = { version = "0.4.0", optional = true }
 strum = { version = "0.26.3", features = ["derive"] }
