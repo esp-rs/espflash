@@ -826,6 +826,10 @@ pub fn make_flash_data(
         .or(config.partition_table.as_deref())
         .or(default_partition_table);
 
+    let partition_table_offset = image_args
+        .partition_table_offset
+        .or(config.partition_table_offset);
+
     if let Some(path) = &bootloader {
         println!("Bootloader:        {}", path.display());
     }
@@ -837,7 +841,7 @@ pub fn make_flash_data(
     FlashData::new(
         bootloader,
         partition_table,
-        image_args.partition_table_offset,
+        partition_table_offset,
         image_args.target_app_partition,
         flash_settings,
         image_args.min_chip_rev,
