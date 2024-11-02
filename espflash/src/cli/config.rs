@@ -87,6 +87,9 @@ pub struct Config {
     /// Partition table path
     #[serde(default)]
     pub partition_table: Option<PathBuf>,
+    /// Partition table offset
+    #[serde(default)]
+    pub partition_table_offset: Option<u32>,
     /// Preferred USB devices
     #[serde(default)]
     pub usb_device: Vec<UsbDevice>,
