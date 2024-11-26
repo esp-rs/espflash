@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main)]
 //! External processor support
 //!
 //! Via the command line argument `--processors` you can instruct espflash to run external executables to pre-process
@@ -104,7 +105,7 @@ impl Processor {
     }
 
     pub fn send(&mut self, data: Vec<u8>) {
-        self.stdin.write(&data).ok();
+        let _ignored = self.stdin.write(&data).ok();
     }
 }
 
@@ -128,7 +129,7 @@ impl ExternalProcessors {
 
         let mut spawned = Vec::new();
         if let Some(processors) = processors {
-            for processor in processors.split(",").into_iter() {
+            for processor in processors.split(",") {
                 let processor = std::process::Command::new(processor)
                     .args(args.clone())
                     .stdin(Stdio::piped())
