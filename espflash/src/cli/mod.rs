@@ -156,6 +156,9 @@ pub struct FlashArgs {
     pub no_skip: bool,
     #[clap(flatten)]
     pub image: ImageArgs,
+    /// External log processors to use (comma separated executables)
+    #[arg(long, requires = "monitor")]
+    pub processors: Option<String>,
 }
 
 /// Operations for partitions tables
@@ -262,6 +265,9 @@ pub struct MonitorArgs {
     /// Logging format.
     #[arg(long, short = 'L', default_value = "serial", requires = "elf")]
     pub log_format: LogFormat,
+    /// External log processors to use (comma separated executables)
+    #[arg(long)]
+    processors: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -418,7 +424,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
     let pid = flasher.get_usb_pid()?;
 
-    let elf = if let Some(elf_path) = args.elf {
+    let elf = if let Some(elf_path) = args.elf.clone() {
         let path = fs::canonicalize(elf_path).into_diagnostic()?;
         let data = fs::read(path).into_diagnostic()?;
 
@@ -447,6 +453,8 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         args.connect_args.baud.unwrap_or(default_baud),
         args.log_format,
         !args.non_interactive,
+        args.processors,
+        args.elf,
     )
 }
 

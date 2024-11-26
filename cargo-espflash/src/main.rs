@@ -323,7 +323,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         build(&args.build_args, &cargo_config, chip).wrap_err("Failed to build project")?;
 
     // Read the ELF data from the build path and load it to the target.
-    let elf_data = fs::read(build_ctx.artifact_path).into_diagnostic()?;
+    let elf_data = fs::read(build_ctx.artifact_path.clone()).into_diagnostic()?;
 
     print_board_info(&mut flasher)?;
 
@@ -368,6 +368,8 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             args.flash_args.monitor_baud.unwrap_or(default_baud),
             args.flash_args.log_format,
             true,
+            args.flash_args.processors,
+            Some(build_ctx.artifact_path),
         )
     } else {
         Ok(())

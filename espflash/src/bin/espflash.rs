@@ -30,7 +30,7 @@ pub struct Cli {
     subcommand: Commands,
 
     /// Do not check for updates
-    #[clap(short, long, global = true, action)]
+    #[clap(short = 'S', long, global = true, action)]
     skip_update_check: bool,
 }
 
@@ -303,6 +303,8 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             args.flash_args.monitor_baud.unwrap_or(default_baud),
             args.flash_args.log_format,
             true,
+            args.flash_args.processors,
+            Some(args.image),
         )
     } else {
         Ok(())

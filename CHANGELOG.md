@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Allow `partition_table_offset` to be specified in the config file. (for #699)
+- Support external log-processors (#705)
 
 ### Changed
 
