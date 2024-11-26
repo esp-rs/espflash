@@ -30,7 +30,7 @@ pub struct Cli {
     subcommand: Commands,
 
     /// Do not check for updates
-    #[clap(long, global = true, action)]
+    #[clap(short = 'S', long, global = true, action)]
     skip_update_check: bool,
 }
 
