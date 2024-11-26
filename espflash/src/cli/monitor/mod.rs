@@ -12,6 +12,7 @@
 
 use std::{
     io::{stdout, ErrorKind, Read, Write},
+    path::PathBuf,
     time::Duration,
 };
 
@@ -20,6 +21,7 @@ use crossterm::{
     event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
+use external_processors::ExternalProcessors;
 use log::error;
 use miette::{IntoDiagnostic, Result};
 #[cfg(feature = "serialport")]
@@ -31,6 +33,7 @@ use crate::{
     connection::{reset::reset_after_flash, Port},
 };
 
+pub mod external_processors;
 pub mod parser;
 
 mod line_endings;
@@ -73,6 +76,8 @@ pub fn monitor(
     baud: u32,
     log_format: LogFormat,
     interactive_mode: bool,
+    processors: Option<String>,
+    elf_file: Option<PathBuf>,
 ) -> miette::Result<()> {
     if interactive_mode {
         println!("Commands:");
@@ -101,6 +106,8 @@ pub fn monitor(
         LogFormat::Serial => Box::new(parser::serial::Serial),
     };
 
+    let mut external_processors = ExternalProcessors::new(processors, elf_file)?;
+
     let mut buff = [0; 1024];
     loop {
         let read_count = match serial.read(&mut buff) {
@@ -110,7 +117,8 @@ pub fn monitor(
             err => err.into_diagnostic(),
         }?;
 
-        parser.feed(&buff[0..read_count], &mut stdout);
+        let processed = external_processors.process(&buff[0..read_count]);
+        parser.feed(&processed, &mut stdout);
 
         // Don't forget to flush the writer!
         stdout.flush().ok();
