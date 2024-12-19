@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow `partition_table_offset` to be specified in the config file. (for #699)
 - Support external log-processors (#705)
+- Make the `libudev` dependency optional with a new - enabled by default - feature: `libudev` (#709)
 - Address Clippy lints (#710)
 
 ### Changed
