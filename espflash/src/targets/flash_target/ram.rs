@@ -42,7 +42,7 @@ impl FlashTarget for RamTarget {
         let addr = segment.addr;
 
         let padding = 4 - segment.data.len() % 4;
-        let block_count = (segment.data.len() + padding + self.block_size - 1) / self.block_size;
+        let block_count = (segment.data.len() + padding).div_ceil(self.block_size);
 
         connection.command(Command::MemBegin {
             size: segment.data.len() as u32,

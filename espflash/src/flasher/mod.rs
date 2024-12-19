@@ -302,7 +302,7 @@ pub struct FlashDataBuilder<'a> {
     min_chip_rev: u16,
 }
 
-impl<'a> Default for FlashDataBuilder<'a> {
+impl Default for FlashDataBuilder<'_> {
     fn default() -> Self {
         Self {
             bootloader_path: Default::default(),
@@ -567,6 +567,7 @@ pub struct Flasher {
 
 #[cfg(feature = "serialport")]
 impl Flasher {
+    #[allow(clippy::too_many_arguments)]
     pub fn connect(
         serial: Port,
         port_info: UsbPortInfo,
