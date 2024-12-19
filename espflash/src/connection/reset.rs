@@ -253,7 +253,7 @@ pub fn soft_reset(
             connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
                 let size: u32 = 0;
                 let offset: u32 = 0;
-                let blocks: u32 = (size + FLASH_WRITE_SIZE as u32 - 1) / FLASH_WRITE_SIZE as u32;
+                let blocks: u32 = size.div_ceil(FLASH_WRITE_SIZE as u32);
                 connection.command(Command::FlashBegin {
                     size,
                     blocks,
@@ -271,7 +271,7 @@ pub fn soft_reset(
         connection.with_timeout(CommandType::FlashBegin.timeout(), |connection| {
             let size: u32 = 0;
             let offset: u32 = 0;
-            let blocks: u32 = (size + FLASH_WRITE_SIZE as u32 - 1) / FLASH_WRITE_SIZE as u32;
+            let blocks: u32 = size.div_ceil(FLASH_WRITE_SIZE as u32);
             connection.command(Command::FlashBegin {
                 size,
                 blocks,

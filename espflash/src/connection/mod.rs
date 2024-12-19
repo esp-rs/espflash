@@ -515,7 +515,7 @@ mod encoder {
         }
     }
 
-    impl<'a, W: Write> Write for SlipEncoder<'a, W> {
+    impl<W: Write> Write for SlipEncoder<'_, W> {
         /// Writes the given buffer replacing the END and ESC bytes
         ///
         /// See https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/serial-protocol.html#low-level-protocol

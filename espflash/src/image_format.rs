@@ -113,6 +113,7 @@ pub struct IdfBootloaderFormat<'a> {
 }
 
 impl<'a> IdfBootloaderFormat<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         image: &'a dyn FirmwareImage<'a>,
         chip: Chip,

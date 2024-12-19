@@ -192,7 +192,7 @@ pub enum Command<'a> {
     FlashDetect,
 }
 
-impl<'a> Command<'a> {
+impl Command<'_> {
     /// Return the command type
     pub fn command_type(&self) -> CommandType {
         match self {
