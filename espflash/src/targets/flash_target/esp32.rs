@@ -170,8 +170,8 @@ impl FlashTarget for Esp32Target {
 
         let target = self.chip.into_target();
         let flash_write_size = target.flash_write_size(connection)?;
-        let block_count = (compressed.len() + flash_write_size - 1) / flash_write_size;
-        let erase_count = (segment.data.len() + FLASH_SECTOR_SIZE - 1) / FLASH_SECTOR_SIZE;
+        let block_count = compressed.len().div_ceil(flash_write_size);
+        let erase_count = segment.data.len().div_ceil(FLASH_SECTOR_SIZE);
 
         // round up to sector size
         let erase_size = (erase_count * FLASH_SECTOR_SIZE) as u32;

@@ -184,7 +184,7 @@ impl<'a> CodeSegment<'a> {
     }
 }
 
-impl<'a> AddAssign<&'_ [u8]> for CodeSegment<'a> {
+impl AddAssign<&'_ [u8]> for CodeSegment<'_> {
     fn add_assign(&mut self, rhs: &'_ [u8]) {
         let mut data = take(&mut self.data).into_owned();
         data.extend_from_slice(rhs);
@@ -192,7 +192,7 @@ impl<'a> AddAssign<&'_ [u8]> for CodeSegment<'a> {
     }
 }
 
-impl<'a> AddAssign<&'_ CodeSegment<'_>> for CodeSegment<'a> {
+impl AddAssign<&'_ CodeSegment<'_>> for CodeSegment<'_> {
     fn add_assign(&mut self, rhs: &'_ CodeSegment<'_>) {
         let mut data = take(&mut self.data).into_owned();
         // pad or truncate
