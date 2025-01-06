@@ -260,6 +260,7 @@ pub fn soft_reset(
                     block_size: FLASH_WRITE_SIZE.try_into().unwrap(),
                     offset,
                     supports_encryption: false,
+                    perform_encryption: false,
                 })
             })?;
             connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
@@ -278,6 +279,7 @@ pub fn soft_reset(
                 block_size: FLASH_WRITE_SIZE.try_into().unwrap(),
                 offset,
                 supports_encryption: false,
+                perform_encryption: false,
             })
         })?;
         connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {

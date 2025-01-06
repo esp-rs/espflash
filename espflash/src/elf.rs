@@ -237,6 +237,8 @@ pub struct RomSegment<'a> {
     pub addr: u32,
     /// Segment data
     pub data: Cow<'a, [u8]>,
+    /// Whether the segment shall be encrypted before being writen
+    pub encrypt: bool,
 }
 
 impl<'a> RomSegment<'a> {
@@ -247,15 +249,18 @@ impl<'a> RomSegment<'a> {
         RomSegment {
             addr: self.addr,
             data: Cow::Borrowed(self.data.as_ref()),
+            encrypt: self.encrypt,
         }
     }
 }
 
 impl<'a> From<CodeSegment<'a>> for RomSegment<'a> {
     fn from(segment: CodeSegment<'a>) -> Self {
+        todo!("Remove this conversion, as we cannot easily assume encryption requirements ?");
         RomSegment {
             addr: segment.addr,
             data: segment.data,
+            encrypt: false,
         }
     }
 }

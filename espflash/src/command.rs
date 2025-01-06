@@ -106,6 +106,7 @@ pub enum Command<'a> {
         block_size: u32,
         offset: u32,
         supports_encryption: bool,
+        perform_encryption: bool,
     },
     FlashData {
         data: &'a [u8],
@@ -163,6 +164,7 @@ pub enum Command<'a> {
         block_size: u32,
         offset: u32,
         supports_encryption: bool,
+        perform_encryption: bool,
     },
     FlashDeflData {
         data: &'a [u8],
@@ -237,6 +239,7 @@ impl Command<'_> {
                 block_size,
                 offset,
                 supports_encryption,
+                perform_encryption,
             } => {
                 begin_command(
                     writer,
@@ -245,6 +248,7 @@ impl Command<'_> {
                     block_size,
                     offset,
                     supports_encryption,
+                    perform_encryption,
                 )?;
             }
             Command::FlashData {
@@ -272,6 +276,7 @@ impl Command<'_> {
                     block_size,
                     offset,
                     supports_encryption,
+                    false,
                 )?;
             }
             Command::MemData {
@@ -352,6 +357,7 @@ impl Command<'_> {
                 block_size,
                 offset,
                 supports_encryption,
+                perform_encryption,
             } => {
                 begin_command(
                     writer,
@@ -360,6 +366,7 @@ impl Command<'_> {
                     block_size,
                     offset,
                     supports_encryption,
+                    perform_encryption,
                 )?;
             }
             Command::FlashDeflData {
@@ -441,7 +448,13 @@ fn begin_command<W: Write>(
     block_size: u32,
     offset: u32,
     supports_encryption: bool,
+    perform_encryption: bool,
 ) -> std::io::Result<()> {
+    assert!(
+        !(perform_encryption && !supports_encryption),
+        "Target does not support encryption, yet encryption is requested"
+    );
+
     #[derive(Zeroable, Pod, Copy, Clone, Debug)]
     #[repr(C)]
     struct BeginParams {
@@ -456,7 +469,7 @@ fn begin_command<W: Write>(
         blocks,
         block_size,
         offset,
-        encrypted: 0,
+        encrypted: perform_encryption as u32,
     };
 
     let bytes = bytes_of(&params);

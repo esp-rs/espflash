@@ -159,6 +159,8 @@ pub struct FlashArgs {
     /// External log processors to use (comma separated executables)
     #[arg(long, requires = "monitor")]
     pub processors: Option<String>,
+    #[arg(long)]
+    pub encrypt: bool,
 }
 
 /// Operations for partitions tables

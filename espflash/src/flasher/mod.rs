@@ -674,6 +674,7 @@ impl Flasher {
                 RomSegment {
                     addr: text_addr,
                     data: Cow::Borrowed(&text),
+                    encrypt: false,
                 },
                 &mut None,
             )
@@ -688,6 +689,7 @@ impl Flasher {
                 RomSegment {
                     addr: data_addr,
                     data: Cow::Borrowed(&data),
+                    encrypt: false,
                 },
                 &mut None,
             )
@@ -995,10 +997,12 @@ impl Flasher {
         addr: u32,
         data: &[u8],
         progress: Option<&mut dyn ProgressCallbacks>,
+        encrypt: bool,
     ) -> Result<(), Error> {
         let segment = RomSegment {
             addr,
             data: Cow::from(data),
+            encrypt,
         };
         self.write_bins_to_flash(&[segment], progress)?;
 

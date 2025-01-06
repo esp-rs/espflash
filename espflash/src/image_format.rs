@@ -269,6 +269,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         let flash_segment = RomSegment {
             addr: target_app_partition.offset(),
             data: Cow::Owned(data),
+            encrypt: target_app_partition.encrypted(),
         };
 
         // If the user did not specify a partition offset, we need to assume that the
@@ -301,16 +302,21 @@ impl<'a> IdfBootloaderFormat<'a> {
         let bootloader_segment = RomSegment {
             addr: self.params.boot_addr,
             data: Cow::Borrowed(&self.bootloader),
+            // We use the app encryption setting for bootloader too.
+            // Am other (better ?) approach might be to check the target Efuses instead.
+            encrypt: self.flash_segment.encrypt,
         };
 
         let partition_table_segment = RomSegment {
             addr: self.partition_table_offset,
             data: Cow::Owned(self.partition_table.to_bin().unwrap()),
+            encrypt: false,
         };
 
         let app_segment = RomSegment {
             addr: self.flash_segment.addr,
             data: Cow::Borrowed(&self.flash_segment.data),
+            encrypt: self.flash_segment.encrypt,
         };
 
         Box::new(

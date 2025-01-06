@@ -159,7 +159,7 @@ impl Target for Esp32 {
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
     ) -> Result<IdfBootloaderFormat<'a>, Error> {
-        let booloader: &'static [u8] = match xtal_freq {
+        let bootloader: &'static [u8] = match xtal_freq {
             XtalFrequency::_40Mhz => {
                 include_bytes!("../../resources/bootloaders/esp32-bootloader.bin")
             }
@@ -180,7 +180,7 @@ impl Target for Esp32 {
             0x3f_0000,
             0,
             FlashFrequency::_40Mhz,
-            booloader,
+            bootloader,
         );
 
         IdfBootloaderFormat::new(
