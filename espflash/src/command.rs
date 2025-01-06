@@ -1,6 +1,10 @@
 //! Commands to work with a flasher stub running on a target device
 
-use std::{io::Write, mem::size_of, time::Duration};
+use std::{
+    io::{ErrorKind, Write},
+    mem::size_of,
+    time::Duration,
+};
 
 use bytemuck::{bytes_of, Pod, Zeroable};
 use strum::Display;
@@ -448,10 +452,12 @@ fn begin_command<W: Write>(
     supports_encryption: bool,
     encrypt: bool,
 ) -> std::io::Result<()> {
-    assert!(
-        !(encrypt && !supports_encryption),
-        "Target does not support encryption, yet encryption is requested"
-    );
+    if encrypt && !supports_encryption {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            "Target does not support encryption, yet encryption is requested",
+        ));
+    }
 
     #[derive(Zeroable, Pod, Copy, Clone, Debug)]
     #[repr(C)]
