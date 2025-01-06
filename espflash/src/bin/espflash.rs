@@ -154,6 +154,8 @@ struct WriteBinArgs {
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
+    #[arg(long)]
+    encrypt: bool,
 }
 
 fn main() -> Result<()> {
@@ -271,6 +273,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             config,
             None,
             None,
+            args.flash_args.encrypt,
         )?;
 
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
@@ -328,6 +331,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         config,
         None,
         None,
+        false, // We don't care about encryption when writing a .bin, as it is not stored in there
     )?;
 
     let xtal_freq = args
@@ -357,7 +361,12 @@ fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
     f.read_to_end(&mut buffer).into_diagnostic()?;
 
-    flasher.write_bin_to_flash(args.addr, &buffer, Some(&mut EspflashProgress::default()))?;
+    flasher.write_bin_to_flash(
+        args.addr,
+        &buffer,
+        Some(&mut EspflashProgress::default()),
+        args.encrypt,
+    )?;
 
     Ok(())
 }

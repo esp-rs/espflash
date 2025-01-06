@@ -124,6 +124,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         target_app_partition: Option<String>,
         bootloader: Option<Vec<u8>>,
         flash_settings: FlashSettings,
+        encrypted: bool,
     ) -> Result<Self, Error> {
         let partition_table = partition_table.unwrap_or_else(|| {
             params.default_partition_table(flash_settings.size.map(|v| v.size()))
@@ -269,6 +270,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         let flash_segment = RomSegment {
             addr: target_app_partition.offset(),
             data: Cow::Owned(data),
+            encrypted,
         };
 
         // If the user did not specify a partition offset, we need to assume that the
@@ -298,19 +300,25 @@ impl<'a> IdfBootloaderFormat<'a> {
     where
         'a: 'b,
     {
+        // Flash encryption, if enabled, will automatically be enabled for those 3 partitions:
+        // https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/security/flash-encryption.html#encrypted-partitions
+
         let bootloader_segment = RomSegment {
             addr: self.params.boot_addr,
             data: Cow::Borrowed(&self.bootloader),
+            encrypted: self.flash_segment.encrypted,
         };
 
         let partition_table_segment = RomSegment {
             addr: self.partition_table_offset,
             data: Cow::Owned(self.partition_table.to_bin().unwrap()),
+            encrypted: self.flash_segment.encrypted,
         };
 
         let app_segment = RomSegment {
             addr: self.flash_segment.addr,
             data: Cow::Borrowed(&self.flash_segment.data),
+            encrypted: self.flash_segment.encrypted,
         };
 
         Box::new(

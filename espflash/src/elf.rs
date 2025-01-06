@@ -237,6 +237,8 @@ pub struct RomSegment<'a> {
     pub addr: u32,
     /// Segment data
     pub data: Cow<'a, [u8]>,
+    /// Whether the segment shall be encrypted before being writen
+    pub encrypted: bool,
 }
 
 impl<'a> RomSegment<'a> {
@@ -247,15 +249,15 @@ impl<'a> RomSegment<'a> {
         RomSegment {
             addr: self.addr,
             data: Cow::Borrowed(self.data.as_ref()),
+            encrypted: self.encrypted,
         }
     }
-}
 
-impl<'a> From<CodeSegment<'a>> for RomSegment<'a> {
-    fn from(segment: CodeSegment<'a>) -> Self {
+    pub fn from_code_segment(segment: &CodeSegment<'a>, encrypted: bool) -> Self {
         RomSegment {
             addr: segment.addr,
-            data: segment.data,
+            data: segment.data.clone(),
+            encrypted,
         }
     }
 }

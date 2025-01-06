@@ -159,6 +159,8 @@ pub struct FlashArgs {
     /// External log processors to use (comma separated executables)
     #[arg(long, requires = "monitor")]
     pub processors: Option<String>,
+    #[arg(long)]
+    pub encrypt: bool,
 }
 
 /// Operations for partitions tables
@@ -822,6 +824,7 @@ pub fn make_flash_data(
     config: &Config,
     default_bootloader: Option<&Path>,
     default_partition_table: Option<&Path>,
+    encrypted: bool,
 ) -> Result<FlashData, Error> {
     let bootloader = image_args
         .bootloader
@@ -853,6 +856,7 @@ pub fn make_flash_data(
         image_args.target_app_partition,
         flash_settings,
         image_args.min_chip_rev,
+        encrypted,
     )
 }
 

@@ -190,6 +190,8 @@ struct FlashArgs {
     connect_args: ConnectArgs,
     #[clap(flatten)]
     flash_args: cli::FlashArgs,
+    #[arg(long)]
+    encrypt: bool,
 }
 
 #[derive(Debug, Args)]
@@ -336,6 +338,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             config,
             build_ctx.bootloader_path.as_deref(),
             build_ctx.partition_table_path.as_deref(),
+            args.flash_args.encrypt,
         )?;
 
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
@@ -579,6 +582,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         config,
         build_ctx.bootloader_path.as_deref(),
         build_ctx.partition_table_path.as_deref(),
+        false, // We don't care about encryption when writing a .bin, as it is not stored in there
     )?;
 
     let xtal_freq = args

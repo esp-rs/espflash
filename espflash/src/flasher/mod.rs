@@ -300,6 +300,7 @@ pub struct FlashDataBuilder<'a> {
     target_app_partition: Option<String>,
     flash_settings: FlashSettings,
     min_chip_rev: u16,
+    encryption: bool,
 }
 
 impl Default for FlashDataBuilder<'_> {
@@ -311,6 +312,7 @@ impl Default for FlashDataBuilder<'_> {
             target_app_partition: Default::default(),
             flash_settings: FlashSettings::default(),
             min_chip_rev: Default::default(),
+            encryption: Default::default(),
         }
     }
 }
@@ -357,6 +359,12 @@ impl<'a> FlashDataBuilder<'a> {
         self
     }
 
+    /// Sets the minimum chip revision.
+    pub fn with_encryption(mut self, encryption: bool) -> Self {
+        self.encryption = encryption;
+        self
+    }
+
     /// Builds a [`FlashData`] object.
     pub fn build(self) -> Result<FlashData, Error> {
         FlashData::new(
@@ -366,6 +374,7 @@ impl<'a> FlashDataBuilder<'a> {
             self.target_app_partition,
             self.flash_settings,
             self.min_chip_rev,
+            self.encryption,
         )
     }
 }
@@ -380,6 +389,7 @@ pub struct FlashData {
     pub target_app_partition: Option<String>,
     pub flash_settings: FlashSettings,
     pub min_chip_rev: u16,
+    pub encrypted: bool,
 }
 
 impl FlashData {
@@ -390,6 +400,7 @@ impl FlashData {
         target_app_partition: Option<String>,
         flash_settings: FlashSettings,
         min_chip_rev: u16,
+        encrypted: bool,
     ) -> Result<Self, Error> {
         // If the '--bootloader' option is provided, load the binary file at the
         // specified path.
@@ -417,6 +428,7 @@ impl FlashData {
             target_app_partition,
             flash_settings,
             min_chip_rev,
+            encrypted,
         })
     }
 }
@@ -643,9 +655,9 @@ impl Flasher {
     }
 
     pub fn disable_watchdog(&mut self) -> Result<(), Error> {
-        let mut target = self
-            .chip
-            .flash_target(self.spi_params, self.use_stub, false, false);
+        let mut target =
+            self.chip
+                .flash_target(self.spi_params, self.use_stub, false, false, false);
         target.begin(&mut self.connection).flashing()?;
         Ok(())
     }
@@ -674,6 +686,7 @@ impl Flasher {
                 RomSegment {
                     addr: text_addr,
                     data: Cow::Borrowed(&text),
+                    encrypted: false,
                 },
                 &mut None,
             )
@@ -688,6 +701,7 @@ impl Flasher {
                 RomSegment {
                     addr: data_addr,
                     data: Cow::Borrowed(&data),
+                    encrypted: false,
                 },
                 &mut None,
             )
@@ -939,7 +953,11 @@ impl Flasher {
 
         for segment in image.ram_segments(self.chip) {
             target
-                .write_segment(&mut self.connection, segment.into(), &mut progress)
+                .write_segment(
+                    &mut self.connection,
+                    RomSegment::from_code_segment(&segment, false),
+                    &mut progress,
+                )
                 .flashing()?;
         }
 
@@ -956,9 +974,13 @@ impl Flasher {
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
 
-        let mut target =
-            self.chip
-                .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
+        let mut target = self.chip.flash_target(
+            self.spi_params,
+            self.use_stub,
+            self.verify,
+            self.skip,
+            flash_data.encrypted,
+        );
         target.begin(&mut self.connection).flashing()?;
 
         let chip_revision = Some(
@@ -995,10 +1017,12 @@ impl Flasher {
         addr: u32,
         data: &[u8],
         progress: Option<&mut dyn ProgressCallbacks>,
+        encrypt: bool,
     ) -> Result<(), Error> {
         let segment = RomSegment {
             addr,
             data: Cow::from(data),
+            encrypted: encrypt,
         };
         self.write_bins_to_flash(&[segment], progress)?;
 
@@ -1013,9 +1037,10 @@ impl Flasher {
         segments: &[RomSegment],
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
-        let mut target = self
-            .chip
-            .flash_target(self.spi_params, self.use_stub, false, false);
+        let encrypt = segments.iter().any(|seg| seg.encrypted);
+        let mut target =
+            self.chip
+                .flash_target(self.spi_params, self.use_stub, false, false, encrypt);
         target.begin(&mut self.connection).flashing()?;
         for segment in segments {
             target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;

@@ -1,6 +1,10 @@
 //! Commands to work with a flasher stub running on a target device
 
-use std::{io::Write, mem::size_of, time::Duration};
+use std::{
+    io::{ErrorKind, Write},
+    mem::size_of,
+    time::Duration,
+};
 
 use bytemuck::{bytes_of, Pod, Zeroable};
 use strum::Display;
@@ -106,6 +110,7 @@ pub enum Command<'a> {
         block_size: u32,
         offset: u32,
         supports_encryption: bool,
+        encrypt: bool,
     },
     FlashData {
         data: &'a [u8],
@@ -237,6 +242,7 @@ impl Command<'_> {
                 block_size,
                 offset,
                 supports_encryption,
+                encrypt,
             } => {
                 begin_command(
                     writer,
@@ -245,6 +251,7 @@ impl Command<'_> {
                     block_size,
                     offset,
                     supports_encryption,
+                    encrypt,
                 )?;
             }
             Command::FlashData {
@@ -272,6 +279,7 @@ impl Command<'_> {
                     block_size,
                     offset,
                     supports_encryption,
+                    false,
                 )?;
             }
             Command::MemData {
@@ -360,6 +368,7 @@ impl Command<'_> {
                     block_size,
                     offset,
                     supports_encryption,
+                    false, // Compression and encryption are mutually exclusive
                 )?;
             }
             Command::FlashDeflData {
@@ -441,7 +450,15 @@ fn begin_command<W: Write>(
     block_size: u32,
     offset: u32,
     supports_encryption: bool,
+    encrypt: bool,
 ) -> std::io::Result<()> {
+    if encrypt && !supports_encryption {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            "Target does not support encryption, yet encryption is requested",
+        ));
+    }
+
     #[derive(Zeroable, Pod, Copy, Clone, Debug)]
     #[repr(C)]
     struct BeginParams {
@@ -456,7 +473,7 @@ fn begin_command<W: Write>(
         blocks,
         block_size,
         offset,
-        encrypted: 0,
+        encrypted: encrypt as u32,
     };
 
     let bytes = bytes_of(&params);
