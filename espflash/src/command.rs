@@ -164,7 +164,6 @@ pub enum Command<'a> {
         block_size: u32,
         offset: u32,
         supports_encryption: bool,
-        perform_encryption: bool,
     },
     FlashDeflData {
         data: &'a [u8],
@@ -357,7 +356,6 @@ impl Command<'_> {
                 block_size,
                 offset,
                 supports_encryption,
-                perform_encryption,
             } => {
                 begin_command(
                     writer,
@@ -366,7 +364,7 @@ impl Command<'_> {
                     block_size,
                     offset,
                     supports_encryption,
-                    perform_encryption,
+                    false, // Compression and encryption are mutually exclusive
                 )?;
             }
             Command::FlashDeflData {

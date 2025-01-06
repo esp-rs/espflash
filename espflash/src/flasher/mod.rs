@@ -643,9 +643,9 @@ impl Flasher {
     }
 
     pub fn disable_watchdog(&mut self) -> Result<(), Error> {
-        let mut target = self
-            .chip
-            .flash_target(self.spi_params, self.use_stub, false, false);
+        let mut target =
+            self.chip
+                .flash_target(self.spi_params, self.use_stub, false, false, false);
         target.begin(&mut self.connection).flashing()?;
         Ok(())
     }
@@ -1017,9 +1017,10 @@ impl Flasher {
         segments: &[RomSegment],
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
-        let mut target = self
-            .chip
-            .flash_target(self.spi_params, self.use_stub, false, false);
+        let encrypt = segments.iter().any(|seg| seg.encrypt);
+        let mut target =
+            self.chip
+                .flash_target(self.spi_params, self.use_stub, false, false, encrypt);
         target.begin(&mut self.connection).flashing()?;
         for segment in segments {
             target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;

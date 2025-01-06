@@ -303,7 +303,7 @@ impl<'a> IdfBootloaderFormat<'a> {
             addr: self.params.boot_addr,
             data: Cow::Borrowed(&self.bootloader),
             // We use the app encryption setting for bootloader too.
-            // Am other (better ?) approach might be to check the target Efuses instead.
+            // An other (better ?) approach might be to check the target Efuses instead.
             encrypt: self.flash_segment.encrypt,
         };
 

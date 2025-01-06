@@ -150,8 +150,11 @@ impl Chip {
         use_stub: bool,
         verify: bool,
         skip: bool,
+        encrypt: bool,
     ) -> Box<dyn FlashTarget> {
-        Box::new(Esp32Target::new(*self, spi_params, use_stub, verify, skip))
+        Box::new(Esp32Target::new(
+            *self, spi_params, use_stub, verify, skip, encrypt,
+        ))
     }
 
     #[cfg(feature = "serialport")]

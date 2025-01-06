@@ -1,9 +1,11 @@
-use std::io::Write;
+use std::{borrow::Cow, io::Write};
 
+use addr2line::object::ReadRef;
 use flate2::{
     write::{ZlibDecoder, ZlibEncoder},
     Compression,
 };
+use libc::segment_command_64;
 use log::info;
 use md5::{Digest, Md5};
 
@@ -28,7 +30,8 @@ pub struct Esp32Target {
     use_stub: bool,
     verify: bool,
     skip: bool,
-    need_deflate_end: bool,
+    encrypt: bool,
+    need_transfer_end: bool,
 }
 
 impl Esp32Target {
@@ -38,6 +41,7 @@ impl Esp32Target {
         use_stub: bool,
         verify: bool,
         skip: bool,
+        encrypt: bool,
     ) -> Self {
         Esp32Target {
             chip,
@@ -45,7 +49,8 @@ impl Esp32Target {
             use_stub,
             verify,
             skip,
-            need_deflate_end: false,
+            encrypt,
+            need_transfer_end: false,
         }
     }
 }
@@ -164,67 +169,106 @@ impl FlashTarget for Esp32Target {
             }
         }
 
-        // let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
-        // encoder.write_all(&segment.data)?;
-        // let compressed = encoder.finish()?;
-
         let target = self.chip.into_target();
         let flash_write_size = target.flash_write_size(connection)?;
-        // let block_count = compressed.len().div_ceil(flash_write_size);
-        let block_count = segment.data.len().div_ceil(flash_write_size);
         let erase_count = segment.data.len().div_ceil(FLASH_SECTOR_SIZE);
-
-        // round up to sector size
+        // round erase up to sector size
         let erase_size = (erase_count * FLASH_SECTOR_SIZE) as u32;
+        let payload: Cow<[u8]> = if self.encrypt {
+            Cow::Borrowed(&segment.data)
+        } else {
+            let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
+            encoder.write_all(&segment.data)?;
+            let compressed = encoder.finish()?;
+            Cow::Owned(compressed)
+        };
+        let block_count = payload.len().div_ceil(flash_write_size);
+        if self.encrypt {
+            connection.with_timeout(
+                CommandType::FlashBegin.timeout_for_size(erase_size),
+                |connection| {
+                    connection.command(Command::FlashBegin {
+                        size: segment.data.len() as u32,
+                        blocks: block_count as u32,
+                        block_size: flash_write_size as u32,
+                        offset: addr,
+                        supports_encryption: self.chip != Chip::Esp32 && !self.use_stub,
+                        perform_encryption: segment.encrypt,
+                    })?;
+                    Ok(())
+                },
+            )?;
+        } else {
+            connection.with_timeout(
+                CommandType::FlashDeflBegin.timeout_for_size(erase_size),
+                |connection| {
+                    connection.command(Command::FlashDeflBegin {
+                        size: segment.data.len() as u32,
+                        blocks: block_count as u32,
+                        block_size: flash_write_size as u32,
+                        offset: addr,
+                        supports_encryption: self.chip != Chip::Esp32 && !self.use_stub,
+                    })?;
+                    Ok(())
+                },
+            )?;
+        }
+        self.need_transfer_end = true;
 
-        connection.with_timeout(
-            CommandType::FlashBegin.timeout_for_size(erase_size),
-            |connection| {
-                connection.command(Command::FlashBegin {
-                    size: segment.data.len() as u32,
-                    blocks: block_count as u32,
-                    block_size: flash_write_size as u32,
-                    offset: addr,
-                    supports_encryption: self.chip != Chip::Esp32 && !self.use_stub,
-                    perform_encryption: segment.encrypt,
-                })?;
-                Ok(())
-            },
-        )?;
-        self.need_deflate_end = true;
-
-        let chunks = segment.data.chunks(flash_write_size);
-        // let chunks = compressed.chunks(flash_write_size);
+        let chunks = payload.chunks(flash_write_size);
         let num_chunks = chunks.len();
 
         if let Some(cb) = progress.as_mut() {
             cb.init(addr, num_chunks)
         }
 
-        // decode the chunks to see how much data the device will have to save
-        // let mut decoder = ZlibDecoder::new(Vec::new());
-        // let mut decoded_size = 0;
-        // let mut transfered_size = 0;
+        // Operation timeout is based on flash operation duration.
+        // When using compressed transfers, we thus need to deflate to know
+        // how many bytes will be written / erased,
+        // and thus how long the timeout will be
+        let mut decoder = if !self.encrypt {
+            Some(ZlibDecoder::new(Vec::new()))
+        } else {
+            None
+        };
 
         for (i, block) in chunks.enumerate() {
-            // decoder.write_all(block)?;
-            // decoder.flush()?;
-            let size = segment.data.len() - i * flash_write_size;
-            // let size = decoder.get_ref().len() - decoded_size;
-            // decoded_size = decoder.get_ref().len();
+            let chunk_size_in_flash = if let Some(decoder) = &mut decoder {
+                let previous_length = decoder.get_ref().len();
+                decoder.write_all(block)?;
+                decoder.flush()?;
+                decoder.get_ref().len() - previous_length
+            } else {
+                block.len()
+            };
 
-            connection.with_timeout(
-                CommandType::FlashData.timeout_for_size(size as u32),
-                |connection| {
-                    connection.command(Command::FlashData {
-                        sequence: i as u32,
-                        pad_to: 0,
-                        pad_byte: 0xff,
-                        data: block,
-                    })?;
-                    Ok(())
-                },
-            )?;
+            if self.encrypt {
+                connection.with_timeout(
+                    CommandType::FlashData.timeout_for_size(chunk_size_in_flash as u32),
+                    |connection| {
+                        connection.command(Command::FlashData {
+                            sequence: i as u32,
+                            pad_to: 0,
+                            pad_byte: 0xff,
+                            data: block,
+                        })?;
+                        Ok(())
+                    },
+                )?;
+            } else {
+                connection.with_timeout(
+                    CommandType::FlashDeflData.timeout_for_size(chunk_size_in_flash as u32),
+                    |connection| {
+                        connection.command(Command::FlashDeflData {
+                            sequence: i as u32,
+                            pad_to: 0,
+                            pad_byte: 0xff,
+                            data: block,
+                        })?;
+                        Ok(())
+                    },
+                )?;
+            }
 
             if let Some(cb) = progress.as_mut() {
                 cb.update(i + 1)
@@ -255,10 +299,16 @@ impl FlashTarget for Esp32Target {
     }
 
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error> {
-        if self.need_deflate_end {
-            connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
-                connection.command(Command::FlashEnd { reboot: false })
-            })?;
+        if self.need_transfer_end {
+            if self.encrypt {
+                connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
+                    connection.command(Command::FlashEnd { reboot: false })
+                })?;
+            } else {
+                connection.with_timeout(CommandType::FlashDeflEnd.timeout(), |connection| {
+                    connection.command(Command::FlashDeflEnd { reboot: false })
+                })?;
+            }
         }
 
         if reboot {
