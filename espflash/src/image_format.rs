@@ -124,7 +124,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         target_app_partition: Option<String>,
         bootloader: Option<Vec<u8>>,
         flash_settings: FlashSettings,
-        encrypt: bool,
+        encrypted: bool,
     ) -> Result<Self, Error> {
         let partition_table = partition_table.unwrap_or_else(|| {
             params.default_partition_table(flash_settings.size.map(|v| v.size()))
@@ -270,7 +270,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         let flash_segment = RomSegment {
             addr: target_app_partition.offset(),
             data: Cow::Owned(data),
-            encrypt,
+            encrypted,
         };
 
         // If the user did not specify a partition offset, we need to assume that the
@@ -306,19 +306,19 @@ impl<'a> IdfBootloaderFormat<'a> {
         let bootloader_segment = RomSegment {
             addr: self.params.boot_addr,
             data: Cow::Borrowed(&self.bootloader),
-            encrypt: self.flash_segment.encrypt,
+            encrypted: self.flash_segment.encrypted,
         };
 
         let partition_table_segment = RomSegment {
             addr: self.partition_table_offset,
             data: Cow::Owned(self.partition_table.to_bin().unwrap()),
-            encrypt: self.flash_segment.encrypt,
+            encrypted: self.flash_segment.encrypted,
         };
 
         let app_segment = RomSegment {
             addr: self.flash_segment.addr,
             data: Cow::Borrowed(&self.flash_segment.data),
-            encrypt: self.flash_segment.encrypt,
+            encrypted: self.flash_segment.encrypted,
         };
 
         Box::new(

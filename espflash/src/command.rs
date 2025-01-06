@@ -106,7 +106,7 @@ pub enum Command<'a> {
         block_size: u32,
         offset: u32,
         supports_encryption: bool,
-        perform_encryption: bool,
+        encrypt: bool,
     },
     FlashData {
         data: &'a [u8],
@@ -238,7 +238,7 @@ impl Command<'_> {
                 block_size,
                 offset,
                 supports_encryption,
-                perform_encryption,
+                encrypt,
             } => {
                 begin_command(
                     writer,
@@ -247,7 +247,7 @@ impl Command<'_> {
                     block_size,
                     offset,
                     supports_encryption,
-                    perform_encryption,
+                    encrypt,
                 )?;
             }
             Command::FlashData {
@@ -446,10 +446,10 @@ fn begin_command<W: Write>(
     block_size: u32,
     offset: u32,
     supports_encryption: bool,
-    perform_encryption: bool,
+    encrypt: bool,
 ) -> std::io::Result<()> {
     assert!(
-        !(perform_encryption && !supports_encryption),
+        !(encrypt && !supports_encryption),
         "Target does not support encryption, yet encryption is requested"
     );
 
@@ -467,7 +467,7 @@ fn begin_command<W: Write>(
         blocks,
         block_size,
         offset,
-        encrypted: perform_encryption as u32,
+        encrypted: encrypt as u32,
     };
 
     let bytes = bytes_of(&params);

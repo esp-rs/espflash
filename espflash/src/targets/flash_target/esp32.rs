@@ -147,7 +147,7 @@ impl FlashTarget for Esp32Target {
         md5_hasher.update(&segment.data);
         let checksum_md5 = md5_hasher.finalize();
 
-        if self.skip && !segment.encrypt {
+        if self.skip && !segment.encrypted {
             let flash_checksum_md5: u128 =
                 connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
                     connection
@@ -191,7 +191,7 @@ impl FlashTarget for Esp32Target {
                         block_size: flash_write_size as u32,
                         offset: addr,
                         supports_encryption: self.chip != Chip::Esp32 && !self.use_stub,
-                        perform_encryption: segment.encrypt,
+                        encrypt: segment.encrypted,
                     })?;
                     Ok(())
                 },
@@ -277,7 +277,7 @@ impl FlashTarget for Esp32Target {
             cb.finish()
         }
 
-        if self.verify && !segment.encrypt {
+        if self.verify && !segment.encrypted {
             let flash_checksum_md5: u128 =
                 connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
                     connection
