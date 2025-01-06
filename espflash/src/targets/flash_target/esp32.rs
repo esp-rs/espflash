@@ -1,11 +1,9 @@
 use std::{borrow::Cow, io::Write};
 
-use addr2line::object::ReadRef;
 use flate2::{
     write::{ZlibDecoder, ZlibEncoder},
     Compression,
 };
-use libc::segment_command_64;
 use log::info;
 use md5::{Digest, Md5};
 
@@ -149,7 +147,7 @@ impl FlashTarget for Esp32Target {
         md5_hasher.update(&segment.data);
         let checksum_md5 = md5_hasher.finalize();
 
-        if self.skip {
+        if self.skip && !segment.encrypt {
             let flash_checksum_md5: u128 =
                 connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
                     connection
@@ -279,7 +277,7 @@ impl FlashTarget for Esp32Target {
             cb.finish()
         }
 
-        if self.verify {
+        if self.verify && !segment.encrypt {
             let flash_checksum_md5: u128 =
                 connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
                     connection

@@ -252,15 +252,12 @@ impl<'a> RomSegment<'a> {
             encrypt: self.encrypt,
         }
     }
-}
 
-impl<'a> From<CodeSegment<'a>> for RomSegment<'a> {
-    fn from(segment: CodeSegment<'a>) -> Self {
-        todo!("Remove this conversion, as we cannot easily assume encryption requirements ?");
+    pub fn from_code_segment(segment: &CodeSegment<'a>, encrypt: bool) -> Self {
         RomSegment {
             addr: segment.addr,
-            data: segment.data,
-            encrypt: false,
+            data: segment.data.clone(),
+            encrypt,
         }
     }
 }

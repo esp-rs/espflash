@@ -627,7 +627,6 @@ pub fn flash_elf_image(
     elf_data: &[u8],
     flash_data: FlashData,
     xtal_freq: XtalFrequency,
-    encrypt: bool,
 ) -> Result<()> {
     // Load the ELF data, optionally using the provider bootloader/partition
     // table/image format, to the device's flash memory.
@@ -636,7 +635,6 @@ pub fn flash_elf_image(
         flash_data,
         Some(&mut EspflashProgress::default()),
         xtal_freq,
-        encrypt,
     )?;
     info!("Flashing has completed!");
 
@@ -826,6 +824,7 @@ pub fn make_flash_data(
     config: &Config,
     default_bootloader: Option<&Path>,
     default_partition_table: Option<&Path>,
+    encrypted: bool,
 ) -> Result<FlashData, Error> {
     let bootloader = image_args
         .bootloader
@@ -857,6 +856,7 @@ pub fn make_flash_data(
         image_args.target_app_partition,
         flash_settings,
         image_args.min_chip_rev,
+        encrypted,
     )
 }
 

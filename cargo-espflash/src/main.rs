@@ -338,6 +338,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             config,
             build_ctx.bootloader_path.as_deref(),
             build_ctx.partition_table_path.as_deref(),
+            args.flash_args.encrypt,
         )?;
 
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
@@ -349,13 +350,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             )?;
         }
 
-        flash_elf_image(
-            &mut flasher,
-            &elf_data,
-            flash_data,
-            target_xtal_freq,
-            args.encrypt,
-        )?;
+        flash_elf_image(&mut flasher, &elf_data, flash_data, target_xtal_freq)?;
     }
 
     if args.flash_args.monitor {
@@ -587,6 +582,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         config,
         build_ctx.bootloader_path.as_deref(),
         build_ctx.partition_table_path.as_deref(),
+        false, // We don't care about encryption when writing a .bin, as it is not stored in there
     )?;
 
     let xtal_freq = args

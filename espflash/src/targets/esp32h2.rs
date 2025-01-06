@@ -102,6 +102,7 @@ impl Target for Esp32h2 {
             flash_data.target_app_partition,
             flash_data.bootloader,
             flash_data.flash_settings,
+            flash_data.encrypted,
         )
     }
 
