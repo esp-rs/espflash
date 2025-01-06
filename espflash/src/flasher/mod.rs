@@ -955,12 +955,17 @@ impl Flasher {
         flash_data: FlashData,
         mut progress: Option<&mut dyn ProgressCallbacks>,
         xtal_freq: XtalFrequency,
+        encrypt: bool,
     ) -> Result<(), Error> {
         let image = ElfFirmwareImage::try_from(elf_data)?;
 
-        let mut target =
-            self.chip
-                .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
+        let mut target = self.chip.flash_target(
+            self.spi_params,
+            self.use_stub,
+            self.verify,
+            self.skip,
+            encrypt,
+        );
         target.begin(&mut self.connection).flashing()?;
 
         let chip_revision = Some(

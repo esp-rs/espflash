@@ -190,6 +190,8 @@ struct FlashArgs {
     connect_args: ConnectArgs,
     #[clap(flatten)]
     flash_args: cli::FlashArgs,
+    #[arg(long)]
+    encrypt: bool,
 }
 
 #[derive(Debug, Args)]
@@ -347,7 +349,13 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             )?;
         }
 
-        flash_elf_image(&mut flasher, &elf_data, flash_data, target_xtal_freq)?;
+        flash_elf_image(
+            &mut flasher,
+            &elf_data,
+            flash_data,
+            target_xtal_freq,
+            args.encrypt,
+        )?;
     }
 
     if args.flash_args.monitor {

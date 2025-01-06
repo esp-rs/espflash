@@ -302,8 +302,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         let bootloader_segment = RomSegment {
             addr: self.params.boot_addr,
             data: Cow::Borrowed(&self.bootloader),
-            // We use the app encryption setting for bootloader too.
-            // An other (better ?) approach might be to check the target Efuses instead.
+            // We use the app encryption setting for bootloader too
             encrypt: self.flash_segment.encrypt,
         };
 

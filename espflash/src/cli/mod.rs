@@ -627,6 +627,7 @@ pub fn flash_elf_image(
     elf_data: &[u8],
     flash_data: FlashData,
     xtal_freq: XtalFrequency,
+    encrypt: bool,
 ) -> Result<()> {
     // Load the ELF data, optionally using the provider bootloader/partition
     // table/image format, to the device's flash memory.
@@ -635,6 +636,7 @@ pub fn flash_elf_image(
         flash_data,
         Some(&mut EspflashProgress::default()),
         xtal_freq,
+        encrypt,
     )?;
     info!("Flashing has completed!");
 
