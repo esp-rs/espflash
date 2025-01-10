@@ -3,7 +3,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/espflash?labelColor=1C2C2E&color=C96329&logo=Rust&style=flat-square)](https://crates.io/crates/espflash)
 [![docs.rs](https://img.shields.io/docsrs/espflash?labelColor=1C2C2E&color=C96329&logo=rust&style=flat-square)](https://docs.rs/espflash)
-![MSRV](https://img.shields.io/badge/MSRV-1.74-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
+![MSRV](https://img.shields.io/badge/MSRV-1.82-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
 ![Crates.io](https://img.shields.io/crates/l/espflash?labelColor=1C2C2E&style=flat-square)
 
 A library and command-line tool for flashing Espressif devices.

@@ -48,7 +48,6 @@ jobs:
     runs-on: ${{ matrix.platform.os }}
 
     steps:
-
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup-target
@@ -98,14 +97,13 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup-target
         with:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
-          toolchain: "1.74"
+          toolchain: "1.82"
 
       - run: cargo check -p espflash --lib
 
@@ -127,7 +125,6 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup-target
@@ -155,7 +152,6 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup-target
