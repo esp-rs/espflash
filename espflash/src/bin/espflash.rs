@@ -305,6 +305,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             true,
             args.flash_args.processors,
             Some(args.image),
+            false,
         )
     } else {
         Ok(())
