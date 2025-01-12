@@ -370,6 +370,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             true,
             args.flash_args.processors,
             Some(build_ctx.artifact_path),
+            false,
         )
     } else {
         Ok(())
