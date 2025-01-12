@@ -26,6 +26,7 @@ use log::error;
 use miette::{IntoDiagnostic, Result};
 #[cfg(feature = "serialport")]
 use serialport::SerialPort;
+use std::thread::sleep;
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
 use crate::{
@@ -79,7 +80,20 @@ pub fn monitor(
     interactive_mode: bool,
     processors: Option<String>,
     elf_file: Option<PathBuf>,
+    wait_for_port: bool,
 ) -> miette::Result<()> {
+    if wait_for_port {
+        println!("Waiting for serial port to appear...");
+        while !serialport::available_ports()
+            .unwrap()
+            .iter()
+            .any(|p| p.port_name == serial.name().unwrap())
+        {
+            sleep(Duration::from_millis(100));
+        }
+        println!("Serial port detected: {}", serial.name().unwrap());
+    }
+
     if interactive_mode {
         println!("Commands:");
         println!("    CTRL+R    Reset chip");

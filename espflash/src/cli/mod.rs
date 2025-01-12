@@ -268,6 +268,9 @@ pub struct MonitorArgs {
     /// External log processors to use (comma separated executables)
     #[arg(long)]
     processors: Option<String>,
+    /// Wait for the serial port to appear
+    #[arg(long)]
+    pub wait: bool,
 }
 
 #[derive(Debug, Args)]
@@ -455,6 +458,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         !args.non_interactive,
         args.processors,
         args.elf,
+        args.wait,
     )
 }
 

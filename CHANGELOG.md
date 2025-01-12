@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support external log-processors (#705)
 - Make the `libudev` dependency optional with a new - enabled by default - feature: `libudev` (#709)
 - Address Clippy lints (#710)
+- Add a flag to wait for serial port (#721)
 
 ### Changed
 
