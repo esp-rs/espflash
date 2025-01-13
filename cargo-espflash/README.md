@@ -39,7 +39,7 @@ dnf install systemd-devel
 To install:
 
 ```bash
-cargo install cargo-espflash
+cargo install cargo-espflash --locked
 ```
 
 Alternatively, you can use [cargo-binstall] to download pre-compiled artifacts from the [releases] and use them instead:
