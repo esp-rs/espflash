@@ -14,7 +14,7 @@
 //! The executable will get the path of the ELF file as the first argument if available.
 //!
 //! Example processor which turns some letters into uppercase
-//! ```rust,no-run
+//! ```rust,no_run
 //! use std::io::{stdin, stdout, Read, Write};
 //!
 //! fn main() {
