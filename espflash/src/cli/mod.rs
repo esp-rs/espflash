@@ -24,7 +24,7 @@ use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
 use log::{debug, info, warn};
-use miette::{IntoDiagnostic, Result, WrapErr};
+use miette::{miette, IntoDiagnostic, Result, WrapErr};
 use serialport::{FlowControl, SerialPortType, UsbPortInfo};
 
 use self::{
@@ -513,13 +513,25 @@ pub fn save_elf_as_image(
 
         display_image_size(image.app_size(), image.part_size());
 
-        let parts = image.ota_segments().collect::<Vec<_>>();
+        let parts = image.flash_segments().collect::<Vec<_>>();
         match parts.as_slice() {
             [single] => fs::write(&image_path, &single.data).into_diagnostic()?,
             parts => {
                 for part in parts {
-                    let part_path = format!("{:#x}_{}", part.addr, image_path.display());
-                    fs::write(part_path, &part.data).into_diagnostic()?
+                    let image_path_name = image_path
+                        .file_name()
+                        .ok_or(miette!("image file doesn't have a name: {:?}", image_path))?;
+                    let mut prefixed_image_path_name =
+                        std::ffi::OsString::from(format!("{:#09x}_", part.addr));
+                    prefixed_image_path_name.push(image_path_name);
+                    let mut prefixed_image_path = image_path.clone();
+                    prefixed_image_path.set_file_name(prefixed_image_path_name);
+                    fs::write(&prefixed_image_path, &part.data)
+                        .into_diagnostic()
+                        .context(format!(
+                            "could not write partition data to {:?}",
+                            &prefixed_image_path
+                        ))?
                 }
             }
         }
