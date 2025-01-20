@@ -4,6 +4,7 @@ use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
 
 use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use esp_idf_part::{Partition, PartitionTable, Type};
+use log;
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -135,9 +136,20 @@ impl<'a> IdfBootloaderFormat<'a> {
         };
 
         // fetch the generated header from the bootloader
-        let mut header: ImageHeader = *from_bytes(&bootloader[0..size_of::<ImageHeader>()]);
+        let mut calc_bootloader_size = 0;
+        let bootloader_header_size = size_of::<ImageHeader>();
+        calc_bootloader_size += bootloader_header_size;
+        let mut header: ImageHeader = *from_bytes(&bootloader[0..bootloader_header_size]);
         if header.magic != ESP_MAGIC {
             return Err(Error::InvalidBootloader);
+        }
+
+        for _ in 0..header.segment_count {
+            let segment: SegmentHeader = *from_bytes(
+                &bootloader
+                    [calc_bootloader_size..calc_bootloader_size + size_of::<SegmentHeader>()],
+            );
+            calc_bootloader_size += segment.length as usize + size_of::<SegmentHeader>();
         }
 
         // update the header if a user has specified any custom arguments
@@ -157,11 +169,24 @@ impl<'a> IdfBootloaderFormat<'a> {
         );
 
         // re-calculate hash of the bootloader - needed since we modified the header
-        let bootloader_len = bootloader.len();
+        // the hash is at the end of the bootloader, but the bootloader bytes are padded.
+        // the real end of the bootloader is the end of the segments plus the 16-byte aligned 1-byte checksum.
+        // the checksum is stored in the last byte so that the file is a multiple of 16 bytes.
+        calc_bootloader_size += 1; // add checksum size
+        calc_bootloader_size = calc_bootloader_size + ((16 - (calc_bootloader_size % 16)) % 16);
+        let bootloader_sha_start = calc_bootloader_size;
+        calc_bootloader_size += 32; // add sha256 size
+        let bootloader_sha_end = calc_bootloader_size;
+
         let mut hasher = Sha256::new();
-        hasher.update(&bootloader[..bootloader_len - 32]);
+        hasher.update(&bootloader[..bootloader_sha_start]);
         let hash = hasher.finalize();
-        bootloader.to_mut()[bootloader_len - 32..].copy_from_slice(&hash);
+        log::info!(
+            "Updating bootloader SHA256 from {} to {}",
+            hex::encode(&bootloader[bootloader_sha_start..bootloader_sha_end]),
+            hex::encode(&hash)
+        );
+        bootloader.to_mut()[bootloader_sha_start..bootloader_sha_end].copy_from_slice(&hash);
 
         // write the header of the app
         // use the same settings as the bootloader

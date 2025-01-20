@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Update the app image SHA in the correct location for padded images (#715)
+
 ### Removed
 
 ## [3.3.0] - 2025-01-13
