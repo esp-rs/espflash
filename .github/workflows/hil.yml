@@ -2,7 +2,8 @@ name: HIL
 
 on:
   pull_request:
-  push:
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
   workflow_dispatch:
     inputs:
       repository:
@@ -13,7 +14,6 @@ on:
         description: "Branch, tag or SHA to checkout."
         required: true
         default: "main"
-  merge_group:
 
 env:
   CARGO_TERM_COLOR: always
@@ -100,7 +100,7 @@ jobs:
           ESPFLASH_APP: espflash/resources/apps/${{ matrix.board.mcu }}
         shell: bash
         run: |
-          result=$(espflash_app/espflash flash ${{ env.ESPFLASH_APP }} 2>&1)
+          result=$(espflash_app/espflash flash --no-skip ${{ env.ESPFLASH_APP }} 2>&1)
           echo "$result"
           if [[ ! $result =~ "Flashing has completed!" ]]; then
             exit 1
