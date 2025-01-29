@@ -1,6 +1,6 @@
 # Test Resources
 
-This document describes how the test files under `tests/resources` were generated, so that they can be re-generated in the future if needed.
+This document describes how the test files under `tests/data` were generated, so that they can be re-generated in the future if needed.
 
 ## IDF Bootloader
 

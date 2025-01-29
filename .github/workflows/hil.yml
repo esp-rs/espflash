@@ -9,7 +9,7 @@ on:
       repository:
         description: "Owner and repository to test"
         required: true
-        default: 'esp-rs/espflash'
+        default: "esp-rs/espflash"
       branch:
         description: "Branch, tag or SHA to checkout."
         required: true
@@ -25,7 +25,6 @@ env:
 concurrency:
   cancel-in-progress: true
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-
 
 jobs:
   build-espflash:
@@ -60,7 +59,13 @@ jobs:
     name: ${{ matrix.board.mcu }}${{ matrix.board.freq }}
     if: ${{ github.repository_owner == 'esp-rs' }}
     needs: build-espflash
-    runs-on: [self-hosted, linux, x64, "${{ matrix.board.mcu }}${{ matrix.board.freq }}" ]
+    runs-on:
+      [
+        self-hosted,
+        linux,
+        x64,
+        "${{ matrix.board.mcu }}${{ matrix.board.freq }}",
+      ]
     strategy:
       matrix:
         board:
@@ -97,7 +102,7 @@ jobs:
       - name: flash test
         env:
           ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
-          ESPFLASH_APP: espflash/resources/apps/${{ matrix.board.mcu }}
+          ESPFLASH_APP: espflash/tests/data/${{ matrix.board.mcu }}
         shell: bash
         run: |
           result=$(espflash_app/espflash flash --no-skip ${{ env.ESPFLASH_APP }} 2>&1)
@@ -140,7 +145,7 @@ jobs:
       - name: save-image/write-bin test
         env:
           ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
-          ESPFLASH_APP: espflash/resources/apps/${{ matrix.board.mcu }}
+          ESPFLASH_APP: espflash/tests/data/${{ matrix.board.mcu }}
         run: |
           result=$(espflash_app/espflash save-image --merge --chip ${{ matrix.board.mcu }} ${{ matrix.board.flag }} ${{ env.ESPFLASH_APP }} app.bin 2>&1)
           echo "$result"
@@ -159,5 +164,3 @@ jobs:
           if ! echo "$result" | grep -q "Hello world!"; then
             exit 1
           fi
-
-
