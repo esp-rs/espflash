@@ -117,7 +117,7 @@ struct FlashArgs {
     pub flash_config_args: FlashConfigArgs,
     /// Flashing arguments
     #[clap(flatten)]
-    flash_args: cli::FlashArgs,
+    pub flash_args: cli::FlashArgs,
     /// ELF image to flash
     image: PathBuf,
 }
@@ -293,10 +293,10 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             flasher.into_serial(),
             Some(&elf_data),
             pid,
-            args.flash_args.monitor_baud.unwrap_or(default_baud),
-            args.flash_args.log_format,
-            true,
-            args.flash_args.processors,
+            args.flash_args.monitor_args.baud.unwrap_or(default_baud),
+            args.flash_args.monitor_args.log_format,
+            !args.flash_args.monitor_args.non_interactive,
+            args.flash_args.monitor_args.processors,
             Some(args.image),
         )
     } else {

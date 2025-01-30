@@ -142,15 +142,21 @@ pub struct FlashArgs {
     /// Erase specified data partitions
     #[arg(long, value_name = "PARTS", value_enum, value_delimiter = ',')]
     pub erase_data_parts: Option<Vec<DataType>>,
-    /// Logging format.
-    #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
-    pub log_format: LogFormat,
+    // /// Logging format.
+    // #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
+    // pub log_format: LogFormat,
     /// Open a serial monitor after flashing
     #[arg(short = 'M', long)]
     pub monitor: bool,
-    /// Baud rate at which to read console output
-    #[arg(long, requires = "monitor", value_name = "BAUD")]
-    pub monitor_baud: Option<u32>,
+    // /// Baud rate at which to read console output
+    // #[arg(long, requires = "monitor", value_name = "BAUD")]
+    // pub monitor_baud: Option<u32>,
+    // /// Avoids asking the user for interactions like resetting the device
+    // #[arg(long, requires = "monitor")]
+    // pub non_interactive: bool,
+    /// Monitor configuration
+    #[clap(flatten)]
+    pub monitor_args: MonitorConfigArgs,
     /// Load the application to RAM instead of Flash
     #[arg(long)]
     pub ram: bool,
@@ -255,25 +261,42 @@ pub struct ImageArgs {
     pub min_chip_rev: u16,
 }
 
-/// Open the serial monitor without flashing
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct MonitorArgs {
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
-    /// Optional file name of the ELF image to load the symbols from
+    /// File name of the ELF image to load the symbols from
     #[arg(short = 'e', long, value_name = "FILE")]
     elf: Option<PathBuf>,
+    /// Monitoring arguments
+    #[clap(flatten)]
+    monitor_args: MonitorConfigArgs,
+}
+
+/// Open the serial monitor without flashing
+#[derive(Debug, Args)]
+#[non_exhaustive]
+pub struct MonitorConfigArgs {
+    // /// Connection configuration
+    // #[clap(flatten)]
+    // connect_args: ConnectArgs,
+    // /// Optional file name of the ELF image to load the symbols from
+    // #[arg(short = 'e', long, value_name = "FILE")]
+    // elf: Option<PathBuf>,
+    /// Baud rate at which to communicate with target device
+    #[arg(short = 'B', long, env = "MONITOR_BAUD")]
+    pub baud: Option<u32>,
     /// Avoids asking the user for interactions like resetting the device
     #[arg(long)]
-    non_interactive: bool,
+    pub non_interactive: bool,
     /// Logging format.
     #[arg(long, short = 'L', default_value = "serial", requires = "elf")]
     pub log_format: LogFormat,
     /// External log processors to use (comma separated executables)
     #[arg(long)]
-    processors: Option<String>,
+    pub processors: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -463,10 +486,10 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         flasher.into_serial(),
         elf.as_deref(),
         pid,
-        args.connect_args.baud.unwrap_or(default_baud),
-        args.log_format,
-        !args.non_interactive,
-        args.processors,
+        args.monitor_args.baud.unwrap_or(default_baud),
+        args.monitor_args.log_format,
+        !args.monitor_args.non_interactive,
+        args.monitor_args.processors,
         args.elf,
     )
 }

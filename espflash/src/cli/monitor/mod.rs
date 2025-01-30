@@ -88,6 +88,7 @@ pub fn monitor(
     } else {
         reset_after_flash(&mut serial, pid).into_diagnostic()?;
     }
+    println!("Baud rate: {}", baud);
 
     // Explicitly set the baud rate when starting the serial monitor, to allow using
     // different rates for flashing.
