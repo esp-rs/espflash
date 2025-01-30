@@ -402,7 +402,7 @@ impl Connection {
 
     /// Write a command to the serial port
     pub fn write_command(&mut self, command: Command) -> Result<(), Error> {
-        debug!("Writing command: {:?}", command);
+        debug!("Writing command: {:02x?}", command);
         let mut binding = Box::new(&mut self.serial);
         let serial = binding.as_mut();
 
