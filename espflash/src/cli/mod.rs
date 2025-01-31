@@ -142,18 +142,9 @@ pub struct FlashArgs {
     /// Erase specified data partitions
     #[arg(long, value_name = "PARTS", value_enum, value_delimiter = ',')]
     pub erase_data_parts: Option<Vec<DataType>>,
-    // /// Logging format.
-    // #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
-    // pub log_format: LogFormat,
     /// Open a serial monitor after flashing
     #[arg(short = 'M', long)]
     pub monitor: bool,
-    // /// Baud rate at which to read console output
-    // #[arg(long, requires = "monitor", value_name = "BAUD")]
-    // pub monitor_baud: Option<u32>,
-    // /// Avoids asking the user for interactions like resetting the device
-    // #[arg(long, requires = "monitor")]
-    // pub non_interactive: bool,
     /// Monitor configuration
     #[clap(flatten)]
     pub monitor_args: MonitorConfigArgs,
@@ -168,9 +159,6 @@ pub struct FlashArgs {
     pub no_skip: bool,
     #[clap(flatten)]
     pub image: ImageArgs,
-    /// External log processors to use (comma separated executables)
-    #[arg(long, requires = "monitor")]
-    pub processors: Option<String>,
 }
 
 /// Operations for partitions tables
@@ -279,24 +267,21 @@ pub struct MonitorArgs {
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct MonitorConfigArgs {
-    // /// Connection configuration
-    // #[clap(flatten)]
-    // connect_args: ConnectArgs,
-    // /// Optional file name of the ELF image to load the symbols from
-    // #[arg(short = 'e', long, value_name = "FILE")]
-    // elf: Option<PathBuf>,
     /// Baud rate at which to communicate with target device
-    #[arg(short = 'B', long, env = "MONITOR_BAUD")]
-    pub baud: Option<u32>,
+    #[arg(short = 'r', long, env = "MONITOR_BAUD", default_value = "115_200", value_parser = parse_uint32)]
+    pub baud_rate: u32,
     /// Avoids asking the user for interactions like resetting the device
     #[arg(long)]
-    pub non_interactive: bool,
+    non_interactive: bool,
+    /// Avoids restarting the device before monitoring
+    #[arg(long, requires = "non_interactive")]
+    no_reset: bool,
     /// Logging format.
     #[arg(long, short = 'L', default_value = "serial", requires = "elf")]
-    pub log_format: LogFormat,
+    log_format: LogFormat,
     /// External log processors to use (comma separated executables)
     #[arg(long)]
-    pub processors: Option<String>,
+    processors: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -472,24 +457,22 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let chip = flasher.chip();
     let target = chip.into_target();
 
+    let mut monitor_args = args.monitor_args;
+
     // The 26MHz ESP32-C2's need to be treated as a special case.
-    let default_baud = if chip == Chip::Esp32c2
+    if chip == Chip::Esp32c2
         && target.crystal_freq(flasher.connection())? == XtalFrequency::_26Mhz
+        && monitor_args.baud_rate == 115_200
     {
         // 115_200 * 26 MHz / 40 MHz = 74_880
-        74_880
-    } else {
-        115_200
-    };
+        monitor_args.baud_rate = 74_880;
+    }
 
     monitor(
         flasher.into_serial(),
         elf.as_deref(),
         pid,
-        args.monitor_args.baud.unwrap_or(default_baud),
-        args.monitor_args.log_format,
-        !args.monitor_args.non_interactive,
-        args.monitor_args.processors,
+        monitor_args,
         args.elf,
     )
 }

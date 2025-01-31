@@ -117,7 +117,7 @@ struct FlashArgs {
     pub flash_config_args: FlashConfigArgs,
     /// Flashing arguments
     #[clap(flatten)]
-    pub flash_args: cli::FlashArgs,
+    flash_args: cli::FlashArgs,
     /// ELF image to flash
     image: PathBuf,
 }
@@ -280,23 +280,22 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     if args.flash_args.monitor {
         let pid = flasher.get_usb_pid()?;
+        let mut monitor_args = args.flash_args.monitor_args;
 
         // The 26MHz ESP32-C2's need to be treated as a special case.
-        let default_baud = if chip == Chip::Esp32c2 && target_xtal_freq == XtalFrequency::_26Mhz {
+        if chip == Chip::Esp32c2
+            && target_xtal_freq == XtalFrequency::_26Mhz
+            && monitor_args.baud_rate == 115_200
+        {
             // 115_200 * 26 MHz / 40 MHz = 74_880
-            74_880
-        } else {
-            115_200
-        };
+            monitor_args.baud_rate = 74_880;
+        }
 
         monitor(
             flasher.into_serial(),
             Some(&elf_data),
             pid,
-            args.flash_args.monitor_args.baud.unwrap_or(default_baud),
-            args.flash_args.monitor_args.log_format,
-            !args.flash_args.monitor_args.non_interactive,
-            args.flash_args.monitor_args.processors,
+            monitor_args,
             Some(args.image),
         )
     } else {

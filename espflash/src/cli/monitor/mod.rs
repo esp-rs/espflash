@@ -21,14 +21,17 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 use external_processors::ExternalProcessors;
-use log::error;
+use log::{debug, error};
 use miette::{IntoDiagnostic, Result};
 #[cfg(feature = "serialport")]
 use serialport::SerialPort;
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
 use crate::{
-    cli::monitor::parser::{InputParser, ResolvingPrinter},
+    cli::{
+        monitor::parser::{InputParser, ResolvingPrinter},
+        MonitorConfigArgs,
+    },
     connection::{reset::reset_after_flash, Port},
 };
 
@@ -74,21 +77,20 @@ pub fn monitor(
     mut serial: Port,
     elf: Option<&[u8]>,
     pid: u16,
-    baud: u32,
-    log_format: LogFormat,
-    interactive_mode: bool,
-    processors: Option<String>,
+    monitor_args: MonitorConfigArgs,
     elf_file: Option<PathBuf>,
 ) -> miette::Result<()> {
-    if interactive_mode {
+    if !monitor_args.non_interactive {
         println!("Commands:");
         println!("    CTRL+R    Reset chip");
         println!("    CTRL+C    Exit");
         println!();
-    } else {
+    } else if !monitor_args.no_reset {
         reset_after_flash(&mut serial, pid).into_diagnostic()?;
     }
-    println!("Baud rate: {}", baud);
+
+    let baud = monitor_args.baud_rate;
+    debug!("Opening serial monitor with baudrate: {}", baud);
 
     // Explicitly set the baud rate when starting the serial monitor, to allow using
     // different rates for flashing.
@@ -103,12 +105,12 @@ pub fn monitor(
     let stdout = stdout();
     let mut stdout = ResolvingPrinter::new(elf, stdout.lock());
 
-    let mut parser: Box<dyn InputParser> = match log_format {
+    let mut parser: Box<dyn InputParser> = match monitor_args.log_format {
         LogFormat::Defmt => Box::new(parser::esp_defmt::EspDefmt::new(elf)?),
         LogFormat::Serial => Box::new(parser::serial::Serial),
     };
 
-    let mut external_processors = ExternalProcessors::new(processors, elf_file)?;
+    let mut external_processors = ExternalProcessors::new(monitor_args.processors, elf_file)?;
 
     let mut buff = [0; 1024];
     loop {
@@ -125,7 +127,7 @@ pub fn monitor(
         // Don't forget to flush the writer!
         stdout.flush().ok();
 
-        if interactive_mode && poll(Duration::from_secs(0)).into_diagnostic()? {
+        if !monitor_args.non_interactive && poll(Duration::from_secs(0)).into_diagnostic()? {
             if let Event::Key(key) = read().into_diagnostic()? {
                 if key.kind == KeyEventKind::Press {
                     if key.modifiers.contains(KeyModifiers::CONTROL) {
