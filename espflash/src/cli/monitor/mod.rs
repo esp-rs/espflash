@@ -12,7 +12,6 @@
 
 use std::{
     io::{stdout, ErrorKind, Read, Write},
-    path::PathBuf,
     time::Duration,
 };
 
@@ -78,7 +77,6 @@ pub fn monitor(
     elf: Option<&[u8]>,
     pid: u16,
     monitor_args: MonitorConfigArgs,
-    elf_file: Option<PathBuf>,
 ) -> miette::Result<()> {
     if !monitor_args.non_interactive {
         println!("Commands:");
@@ -110,7 +108,8 @@ pub fn monitor(
         LogFormat::Serial => Box::new(parser::serial::Serial),
     };
 
-    let mut external_processors = ExternalProcessors::new(monitor_args.processors, elf_file)?;
+    let mut external_processors =
+        ExternalProcessors::new(monitor_args.processors, monitor_args.elf)?;
 
     let mut buff = [0; 1024];
     loop {

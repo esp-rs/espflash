@@ -255,9 +255,6 @@ pub struct MonitorArgs {
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
-    /// File name of the ELF image to load the symbols from
-    #[arg(short = 'e', long, value_name = "FILE")]
-    elf: Option<PathBuf>,
     /// Monitoring arguments
     #[clap(flatten)]
     monitor_args: MonitorConfigArgs,
@@ -270,6 +267,9 @@ pub struct MonitorConfigArgs {
     /// Baud rate at which to communicate with target device
     #[arg(short = 'r', long, env = "MONITOR_BAUD", default_value = "115_200", value_parser = parse_uint32)]
     pub baud_rate: u32,
+    /// File name of the ELF image to load the symbols from
+    #[arg(short = 'e', long, value_name = "FILE")]
+    pub elf: Option<PathBuf>,
     /// Avoids asking the user for interactions like resetting the device
     #[arg(long)]
     non_interactive: bool,
@@ -445,7 +445,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
     let pid = flasher.get_usb_pid()?;
 
-    let elf = if let Some(elf_path) = args.elf.clone() {
+    let elf = if let Some(elf_path) = args.monitor_args.elf.clone() {
         let path = fs::canonicalize(elf_path).into_diagnostic()?;
         let data = fs::read(path).into_diagnostic()?;
 
@@ -468,13 +468,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         monitor_args.baud_rate = 74_880;
     }
 
-    monitor(
-        flasher.into_serial(),
-        elf.as_deref(),
-        pid,
-        monitor_args,
-        args.elf,
-    )
+    monitor(flasher.into_serial(), elf.as_deref(), pid, monitor_args)
 }
 
 /// Convert the provided firmware image from ELF to binary

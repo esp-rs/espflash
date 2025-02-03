@@ -291,13 +291,9 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             monitor_args.baud_rate = 74_880;
         }
 
-        monitor(
-            flasher.into_serial(),
-            Some(&elf_data),
-            pid,
-            monitor_args,
-            Some(args.image),
-        )
+        monitor_args.elf = Some(args.image);
+
+        monitor(flasher.into_serial(), Some(&elf_data), pid, monitor_args)
     } else {
         Ok(())
     }

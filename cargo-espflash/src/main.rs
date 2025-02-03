@@ -357,13 +357,9 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             monitor_args.baud_rate = 74_880;
         }
 
-        monitor(
-            flasher.into_serial(),
-            Some(&elf_data),
-            pid,
-            monitor_args,
-            Some(build_ctx.artifact_path),
-        )
+        monitor_args.elf = Some(build_ctx.artifact_path);
+
+        monitor(flasher.into_serial(), Some(&elf_data), pid, monitor_args)
     } else {
         Ok(())
     }
