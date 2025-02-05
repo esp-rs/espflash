@@ -47,7 +47,7 @@ miette          = "7.4.0"
 parse_int       = { version = "0.6.0", optional = true }
 regex           = { version = "1.11.1", optional = true }
 serde           = { version = "1.0.217", features = ["derive"] }
-serialport      = { version = "4.6.1", default-features = false, optional = true }
+serialport      = { version = "4.7.0", default-features = false, optional = true }
 sha2            = "0.10.8"
 slip-codec      = { version = "0.4.0", optional = true }
 strum           = { version = "0.26.3", features = ["derive"] }
@@ -60,8 +60,7 @@ xmas-elf        = "0.9.1"
 libc = "0.2.169"
 
 [features]
-default = ["cli", "libudev"]
-libudev = ["serialport?/libudev"]
+default = ["cli"]
 cli = [
     "dep:addr2line",
     "dep:clap",

@@ -41,7 +41,6 @@ jobs:
             arch: "x86_64"
     runs-on: ${{ matrix.platform.os }}
     steps:
-
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/package
@@ -51,12 +50,10 @@ jobs:
           target: ${{ matrix.platform.target }}
           runs_on: ${{ matrix.platform.os }}
 
-
   publish-cratesio:
     name: Publish to Crates.io
     runs-on: ubuntu-20.04
     steps:
-
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
@@ -68,7 +65,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install musl-tools libudev-dev
+        run: sudo apt-get update && sudo apt-get install musl-tools
 
       - name: Publish espflash
         run: |
