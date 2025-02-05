@@ -191,6 +191,7 @@ pub enum Command<'a> {
     },
     RunUserCode,
     FlashDetect,
+    GetSecurityInfo,
 }
 
 impl Command<'_> {
@@ -219,6 +220,7 @@ impl Command<'_> {
             Command::ReadFlash { .. } => CommandType::ReadFlash,
             Command::RunUserCode { .. } => CommandType::RunUserCode,
             Command::FlashDetect => CommandType::FlashDetect,
+            Command::GetSecurityInfo => CommandType::GetSecurityInfo,
         }
     }
 
@@ -419,6 +421,9 @@ impl Command<'_> {
                 write_basic(writer, &[], 0)?;
             }
             Command::FlashDetect => {
+                write_basic(writer, &[], 0)?;
+            }
+            Command::GetSecurityInfo => {
                 write_basic(writer, &[], 0)?;
             }
         };

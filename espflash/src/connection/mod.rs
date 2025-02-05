@@ -35,6 +35,7 @@ use crate::{
     command::{Command, CommandType},
     connection::reset::soft_reset,
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
+    flasher::SecurityInfo,
 };
 
 pub mod reset;
@@ -88,6 +89,35 @@ impl TryInto<Vec<u8>> for CommandResponseValue {
             CommandResponseValue::ValueU128(_) => Err(crate::error::Error::InternalError),
             CommandResponseValue::Vector(value) => Ok(value),
         }
+    }
+}
+
+impl TryFrom<Vec<u8>> for SecurityInfo {
+    type Error = crate::error::Error;
+
+    fn try_from(res: Vec<u8>) -> Result<Self, Self::Error> {
+        let esp32s2 = res.len() == 12 + 4; // +4 means header
+
+        // Parse response bytes
+        let flags = u32::from_le_bytes(res[0..4].try_into().unwrap());
+        let flash_crypt_cnt = res[4];
+        let key_purposes: [u8; 7] = res[5..12].try_into().unwrap();
+
+        let (chip_id, eco_version) = if esp32s2 {
+            (None, None) // ESP32-S2 doesn't have these values
+        } else {
+            let chip_id = u32::from_le_bytes(res[12..16].try_into().unwrap());
+            let eco_version = u32::from_le_bytes(res[16..20].try_into().unwrap());
+            (Some(chip_id), Some(eco_version))
+        };
+
+        Ok(SecurityInfo {
+            flags,
+            flash_crypt_cnt,
+            key_purposes,
+            chip_id,
+            eco_version,
+        })
     }
 }
 
@@ -441,12 +471,20 @@ impl Connection {
                             RomErrorKind::from(response.error),
                         )))
                     } else {
-                        Ok(response.value)
-                    }
+                        // Check if the response is a Vector and strip header (first 8 bytes)
+                        // https://github.com/espressif/esptool/blob/master/esptool/loader.py#L490: data = p[8:]
+                        let modified_value = match response.value {
+                            CommandResponseValue::Vector(mut vec) if vec.len() >= 8 => {
+                                vec.drain(0..8);
+                                CommandResponseValue::Vector(vec)
+                            }
+                            _ => response.value, // If not Vector, return as is
+                        };
+
+                        Ok(modified_value)
+                    };
                 }
-                _ => {
-                    continue;
-                }
+                _ => continue,
             }
         }
         Err(Error::Connection(ConnectionError::ConnectionFailed))
