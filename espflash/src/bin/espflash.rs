@@ -6,14 +6,7 @@ use std::{
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
-    cli::{
-        self, board_info, checksum_md5, completions, config::Config, connect, erase_flash,
-        erase_partitions, erase_region, flash_elf_image, make_flash_data, monitor::monitor,
-        parse_uint32, partition_table, print_board_info, read_flash, save_elf_as_image,
-        serial_monitor, ChecksumMd5Args, CompletionsArgs, ConnectArgs, EraseFlashArgs,
-        EraseRegionArgs, EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs,
-        ReadFlashArgs,
-    },
+    cli::{self, config::Config, monitor::monitor, *},
     error::Error,
     flasher::parse_partition_table,
     logging::initialize_logger,

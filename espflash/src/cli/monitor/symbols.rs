@@ -3,7 +3,8 @@ use std::error::Error;
 use addr2line::{
     gimli::{EndianRcSlice, RunTimeEndian},
     object::{read::File, Object, ObjectSegment, ObjectSymbol},
-    Context, LookupResult,
+    Context,
+    LookupResult,
 };
 
 // Wrapper around addr2line that allows to look up function names and
@@ -21,7 +22,8 @@ impl<'sym> Symbols<'sym> {
         Ok(Self { file, ctx })
     }
 
-    /// Returns the name of the function at the given address, if one can be found.
+    /// Returns the name of the function at the given address, if one can be
+    /// found.
     pub fn get_name(&self, addr: u64) -> Option<String> {
         // no need to try an address not contained in any segment
         if !self.file.segments().any(|segment| {
@@ -51,7 +53,8 @@ impl<'sym> Symbols<'sym> {
                     .and_then(|name| name.demangle().map(|s| s.into_owned()).ok())
             })
             .or_else(|| {
-                // Don't use `symbol_map().get(addr)` - it's documentation says "Get the symbol before the given address." which might be totally wrong
+                // Don't use `symbol_map().get(addr)` - it's documentation says "Get the symbol
+                // before the given address." which might be totally wrong
                 let symbol = self.file.symbols().find(|symbol| {
                     (symbol.address()..=(symbol.address() + symbol.size())).contains(&addr)
                 });
@@ -70,7 +73,8 @@ impl<'sym> Symbols<'sym> {
             })
     }
 
-    /// Returns the file name and line number of the function at the given address, if one can be.
+    /// Returns the file name and line number of the function at the given
+    /// address, if one can be.
     pub fn get_location(&self, addr: u64) -> Option<(String, u32)> {
         // Find the location which `addr` is in. If we can dedetermine a file name and
         // line number for this function we will return them both in a tuple.

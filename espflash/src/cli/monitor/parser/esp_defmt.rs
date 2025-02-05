@@ -81,7 +81,8 @@ impl FrameDelimiter {
         }
 
         if !self.in_frame {
-            // If we have a 0xFF byte at the end, we should assume it's the start of a new frame.
+            // If we have a 0xFF byte at the end, we should assume it's the start of a new
+            // frame.
             let consume = if self.buffer.ends_with(&[0xFF]) {
                 &self.buffer[..self.buffer.len() - 1]
             } else {
@@ -102,7 +103,8 @@ pub struct EspDefmt {
 }
 
 impl EspDefmt {
-    /// Loads symbols from the ELF file (if provided) and initializes the context.
+    /// Loads symbols from the ELF file (if provided) and initializes the
+    /// context.
     fn load_table(elf: Option<&[u8]>) -> Result<Table> {
         let Some(elf) = elf else {
             bail!(DefmtError::NoElf);
