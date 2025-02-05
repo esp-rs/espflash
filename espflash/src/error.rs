@@ -210,6 +210,9 @@ pub enum Error {
 
     #[error("Failed to parse partition table")]
     Partition(#[from] esp_idf_part::Error),
+
+    #[error("Invalid response length")]
+    InvalidResponse,
 }
 
 #[cfg(feature = "serialport")]

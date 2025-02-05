@@ -6,7 +6,7 @@
 
 #[cfg(feature = "serialport")]
 use std::{borrow::Cow, io::Write, path::PathBuf, thread::sleep, time::Duration};
-use std::{fs, path::Path, str::FromStr};
+use std::{collections::HashMap, fmt, fs, path::Path, str::FromStr};
 
 use esp_idf_part::PartitionTable;
 #[cfg(feature = "serialport")]
@@ -46,6 +46,137 @@ use crate::{
 
 #[cfg(feature = "serialport")]
 pub(crate) mod stubs;
+
+/// Security Info Response containing
+/// 32 bits flags, 1 byte flash_crypt_cnt, 7x1 byte key_purposes, 32-bit word
+/// chip_id, 32-bit word eco_version
+#[derive(Debug)]
+pub struct SecurityInfo {
+    pub flags: u32,
+    pub flash_crypt_cnt: u8,
+    pub key_purposes: [u8; 7],
+    pub chip_id: Option<u32>,
+    pub eco_version: Option<u32>,
+}
+
+impl SecurityInfo {
+    fn security_flag_map() -> HashMap<&'static str, u32> {
+        HashMap::from([
+            ("SECURE_BOOT_EN", 1 << 0),
+            ("SECURE_BOOT_AGGRESSIVE_REVOKE", 1 << 1),
+            ("SECURE_DOWNLOAD_ENABLE", 1 << 2),
+            ("SECURE_BOOT_KEY_REVOKE0", 1 << 3),
+            ("SECURE_BOOT_KEY_REVOKE1", 1 << 4),
+            ("SECURE_BOOT_KEY_REVOKE2", 1 << 5),
+            ("SOFT_DIS_JTAG", 1 << 6),
+            ("HARD_DIS_JTAG", 1 << 7),
+            ("DIS_USB", 1 << 8),
+            ("DIS_DOWNLOAD_DCACHE", 1 << 9),
+            ("DIS_DOWNLOAD_ICACHE", 1 << 10),
+        ])
+    }
+
+    fn get_security_flag_status(&self, flag_name: &str) -> bool {
+        if let Some(&flag) = Self::security_flag_map().get(flag_name) {
+            (self.flags & flag) != 0
+        } else {
+            false
+        }
+    }
+}
+
+impl fmt::Display for SecurityInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let key_purposes_str = self
+            .key_purposes
+            .iter()
+            .map(|b| format!("{}", b))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        writeln!(f, "\nSecurity Information:")?;
+        writeln!(f, "=====================")?;
+        writeln!(
+            f,
+            "Flags: {:#010x} ({})",
+            self.flags,
+            format!("{:b}", self.flags)
+        )?;
+        writeln!(f, "Key Purposes: [{}]", key_purposes_str)?;
+
+        // Only print Chip ID if it's Some(value)
+        if let Some(chip_id) = self.chip_id {
+            writeln!(f, "Chip ID: {}", chip_id)?;
+        }
+
+        // Only print API Version if it's Some(value)
+        if let Some(api_version) = self.eco_version {
+            writeln!(f, "API Version: {}", api_version)?;
+        }
+
+        // Secure Boot
+        if self.get_security_flag_status("SECURE_BOOT_EN") {
+            writeln!(f, "Secure Boot: Enabled")?;
+            if self.get_security_flag_status("SECURE_BOOT_AGGRESSIVE_REVOKE") {
+                writeln!(f, "Secure Boot Aggressive key revocation: Enabled")?;
+            }
+
+            let revoked_keys: Vec<_> = [
+                "SECURE_BOOT_KEY_REVOKE0",
+                "SECURE_BOOT_KEY_REVOKE1",
+                "SECURE_BOOT_KEY_REVOKE2",
+            ]
+            .iter()
+            .enumerate()
+            .filter(|(_, &key)| self.get_security_flag_status(key))
+            .map(|(i, _)| format!("Secure Boot Key{} is Revoked", i))
+            .collect();
+
+            if !revoked_keys.is_empty() {
+                writeln!(
+                    f,
+                    "Secure Boot Key Revocation Status:\n  {}",
+                    revoked_keys.join("\n  ")
+                )?;
+            }
+        } else {
+            writeln!(f, "Secure Boot: Disabled")?;
+        }
+
+        // Flash Encryption
+        let flash_crypt_cnt_binary = format!("{:b}", self.flash_crypt_cnt);
+        if flash_crypt_cnt_binary.chars().filter(|&c| c == '1').count() % 2 != 0 {
+            writeln!(f, "Flash Encryption: Enabled")?;
+        } else {
+            writeln!(f, "Flash Encryption: Disabled")?;
+        }
+
+        let crypt_cnt_str = "SPI Boot Crypt Count (SPI_BOOT_CRYPT_CNT)";
+        writeln!(f, "{}: 0x{:x}", crypt_cnt_str, self.flash_crypt_cnt)?;
+
+        // Cache Disabling
+        if self.get_security_flag_status("DIS_DOWNLOAD_DCACHE") {
+            writeln!(f, "Dcache in UART download mode: Disabled")?;
+        }
+        if self.get_security_flag_status("DIS_DOWNLOAD_ICACHE") {
+            writeln!(f, "Icache in UART download mode: Disabled")?;
+        }
+
+        // JTAG Status
+        if self.get_security_flag_status("HARD_DIS_JTAG") {
+            writeln!(f, "JTAG: Permanently Disabled")?;
+        } else if self.get_security_flag_status("SOFT_DIS_JTAG") {
+            writeln!(f, "JTAG: Software Access Disabled")?;
+        }
+
+        // USB Access
+        if self.get_security_flag_status("DIS_USB") {
+            writeln!(f, "USB Access: Disabled")?;
+        }
+
+        Ok(())
+    }
+}
 
 /// Supported flash frequencies
 ///
@@ -1035,6 +1166,26 @@ impl Flasher {
                         size: length,
                     })?
                     .try_into()
+            })
+    }
+
+    /// Get security info
+    pub fn get_security_info(&mut self) -> Result<SecurityInfo, Error> {
+        if self.chip == Chip::Esp32 {
+            return Err(Error::UnsupportedFeature {
+                chip: self.chip,
+                feature: "get-security-info".to_string(),
+            });
+        }
+        self.connection
+            .with_timeout(CommandType::GetSecurityInfo.timeout(), |connection| {
+                let response = connection.command(crate::command::Command::GetSecurityInfo)?;
+                // Extract raw bytes and convert them into `SecurityInfo`
+                if let crate::connection::CommandResponseValue::Vector(data) = response {
+                    SecurityInfo::try_from(data)
+                } else {
+                    Err(Error::InvalidResponse)
+                }
             })
     }
 
