@@ -16,9 +16,8 @@ use std::{
     time::Duration,
 };
 
-use crossterm::event::KeyEventKind;
 use crossterm::{
-    event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers},
+    event::{poll, read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 use external_processors::ExternalProcessors;
@@ -68,7 +67,8 @@ impl Drop for RawModeGuard {
     }
 }
 
-/// Open a serial monitor on the given serial port, using the given input parser.
+/// Open a serial monitor on the given serial port, using the given input
+/// parser.
 #[allow(clippy::too_many_arguments)]
 pub fn monitor(
     mut serial: Port,

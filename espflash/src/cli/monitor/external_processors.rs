@@ -1,17 +1,23 @@
 #![allow(clippy::needless_doctest_main)]
 //! External processor support
 //!
-//! Via the command line argument `--processors` you can instruct espflash to run external executables to pre-process
-//! the logs received from the target. Multiple processors are supported by separating them via `,`. Processors are executed in the specified order.
+//! Via the command line argument `--processors` you can instruct espflash to
+//! run external executables to pre-process the logs received from the target.
+//! Multiple processors are supported by separating them via `,`. Processors are
+//! executed in the specified order.
 //!
-//! You can use full-qualified paths or run an executable which is already in the search path.
+//! You can use full-qualified paths or run an executable which is already in
+//! the search path.
 //!
-//! A processors reads from stdin and output to stdout. Be aware this runs before further processing by espflash.
-//! i.e. addresses are not resolved and when using `defmt` you will see encoded data.
+//! A processors reads from stdin and output to stdout. Be aware this runs
+//! before further processing by espflash. i.e. addresses are not resolved and
+//! when using `defmt` you will see encoded data.
 //!
-//! Additionally be aware that you might receive chunked data which is not always split at valid UTF character boundaries.
+//! Additionally be aware that you might receive chunked data which is not
+//! always split at valid UTF character boundaries.
 //!
-//! The executable will get the path of the ELF file as the first argument if available.
+//! The executable will get the path of the ELF file as the first argument if
+//! available.
 //!
 //! Example processor which turns some letters into uppercase
 //! ```rust,no_run

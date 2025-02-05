@@ -2,9 +2,11 @@
 
 #[cfg(feature = "serialport")]
 use std::fmt::{Display, Formatter};
+use std::io;
 
 use miette::Diagnostic;
-use std::io;
+#[cfg(feature = "serialport")]
+use slip_codec::SlipError;
 use strum::VariantNames;
 use thiserror::Error;
 
@@ -16,8 +18,6 @@ use crate::{
     flasher::{FlashFrequency, FlashSize},
     targets::Chip,
 };
-#[cfg(feature = "serialport")]
-use slip_codec::SlipError;
 
 /// All possible errors returned by espflash
 #[derive(Debug, Diagnostic, Error)]

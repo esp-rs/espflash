@@ -19,8 +19,7 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};
 use serialport::UsbPortInfo;
 
-use crate::error::Error;
-use crate::flasher::FlashSettings;
+use crate::{error::Error, flasher::FlashSettings};
 
 /// A configured, known serial connection
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
@@ -167,8 +166,9 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde::Deserialize;
+
+    use super::*;
 
     #[derive(Debug, Deserialize, Serialize)]
     struct TestData {

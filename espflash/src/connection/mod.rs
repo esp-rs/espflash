@@ -21,8 +21,14 @@ use self::reset::UnixTightReset;
 use self::{
     encoder::SlipEncoder,
     reset::{
-        construct_reset_strategy_sequence, hard_reset, reset_after_flash, ClassicReset,
-        ResetAfterOperation, ResetBeforeOperation, ResetStrategy, UsbJtagSerialReset,
+        construct_reset_strategy_sequence,
+        hard_reset,
+        reset_after_flash,
+        ClassicReset,
+        ResetAfterOperation,
+        ResetBeforeOperation,
+        ResetStrategy,
+        UsbJtagSerialReset,
     },
 };
 use crate::{
@@ -334,16 +340,20 @@ impl Connection {
         match self.read(10)? {
             None => Ok(None),
             Some(response) => {
-                // here is what esptool does: https://github.com/espressif/esptool/blob/master/esptool/loader.py#L458
+                // Here is what esptool does: https://github.com/espressif/esptool/blob/master/esptool/loader.py#L458
                 // from esptool: things are a bit weird here, bear with us
 
-                // we rely on the known and expected response sizes which should be fine for now - if that changes we need to pass the command type
-                // we are parsing the response for
-                // for most commands the response length is 10 (for the stub) or 12 (for ROM code)
-                // the MD5 command response is 44 for ROM loader, 26 for the stub
-                // see https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#response-packet
-                // see https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#status-bytes
-                // see https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#verifying-uploaded-data
+                // We rely on the known and expected response sizes which should be fine for now
+                // - if that changes we need to pass the command type we are parsing the
+                // response for.
+                //
+                // For most commands the response length is 10 (for the stub) or 12 (for ROM
+                // code). The MD5 command response is 44 for ROM loader, 26 for the stub.
+                //
+                // See:
+                // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#response-packet
+                // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#status-bytes
+                // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#verifying-uploaded-data
                 let status_len = if response.len() == 10 || response.len() == 26 {
                     2
                 } else {

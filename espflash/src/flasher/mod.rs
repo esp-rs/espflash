@@ -4,13 +4,11 @@
 //! application to a target device. It additionally provides some operations to
 //! read information from the target device.
 
-use std::{fs, path::Path, str::FromStr};
-
 #[cfg(feature = "serialport")]
 use std::{borrow::Cow, io::Write, path::PathBuf, thread::sleep, time::Duration};
+use std::{fs, path::Path, str::FromStr};
 
 use esp_idf_part::PartitionTable;
-
 #[cfg(feature = "serialport")]
 use log::{debug, info, warn};
 #[cfg(feature = "serialport")]
@@ -18,33 +16,33 @@ use md5::{Digest, Md5};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
 use serialport::UsbPortInfo;
-use strum::IntoEnumIterator;
-use strum::{Display, EnumIter, VariantNames};
+use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
+#[cfg(feature = "serialport")]
+pub(crate) use stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
 
-use crate::{
-    error::Error,
-    targets::{Chip, XtalFrequency},
-};
-
+#[cfg(feature = "serialport")]
+pub use crate::targets::flash_target::ProgressCallbacks;
 #[cfg(feature = "serialport")]
 use crate::{
     command::{Command, CommandType},
     connection::{
         reset::{ResetAfterOperation, ResetBeforeOperation},
-        Connection, Port,
+        Connection,
+        Port,
     },
     elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
     error::{ConnectionError, ResultExt},
     flasher::stubs::{
-        FlashStub, CHIP_DETECT_MAGIC_REG_ADDR, DEFAULT_TIMEOUT, EXPECTED_STUB_HANDSHAKE,
+        FlashStub,
+        CHIP_DETECT_MAGIC_REG_ADDR,
+        DEFAULT_TIMEOUT,
+        EXPECTED_STUB_HANDSHAKE,
     },
 };
-
-#[cfg(feature = "serialport")]
-pub use crate::targets::flash_target::ProgressCallbacks;
-
-#[cfg(feature = "serialport")]
-pub(crate) use stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
+use crate::{
+    error::Error,
+    targets::{Chip, XtalFrequency},
+};
 
 #[cfg(feature = "serialport")]
 pub(crate) mod stubs;

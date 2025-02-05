@@ -4,12 +4,11 @@
 use std::{io, os::fd::AsRawFd};
 use std::{thread::sleep, time::Duration};
 
+#[cfg(unix)]
+use libc::ioctl;
 use log::debug;
 use serialport::SerialPort;
 use strum::{Display, EnumIter, EnumString, VariantNames};
-
-#[cfg(unix)]
-use libc::ioctl;
 
 use crate::{
     command::{Command, CommandType},

@@ -73,8 +73,8 @@ impl Utf8Merger {
         let mut buffer = std::mem::take(&mut self.incomplete_utf8_buffer);
         buffer.extend(normalized(buff.iter().copied()));
 
-        // look for longest slice that we can then lossily convert without introducing errors for
-        // partial sequences (#457)
+        // look for longest slice that we can then lossily convert without introducing
+        // errors for partial sequences (#457)
         let mut len = 0;
 
         loop {

@@ -7,13 +7,7 @@ use std::{
 use cargo_metadata::{Message, MetadataCommand};
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
-    cli::{
-        self, board_info, checksum_md5, completions, config::Config, connect, erase_flash,
-        erase_partitions, erase_region, flash_elf_image, make_flash_data, monitor::monitor,
-        partition_table, print_board_info, read_flash, save_elf_as_image, serial_monitor,
-        ChecksumMd5Args, CompletionsArgs, ConnectArgs, EraseFlashArgs, EraseRegionArgs,
-        EspflashProgress, FlashConfigArgs, MonitorArgs, PartitionTableArgs, ReadFlashArgs,
-    },
+    cli::{self, config::Config, monitor::monitor, *},
     error::Error as EspflashError,
     flasher::parse_partition_table,
     logging::initialize_logger,
@@ -305,8 +299,8 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     )?;
     flasher.verify_minimum_revision(args.flash_args.image.min_chip_rev)?;
 
-    // If the user has provided a flash size via a command-line argument or config, we'll
-    // override the detected (or default) value with this.
+    // If the user has provided a flash size via a command-line argument or config,
+    // we'll override the detected (or default) value with this.
     if let Some(flash_size) = args.build_args.flash_config_args.flash_size {
         flasher.set_flash_size(flash_size);
     } else if let Some(flash_size) = config.flash.size {
@@ -493,8 +487,8 @@ fn build(
         match message.into_diagnostic()? {
             Message::BuildScriptExecuted(script) => {
                 // We can't use the `Index` implementation on `Metadata` because `-Zbuild-std`
-                // pulls in dependencies not listed in the metadata which then causes the `Index`
-                // implementation to panic.
+                // pulls in dependencies not listed in the metadata which then causes the
+                // `Index` implementation to panic.
                 let Some(package) = metadata.packages.iter().find(|p| p.id == script.package_id)
                 else {
                     continue;

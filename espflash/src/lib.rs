@@ -19,8 +19,9 @@
 //!
 //! We add `default-features` here to disable the `cli` feature, which is
 //! enabled by default. Its important to note that the cli module does not
-//! provide SemVer guarantees. You likely will not need any of these types or functions
-//! in your application so there's no use pulling in the extra dependencies.
+//! provide SemVer guarantees. You likely will not need any of these types or
+//! functions in your application so there's no use pulling in the extra
+//! dependencies.
 //!
 //! [espflash]: https://crates.io/crates/espflash
 //! [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall

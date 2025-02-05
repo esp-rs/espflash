@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::targets::Chip;
 
-/// Flash stub object (deserialized from TOML, converted from JSON as used by `esptool.py`)
+/// Flash stub object (deserialized from TOML, converted from JSON as used by
+/// `esptool.py`)
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct FlashStub {
     /// Entry point (address)

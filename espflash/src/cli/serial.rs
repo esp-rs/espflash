@@ -105,8 +105,8 @@ fn find_serial_port(ports: &[SerialPortInfo], name: &str) -> Result<SerialPortIn
     }
 }
 
-/// Serialport's auto-detect doesn't provide any port information when using MUSL
-/// Linux we can do some manual parsing of sysfs to get the relevant bits
+/// Serialport's auto-detect doesn't provide any port information when using
+/// MUSL Linux we can do some manual parsing of sysfs to get the relevant bits
 /// without udev
 #[cfg(all(target_os = "linux", target_env = "musl"))]
 fn detect_usb_serial_ports(_list_all_ports: bool) -> Result<Vec<SerialPortInfo>> {
@@ -129,7 +129,8 @@ fn detect_usb_serial_ports(_list_all_ports: bool) -> Result<Vec<SerialPortInfo>>
             };
 
             // This will give something like:
-            // `/sys/devices/pci0000:00/0000:00:07.1/0000:0c:00.3/usb5/5-3/5-3.1/5-3.1:1.0/ttyUSB0/tty/ttyUSB0`
+            // `/sys/devices/pci0000:00/0000:00:07.1/0000:0c:00.3/usb5/5-3/5-3.1/5-3.1:1.0/
+            // ttyUSB0/tty/ttyUSB0`
             let mut parent_dev = path.canonicalize().ok()?;
 
             // Walk up 3 dirs to get to the device hosting the tty:

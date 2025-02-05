@@ -37,8 +37,14 @@ use crate::{
     elf::ElfFirmwareImage,
     error::{Error, MissingPartition, MissingPartitionTable},
     flasher::{
-        parse_partition_table, FlashData, FlashFrequency, FlashMode, FlashSettings, FlashSize,
-        Flasher, ProgressCallbacks,
+        parse_partition_table,
+        FlashData,
+        FlashFrequency,
+        FlashMode,
+        FlashSettings,
+        FlashSize,
+        Flasher,
+        ProgressCallbacks,
     },
     targets::{Chip, XtalFrequency},
 };
@@ -857,8 +863,9 @@ pub fn make_flash_data(
 }
 
 mod test {
-    use crate::cli::FlashArgs;
     use clap::Parser;
+
+    use crate::cli::FlashArgs;
 
     #[derive(Parser)]
     struct TestParser {
