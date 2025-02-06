@@ -140,7 +140,7 @@ struct SaveImageArgs {
 #[non_exhaustive]
 struct WriteBinArgs {
     /// Address at which to write the binary file
-    #[arg(value_parser = parse_uint32)]
+    #[arg(value_parser = parse_u32)]
     pub addr: u32,
     /// File containing the binary data to write
     pub bin_file: String,
