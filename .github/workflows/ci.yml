@@ -26,6 +26,8 @@ jobs:
 
   check:
     name: Check (${{ matrix.platform.target }})
+    runs-on: ${{ matrix.platform.os }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -39,16 +41,15 @@ jobs:
           - os: "ubuntu-22.04"
             target: "x86_64-unknown-linux-musl"
             arch: "x86_64"
-          - os: "windows-2022"
-            target: "x86_64-pc-windows-msvc"
-            arch: "x86_64"
           - os: "ubuntu-22.04"
             target: "aarch64-unknown-linux-gnu"
             arch: "arm64"
           - os: "ubuntu-22.04"
             target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
-    runs-on: ${{ matrix.platform.os }}
+          - os: "windows-2022"
+            target: "x86_64-pc-windows-msvc"
+            arch: "x86_64"
 
     steps:
       - uses: actions/checkout@v4
@@ -60,8 +61,13 @@ jobs:
 
       - run: cargo check
 
+      - run: cargo run --package=cargo-espflash -- espflash completions bash
+      - run: cargo run --package=espflash -- completions bash
+
   check-lib:
     name: Check lib (${{ matrix.platform.target }})
+    runs-on: ubuntu-22.04
+
     strategy:
       fail-fast: false
       matrix:
@@ -72,7 +78,6 @@ jobs:
             arch: "arm64"
           - target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
-    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -87,6 +92,8 @@ jobs:
 
   msrv:
     name: Check lib MSRV  (${{ matrix.platform.target }})
+    runs-on: ubuntu-22.04
+
     strategy:
       fail-fast: false
       matrix:
@@ -97,7 +104,6 @@ jobs:
             arch: "arm64"
           - target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
-    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4

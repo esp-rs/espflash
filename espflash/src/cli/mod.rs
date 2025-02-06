@@ -280,7 +280,7 @@ pub struct MonitorArgs {
 #[non_exhaustive]
 pub struct ChecksumMd5Args {
     /// Start address
-    #[clap(short, long, value_parser=parse_u32)]
+    #[clap(long, value_parser=parse_u32)]
     address: u32,
     /// Length
     #[clap(short, long, value_parser=parse_u32)]
