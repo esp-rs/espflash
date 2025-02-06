@@ -12,10 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
 - Update the app image SHA in the correct location for padded images (#715)
 - Fix `-s` argument collision (#731)
 
 ### Removed
+
+- Removed the `libudev` feature (#742)
 
 ## [3.3.0] - 2025-01-13
 

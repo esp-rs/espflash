@@ -50,9 +50,6 @@ runs:
           git \
           "libc6:${{ inputs.arch }}" \
           "libgcc-s1:${{ inputs.arch }}" \
-          libudev-dev \
-          "libudev-dev:${{ inputs.arch }}" \
-          "libudev1:${{ inputs.arch }}" \
           musl-tools \
           pkg-config
 
@@ -60,7 +57,7 @@ runs:
       if: inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-unknown-linux-musl'
       shell: bash
       run: |
-        sudo apt-get update && sudo apt-get -y install musl-tools libudev-dev pkg-config
+        sudo apt-get update && sudo apt-get -y install musl-tools pkg-config
 
     - name: Set environment variables
       if: inputs.arch != 'x86_64'
