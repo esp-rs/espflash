@@ -109,10 +109,10 @@ pub struct EraseRegionArgs {
     #[clap(flatten)]
     pub connect_args: ConnectArgs,
     /// Offset to start erasing from
-    #[arg(value_name = "OFFSET", value_parser = parse_uint32)]
+    #[arg(value_name = "OFFSET", value_parser = parse_u32)]
     pub addr: u32,
     /// Size of the region to erase
-    #[arg(value_name = "SIZE", value_parser = parse_uint32)]
+    #[arg(value_name = "SIZE", value_parser = parse_u32)]
     pub size: u32,
 }
 
@@ -190,24 +190,24 @@ pub struct PartitionTableArgs {
 #[non_exhaustive]
 pub struct ReadFlashArgs {
     /// Offset to start reading from
-    #[arg(value_name = "OFFSET", value_parser = parse_uint32)]
+    #[arg(value_name = "OFFSET", value_parser = parse_u32)]
     pub addr: u32,
     /// Size of each individual packet of data
     ///
     /// Defaults to 0x1000 (FLASH_SECTOR_SIZE)
-    #[arg(long, default_value = "0x1000", value_parser = parse_uint32)]
+    #[arg(long, default_value = "0x1000", value_parser = parse_u32)]
     pub block_size: u32,
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
     /// Size of the region to read
-    #[arg(value_name = "SIZE", value_parser = parse_uint32)]
+    #[arg(value_name = "SIZE", value_parser = parse_u32)]
     pub size: u32,
     /// Name of binary dump
     #[arg(value_name = "FILE")]
     pub file: PathBuf,
     /// Maximum number of un-acked packets
-    #[arg(long, default_value = "64", value_parser = parse_uint32)]
+    #[arg(long, default_value = "64", value_parser = parse_u32)]
     pub max_in_flight: u32,
 }
 
@@ -245,7 +245,7 @@ pub struct ImageArgs {
     #[arg(long, short = 'T', value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Partition table offset
-    #[arg(long, value_name = "OFFSET", value_parser = parse_uint32)]
+    #[arg(long, value_name = "OFFSET", value_parser = parse_u32)]
     pub partition_table_offset: Option<u32>,
     /// Label of target app partition
     #[arg(long, value_name = "LABEL")]
@@ -290,6 +290,7 @@ pub struct ChecksumMd5Args {
     connect_args: ConnectArgs,
 }
 
+/// Parses an integer, in base-10 or hexadecimal format, into a [u32].
 pub fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
     parse_int::parse(input)
 }
@@ -807,11 +808,6 @@ fn pretty_print(table: PartitionTable) {
     }
 
     println!("{pretty}");
-}
-
-/// Parses a string as a 32-bit unsigned integer.
-pub fn parse_uint32(input: &str) -> Result<u32, ParseIntError> {
-    parse_int::parse(input)
 }
 
 pub fn make_flash_settings(flash_config_args: &FlashConfigArgs, config: &Config) -> FlashSettings {
