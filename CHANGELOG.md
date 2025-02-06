@@ -8,8 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Add `non-interactive` flag to `flash` subcommand (#737)
+- Add `no-reset` flag to `monitor` subcommands (#737)
+- Add an environment variable to set monitoring baudrate (`MONITOR_BAUD`) (#737)
 
 ### Changed
+- Split the baudrate for connecting and monitorinig in `flash` subcommand (#737)
 
 ### Fixed
 
