@@ -265,7 +265,7 @@ pub struct MonitorArgs {
 #[non_exhaustive]
 pub struct MonitorConfigArgs {
     /// Baud rate at which to communicate with target device
-    #[arg(short = 'r', long, env = "MONITOR_BAUD", default_value = "115_200", value_parser = parse_uint32)]
+    #[arg(short = 'r', long, env = "MONITOR_BAUD", default_value = "115_200", value_parser = parse_u32)]
     pub baud_rate: u32,
     /// File name of the ELF image to load the symbols from
     #[arg(short = 'e', long, value_name = "FILE")]
