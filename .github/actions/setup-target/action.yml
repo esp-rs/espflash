@@ -3,9 +3,11 @@ description: Setup an ARM or x86_64 build environment
 
 inputs:
   arch:
-    required: true
+    default: x86_64
+    required: false
   target:
-    required: true
+    default: x86_64-unknown-linux-gnu
+    required: false
   toolchain:
     default: stable
     required: false
@@ -15,10 +17,10 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Replace target string
-      if: inputs.arch != 'x86_64'
-      uses: mad9000/actions-find-and-replace-string@5
+    - if: inputs.arch != 'x86_64'
+      name: Replace target string
       id: findandreplace
+      uses: mad9000/actions-find-and-replace-string@5
       with:
         source: ${{ inputs.target }}
         find: "unknown-"
@@ -33,14 +35,14 @@ runs:
 
     - uses: Swatinem/rust-cache@v2
 
-    - name: Install Cross-Compile Support
-      if: inputs.arch != 'x86_64'
+    - if: inputs.arch != 'x86_64'
+      name: Install Cross-Compile Support
       uses: junelife/gha-ubuntu-cross@v6
       with:
         arch: ${{ inputs.arch }}
 
-    - name: Install dependencies (Raspberry Pi)
-      if: inputs.arch != 'x86_64'
+    - if: inputs.arch != 'x86_64'
+      name: Install dependencies (Raspberry Pi)
       shell: bash
       run: |
         sudo apt-get update && sudo apt-get install -y \
@@ -53,14 +55,14 @@ runs:
           musl-tools \
           pkg-config
 
-    - name: Install dependencies (x86_64 linux)
-      if: inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-unknown-linux-musl'
+    - if: inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-unknown-linux-musl'
+      name: Install dependencies (x86_64 linux)
       shell: bash
       run: |
         sudo apt-get update && sudo apt-get -y install musl-tools pkg-config
 
-    - name: Set environment variables
-      if: inputs.arch != 'x86_64'
+    - if: inputs.arch != 'x86_64'
+      name: Set environment variables
       shell: bash
       run: |
         echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=0" >> $GITHUB_ENV
