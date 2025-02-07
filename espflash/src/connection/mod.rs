@@ -103,6 +103,7 @@ pub struct CommandResponse {
 }
 
 /// An established connection with a target device
+#[derive(Debug)]
 pub struct Connection {
     serial: Port,
     port_info: UsbPortInfo,

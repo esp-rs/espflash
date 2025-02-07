@@ -246,6 +246,7 @@ impl Esp32Params {
 }
 
 /// SPI register addresses
+#[derive(Debug)]
 pub struct SpiRegisters {
     base: u32,
     usr_offset: u32,

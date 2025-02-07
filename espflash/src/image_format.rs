@@ -103,6 +103,7 @@ struct SegmentHeader {
 
 /// Image format for ESP32 family chips using the second-stage bootloader from
 /// ESP-IDF
+#[derive(Debug)]
 pub struct IdfBootloaderFormat<'a> {
     params: Esp32Params,
     bootloader: Cow<'a, [u8]>,

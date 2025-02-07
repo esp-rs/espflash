@@ -48,6 +48,7 @@ pub trait FirmwareImage<'a> {
 }
 
 /// A firmware image built from an ELF file
+#[derive(Debug)]
 pub struct ElfFirmwareImage<'a> {
     elf: ElfFile<'a>,
 }
@@ -230,8 +231,8 @@ impl Ord for CodeSegment<'_> {
     }
 }
 
-#[derive(Clone)]
 /// A segment of data to write to the flash
+#[derive(Debug, Clone)]
 pub struct RomSegment<'a> {
     /// ROM address at which the segment begins
     pub addr: u32,

@@ -72,6 +72,7 @@ impl std::error::Error for Error {}
 
 impl Diagnostic for Error {}
 
+#[derive(Debug)]
 struct Processor {
     rx: mpsc::Receiver<u8>,
     stdin: ChildStdin,
@@ -121,6 +122,7 @@ impl Drop for Processor {
     }
 }
 
+#[derive(Debug)]
 pub struct ExternalProcessors {
     processors: Vec<Processor>,
 }

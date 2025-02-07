@@ -58,6 +58,7 @@ fn resolve_addresses(
     Ok(())
 }
 
+#[derive(Debug)]
 struct Utf8Merger {
     incomplete_utf8_buffer: Vec<u8>,
 }
@@ -104,6 +105,7 @@ impl Utf8Merger {
     }
 }
 
+#[allow(missing_debug_implementations)]
 pub struct ResolvingPrinter<'ctx, W: Write> {
     writer: W,
     symbols: Option<Symbols<'ctx>>,

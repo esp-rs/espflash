@@ -27,6 +27,7 @@
 //! [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_debug_implementations)]
 
 #[cfg(feature = "cli")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]

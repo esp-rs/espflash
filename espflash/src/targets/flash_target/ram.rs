@@ -10,6 +10,7 @@ use crate::{elf::RomSegment, error::Error};
 pub const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 
 /// Applications running in the target device's RAM
+#[derive(Debug)]
 pub struct RamTarget {
     entry: Option<u32>,
     block_size: usize,
