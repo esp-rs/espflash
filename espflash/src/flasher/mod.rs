@@ -1010,7 +1010,7 @@ impl Flasher {
     /// Load multiple bin images to flash at specific addresses
     pub fn write_bins_to_flash(
         &mut self,
-        segments: &[RomSegment],
+        segments: &[RomSegment<'_>],
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let mut target = self

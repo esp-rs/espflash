@@ -24,7 +24,7 @@ pub trait FlashTarget {
     fn write_segment(
         &mut self,
         connection: &mut Connection,
-        segment: RomSegment,
+        segment: RomSegment<'_>,
         progress: &mut Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error>;
 
