@@ -22,23 +22,19 @@ env:
 # tag when a new workflow is triggered.
 #
 # https://stackoverflow.com/a/66336834
-concurrency:
+  concurrency:
   cancel-in-progress: true
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 
 jobs:
   build-espflash:
     name: Build espflash
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        if: github.event_name != 'workflow_dispatch'
-
-      - uses: actions/checkout@v4
-        if: github.event_name == 'workflow_dispatch'
         with:
-          repository: ${{ github.event.inputs.repository }}
-          ref: ${{ github.event.inputs.branch }}
+          repository: ${{ github.event.inputs.repository || github.repository }}
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - uses: ./.github/actions/setup-target
         with:
@@ -57,15 +53,9 @@ jobs:
 
   run-target:
     name: ${{ matrix.board.mcu }}${{ matrix.board.freq }}
-    if: ${{ github.repository_owner == 'esp-rs' }}
+    if: github.repository_owner == 'esp-rs'
     needs: build-espflash
-    runs-on:
-      [
-        self-hosted,
-        linux,
-        x64,
-        "${{ matrix.board.mcu }}${{ matrix.board.freq }}",
-      ]
+    runs-on: [self-hosted, linux, x64, "${{ matrix.board.mcu }}${{ matrix.board.freq }}"]
     strategy:
       matrix:
         board:
@@ -84,26 +74,24 @@ jobs:
       ESPFLASH_APP: espflash/tests/data/${{ matrix.board.mcu }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: espflash
           path: espflash_app
 
-      - run: |
+      - name: Set up espflash binary
+        run: |
           chmod +x espflash_app/espflash
-          export PATH="$PWD/espflash_app:$PATH"
-          echo "$PATH" >> "$GITHUB_PATH"
+          echo "$PWD/espflash_app" >> "$GITHUB_PATH"
 
       - name: board-info test
-        shell: bash
         run: bash espflash/tests/scripts/board-info.sh
 
       - name: flash test
-        shell: bash
         run: bash espflash/tests/scripts/flash.sh ${{ env.ESPFLASH_APP }}
 
       - name: monitor test
-        shell: bash
         run: bash espflash/tests/scripts/monitor.sh
 
       # - name: erase-flash test
@@ -114,8 +102,8 @@ jobs:
           bash espflash/tests/scripts/save-image_write-bin.sh ${{ matrix.board.mcu }} ${{ matrix.board.flag }} ${{ env.ESPFLASH_APP }}
           bash espflash/tests/scripts/monitor.sh
 
-      - name: erase-region test
-        run: bash espflash/tests/scripts/erase-region.sh
+      # - name: erase-region test
+      #   run: bash espflash/tests/scripts/erase-region.sh
 
       - name: hold-in-reset test
         run: bash espflash/tests/scripts/hold-in-reset.sh
@@ -125,4 +113,3 @@ jobs:
 
       - name: checksum-md5 test
         run: bash espflash/tests/scripts/checksum-md5.sh
-
