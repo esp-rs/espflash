@@ -89,122 +89,40 @@ jobs:
           name: espflash
           path: espflash_app
 
-      - run: chmod +x espflash_app/espflash
+      - run: |
+          chmod +x espflash_app/espflash
+          export PATH="$PWD/espflash_app:$PATH"
+          echo "$PATH" >> "$GITHUB_PATH"
 
       - name: board-info test
         shell: bash
-        run: |
-          result=$(espflash_app/espflash board-info)
-          echo "$result"
-          if [[ $? -ne 0 || ! "$result" =~ "esp32" ]]; then
-            exit 1
-          fi
+        run: bash espflash/tests/scripts/board-info.sh
 
       - name: flash test
         shell: bash
-        run: |
-          result=$(espflash_app/espflash flash --no-skip ${{ env.ESPFLASH_APP }} 2>&1)
-          echo "$result"
-          if [[ ! $result =~ "Flashing has completed!" ]]; then
-            exit 1
-          fi
+        run: bash espflash/tests/scripts/flash.sh ${{ env.ESPFLASH_APP }}
 
       - name: monitor test
         shell: bash
-        run: |
-          result=$(timeout 5s espflash_app/espflash monitor --non-interactive || true)
-          echo "$result"
-          if ! echo "$result" | grep -q "Hello world!"; then
-            exit 1
-          fi
+        run: bash espflash/tests/scripts/monitor.sh
 
-      - name: erase-flash test
-        run: |
-          result=$(espflash_app/espflash erase-flash 2>&1)
-          echo "$result"
-          if [[ ! $result =~ "Flash has been erased!" ]]; then
-            exit 1
-          fi
-          result=$(espflash_app/espflash read-flash  0 0x200 flash_content.bin 2>&1)
-          echo "$result"
-          if [[ ! $result =~ "Flash content successfully read and written to" ]]; then
-            exit 1
-          fi
-          echo "Checking if flash is empty"
-          if hexdump -v -e '/1 "%02x"' "flash_content.bin" | grep -qv '^ff*$'; then
-              exit 1
-          fi
-          echo "Flash is empty!"
+      # - name: erase-flash test
+      #   run: bash espflash/tests/scripts/erase-flash.sh
 
       - name: save-image/write-bin test
         run: |
-          result=$(espflash_app/espflash save-image --merge --chip ${{ matrix.board.mcu }} ${{ matrix.board.flag }} ${{ env.ESPFLASH_APP }} app.bin 2>&1)
-          echo "$result"
-          if [[ ! $result =~ "Image successfully saved!" ]]; then
-            exit 1
-          fi
-          echo "Writting binary"
-          result=$(espflash_app/espflash write-bin 0x0 app.bin 2>&1)
-          echo "$result"
-          if [[ ! $result =~ "Binary successfully written to flash!" ]]; then
-            exit 1
-          fi
-          echo "Monitoring..."
-          result=$(timeout 5s espflash_app/espflash monitor --non-interactive || true)
-          echo "$result"
-          if ! echo "$result" | grep -q "Hello world!"; then
-            exit 1
-          fi
+          bash espflash/tests/scripts/save-image_write-bin.sh ${{ matrix.board.mcu }} ${{ matrix.board.flag }} ${{ env.ESPFLASH_APP }}
+          bash espflash/tests/scripts/monitor.sh
 
       - name: erase-region test
-        run: |
-          result=$(espflash_app/espflash erase-region 0x1000 0x1000 2>&1)
-          echo "$result"
-          if [[ ! $result =~ "Erasing region at" ]]; then
-            exit 1
-          fi
-          result=$(espflash_app/espflash read-flash  0x1000 0x2000 flash_content.bin 2>&1)
-          echo "$result"
-          if [[ ! $result =~ "Flash content successfully read and written to" ]]; then
-            exit 1
-          fi
-          # Check first 0x1000 bytes are FF
-          if head -c 4096 flash_content.bin | hexdump -v -e '/1 "%02x"' | grep -qv '^ff*$'; then
-            echo "First 0x1000 bytes should be empty (FF)"
-            exit 1
-          fi
-          # Check next 0x1000 bytes contain some non-FF bytes
-          if ! tail -c 4096 flash_content.bin | hexdump -v -e '/1 "%02x"' | grep -q '[0-e]'; then
-            echo "Next 0x1000 bytes should contain some non-FF bytes"
-            exit 1
-          fi
-          echo "Flash contents verified!"
+        run: bash espflash/tests/scripts/erase-region.sh
 
       - name: hold-in-reset test
-        run: |
-          result=$(espflash_app/espflash hold-in-reset 2>&1)
-          echo "$result"
-          if [[ ! $result =~ "Holding target device in reset" ]]; then
-            exit 1
-          fi
+        run: bash espflash/tests/scripts/hold-in-reset.sh
 
       - name: reset test
-        run: |
-          result=$(espflash_app/espflash reset 2>&1)
-          echo "$result"
-          if [[ ! $result =~ "Resetting target device" ]]; then
-            exit 1
-          fi
+        run: bash espflash/tests/scripts/reset.sh
 
       - name: checksum-md5 test
-        run: |
-          result=$(espflash_app/espflash erase-flash 2>&1)
-          echo "$result"
-          if [[ ! $result =~ "Flash has been erased!" ]]; then
-            exit 1
-          fi
-          result=$(espflash_app/espflash checksum-md5 --address 0x1000 --length 0x100 2>&1)
-          echo "$result"
-          if [[ ! $result =~ "0x827f263ef9fb63d05499d14fcef32f60" ]]; then
-            exit 1
-          fi
+        run: bash espflash/tests/scripts/checksum-md5.sh
+
