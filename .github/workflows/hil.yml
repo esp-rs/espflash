@@ -79,6 +79,9 @@ jobs:
           - mcu: esp32s2
           - mcu: esp32s3
       fail-fast: false
+    env:
+      ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
+      ESPFLASH_APP: espflash/tests/data/${{ matrix.board.mcu }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -89,8 +92,6 @@ jobs:
       - run: chmod +x espflash_app/espflash
 
       - name: board-info test
-        env:
-          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
         shell: bash
         run: |
           result=$(espflash_app/espflash board-info)
@@ -100,9 +101,6 @@ jobs:
           fi
 
       - name: flash test
-        env:
-          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
-          ESPFLASH_APP: espflash/tests/data/${{ matrix.board.mcu }}
         shell: bash
         run: |
           result=$(espflash_app/espflash flash --no-skip ${{ env.ESPFLASH_APP }} 2>&1)
@@ -112,8 +110,6 @@ jobs:
           fi
 
       - name: monitor test
-        env:
-          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
         shell: bash
         run: |
           result=$(timeout 5s espflash_app/espflash monitor --non-interactive || true)
@@ -122,9 +118,7 @@ jobs:
             exit 1
           fi
 
-      - name: erase/read flash test
-        env:
-          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
+      - name: erase-flash test
         run: |
           result=$(espflash_app/espflash erase-flash 2>&1)
           echo "$result"
@@ -143,9 +137,6 @@ jobs:
           echo "Flash is empty!"
 
       - name: save-image/write-bin test
-        env:
-          ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
-          ESPFLASH_APP: espflash/tests/data/${{ matrix.board.mcu }}
         run: |
           result=$(espflash_app/espflash save-image --merge --chip ${{ matrix.board.mcu }} ${{ matrix.board.flag }} ${{ env.ESPFLASH_APP }} app.bin 2>&1)
           echo "$result"
