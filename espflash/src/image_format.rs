@@ -103,6 +103,7 @@ struct SegmentHeader {
 
 /// Image format for ESP32 family chips using the second-stage bootloader from
 /// ESP-IDF
+#[derive(Debug)]
 pub struct IdfBootloaderFormat<'a> {
     params: Esp32Params,
     bootloader: Cow<'a, [u8]>,
@@ -368,7 +369,7 @@ impl<'a> IdfBootloaderFormat<'a> {
 ///
 /// (this is because the segment's vaddr may not be IROM_ALIGNed, more likely is
 /// aligned IROM_ALIGN+0x18 to account for the binary file header)
-fn get_segment_padding(offset: usize, segment: &CodeSegment) -> u32 {
+fn get_segment_padding(offset: usize, segment: &CodeSegment<'_>) -> u32 {
     let align_past = (segment.addr - SEG_HEADER_LEN) % IROM_ALIGN;
     let pad_len = ((IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past) % IROM_ALIGN;
 
@@ -382,10 +383,10 @@ fn get_segment_padding(offset: usize, segment: &CodeSegment) -> u32 {
 }
 
 /// Merge adjacent segments into one.
-fn merge_adjacent_segments(mut segments: Vec<CodeSegment>) -> Vec<CodeSegment> {
+fn merge_adjacent_segments(mut segments: Vec<CodeSegment<'_>>) -> Vec<CodeSegment<'_>> {
     segments.sort();
 
-    let mut merged: Vec<CodeSegment> = Vec::with_capacity(segments.len());
+    let mut merged: Vec<CodeSegment<'_>> = Vec::with_capacity(segments.len());
     for segment in segments {
         match merged.last_mut() {
             Some(last) if last.addr + last.size() == segment.addr => {
@@ -403,7 +404,7 @@ fn merge_adjacent_segments(mut segments: Vec<CodeSegment>) -> Vec<CodeSegment> {
 /// Save a segment to the data buffer.
 fn save_flash_segment(
     data: &mut Vec<u8>,
-    mut segment: CodeSegment,
+    mut segment: CodeSegment<'_>,
     checksum: u8,
 ) -> Result<u8, Error> {
     let end_pos = (data.len() + segment.data().len()) as u32 + SEG_HEADER_LEN;
@@ -424,7 +425,7 @@ fn save_flash_segment(
 }
 
 /// Stores a segment header and the segment data in the data buffer.
-fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment, checksum: u8) -> Result<u8, Error> {
+fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment<'_>, checksum: u8) -> Result<u8, Error> {
     let padding = (4 - segment.size() % 4) % 4;
     let header = SegmentHeader {
         addr: segment.addr,

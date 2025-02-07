@@ -337,7 +337,7 @@ pub struct TimedOutCommand {
 
 #[cfg(feature = "serialport")]
 impl Display for TimedOutCommand {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match &self.command {
             Some(command) => write!(f, "{} ", command),
             None => Ok(()),

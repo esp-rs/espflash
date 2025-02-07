@@ -2,6 +2,7 @@ use std::io::Write;
 
 use crate::cli::monitor::parser::InputParser;
 
+#[derive(Debug)]
 pub struct Serial;
 
 impl InputParser for Serial {

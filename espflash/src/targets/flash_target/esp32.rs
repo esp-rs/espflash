@@ -22,6 +22,7 @@ use crate::{
 };
 
 /// Applications running from an ESP32's (or variant's) flash
+#[derive(Debug)]
 pub struct Esp32Target {
     chip: Chip,
     spi_attach_params: SpiAttachParams,
@@ -135,7 +136,7 @@ impl FlashTarget for Esp32Target {
     fn write_segment(
         &mut self,
         connection: &mut Connection,
-        segment: RomSegment,
+        segment: RomSegment<'_>,
         progress: &mut Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let addr = segment.addr;

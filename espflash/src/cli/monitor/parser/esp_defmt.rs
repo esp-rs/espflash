@@ -33,6 +33,7 @@ enum FrameKind<'a> {
     Raw(&'a [u8]),
 }
 
+#[derive(Debug)]
 struct FrameDelimiter {
     buffer: Vec<u8>,
     in_frame: bool,
@@ -97,6 +98,7 @@ impl FrameDelimiter {
     }
 }
 
+#[derive(Debug)]
 pub struct EspDefmt {
     delimiter: FrameDelimiter,
     table: Table,

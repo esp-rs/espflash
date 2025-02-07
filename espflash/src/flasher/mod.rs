@@ -291,6 +291,7 @@ impl FlashSettings {
 }
 
 /// Builder interface to create [`FlashData`] objects.
+#[derive(Debug)]
 pub struct FlashDataBuilder<'a> {
     bootloader_path: Option<&'a Path>,
     partition_table_path: Option<&'a Path>,
@@ -539,13 +540,14 @@ pub fn parse_partition_table(path: &Path) -> Result<PartitionTable, Error> {
     Ok(PartitionTable::try_from(data)?)
 }
 
-#[cfg(feature = "serialport")]
 /// List of SPI parameters to try while detecting flash size
+#[cfg(feature = "serialport")]
 pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
     [SpiAttachParams::default(), SpiAttachParams::esp32_pico_d4()];
 
-#[cfg(feature = "serialport")]
 /// Connect to and flash a target device
+#[cfg(feature = "serialport")]
+#[derive(Debug)]
 pub struct Flasher {
     /// Connection for flash operations
     connection: Connection,
@@ -1008,7 +1010,7 @@ impl Flasher {
     /// Load multiple bin images to flash at specific addresses
     pub fn write_bins_to_flash(
         &mut self,
-        segments: &[RomSegment],
+        segments: &[RomSegment<'_>],
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let mut target = self

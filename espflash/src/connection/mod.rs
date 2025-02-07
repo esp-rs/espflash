@@ -103,6 +103,7 @@ pub struct CommandResponse {
 }
 
 /// An established connection with a target device
+#[derive(Debug)]
 pub struct Connection {
     serial: Port,
     port_info: UsbPortInfo,
@@ -411,7 +412,7 @@ impl Connection {
     }
 
     /// Write a command to the serial port
-    pub fn write_command(&mut self, command: Command) -> Result<(), Error> {
+    pub fn write_command(&mut self, command: Command<'_>) -> Result<(), Error> {
         debug!("Writing command: {:02x?}", command);
         let mut binding = Box::new(&mut self.serial);
         let serial = binding.as_mut();
@@ -426,7 +427,7 @@ impl Connection {
     }
 
     ///  Write a command and reads the response
-    pub fn command(&mut self, command: Command) -> Result<CommandResponseValue, Error> {
+    pub fn command(&mut self, command: Command<'_>) -> Result<CommandResponseValue, Error> {
         let ty = command.command_type();
         self.write_command(command).for_command(ty)?;
 

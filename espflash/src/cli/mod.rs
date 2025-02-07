@@ -553,7 +553,7 @@ pub(crate) fn display_image_size(app_size: u32, part_size: Option<u32>) {
 }
 
 /// Progress callback implementations for use in `cargo-espflash` and `espflash`
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct EspflashProgress {
     pb: Option<ProgressBar>,
 }
