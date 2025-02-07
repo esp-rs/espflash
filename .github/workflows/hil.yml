@@ -22,14 +22,14 @@ env:
 # tag when a new workflow is triggered.
 #
 # https://stackoverflow.com/a/66336834
-  concurrency:
+concurrency:
   cancel-in-progress: true
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 
 jobs:
   build-espflash:
     name: Build espflash
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,16 +94,16 @@ jobs:
       - name: monitor test
         run: bash espflash/tests/scripts/monitor.sh
 
-      # - name: erase-flash test
-      #   run: bash espflash/tests/scripts/erase-flash.sh
+      - name: erase-flash test
+        run: bash espflash/tests/scripts/erase-flash.sh
 
       - name: save-image/write-bin test
         run: |
-          bash espflash/tests/scripts/save-image_write-bin.sh ${{ matrix.board.mcu }} ${{ matrix.board.flag }} ${{ env.ESPFLASH_APP }}
+          bash espflash/tests/scripts/save-image_write-bin.sh ${{ matrix.board.mcu }} ${{ env.ESPFLASH_APP }}
           bash espflash/tests/scripts/monitor.sh
 
-      # - name: erase-region test
-      #   run: bash espflash/tests/scripts/erase-region.sh
+      - name: erase-region test
+        run: bash espflash/tests/scripts/erase-region.sh
 
       - name: hold-in-reset test
         run: bash espflash/tests/scripts/hold-in-reset.sh

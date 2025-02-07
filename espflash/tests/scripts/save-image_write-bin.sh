@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
-result=$(espflash save-image --merge --chip $1 $2 $3 app.bin 2>&1)
+# if $1 is esp32c2, create an variable that contains `-x 26mhz`
+if [[ $1 == "esp32c2" ]]; then
+    freq="-x 26mhz"
+fi
+
+result=$(espflash save-image --merge --chip $1 $freq $2 app.bin 2>&1)
 echo "$result"
 if [[ ! $result =~ "Image successfully saved!" ]]; then
     exit 1
