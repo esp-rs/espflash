@@ -10,7 +10,7 @@ echo "$result"
 if [[ ! $result =~ "Image successfully saved!" ]]; then
     exit 1
 fi
-echo "Writting binary"
+echo "Writing binary"
 result=$(espflash write-bin 0x0 app.bin 2>&1)
 echo "$result"
 if [[ ! $result =~ "Binary successfully written to flash!" ]]; then
