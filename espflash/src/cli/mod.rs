@@ -290,9 +290,15 @@ pub struct ChecksumMd5Args {
     connect_args: ConnectArgs,
 }
 
-/// Parses an integer, in base-10 or hexadecimal format, into a [u32].
+/// Parses an integer, in base-10 or hexadecimal format, into a [u32]
 pub fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
-    parse_int::parse(input)
+    let (s, radix) = if input.len() > 2 && matches!(&input[0..2], "0x" | "0X") {
+        (&input[2..], 16)
+    } else {
+        (input, 10)
+    };
+
+    u32::from_str_radix(s, radix)
 }
 
 /// Select a serial port and establish a connection with a target device
