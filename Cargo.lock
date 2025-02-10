@@ -1268,7 +1268,6 @@ dependencies = [
  "flate2",
  "hex",
  "indicatif",
- "lazy_static",
  "libc",
  "log",
  "md-5",

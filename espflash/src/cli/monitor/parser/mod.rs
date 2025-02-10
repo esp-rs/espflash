@@ -1,25 +1,22 @@
-pub mod esp_defmt;
-pub mod serial;
-
-use std::{borrow::Cow, io::Write};
+use std::{borrow::Cow, io::Write, sync::LazyLock};
 
 use crossterm::{
     style::{Color, Print, PrintStyledContent, Stylize},
     QueueableCommand,
 };
-use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::cli::monitor::{line_endings::normalized, symbols::Symbols};
+
+pub mod esp_defmt;
+pub mod serial;
 
 pub trait InputParser {
     fn feed(&mut self, bytes: &[u8], out: &mut dyn Write);
 }
 
 // Pattern to much a function address in serial output.
-lazy_static! {
-    static ref RE_FN_ADDR: Regex = Regex::new(r"0x[[:xdigit:]]{8}").unwrap();
-}
+static RE_FN_ADDR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"0x[[:xdigit:]]{8}").unwrap());
 
 fn resolve_addresses(
     symbols: &Symbols<'_>,
