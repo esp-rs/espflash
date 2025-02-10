@@ -96,12 +96,7 @@ impl fmt::Display for SecurityInfo {
 
         writeln!(f, "\nSecurity Information:")?;
         writeln!(f, "=====================")?;
-        writeln!(
-            f,
-            "Flags: {:#010x} ({})",
-            self.flags,
-            format!("{:b}", self.flags)
-        )?;
+        writeln!(f, "Flags: {:#010x} ({:b})", self.flags, self.flags)?;
         writeln!(f, "Key Purposes: [{}]", key_purposes_str)?;
 
         // Only print Chip ID if it's Some(value)
