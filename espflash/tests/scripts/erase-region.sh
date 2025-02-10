@@ -5,7 +5,9 @@ echo "$result"
 if [[ ! $result =~ "Erasing region at" ]]; then
     exit 1
 fi
-# TODO: Once https://github.com/esp-rs/espflash/issues/697 is resolved we shouldhttps://github.com/esp-rs/espflash/pull/754/commits/288eced61e7b21deface52a67e2f023b388ce6ed#diff-083bacee91d55c6adddc9dcd306da31db24e33591d5453e819999552995b85b7R8-R23
+# TODO: Once https://github.com/esp-rs/espflash/issues/697 is resolved we should look like:
+# https://github.com/esp-rs/espflash/pull/754/commits/288eced61e7b21deface52a67e2f023b388ce6ed#diff-083bacee91d55c6adddc9dcd306da31db24e33591d5453e819999552995b85b7R8-R23
+
 # Check first 0x1000 bytes are FF
 result=$(espflash read-flash 0x1000 0x200 flash_content.bin 2>&1)
 echo "$result"
