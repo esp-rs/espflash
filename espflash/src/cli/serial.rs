@@ -106,7 +106,7 @@ fn find_serial_port(ports: &[SerialPortInfo], name: &str) -> Result<SerialPortIn
 }
 
 /// Returns a vector with available USB serial ports.
-fn detect_usb_serial_ports(list_all_ports: bool) -> Result<Vec<SerialPortInfo>> {
+pub(super) fn detect_usb_serial_ports(list_all_ports: bool) -> Result<Vec<SerialPortInfo>> {
     let ports = available_ports().into_diagnostic()?;
     let ports = ports
         .into_iter()
@@ -142,25 +142,27 @@ const KNOWN_DEVICES: &[UsbDevice] = &[
     }, // QinHeng Electronics CH340 serial converter
 ];
 
-/// Ask the user to select a serial port from a list of detected serial ports.
-fn select_serial_port(
-    mut ports: Vec<SerialPortInfo>,
-    config: &Config,
-    force_confirm_port: bool,
-) -> Result<(SerialPortInfo, bool), Error> {
+pub(super) fn known_ports_filter(port: &SerialPortInfo, config: &Config) -> bool {
     // Does this port match a known one?
-    let matches = |port: &SerialPortInfo| match &port.port_type {
+    match &port.port_type {
         SerialPortType::UsbPort(info) => config
             .usb_device
             .iter()
             .chain(KNOWN_DEVICES.iter())
             .any(|dev| dev.matches(info)),
         _ => false,
-    };
+    }
+}
 
+/// Ask the user to select a serial port from a list of detected serial ports.
+fn select_serial_port(
+    mut ports: Vec<SerialPortInfo>,
+    config: &Config,
+    force_confirm_port: bool,
+) -> Result<(SerialPortInfo, bool), Error> {
     if let [port] = ports
         .iter()
-        .filter(|&p| matches(p))
+        .filter(|&p| known_ports_filter(p, config))
         .collect::<Vec<_>>()
         .as_slice()
     {
@@ -176,12 +178,12 @@ fn select_serial_port(
         info!("Ports which match a known common dev board are highlighted");
         info!("Please select a port");
 
-        ports.sort_by_key(|a| !matches(a));
+        ports.sort_by_key(|a| !known_ports_filter(a, config));
 
         let port_names = ports
             .iter()
             .map(|port_info| {
-                let formatted = if matches(port_info) {
+                let formatted = if known_ports_filter(port_info, config) {
                     port_info.port_name.as_str().bold()
                 } else {
                     port_info.port_name.as_str().reset()
@@ -213,7 +215,7 @@ fn select_serial_port(
             .ok_or(Error::Cancelled)?;
 
         match ports.get(index) {
-            Some(port_info) => Ok((port_info.to_owned(), matches(port_info))),
+            Some(port_info) => Ok((port_info.to_owned(), known_ports_filter(port_info, config))),
             None => Err(Error::SerialNotFound(
                 port_names.get(index).unwrap().to_string(),
             )),

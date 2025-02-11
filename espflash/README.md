@@ -49,28 +49,30 @@ cargo binstall espflash
 ```text
 A command-line tool for flashing Espressif devices
 
-Usage: espflash <COMMAND>
+Usage: espflash [OPTIONS] <COMMAND>
 
 Commands:
   board-info       Print information about a connected target device
+  checksum-md5     Calculate the MD5 checksum of the given region
   completions      Generate completions for the given shell
   erase-flash      Erase Flash entirely
   erase-parts      Erase specified partitions
   erase-region     Erase specified region
   flash            Flash an application in ELF format to a connected target device
   hold-in-reset    Hold the target device in reset
+  list-ports       List serial ports available for flashing
   monitor          Open the serial monitor without flashing the connected target device
   partition-table  Convert partition tables between CSV and binary format
   read-flash       Read SPI flash content
   reset            Reset the target device
   save-image       Generate a binary application image and save it to a local disk
   write-bin        Write a binary file to a specific address in a target device's flash
-  checksum-md5     Calculate the MD5 checksum of the given region
   help             Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help     Print help
-  -V, --version  Print version
+  -S, --skip-update-check  Do not check for updates
+  -h, --help               Print help
+  -V, --version            Print version
 ```
 
 ### Permissions on Linux
