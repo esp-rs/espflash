@@ -96,18 +96,44 @@ impl TryFrom<Vec<u8>> for SecurityInfo {
     type Error = crate::error::Error;
 
     fn try_from(res: Vec<u8>) -> Result<Self, Self::Error> {
-        let esp32s2 = res.len() == 12 + 4; // +4 means header
+        let esp32s2 = res.len() == 16; // 12 bytes + 4-byte header
+
+        if res.len() < 12 {
+            return Err(Error::InvalidResponse);
+        }
 
         // Parse response bytes
-        let flags = u32::from_le_bytes(res[0..4].try_into().unwrap());
-        let flash_crypt_cnt = res[4];
-        let key_purposes: [u8; 7] = res[5..12].try_into().unwrap();
+        let flags = u32::from_le_bytes(
+            res.get(0..4)
+                .ok_or(Error::InvalidResponse)?
+                .try_into()
+                .map_err(|_| Error::InvalidResponse)?,
+        );
+        let flash_crypt_cnt = *res.get(4).ok_or(Error::InvalidResponse)?;
+        let key_purposes: [u8; 7] = res
+            .get(5..12)
+            .ok_or(Error::InvalidResponse)?
+            .try_into()
+            .map_err(|_| Error::InvalidResponse)?;
 
         let (chip_id, eco_version) = if esp32s2 {
             (None, None) // ESP32-S2 doesn't have these values
         } else {
-            let chip_id = u32::from_le_bytes(res[12..16].try_into().unwrap());
-            let eco_version = u32::from_le_bytes(res[16..20].try_into().unwrap());
+            if res.len() < 20 {
+                return Err(Error::InvalidResponse);
+            }
+            let chip_id = u32::from_le_bytes(
+                res.get(12..16)
+                    .ok_or(Error::InvalidResponse)?
+                    .try_into()
+                    .map_err(|_| Error::InvalidResponse)?,
+            );
+            let eco_version = u32::from_le_bytes(
+                res.get(16..20)
+                    .ok_or(Error::InvalidResponse)?
+                    .try_into()
+                    .map_err(|_| Error::InvalidResponse)?,
+            );
             (Some(chip_id), Some(eco_version))
         };
 
