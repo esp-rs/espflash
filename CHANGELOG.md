@@ -12,10 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `no-reset` flag to `monitor` subcommands (#737)
 - Add an environment variable to set monitoring baudrate (`MONITOR_BAUD`) (#737)
 
-- `get-security-info` command (#758)
-
 ### Changed
 - Split the baudrate for connecting and monitorinig in `flash` subcommand (#737)
+
+- `board-info` now prints `Security information`. (#758)
 
 ### Fixed
 
