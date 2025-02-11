@@ -105,12 +105,12 @@ pub struct EraseRegionArgs {
     /// Start address
     ///
     /// Must be multiple of 4096(0x1000)
-    #[arg(value_name = "ADDRESS", value_parser = parse_u32)]
+    #[arg(value_parser = parse_u32)]
     pub address: u32,
     /// Size of the region to erase
     ///
     /// Must be multiple of 4096(0x1000)
-    #[arg(value_name = "SIZE", value_parser = parse_u32)]
+    #[arg(value_parser = parse_u32)]
     pub size: u32,
 }
 
@@ -182,7 +182,7 @@ pub struct PartitionTableArgs {
 #[non_exhaustive]
 pub struct ReadFlashArgs {
     /// Address to start reading from
-    #[arg(value_name = "ADDRESS", value_parser = parse_u32)]
+    #[arg(value_parser = parse_u32)]
     pub address: u32,
     /// Size of each individual packet of data
     ///
@@ -193,10 +193,9 @@ pub struct ReadFlashArgs {
     #[clap(flatten)]
     connect_args: ConnectArgs,
     /// Size of the region to read
-    #[arg(value_name = "SIZE", value_parser = parse_u32)]
+    #[arg(value_parser = parse_u32)]
     pub size: u32,
     /// File name to save the read data to
-    #[arg(value_name = "FILE")]
     pub file: PathBuf,
     /// Maximum number of un-acked packets
     #[arg(long, default_value = "64", value_parser = parse_u32)]
@@ -286,10 +285,10 @@ pub struct MonitorConfigArgs {
 #[non_exhaustive]
 pub struct ChecksumMd5Args {
     /// Start address
-    #[clap(value_name = "ADDRESS", value_parser=parse_u32)]
+    #[clap(value_parser=parse_u32)]
     address: u32,
     /// Size of the region to check
-    #[clap(value_name = "SIZE", value_parser=parse_u32)]
+    #[clap(value_parser=parse_u32)]
     size: u32,
     /// Connection configuration
     #[clap(flatten)]
