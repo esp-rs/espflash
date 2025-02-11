@@ -65,7 +65,7 @@ pub struct ConnectArgs {
     #[arg(short = 'c', long)]
     pub chip: Option<Chip>,
     /// Require confirmation before auto-connecting to a recognized device.
-    #[arg(short = 'C', long)]
+    #[arg(long)]
     pub confirm_port: bool,
     /// List all available ports.
     #[arg(long)]
@@ -216,7 +216,7 @@ pub struct SaveImageArgs {
     #[arg(long)]
     pub merge: bool,
     /// Don't pad the image to the flash size
-    #[arg(long, short = 'P', requires = "merge")]
+    #[arg(long, requires = "merge")]
     pub skip_padding: bool,
     /// Cristal frequency of the target
     #[arg(long, short = 'x')]
@@ -233,7 +233,7 @@ pub struct ImageArgs {
     #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Path to a CSV file containing partition table
-    #[arg(long, short = 'T', value_name = "FILE")]
+    #[arg(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Partition table offset
     #[arg(long, value_name = "OFFSET", value_parser = parse_u32)]
@@ -265,7 +265,7 @@ pub struct MonitorConfigArgs {
     #[arg(short = 'r', long, env = "MONITOR_BAUD", default_value = "115_200", value_parser = parse_u32)]
     pub baud_rate: u32,
     /// ELF image to load the symbols from
-    #[arg(short = 'e', long, value_name = "FILE")]
+    #[arg(long, value_name = "FILE")]
     image: Option<PathBuf>,
     /// Avoids asking the user for interactions like resetting the device
     #[arg(long)]
