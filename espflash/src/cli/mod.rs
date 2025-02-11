@@ -363,6 +363,8 @@ pub fn connect(
 pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(args, config, true, true)?;
     print_board_info(&mut flasher)?;
+    let si = flasher.get_security_info()?;
+    println!("{si}");
 
     Ok(())
 }

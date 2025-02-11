@@ -59,8 +59,6 @@ enum Commands {
     ///
     /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/app_image_format.html
     Flash(FlashArgs),
-    /// Get some security-related data
-    GetSecurityInfo(ConnectArgs),
     /// Hold the target device in reset
     HoldInReset(ConnectArgs),
     /// Open the serial monitor without flashing the connected target device
@@ -180,7 +178,6 @@ fn main() -> Result<()> {
         Commands::EraseParts(args) => erase_parts(args, &config),
         Commands::EraseRegion(args) => erase_region(args, &config),
         Commands::Flash(args) => flash(args, &config),
-        Commands::GetSecurityInfo(args) => get_security_info(args, &config),
         Commands::HoldInReset(args) => hold_in_reset(args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
@@ -340,17 +337,6 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         args.save_image_args.skip_padding,
         xtal_freq,
     )?;
-
-    Ok(())
-}
-
-fn get_security_info(args: ConnectArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args, config, false, false)?;
-    print_board_info(&mut flasher)?;
-
-    let si = flasher.get_security_info()?;
-
-    println!("{si}");
 
     Ok(())
 }
