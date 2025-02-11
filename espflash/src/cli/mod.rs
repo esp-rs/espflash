@@ -266,7 +266,7 @@ pub struct MonitorConfigArgs {
     pub baud_rate: u32,
     /// ELF image to load the symbols from
     #[arg(long, value_name = "FILE")]
-    image: Option<PathBuf>,
+    pub image: Option<PathBuf>,
     /// Avoids asking the user for interactions like resetting the device
     #[arg(long)]
     non_interactive: bool,

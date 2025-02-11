@@ -109,7 +109,7 @@ pub fn monitor(
     };
 
     let mut external_processors =
-        ExternalProcessors::new(monitor_args.processors, monitor_args.elf)?;
+        ExternalProcessors::new(monitor_args.processors, monitor_args.image)?;
 
     let mut buff = [0; 1024];
     loop {
