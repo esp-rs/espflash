@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `get-security-info` command (#758)
-
 ### Changed
+
+- `board-info` now prints `Security information`. (#758)
 
 ### Fixed
 
