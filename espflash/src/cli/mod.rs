@@ -37,14 +37,8 @@ use crate::{
     elf::ElfFirmwareImage,
     error::{Error, MissingPartition, MissingPartitionTable},
     flasher::{
-        parse_partition_table,
-        FlashData,
-        FlashFrequency,
-        FlashMode,
-        FlashSettings,
-        FlashSize,
-        Flasher,
-        ProgressCallbacks,
+        parse_partition_table, FlashData, FlashFrequency, FlashMode, FlashSettings, FlashSize,
+        Flasher, ProgressCallbacks,
     },
     targets::{Chip, XtalFrequency},
 };
@@ -108,10 +102,14 @@ pub struct EraseRegionArgs {
     /// Connection configuration
     #[clap(flatten)]
     pub connect_args: ConnectArgs,
-    /// Offset to start erasing from
-    #[arg(value_name = "OFFSET", value_parser = parse_u32)]
-    pub addr: u32,
+    /// Start address
+    ///
+    /// Must be multiple of 4096(0x1000)
+    #[arg(value_name = "ADDRESS", value_parser = parse_u32)]
+    pub address: u32,
     /// Size of the region to erase
+    ///
+    /// Must be multiple of 4096(0x1000)
     #[arg(value_name = "SIZE", value_parser = parse_u32)]
     pub size: u32,
 }
@@ -183,9 +181,9 @@ pub struct PartitionTableArgs {
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct ReadFlashArgs {
-    /// Offset to start reading from
-    #[arg(value_name = "OFFSET", value_parser = parse_u32)]
-    pub addr: u32,
+    /// Address to start reading from
+    #[arg(value_name = "ADDRESS", value_parser = parse_u32)]
+    pub address: u32,
     /// Size of each individual packet of data
     ///
     /// Defaults to 0x1000 (FLASH_SECTOR_SIZE)
@@ -197,7 +195,7 @@ pub struct ReadFlashArgs {
     /// Size of the region to read
     #[arg(value_name = "SIZE", value_parser = parse_u32)]
     pub size: u32,
-    /// Name of binary dump
+    /// File name to save the read data to
     #[arg(value_name = "FILE")]
     pub file: PathBuf,
     /// Maximum number of un-acked packets
@@ -267,9 +265,9 @@ pub struct MonitorConfigArgs {
     /// Baud rate at which to communicate with target device
     #[arg(short = 'r', long, env = "MONITOR_BAUD", default_value = "115_200", value_parser = parse_u32)]
     pub baud_rate: u32,
-    /// File name of the ELF image to load the symbols from
+    /// ELF image to load the symbols from
     #[arg(short = 'e', long, value_name = "FILE")]
-    pub elf: Option<PathBuf>,
+    image: Option<PathBuf>,
     /// Avoids asking the user for interactions like resetting the device
     #[arg(long)]
     non_interactive: bool,
@@ -277,7 +275,7 @@ pub struct MonitorConfigArgs {
     #[arg(long, requires = "non_interactive")]
     no_reset: bool,
     /// Logging format.
-    #[arg(long, short = 'L', default_value = "serial", requires = "elf")]
+    #[arg(long, short = 'L', default_value = "serial", requires = "image")]
     log_format: LogFormat,
     /// External log processors to use (comma separated executables)
     #[arg(long)]
@@ -288,11 +286,11 @@ pub struct MonitorConfigArgs {
 #[non_exhaustive]
 pub struct ChecksumMd5Args {
     /// Start address
-    #[clap(long, value_parser=parse_u32)]
+    #[clap(value_name = "ADDRESS", value_parser=parse_u32)]
     address: u32,
-    /// Length
-    #[clap(short, long, value_parser=parse_u32)]
-    length: u32,
+    /// Size of the region to check
+    #[clap(value_name = "SIZE", value_parser=parse_u32)]
+    size: u32,
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
@@ -387,7 +385,7 @@ pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
 pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
 
-    let checksum = flasher.checksum_md5(args.address, args.length)?;
+    let checksum = flasher.checksum_md5(args.address, args.size)?;
     println!("0x{:x}", checksum);
 
     Ok(())
@@ -453,7 +451,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
     let pid = flasher.get_usb_pid()?;
 
-    let elf = if let Some(elf_path) = args.monitor_args.elf.clone() {
+    let elf = if let Some(elf_path) = args.monitor_args.image.clone() {
         let path = fs::canonicalize(elf_path).into_diagnostic()?;
         let data = fs::read(path).into_diagnostic()?;
 
@@ -629,10 +627,10 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
 
     info!(
         "Erasing region at 0x{:08x} ({} bytes)",
-        args.addr, args.size
+        args.address, args.size
     );
 
-    flasher.erase_region(args.addr, args.size)?;
+    flasher.erase_region(args.address, args.size)?;
     flasher
         .connection()
         .reset_after(!args.connect_args.no_stub)?;
@@ -733,7 +731,7 @@ pub fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
     flasher.read_flash(
-        args.addr,
+        args.address,
         args.size,
         args.block_size,
         args.max_in_flight,

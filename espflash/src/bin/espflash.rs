@@ -125,7 +125,7 @@ struct FlashArgs {
 #[derive(Debug, Args)]
 #[non_exhaustive]
 struct SaveImageArgs {
-    /// ELF image to flash
+    /// ELF image
     image: PathBuf,
     /// Flashing configuration
     #[clap(flatten)]
@@ -141,9 +141,9 @@ struct SaveImageArgs {
 struct WriteBinArgs {
     /// Address at which to write the binary file
     #[arg(value_parser = parse_u32)]
-    pub addr: u32,
+    pub address: u32,
     /// File containing the binary data to write
-    pub bin_file: String,
+    pub file: String,
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
@@ -340,12 +340,16 @@ fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
 
-    let mut f = File::open(&args.bin_file).into_diagnostic()?;
+    let mut f = File::open(&args.file).into_diagnostic()?;
     let size = f.metadata().into_diagnostic()?.len();
     let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
     f.read_to_end(&mut buffer).into_diagnostic()?;
 
-    flasher.write_bin_to_flash(args.addr, &buffer, Some(&mut EspflashProgress::default()))?;
+    flasher.write_bin_to_flash(
+        args.address,
+        &buffer,
+        Some(&mut EspflashProgress::default()),
+    )?;
 
     Ok(())
 }
