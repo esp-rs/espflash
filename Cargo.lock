@@ -1272,7 +1272,6 @@ dependencies = [
  "log",
  "md-5",
  "miette",
- "parse_int",
  "regex",
  "serde",
  "serialport",

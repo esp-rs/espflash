@@ -290,9 +290,15 @@ pub struct ChecksumMd5Args {
     connect_args: ConnectArgs,
 }
 
-/// Parses an integer, in base-10 or hexadecimal format, into a [u32].
+/// Parses an integer, in base-10 or hexadecimal format, into a [u32]
 pub fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
-    parse_int::parse(input)
+    let (s, radix) = if input.len() > 2 && matches!(&input[0..2], "0x" | "0X") {
+        (&input[2..], 16)
+    } else {
+        (input, 10)
+    };
+
+    u32::from_str_radix(s, radix)
 }
 
 /// Select a serial port and establish a connection with a target device
@@ -861,7 +867,7 @@ pub fn make_flash_data(
 mod test {
     use clap::Parser;
 
-    use crate::cli::FlashArgs;
+    use super::*;
 
     #[derive(Parser)]
     struct TestParser {
@@ -875,5 +881,22 @@ mod test {
         let iter = command.split_whitespace();
         let parser = TestParser::parse_from(iter);
         assert_eq!(parser.args.image.partition_table_offset, Some(0x8000));
+    }
+
+    #[test]
+    fn test_parse_u32() {
+        // Hex
+        assert_eq!(parse_u32("0x1"), Ok(0x1));
+        assert_eq!(parse_u32("0X1234"), Ok(0x1234));
+        assert_eq!(parse_u32("0xaBcD"), Ok(0xabcd));
+        // Decimal
+        assert_eq!(parse_u32("1234"), Ok(1234));
+        assert_eq!(parse_u32("0"), Ok(0));
+        // Errors
+        assert!(parse_u32("").is_err());
+        assert!(parse_u32("0x").is_err());
+        assert!(parse_u32("0xg").is_err());
+        assert!(parse_u32("-123").is_err());
+        assert!(parse_u32("12.34").is_err());
     }
 }

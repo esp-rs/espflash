@@ -43,7 +43,6 @@ indicatif       = { version = "0.17.9", optional = true }
 log             = "0.4.22"
 md-5            = "0.10.6"
 miette          = "7.4.0"
-parse_int       = { version = "0.6.0", optional = true }
 regex           = { version = "1.11.1", optional = true }
 serde           = { version = "1.0.217", features = ["derive"] }
 serialport      = { version = "4.7.0", default-features = false, optional = true }
@@ -73,7 +72,6 @@ cli = [
     "dep:directories",
     "dep:env_logger",
     "dep:indicatif",
-    "dep:parse_int",
     "dep:toml",
     "dep:update-informer",
     "miette/fancy",

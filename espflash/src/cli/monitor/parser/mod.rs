@@ -16,7 +16,7 @@ pub trait InputParser {
 }
 
 // Pattern to much a function address in serial output.
-static RE_FN_ADDR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"0x[[:xdigit:]]{8}").unwrap());
+static RE_FN_ADDR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"0[xX][[:xdigit:]]{8}").unwrap());
 
 fn resolve_addresses(
     symbols: &Symbols<'_>,
@@ -30,7 +30,7 @@ fn resolve_addresses(
         // Since our regular expression already confirms that this is a correctly
         // formatted hex literal, we can (fairly) safely assume that it will parse
         // successfully into an integer.
-        let addr = parse_int::parse::<u64>(matched).unwrap();
+        let addr = u64::from_str_radix(&matched[2..], 16).unwrap();
 
         let name = symbols.get_name(addr);
         let location = symbols.get_location(addr);
