@@ -212,10 +212,7 @@ pub enum Error {
     Partition(#[from] esp_idf_part::Error),
 
     #[error("Invalid response length, expected >= {expected}, got {got}")]
-    InvalidResponse {
-        expected: u32,
-        got: usize,
-    },
+    InvalidResponse { expected: u32, got: usize },
 }
 
 #[cfg(feature = "serialport")]
@@ -242,11 +239,11 @@ impl From<SlipError> for Error {
 
 impl From<TryFromSliceError> for Error {
     fn from(_: TryFromSliceError) -> Self {
-            Error::InvalidResponse {
-                expected: 0,
-                got: 0,
-            }
+        Error::InvalidResponse {
+            expected: 0,
+            got: 0,
         }
+    }
 }
 
 /// Connection-related errors
