@@ -1176,13 +1176,7 @@ impl Flasher {
                 if let crate::connection::CommandResponseValue::Vector(data) = response {
                     SecurityInfo::try_from(data)
                 } else {
-                    Err(Error::InvalidResponse {
-                        expected: 20,
-                        got: match response {
-                            crate::connection::CommandResponseValue::Vector(ref v) => v.len(),
-                            _ => 0,
-                        },
-                    })
+                    Err(Error::InvalidResponse)
                 }
             })
     }
