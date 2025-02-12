@@ -87,7 +87,7 @@ pub fn monitor(
         reset_after_flash(&mut serial, pid).into_diagnostic()?;
     }
 
-    let baud = monitor_args.baud_rate;
+    let baud = monitor_args.baudrate;
     debug!("Opening serial monitor with baudrate: {}", baud);
 
     // Explicitly set the baud rate when starting the serial monitor, to allow using
@@ -109,7 +109,7 @@ pub fn monitor(
     };
 
     let mut external_processors =
-        ExternalProcessors::new(monitor_args.processors, monitor_args.image)?;
+        ExternalProcessors::new(monitor_args.processors, monitor_args.elf)?;
 
     let mut buff = [0; 1024];
     loop {

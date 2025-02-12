@@ -37,8 +37,14 @@ use crate::{
     elf::ElfFirmwareImage,
     error::{Error, MissingPartition, MissingPartitionTable},
     flasher::{
-        parse_partition_table, FlashData, FlashFrequency, FlashMode, FlashSettings, FlashSize,
-        Flasher, ProgressCallbacks,
+        parse_partition_table,
+        FlashData,
+        FlashFrequency,
+        FlashMode,
+        FlashSettings,
+        FlashSize,
+        Flasher,
+        ProgressCallbacks,
     },
     targets::{Chip, XtalFrequency},
 };
@@ -263,10 +269,10 @@ pub struct MonitorArgs {
 pub struct MonitorConfigArgs {
     /// Baud rate at which to communicate with target device
     #[arg(short = 'r', long, env = "MONITOR_BAUD", default_value = "115_200", value_parser = parse_u32)]
-    pub baud_rate: u32,
+    pub baudrate: u32,
     /// ELF image to load the symbols from
     #[arg(long, value_name = "FILE")]
-    pub image: Option<PathBuf>,
+    pub elf: Option<PathBuf>,
     /// Avoids asking the user for interactions like resetting the device
     #[arg(long)]
     non_interactive: bool,
@@ -274,7 +280,7 @@ pub struct MonitorConfigArgs {
     #[arg(long, requires = "non_interactive")]
     no_reset: bool,
     /// Logging format.
-    #[arg(long, short = 'L', default_value = "serial", requires = "image")]
+    #[arg(long, short = 'L', default_value = "serial", requires = "elf")]
     log_format: LogFormat,
     /// External log processors to use (comma separated executables)
     #[arg(long)]
@@ -450,7 +456,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
     let pid = flasher.get_usb_pid()?;
 
-    let elf = if let Some(elf_path) = args.monitor_args.image.clone() {
+    let elf = if let Some(elf_path) = args.monitor_args.elf.clone() {
         let path = fs::canonicalize(elf_path).into_diagnostic()?;
         let data = fs::read(path).into_diagnostic()?;
 
@@ -467,10 +473,10 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     // The 26MHz ESP32-C2's need to be treated as a special case.
     if chip == Chip::Esp32c2
         && target.crystal_freq(flasher.connection())? == XtalFrequency::_26Mhz
-        && monitor_args.baud_rate == 115_200
+        && monitor_args.baudrate == 115_200
     {
         // 115_200 * 26 MHz / 40 MHz = 74_880
-        monitor_args.baud_rate = 74_880;
+        monitor_args.baudrate = 74_880;
     }
 
     monitor(flasher.into_serial(), elf.as_deref(), pid, monitor_args)
