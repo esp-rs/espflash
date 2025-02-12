@@ -96,6 +96,8 @@ impl TryFrom<Vec<u8>> for SecurityInfo {
     type Error = crate::error::Error;
 
     fn try_from(res: Vec<u8>) -> Result<Self, Self::Error> {
+        println!("res_len: {}", res.len());
+
         let esp32s2 = res.len() == 16; // 12 bytes + 4-byte header
 
         if res.len() < 12 {

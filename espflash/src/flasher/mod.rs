@@ -1174,6 +1174,7 @@ impl Flasher {
                 let response = connection.command(crate::command::Command::GetSecurityInfo)?;
                 // Extract raw bytes and convert them into `SecurityInfo`
                 if let crate::connection::CommandResponseValue::Vector(data) = response {
+                    println!("{:?}", data);
                     SecurityInfo::try_from(data)
                 } else {
                     Err(Error::InvalidResponse)

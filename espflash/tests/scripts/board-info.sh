@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 
+espflash reset
+
 # Run the command and capture output and exit code
 result=$(espflash board-info)
 exit_code=$?
 echo "$result"
 
 # Extract chip type
-chip_type=$(awk -F': *' '/Chip type:/ {print $2}' <<< "$result" | awk '{print $1}')
+chip_type=$(awk -F': *' '/Chip type:/ {print $2}' <<<"$result" | awk '{print $1}')
 
 if [[ "$chip_type" == "esp32" ]]; then
     # ESP32 doesn't support get_security_info
