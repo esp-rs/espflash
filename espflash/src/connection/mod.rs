@@ -114,7 +114,7 @@ impl TryFrom<Vec<u8>> for SecurityInfo {
             (None, None) // ESP32-S2 doesn't have these values
         } else {
             if res.len() < 20 {
-                return Err(Error::InvalidResponse{
+                return Err(Error::InvalidResponse {
                     expected: 20,
                     got: res.len(),
                 });
