@@ -48,14 +48,17 @@ use crate::{
 pub(crate) mod stubs;
 
 /// Security Info Response containing
-/// 32 bits flags, 1 byte flash_crypt_cnt, 7x1 byte key_purposes, 32-bit word
-/// chip_id, 32-bit word eco_version
 #[derive(Debug)]
 pub struct SecurityInfo {
+    /// 32 bits flags
     pub flags: u32,
+    /// 1 byte flash_crypt_cnt
     pub flash_crypt_cnt: u8,
+    /// 7 bytes key purposes
     pub key_purposes: [u8; 7],
+    /// 32-bit word chip id
     pub chip_id: Option<u32>,
+    /// 32-bit word eco version
     pub eco_version: Option<u32>,
 }
 
@@ -1166,12 +1169,6 @@ impl Flasher {
 
     /// Get security info
     pub fn get_security_info(&mut self) -> Result<SecurityInfo, Error> {
-        if self.chip == Chip::Esp32 {
-            return Err(Error::UnsupportedFeature {
-                chip: self.chip,
-                feature: "get-security-info".to_string(),
-            });
-        }
         self.connection
             .with_timeout(CommandType::GetSecurityInfo.timeout(), |connection| {
                 let response = connection.command(crate::command::Command::GetSecurityInfo)?;
