@@ -498,7 +498,7 @@ impl Connection {
                         )))
                     } else {
                         // Check if the response is a Vector and strip header (first 8 bytes)
-                        // https://github.com/espressif/esptool/blob/master/esptool/loader.py#L490: data = p[8:]
+                        // https://github.com/espressif/esptool/blob/release/v4/esptool/loader.py#L481: data = p[8:]
                         let modified_value = match response.value {
                             CommandResponseValue::Vector(mut vec) if vec.len() >= 8 => {
                                 vec.drain(0..8);
