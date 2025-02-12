@@ -280,25 +280,20 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     if args.flash_args.monitor {
         let pid = flasher.get_usb_pid()?;
+        let mut monitor_args = args.flash_args.monitor_args;
 
         // The 26MHz ESP32-C2's need to be treated as a special case.
-        let default_baud = if chip == Chip::Esp32c2 && target_xtal_freq == XtalFrequency::_26Mhz {
+        if chip == Chip::Esp32c2
+            && target_xtal_freq == XtalFrequency::_26Mhz
+            && monitor_args.baud_rate == 115_200
+        {
             // 115_200 * 26 MHz / 40 MHz = 74_880
-            74_880
-        } else {
-            115_200
-        };
+            monitor_args.baud_rate = 74_880;
+        }
 
-        monitor(
-            flasher.into_serial(),
-            Some(&elf_data),
-            pid,
-            args.flash_args.monitor_baud.unwrap_or(default_baud),
-            args.flash_args.log_format,
-            true,
-            args.flash_args.processors,
-            Some(args.image),
-        )
+        monitor_args.elf = Some(args.image);
+
+        monitor(flasher.into_serial(), Some(&elf_data), pid, monitor_args)
     } else {
         Ok(())
     }

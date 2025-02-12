@@ -142,15 +142,12 @@ pub struct FlashArgs {
     /// Erase specified data partitions
     #[arg(long, value_name = "PARTS", value_enum, value_delimiter = ',')]
     pub erase_data_parts: Option<Vec<DataType>>,
-    /// Logging format.
-    #[arg(long, short = 'L', default_value = "serial", requires = "monitor")]
-    pub log_format: LogFormat,
     /// Open a serial monitor after flashing
     #[arg(short = 'M', long)]
     pub monitor: bool,
-    /// Baud rate at which to read console output
-    #[arg(long, requires = "monitor", value_name = "BAUD")]
-    pub monitor_baud: Option<u32>,
+    /// Monitor configuration
+    #[clap(flatten)]
+    pub monitor_args: MonitorConfigArgs,
     /// Load the application to RAM instead of Flash
     #[arg(long)]
     pub ram: bool,
@@ -162,9 +159,6 @@ pub struct FlashArgs {
     pub no_skip: bool,
     #[clap(flatten)]
     pub image: ImageArgs,
-    /// External log processors to use (comma separated executables)
-    #[arg(long, requires = "monitor")]
-    pub processors: Option<String>,
 }
 
 /// Operations for partitions tables
@@ -255,22 +249,36 @@ pub struct ImageArgs {
     pub min_chip_rev: u16,
 }
 
-/// Open the serial monitor without flashing
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct MonitorArgs {
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
-    /// Optional file name of the ELF image to load the symbols from
+    /// Monitoring arguments
+    #[clap(flatten)]
+    monitor_args: MonitorConfigArgs,
+}
+
+/// Open the serial monitor without flashing
+#[derive(Debug, Args)]
+#[non_exhaustive]
+pub struct MonitorConfigArgs {
+    /// Baud rate at which to communicate with target device
+    #[arg(short = 'r', long, env = "MONITOR_BAUD", default_value = "115_200", value_parser = parse_u32)]
+    pub baud_rate: u32,
+    /// File name of the ELF image to load the symbols from
     #[arg(short = 'e', long, value_name = "FILE")]
-    elf: Option<PathBuf>,
+    pub elf: Option<PathBuf>,
     /// Avoids asking the user for interactions like resetting the device
     #[arg(long)]
     non_interactive: bool,
+    /// Avoids restarting the device before monitoring
+    #[arg(long, requires = "non_interactive")]
+    no_reset: bool,
     /// Logging format.
     #[arg(long, short = 'L', default_value = "serial", requires = "elf")]
-    pub log_format: LogFormat,
+    log_format: LogFormat,
     /// External log processors to use (comma separated executables)
     #[arg(long)]
     processors: Option<String>,
@@ -292,6 +300,7 @@ pub struct ChecksumMd5Args {
 
 /// Parses an integer, in base-10 or hexadecimal format, into a [u32]
 pub fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
+    let input: &str = &input.replace('_', "");
     let (s, radix) = if input.len() > 2 && matches!(&input[0..2], "0x" | "0X") {
         (&input[2..], 16)
     } else {
@@ -437,7 +446,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
     let pid = flasher.get_usb_pid()?;
 
-    let elf = if let Some(elf_path) = args.elf.clone() {
+    let elf = if let Some(elf_path) = args.monitor_args.elf.clone() {
         let path = fs::canonicalize(elf_path).into_diagnostic()?;
         let data = fs::read(path).into_diagnostic()?;
 
@@ -449,26 +458,18 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let chip = flasher.chip();
     let target = chip.into_target();
 
+    let mut monitor_args = args.monitor_args;
+
     // The 26MHz ESP32-C2's need to be treated as a special case.
-    let default_baud = if chip == Chip::Esp32c2
+    if chip == Chip::Esp32c2
         && target.crystal_freq(flasher.connection())? == XtalFrequency::_26Mhz
+        && monitor_args.baud_rate == 115_200
     {
         // 115_200 * 26 MHz / 40 MHz = 74_880
-        74_880
-    } else {
-        115_200
-    };
+        monitor_args.baud_rate = 74_880;
+    }
 
-    monitor(
-        flasher.into_serial(),
-        elf.as_deref(),
-        pid,
-        args.connect_args.baud.unwrap_or(default_baud),
-        args.log_format,
-        !args.non_interactive,
-        args.processors,
-        args.elf,
-    )
+    monitor(flasher.into_serial(), elf.as_deref(), pid, monitor_args)
 }
 
 /// Convert the provided firmware image from ELF to binary
@@ -892,6 +893,9 @@ mod test {
         // Decimal
         assert_eq!(parse_u32("1234"), Ok(1234));
         assert_eq!(parse_u32("0"), Ok(0));
+        // Underscores
+        assert_eq!(parse_u32("12_34"), Ok(1234));
+        assert_eq!(parse_u32("0X12_34"), Ok(0x1234));
         // Errors
         assert!(parse_u32("").is_err());
         assert!(parse_u32("0x").is_err());

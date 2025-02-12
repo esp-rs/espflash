@@ -20,7 +20,7 @@ Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**, and **ES
   - [Cargo Runner](#cargo-runner)
 - [Using `espflash` as a Library](#using-espflash-as-a-library)
 - [Configuration File](#configuration-file)
-  - [Configuration precedence](#configuration-precedence)
+  - [Configuration Precedence](#configuration-precedence)
 - [Logging Format](#logging-format)
 - [License](#license)
   - [Contribution](#contribution)
@@ -157,9 +157,9 @@ You can have a local and/or a global configuration file:
   - macOS: `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml`
   - Windows: `%APPDATA%\esp\espflash\espflash.toml`
 
-### Configuration precedence
+### Configuration Precedence
 
-1. Environment variables: If `ESPFLASH_PORT` or `ESPFLASH_BAUD` are set, the will be used instead of the config file value.
+1. Environment variables: If `ESPFLASH_PORT`, `MONITOR_BAUD` or `ESPFLASH_BAUD` are set, the will be used instead of the config file value.
 2. Local configuration file
 3. Global configuration file
 
