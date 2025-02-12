@@ -26,21 +26,6 @@ runs:
         find: "unknown-"
         replace: ""
 
-    - name: Install toolchain
-      uses: dtolnay/rust-toolchain@v1
-      with:
-        toolchain: ${{ inputs.toolchain }}
-        target: ${{ inputs.target }}
-        components: ${{ inputs.components }}
-
-    - uses: Swatinem/rust-cache@v2
-
-    - if: inputs.arch != 'x86_64'
-      name: Install Cross-Compile Support
-      uses: junelife/gha-ubuntu-cross@v6
-      with:
-        arch: ${{ inputs.arch }}
-
     - if: inputs.arch != 'x86_64'
       name: Install dependencies (Raspberry Pi)
       shell: bash
@@ -59,7 +44,22 @@ runs:
       name: Install dependencies (x86_64 linux)
       shell: bash
       run: |
-        sudo apt-get update && sudo apt-get -y install musl-tools pkg-config
+        sudo apt-get update && sudo apt-get -y install curl musl-tools pkg-config
+
+    - name: Install toolchain
+      uses: dtolnay/rust-toolchain@v1
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        target: ${{ inputs.target }}
+        components: ${{ inputs.components }}
+
+    - uses: Swatinem/rust-cache@v2
+
+    - if: inputs.arch != 'x86_64'
+      name: Install Cross-Compile Support
+      uses: junelife/gha-ubuntu-cross@v6
+      with:
+        arch: ${{ inputs.arch }}
 
     - if: inputs.arch != 'x86_64'
       name: Set environment variables

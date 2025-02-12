@@ -29,7 +29,10 @@ concurrency:
 jobs:
   build-espflash:
     name: Build espflash
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+    container:
+      image: ubuntu:20.04
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,7 +58,13 @@ jobs:
     name: ${{ matrix.board.mcu }}${{ matrix.board.freq }}
     if: github.repository_owner == 'esp-rs'
     needs: build-espflash
-    runs-on: [self-hosted, linux, x64, "${{ matrix.board.mcu }}${{ matrix.board.freq }}"]
+    runs-on:
+      [
+        self-hosted,
+        linux,
+        x64,
+        "${{ matrix.board.mcu }}${{ matrix.board.freq }}",
+      ]
     strategy:
       matrix:
         board:
