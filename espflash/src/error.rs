@@ -2,7 +2,7 @@
 
 #[cfg(feature = "serialport")]
 use std::fmt::{Display, Formatter};
-use std::io;
+use std::{array::TryFromSliceError, io};
 
 use miette::Diagnostic;
 #[cfg(feature = "serialport")]
@@ -211,8 +211,11 @@ pub enum Error {
     #[error("Failed to parse partition table")]
     Partition(#[from] esp_idf_part::Error),
 
-    #[error("Invalid response length")]
-    InvalidResponse,
+    #[error("Invalid response length, expected >= {expected}, got {got}")]
+    InvalidResponse {
+        expected: u32,
+        got: usize,
+    },
 }
 
 #[cfg(feature = "serialport")]
@@ -235,6 +238,15 @@ impl From<SlipError> for Error {
     fn from(err: SlipError) -> Self {
         Self::Connection(err.into())
     }
+}
+
+impl From<TryFromSliceError> for Error {
+    fn from(_: TryFromSliceError) -> Self {
+            Error::InvalidResponse {
+                expected: 0,
+                got: 0,
+            }
+        }
 }
 
 /// Connection-related errors
