@@ -29,14 +29,14 @@ pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
 
 // Include stub objects in binary
-const STUB_32: &str = include_str!("../../resources/stubs/stub_flasher_32.toml");
-const STUB_32C2: &str = include_str!("../../resources/stubs/stub_flasher_32c2.toml");
-const STUB_32C3: &str = include_str!("../../resources/stubs/stub_flasher_32c3.toml");
-const STUB_32C6: &str = include_str!("../../resources/stubs/stub_flasher_32c6.toml");
-const STUB_32H2: &str = include_str!("../../resources/stubs/stub_flasher_32h2.toml");
-const STUB_32P4: &str = include_str!("../../resources/stubs/stub_flasher_32p4.toml");
-const STUB_32S2: &str = include_str!("../../resources/stubs/stub_flasher_32s2.toml");
-const STUB_32S3: &str = include_str!("../../resources/stubs/stub_flasher_32s3.toml");
+const STUB_32: &str = include_str!("../../resources/stubs/esp32.json");
+const STUB_32C2: &str = include_str!("../../resources/stubs/esp32c2.json");
+const STUB_32C3: &str = include_str!("../../resources/stubs/esp32c3.json");
+const STUB_32C6: &str = include_str!("../../resources/stubs/esp32c6.json");
+const STUB_32H2: &str = include_str!("../../resources/stubs/esp32h2.json");
+const STUB_32P4: &str = include_str!("../../resources/stubs/esp32p4.json");
+const STUB_32S2: &str = include_str!("../../resources/stubs/esp32s2.json");
+const STUB_32S3: &str = include_str!("../../resources/stubs/esp32s3.json");
 
 impl FlashStub {
     /// Fetch flash stub for the provided chip
@@ -52,7 +52,7 @@ impl FlashStub {
             Chip::Esp32s3 => STUB_32S3,
         };
 
-        let stub: FlashStub = toml::from_str(s).unwrap();
+        let stub: FlashStub = serde_json::from_str(s).unwrap();
 
         stub
     }
@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn check_stub_encodings() {
         for c in Chip::iter() {
-            // Stub must be valid json
+            // Stub must be valid JSON:
             let s = FlashStub::get(c);
 
             // Data decoded from b64
