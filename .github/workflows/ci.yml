@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 
 env:
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target
   CARGO_TERM_COLOR: always
   MSRV: "1.82"
 

@@ -16,6 +16,7 @@ on:
         default: "main"
 
 env:
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target
   CARGO_TERM_COLOR: always
 
 # Cancel any currently running workflows from the same PR, branch, or
