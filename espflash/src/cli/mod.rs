@@ -300,6 +300,7 @@ pub struct ChecksumMd5Args {
 
 /// Parses an integer, in base-10 or hexadecimal format, into a [u32]
 pub fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
+    let input: &str = &input.replace('_', "");
     let (s, radix) = if input.len() > 2 && matches!(&input[0..2], "0x" | "0X") {
         (&input[2..], 16)
     } else {
@@ -892,6 +893,9 @@ mod test {
         // Decimal
         assert_eq!(parse_u32("1234"), Ok(1234));
         assert_eq!(parse_u32("0"), Ok(0));
+        // Underscores
+        assert_eq!(parse_u32("12_34"), Ok(1234));
+        assert_eq!(parse_u32("0X12_34"), Ok(0x1234));
         // Errors
         assert!(parse_u32("").is_err());
         assert!(parse_u32("0x").is_err());
