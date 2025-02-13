@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Split the baudrate for connecting and monitorinig in `flash` subcommand (#737)
 
+- `board-info` now prints `Security information`. (#758)
+
 ### Fixed
 
 - Update the app image SHA in the correct location for padded images (#715)

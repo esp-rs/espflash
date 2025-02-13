@@ -441,12 +441,20 @@ impl Connection {
                             RomErrorKind::from(response.error),
                         )))
                     } else {
-                        Ok(response.value)
-                    }
+                        // Check if the response is a Vector and strip header (first 8 bytes)
+                        // https://github.com/espressif/esptool/blob/749d1ad/esptool/loader.py#L481
+                        let modified_value = match response.value {
+                            CommandResponseValue::Vector(mut vec) if vec.len() >= 8 => {
+                                vec = vec[8..][..response.return_length as usize].to_vec();
+                                CommandResponseValue::Vector(vec)
+                            }
+                            _ => response.value, // If not Vector, return as is
+                        };
+
+                        Ok(modified_value)
+                    };
                 }
-                _ => {
-                    continue;
-                }
+                _ => continue,
             }
         }
         Err(Error::Connection(ConnectionError::ConnectionFailed))

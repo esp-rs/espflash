@@ -2,7 +2,7 @@
 
 #[cfg(feature = "serialport")]
 use std::fmt::{Display, Formatter};
-use std::io;
+use std::{array::TryFromSliceError, io};
 
 use miette::Diagnostic;
 #[cfg(feature = "serialport")]
@@ -202,6 +202,9 @@ pub enum Error {
     #[diagnostic(code(espflash::dialoguer_error))]
     DialoguerError(#[from] dialoguer::Error),
 
+    #[error(transparent)]
+    TryFromSlice(#[from] TryFromSliceError),
+
     #[error("Internal Error")]
     InternalError,
 
@@ -210,6 +213,10 @@ pub enum Error {
 
     #[error("Failed to parse partition table")]
     Partition(#[from] esp_idf_part::Error),
+
+    #[error("Invalid response: {0}")]
+    #[diagnostic(code(espflash::invalid_response))]
+    InvalidResponse(String),
 }
 
 #[cfg(feature = "serialport")]
