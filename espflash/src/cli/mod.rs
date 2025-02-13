@@ -267,9 +267,9 @@ pub struct MonitorArgs {
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct MonitorConfigArgs {
-    /// Baud rate at which to communicate with target device
+    /// Baud rate at which to monitor the target device
     #[arg(short = 'r', long, env = "MONITOR_BAUD", default_value = "115_200", value_parser = parse_u32)]
-    pub baudrate: u32,
+    pub monitor_baud: u32,
     /// ELF image to load the symbols from
     #[arg(long, value_name = "FILE")]
     pub elf: Option<PathBuf>,
@@ -473,10 +473,10 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     // The 26MHz ESP32-C2's need to be treated as a special case.
     if chip == Chip::Esp32c2
         && target.crystal_freq(flasher.connection())? == XtalFrequency::_26Mhz
-        && monitor_args.baudrate == 115_200
+        && monitor_args.monitor_baud == 115_200
     {
         // 115_200 * 26 MHz / 40 MHz = 74_880
-        monitor_args.baudrate = 74_880;
+        monitor_args.monitor_baud = 74_880;
     }
 
     monitor(flasher.into_serial(), elf.as_deref(), pid, monitor_args)

@@ -87,7 +87,7 @@ pub fn monitor(
         reset_after_flash(&mut serial, pid).into_diagnostic()?;
     }
 
-    let baud = monitor_args.baudrate;
+    let baud = monitor_args.monitor_baud;
     debug!("Opening serial monitor with baudrate: {}", baud);
 
     // Explicitly set the baud rate when starting the serial monitor, to allow using
