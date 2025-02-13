@@ -79,6 +79,7 @@ pub struct ClassicReset {
 }
 
 impl ClassicReset {
+    /// Create a new `ClassicReset` strategy with the given delay.
     pub fn new(extra_delay: bool) -> Self {
         let delay = if extra_delay {
             EXTRA_RESET_DELAY
@@ -129,6 +130,7 @@ pub struct UnixTightReset {
 
 #[cfg(unix)]
 impl UnixTightReset {
+    /// Create a new `UnixTightReset` strategy with the given delay.
     pub fn new(extra_delay: bool) -> Self {
         let delay = if extra_delay {
             EXTRA_RESET_DELAY
@@ -325,6 +327,7 @@ pub fn construct_reset_strategy_sequence(
     ]
 }
 
+/// Enum to represent different reset behaviors before an operation.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(
     Debug, Default, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames,
@@ -346,6 +349,7 @@ pub enum ResetBeforeOperation {
     UsbReset,
 }
 
+/// Enum to represent different reset behaviors after an operation.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(
     Debug, Default, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames,

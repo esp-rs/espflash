@@ -7,6 +7,7 @@ use thiserror::Error;
 
 use crate::cli::monitor::parser::InputParser;
 
+/// Errors that can occur when setting up the defmt logger.
 #[derive(Clone, Copy, Debug, Diagnostic, Error)]
 #[error("Could not set up defmt logger")]
 pub enum DefmtError {
@@ -67,6 +68,8 @@ impl FrameDelimiter {
         Some((&haystack[start..][..end], start + end + needle.len()))
     }
 
+    /// Feeds data into the parser, extracting and processing framed or raw
+    /// data.
     pub fn feed(&mut self, buffer: &[u8], mut process: impl FnMut(FrameKind<'_>)) {
         self.buffer.extend_from_slice(buffer);
 
@@ -98,6 +101,7 @@ impl FrameDelimiter {
     }
 }
 
+/// Parser for defmt logs.
 #[derive(Debug)]
 pub struct EspDefmt {
     delimiter: FrameDelimiter,
@@ -129,6 +133,7 @@ impl EspDefmt {
         }
     }
 
+    /// Creates a new parser with the given ELF file.
     pub fn new(elf: Option<&[u8]>) -> Result<Self> {
         Self::load_table(elf).map(|table| Self {
             delimiter: FrameDelimiter::new(),

@@ -459,6 +459,7 @@ pub struct RomError {
 
 #[cfg(feature = "serialport")]
 impl RomError {
+    /// Create a new [RomError]
     pub fn new(command: CommandType, kind: RomErrorKind) -> RomError {
         RomError { command, kind }
     }

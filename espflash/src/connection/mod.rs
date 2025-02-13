@@ -44,10 +44,13 @@ const MAX_SYNC_ATTEMPTS: usize = 5;
 pub(crate) const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
 #[cfg(unix)]
+/// Alias for the serial TTYPort.
 pub type Port = serialport::TTYPort;
 #[cfg(windows)]
+/// Alias for the serial COMPort.
 pub type Port = serialport::COMPort;
 
+/// The value of a command response.
 #[derive(Debug, Clone)]
 pub enum CommandResponseValue {
     ValueU32(u32),
@@ -94,11 +97,17 @@ impl TryInto<Vec<u8>> for CommandResponseValue {
 /// A response from a target device following a command
 #[derive(Debug, Clone)]
 pub struct CommandResponse {
+    /// The response byte
     pub resp: u8,
+    /// The return operation byte
     pub return_op: u8,
+    /// The length of the return value
     pub return_length: u16,
+    /// The value of the response
     pub value: CommandResponseValue,
+    /// The error byte
     pub error: u8,
+    /// The status byte
     pub status: u8,
 }
 
@@ -113,6 +122,7 @@ pub struct Connection {
 }
 
 impl Connection {
+    /// Create a new connection with a target device
     pub fn new(
         serial: Port,
         port_info: UsbPortInfo,
@@ -255,14 +265,14 @@ impl Connection {
         Ok(())
     }
 
-    // Reset the device
+    /// Reset the device
     pub fn reset(&mut self) -> Result<(), Error> {
         reset_after_flash(&mut self.serial, self.port_info.pid)?;
 
         Ok(())
     }
 
-    // Reset the device taking into account the reset after argument
+    /// Reset the device taking into account the reset after argument
     pub fn reset_after(&mut self, is_stub: bool) -> Result<(), Error> {
         let pid = self.get_usb_pid()?;
 
@@ -281,7 +291,7 @@ impl Connection {
         }
     }
 
-    // Reset the device to flash mode
+    /// Reset the device to flash mode
     pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
         if self.port_info.pid == USB_SERIAL_JTAG_PID {
             UsbJtagSerialReset.reset(&mut self.serial)
@@ -481,6 +491,7 @@ impl Connection {
         Ok(())
     }
 
+    /// Read a register command with a timeout
     pub(crate) fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
         let mut tmp = Vec::with_capacity(1024);
         loop {
@@ -516,6 +527,7 @@ mod encoder {
     const ESC_END: u8 = 0xDC;
     const ESC_ESC: u8 = 0xDD;
 
+    /// Encoder for the SLIP protocol
     pub struct SlipEncoder<'a, W: Write> {
         writer: &'a mut W,
         len: usize,
@@ -528,6 +540,7 @@ mod encoder {
             Ok(Self { writer, len })
         }
 
+        /// Finish the encoding
         pub fn finish(mut self) -> std::io::Result<usize> {
             self.len += self.writer.write(&[END])?;
             Ok(self.len)

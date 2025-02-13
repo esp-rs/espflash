@@ -40,6 +40,7 @@ pub mod parser;
 mod line_endings;
 mod symbols;
 
+/// Log format to use when parsing incoming data.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames)]
 #[non_exhaustive]
@@ -55,6 +56,7 @@ pub enum LogFormat {
 struct RawModeGuard;
 
 impl RawModeGuard {
+    /// Enable raw mode and return a guard that will disable it when dropped.
     pub fn new() -> Result<Self> {
         enable_raw_mode().into_diagnostic()?;
         Ok(RawModeGuard)

@@ -225,9 +225,11 @@ pub struct SaveImageArgs {
     #[arg(long, short = 'x')]
     pub xtal_freq: Option<XtalFrequency>,
     #[clap(flatten)]
+    /// Image arguments
     pub image: ImageArgs,
 }
 
+/// Image arguments needed for image generation
 #[derive(Debug, Args)]
 #[non_exhaustive]
 #[group(skip)]
@@ -249,6 +251,7 @@ pub struct ImageArgs {
     pub min_chip_rev: u16,
 }
 
+/// Arguments for connection and monitoring
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct MonitorArgs {
@@ -284,6 +287,7 @@ pub struct MonitorConfigArgs {
     processors: Option<String>,
 }
 
+/// Arguments for MD5 checksum calculation
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct ChecksumMd5Args {
@@ -602,6 +606,7 @@ impl ProgressCallbacks for EspflashProgress {
     }
 }
 
+/// Erase the entire flash memory of a target device
 pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(Error::StubRequired.into());
@@ -620,6 +625,7 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Erase a specified region of flash memory
 pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(Error::StubRequired).into_diagnostic();
@@ -824,6 +830,8 @@ fn pretty_print(table: PartitionTable) {
     println!("{pretty}");
 }
 
+/// Creates `FlashSettings`, prioritizing `flash_config_args`, with `config` as
+/// a fallback.
 pub fn make_flash_settings(flash_config_args: &FlashConfigArgs, config: &Config) -> FlashSettings {
     FlashSettings::new(
         flash_config_args.flash_mode.or(config.flash.mode),
@@ -832,6 +840,7 @@ pub fn make_flash_settings(flash_config_args: &FlashConfigArgs, config: &Config)
     )
 }
 
+/// Creates `FlashData` from `ImageArgs`, `FlashConfigArgs`, and `Config`.
 pub fn make_flash_data(
     image_args: ImageArgs,
     flash_config_args: &FlashConfigArgs,
