@@ -142,8 +142,7 @@ impl fmt::Display for SecurityInfo {
         }
 
         // Flash Encryption
-        let flash_crypt_cnt_binary = format!("{:b}", self.flash_crypt_cnt);
-        if flash_crypt_cnt_binary.chars().filter(|&c| c == '1').count() % 2 != 0 {
+        if self.flash_crypt_cnt.count_ones() % 2 != 0 {
             writeln!(f, "Flash Encryption: Enabled")?;
         } else {
             writeln!(f, "Flash Encryption: Disabled")?;

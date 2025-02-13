@@ -96,8 +96,6 @@ impl TryFrom<Vec<u8>> for SecurityInfo {
     type Error = crate::error::Error;
 
     fn try_from(res: Vec<u8>) -> Result<Self, Self::Error> {
-        let esp32s2 = res.len() == 14; // 12 bytes + 2-byte header
-
         if res.len() < 12 {
             return Err(Error::InvalidResponse(format!(
                 "expected response of at least 12 bytes, received {} bytes",
@@ -110,7 +108,9 @@ impl TryFrom<Vec<u8>> for SecurityInfo {
         let flash_crypt_cnt = res[4];
         let key_purposes: [u8; 7] = res[5..12].try_into()?;
 
-        let (chip_id, eco_version) = if esp32s2 {
+        // ESP32S2 response does't have chip-id and eco-version, so we expect 14 bytes
+        // or 16 bytes with `--no-stub`
+        let (chip_id, eco_version) = if res.len() == 14 || res.len() == 16 {
             (None, None) // ESP32-S2 doesn't have these values
         } else {
             if res.len() < 20 {
@@ -485,7 +485,7 @@ impl Connection {
                         )))
                     } else {
                         // Check if the response is a Vector and strip header (first 8 bytes)
-                        // https://github.com/espressif/esptool/blob/release/v4/esptool/loader.py#L481: data = p[8:]
+                        // https://github.com/espressif/esptool/blob/749d1ad/esptool/loader.py#L481
                         let modified_value = match response.value {
                             CommandResponseValue::Vector(mut vec) if vec.len() >= 8 => {
                                 vec.drain(0..8);
