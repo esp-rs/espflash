@@ -35,7 +35,6 @@ use crate::{
     command::{Command, CommandType},
     connection::reset::soft_reset,
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
-    flasher::SecurityInfo,
 };
 
 pub mod reset;
@@ -89,48 +88,6 @@ impl TryInto<Vec<u8>> for CommandResponseValue {
             CommandResponseValue::ValueU128(_) => Err(crate::error::Error::InternalError),
             CommandResponseValue::Vector(value) => Ok(value),
         }
-    }
-}
-
-impl TryFrom<Vec<u8>> for SecurityInfo {
-    type Error = crate::error::Error;
-
-    fn try_from(res: Vec<u8>) -> Result<Self, Self::Error> {
-        if res.len() < 12 {
-            return Err(Error::InvalidResponse(format!(
-                "expected response of at least 12 bytes, received {} bytes",
-                res.len()
-            )));
-        }
-
-        // Parse response bytes
-        let flags = u32::from_le_bytes(res[0..4].try_into()?);
-        let flash_crypt_cnt = res[4];
-        let key_purposes: [u8; 7] = res[5..12].try_into()?;
-
-        // ESP32S2 response does't have chip-id and eco-version, so we expect 14 bytes
-        // or 16 bytes with `--no-stub`
-        let (chip_id, eco_version) = if res.len() == 14 || res.len() == 16 {
-            (None, None) // ESP32-S2 doesn't have these values
-        } else {
-            if res.len() < 20 {
-                return Err(Error::InvalidResponse(format!(
-                    "expected response of at least 20 bytes, received {} bytes",
-                    res.len()
-                )));
-            }
-            let chip_id = u32::from_le_bytes(res[12..16].try_into()?);
-            let eco_version = u32::from_le_bytes(res[16..20].try_into()?);
-            (Some(chip_id), Some(eco_version))
-        };
-
-        Ok(SecurityInfo {
-            flags,
-            flash_crypt_cnt,
-            key_purposes,
-            chip_id,
-            eco_version,
-        })
     }
 }
 
@@ -488,7 +445,7 @@ impl Connection {
                         // https://github.com/espressif/esptool/blob/749d1ad/esptool/loader.py#L481
                         let modified_value = match response.value {
                             CommandResponseValue::Vector(mut vec) if vec.len() >= 8 => {
-                                vec.drain(0..8);
+                                vec = vec[8..][..response.return_length as usize].to_vec();
                                 CommandResponseValue::Vector(vec)
                             }
                             _ => response.value, // If not Vector, return as is

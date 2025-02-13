@@ -88,6 +88,48 @@ impl SecurityInfo {
     }
 }
 
+impl TryFrom<&[u8]> for SecurityInfo {
+    type Error = crate::error::Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let esp32s2 = bytes.len() == 12;
+
+        if bytes.len() < 12 {
+            return Err(Error::InvalidResponse(format!(
+                "expected response of at least 12 bytes, received {} bytes",
+                bytes.len()
+            )));
+        }
+
+        // Parse response bytes
+        let flags = u32::from_le_bytes(bytes[0..4].try_into()?);
+        let flash_crypt_cnt = bytes[4];
+        let key_purposes: [u8; 7] = bytes[5..12].try_into()?;
+
+        let (chip_id, eco_version) = if esp32s2 {
+            (None, None) // ESP32-S2 doesn't have these values
+        } else {
+            if bytes.len() < 20 {
+                return Err(Error::InvalidResponse(format!(
+                    "expected response of at least 20 bytes, received {} bytes",
+                    bytes.len()
+                )));
+            }
+            let chip_id = u32::from_le_bytes(bytes[12..16].try_into()?);
+            let eco_version = u32::from_le_bytes(bytes[16..20].try_into()?);
+            (Some(chip_id), Some(eco_version))
+        };
+
+        Ok(SecurityInfo {
+            flags,
+            flash_crypt_cnt,
+            key_purposes,
+            chip_id,
+            eco_version,
+        })
+    }
+}
+
 impl fmt::Display for SecurityInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let key_purposes_str = self
@@ -1173,7 +1215,14 @@ impl Flasher {
                 let response = connection.command(crate::command::Command::GetSecurityInfo)?;
                 // Extract raw bytes and convert them into `SecurityInfo`
                 if let crate::connection::CommandResponseValue::Vector(data) = response {
-                    SecurityInfo::try_from(data)
+                    // HACK: Not quite sure why there seem to be 4 extra bytes at the end of the
+                    //       response when the stub is not being used...
+                    let end = if self.use_stub {
+                        data.len()
+                    } else {
+                        data.len() - 4
+                    };
+                    SecurityInfo::try_from(&data[..end])
                 } else {
                     Err(Error::InvalidResponse(
                         "response was not a vector of bytes".into(),
