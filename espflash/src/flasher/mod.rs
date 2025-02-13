@@ -442,13 +442,17 @@ impl FromStr for FlashSize {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Default)]
 #[non_exhaustive]
 pub struct FlashSettings {
+    /// Flash mode
     pub mode: Option<FlashMode>,
+    /// Flash size
     pub size: Option<FlashSize>,
+    /// Flash frequency
     #[serde(rename = "frequency")]
     pub freq: Option<FlashFrequency>,
 }
 
 impl FlashSettings {
+    /// Returns the default [FlashSettings] with all fields set to `None`.
     pub const fn default() -> Self {
         FlashSettings {
             mode: None,
@@ -457,6 +461,8 @@ impl FlashSettings {
         }
     }
 
+    /// Creates a new [FlashSettings] with the specified mode, size, and
+    /// frequency.
     pub fn new(
         mode: Option<FlashMode>,
         size: Option<FlashSize>,
@@ -470,16 +476,23 @@ impl FlashSettings {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct FlashData {
+    /// Bootloader binary
     pub bootloader: Option<Vec<u8>>,
+    /// Partition table
     pub partition_table: Option<PartitionTable>,
+    /// Partition table offset
     pub partition_table_offset: Option<u32>,
+    /// Target app partition
     pub target_app_partition: Option<String>,
+    /// Flash settings
     pub flash_settings: FlashSettings,
+    /// Minimum chip revision
     pub min_chip_rev: u16,
     pub mmu_page_size: Option<u32>,
 }
 
 impl FlashData {
+    /// Creates a new [`FlashData`] object.
     pub fn new(
         bootloader: Option<&Path>,
         partition_table: Option<&Path>,
@@ -545,6 +558,7 @@ pub struct SpiSetParams {
 }
 
 impl SpiSetParams {
+    /// Create a new [SpiSetParams] with the specified size.
     pub const fn default(size: u32) -> Self {
         SpiSetParams {
             fl_id: 0,
@@ -581,6 +595,7 @@ pub struct SpiAttachParams {
 }
 
 impl SpiAttachParams {
+    /// Create a new [SpiAttachParams] with default values
     pub const fn default() -> Self {
         SpiAttachParams {
             clk: 0,
@@ -591,7 +606,7 @@ impl SpiAttachParams {
         }
     }
 
-    // Default SPI parameters for ESP32-PICO-D4
+    /// Default SPI parameters for ESP32-PICO-D4
     pub const fn esp32_pico_d4() -> Self {
         SpiAttachParams {
             clk: 6,
@@ -740,10 +755,12 @@ impl Flasher {
         Ok(flasher)
     }
 
+    /// Set the flash size
     pub fn set_flash_size(&mut self, flash_size: FlashSize) {
         self.flash_size = flash_size;
     }
 
+    /// Disable the watchdog timer
     pub fn disable_watchdog(&mut self) -> Result<(), Error> {
         let mut target = self
             .chip
@@ -1155,6 +1172,7 @@ impl Flasher {
         security_info(&mut self.connection, self.use_stub)
     }
 
+    /// Change the baud rate of the connection
     pub fn change_baud(&mut self, speed: u32) -> Result<(), Error> {
         debug!("Change baud to: {}", speed);
 
@@ -1189,14 +1207,17 @@ impl Flasher {
         Ok(())
     }
 
+    /// Convert the [Flasher] into a [Port] instance
     pub fn into_serial(self) -> Port {
         self.connection.into_serial()
     }
 
+    /// Get the USB VID of the connected device
     pub fn usb_pid(&self) -> u16 {
         self.connection.usb_pid()
     }
 
+    /// Erase a region of flash specified by offset and size
     pub fn erase_region(&mut self, offset: u32, size: u32) -> Result<(), Error> {
         debug!("Erasing region of 0x{:x}B at 0x{:08x}", size, offset);
 
@@ -1209,6 +1230,7 @@ impl Flasher {
         Ok(())
     }
 
+    /// Erase entire flash
     pub fn erase_flash(&mut self) -> Result<(), Error> {
         debug!("Erasing the entire flash");
 
@@ -1222,6 +1244,7 @@ impl Flasher {
         Ok(())
     }
 
+    /// Read the flash ROM and write it to a file
     pub fn read_flash_rom(
         &mut self,
         offset: u32,
@@ -1360,6 +1383,7 @@ impl Flasher {
         Ok(())
     }
 
+    /// Verify the minimum chip revision
     pub fn verify_minimum_revision(&mut self, minimum: u16) -> Result<(), Error> {
         let (major, minor) = self.chip.into_target().chip_revision(self.connection())?;
         let revision = (major * 100 + minor) as u16;

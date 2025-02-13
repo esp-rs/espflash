@@ -9,6 +9,7 @@ use crate::{
     targets::FlashTarget,
 };
 
+/// Maximum block size for RAM flashing
 pub const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 
 /// Applications running in the target device's RAM
@@ -19,6 +20,7 @@ pub struct RamTarget {
 }
 
 impl RamTarget {
+    /// Create a new RAM target
     pub fn new(entry: Option<u32>, block_size: usize) -> Self {
         RamTarget { entry, block_size }
     }

@@ -57,6 +57,7 @@ use std::{
 
 use miette::Diagnostic;
 
+/// Represents an error associated with a specific executable.
 #[derive(Debug)]
 pub struct Error {
     executable: String,
@@ -80,6 +81,7 @@ struct Processor {
 }
 
 impl Processor {
+    /// Creates a new processor from a child process.
     pub fn new(child: Child) -> Self {
         let mut child = child;
         let (tx, rx) = mpsc::channel::<u8>();
@@ -103,6 +105,7 @@ impl Processor {
         Self { rx, stdin, child }
     }
 
+    /// Tries to receive data from the processor.
     pub fn try_receive(&mut self) -> Vec<u8> {
         let mut res = Vec::new();
         while let Ok(b) = self.rx.try_recv() {
@@ -111,6 +114,7 @@ impl Processor {
         res
     }
 
+    /// Sends data to the processor.
     pub fn send(&mut self, data: Vec<u8>) {
         let _ignored = self.stdin.write(&data).ok();
     }
@@ -122,12 +126,14 @@ impl Drop for Processor {
     }
 }
 
+/// Represents a collection of external processors.
 #[derive(Debug)]
 pub struct ExternalProcessors {
     processors: Vec<Processor>,
 }
 
 impl ExternalProcessors {
+    /// Creates a new collection of external processors.
     pub fn new(processors: Option<String>, elf: Option<PathBuf>) -> Result<Self, Error> {
         let mut args = Vec::new();
 
@@ -156,6 +162,8 @@ impl ExternalProcessors {
         })
     }
 
+    /// Processes input bytes through a series of processors, returning the
+    /// final output.
     pub fn process(&mut self, read: &[u8]) -> Vec<u8> {
         let mut buffer = Vec::new();
         buffer.extend_from_slice(read);

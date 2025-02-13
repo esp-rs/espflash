@@ -11,6 +11,7 @@ use crate::cli::monitor::{line_endings::normalized, symbols::Symbols};
 pub mod esp_defmt;
 pub mod serial;
 
+/// Trait for parsing input data.
 pub trait InputParser {
     fn feed(&mut self, bytes: &[u8], out: &mut dyn Write);
 }
@@ -102,6 +103,7 @@ impl Utf8Merger {
     }
 }
 
+/// A printer that resolves symbol names and writes formatted output.
 #[allow(missing_debug_implementations)]
 pub struct ResolvingPrinter<'ctx, W: Write> {
     writer: W,
@@ -111,6 +113,7 @@ pub struct ResolvingPrinter<'ctx, W: Write> {
 }
 
 impl<'ctx, W: Write> ResolvingPrinter<'ctx, W> {
+    /// Creates a new `ResolvingPrinter` with the given ELF file and writer.
     pub fn new(elf: Option<&'ctx [u8]>, writer: W) -> Self {
         Self {
             writer,
