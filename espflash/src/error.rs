@@ -202,6 +202,9 @@ pub enum Error {
     #[diagnostic(code(espflash::dialoguer_error))]
     DialoguerError(#[from] dialoguer::Error),
 
+    #[error(transparent)]
+    TryFromSlice(#[from] TryFromSliceError),
+
     #[error("Internal Error")]
     InternalError,
 
@@ -211,8 +214,9 @@ pub enum Error {
     #[error("Failed to parse partition table")]
     Partition(#[from] esp_idf_part::Error),
 
-    #[error("Invalid response length")]
-    InvalidResponse,
+    #[error("Invalid response: {0}")]
+    #[diagnostic(code(espflash::invalid_response))]
+    InvalidResponse(String),
 }
 
 #[cfg(feature = "serialport")]
@@ -234,12 +238,6 @@ impl From<serialport::Error> for Error {
 impl From<SlipError> for Error {
     fn from(err: SlipError) -> Self {
         Self::Connection(err.into())
-    }
-}
-
-impl From<TryFromSliceError> for Error {
-    fn from(_: TryFromSliceError) -> Self {
-        Error::InvalidResponse
     }
 }
 

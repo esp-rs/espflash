@@ -98,8 +98,14 @@ impl TryFrom<Vec<u8>> for SecurityInfo {
     fn try_from(res: Vec<u8>) -> Result<Self, Self::Error> {
         let esp32s2 = res.len() == 16; // 12 bytes + 4-byte header
 
+        println!(" is esp32s2: {}", esp32s2);
+        println!("res.len(): {}", res.len());
+
         if res.len() < 12 {
-            return Err(Error::InvalidResponse);
+            return Err(Error::InvalidResponse(format!(
+                "expected response of at least 12 bytes, received {} bytes",
+                res.len()
+            )));
         }
 
         // Parse response bytes
@@ -111,7 +117,10 @@ impl TryFrom<Vec<u8>> for SecurityInfo {
             (None, None) // ESP32-S2 doesn't have these values
         } else {
             if res.len() < 20 {
-                return Err(Error::InvalidResponse);
+                return Err(Error::InvalidResponse(format!(
+                    "expected response of at least 20 bytes, received {} bytes",
+                    res.len()
+                )));
             }
             let chip_id = u32::from_le_bytes(res[12..16].try_into()?);
             let eco_version = u32::from_le_bytes(res[16..20].try_into()?);

@@ -1176,7 +1176,9 @@ impl Flasher {
                 if let crate::connection::CommandResponseValue::Vector(data) = response {
                     SecurityInfo::try_from(data)
                 } else {
-                    Err(Error::InvalidResponse)
+                    Err(Error::InvalidResponse(
+                        "response was not a vector of bytes".into(),
+                    ))
                 }
             })
     }
