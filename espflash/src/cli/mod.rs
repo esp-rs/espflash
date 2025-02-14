@@ -702,10 +702,12 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
     info!("Erasing Flash...");
 
+    let chip = flasher.chip();
+
     flasher.erase_flash()?;
     flasher
         .connection()
-        .reset_after(!args.connect_args.no_stub)?;
+        .reset_after(!args.connect_args.no_stub, chip)?;
 
     info!("Flash has been erased!");
 
@@ -726,6 +728,7 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
     }
 
     let mut flasher = connect(&args.connect_args, config, true, true)?;
+    let chip = flasher.chip();
 
     info!(
         "Erasing region at 0x{:08x} ({} bytes)",
@@ -735,7 +738,7 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
     flasher.erase_region(args.address, args.size)?;
     flasher
         .connection()
-        .reset_after(!args.connect_args.no_stub)?;
+        .reset_after(!args.connect_args.no_stub, chip)?;
 
     Ok(())
 }

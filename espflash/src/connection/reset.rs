@@ -17,7 +17,7 @@ use super::{
     Port,
     USB_SERIAL_JTAG_PID,
 };
-use crate::{flasher::FLASH_WRITE_SIZE, Error};
+use crate::{flasher::FLASH_WRITE_SIZE, targets::Chip, Error};
 
 /// Default time to wait before releasing the boot pin after a reset
 const DEFAULT_RESET_DELAY: u64 = 50; // ms
@@ -199,6 +199,58 @@ impl ResetStrategy for UsbJtagSerialReset {
     }
 }
 
+trait RtcWdtReset {
+    fn wdt_wprotect(&self) -> u32;
+    fn wdt_wkey(&self) -> u32;
+    fn wdt_config0(&self) -> u32;
+    fn wdt_config1(&self) -> u32;
+}
+
+impl RtcWdtReset for crate::targets::esp32c3::Esp32c3 {
+    fn wdt_wprotect(&self) -> u32 {
+        0x6000_8000 + 0x00B0
+    }
+    fn wdt_wkey(&self) -> u32 {
+        0x50D8_3AA1
+    }
+    fn wdt_config0(&self) -> u32 {
+        0x6000_8000 + 0x0090
+    }
+    fn wdt_config1(&self) -> u32 {
+        0x6000_8000 + 0x0094
+    }
+}
+
+impl RtcWdtReset for crate::targets::esp32s2::Esp32s2 {
+    fn wdt_wprotect(&self) -> u32 {
+        0x6000_F000 + 0x00B0
+    }
+    fn wdt_wkey(&self) -> u32 {
+        0xA123_B456
+    }
+    fn wdt_config0(&self) -> u32 {
+        0x6000_F000 + 0x0090
+    }
+    fn wdt_config1(&self) -> u32 {
+        0x6000_F000 + 0x0094
+    }
+}
+
+impl RtcWdtReset for crate::targets::esp32s3::Esp32s3 {
+    fn wdt_wprotect(&self) -> u32 {
+        0x6000_E000 + 0x00B0
+    }
+    fn wdt_wkey(&self) -> u32 {
+        0xB987_C654
+    }
+    fn wdt_config0(&self) -> u32 {
+        0x6000_E000 + 0x0090
+    }
+    fn wdt_config1(&self) -> u32 {
+        0x6000_E000 + 0x0094
+    }
+}
+
 /// Reset the target device
 pub fn reset_after_flash(serial: &mut Port, pid: u16) -> Result<(), serialport::Error> {
     sleep(Duration::from_millis(100));
@@ -294,6 +346,29 @@ pub fn soft_reset(
     Ok(())
 }
 
+/// Perform Watchdog reset
+pub fn wdt_reset(chip: Chip, connection: &mut Connection) -> Result<(), Error> {
+    debug!("Resetting with RTC WDT");
+
+    let chip: Box<dyn RtcWdtReset> = match chip {
+        Chip::Esp32c3 => Box::new(crate::targets::esp32c3::Esp32c3),
+        Chip::Esp32s2 => Box::new(crate::targets::esp32s2::Esp32s2),
+        Chip::Esp32s3 => Box::new(crate::targets::esp32s3::Esp32s3),
+        _ => unreachable!(),
+    };
+
+    connection.write_reg(chip.wdt_wprotect(), chip.wdt_wkey(), None)?;
+    connection.write_reg(chip.wdt_config1(), 5000, None)?;
+    connection.write_reg(
+        chip.wdt_config0(),
+        (1 << 31) | (5 << 28) | (1 << 8) | 2,
+        None,
+    )?;
+    connection.write_reg(chip.wdt_wprotect(), 0, None)?;
+
+    Ok(())
+}
+
 /// Construct a sequence of reset strategies based on the OS and chip.
 ///
 /// Returns a [Vec] containing one or more reset strategies to be attempted
@@ -362,4 +437,6 @@ pub enum ResetAfterOperation {
     NoReset,
     /// Leaves the chip in the stub bootloader, no reset is performed.
     NoResetNoStub,
+    /// Hard-resets the chip by triggering an internal watchdog reset.
+    WatchdogReset,
 }
