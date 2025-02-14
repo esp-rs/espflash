@@ -17,13 +17,13 @@ Add list-ports command to list available serial ports.
 ### Changed
 - Split the baudrate for connecting and monitorinig in `flash` subcommand (#737)
 - Normalized arguments of the CLI commands (#759)
-
 - `board-info` now prints `Security information`. (#758)
 
 ### Fixed
 
 - Update the app image SHA in the correct location for padded images (#715)
 - Fix `-s` argument collision (#731)
+- `address` and `size` in `erase-region` have to be multiples of 4096 (#771)
 
 ### Removed
 
