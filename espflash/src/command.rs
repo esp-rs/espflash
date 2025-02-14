@@ -312,13 +312,13 @@ impl Command<'_> {
                 #[derive(Zeroable, Pod, Copy, Clone, Debug)]
                 #[repr(C)]
                 struct WriteRegParams {
-                    addr: u32,
+                    address: u32,
                     value: u32,
                     mask: u32,
                     delay_us: u32,
                 }
                 let params = WriteRegParams {
-                    addr: address,
+                    address,
                     value,
                     mask: mask.unwrap_or(0xFFFFFFFF),
                     delay_us: 0,

@@ -71,7 +71,7 @@ pub struct ConnectArgs {
     #[arg(short = 'c', long)]
     pub chip: Option<Chip>,
     /// Require confirmation before auto-connecting to a recognized device.
-    #[arg(short = 'C', long)]
+    #[arg(long)]
     pub confirm_port: bool,
     /// List all available ports.
     #[arg(long)]
@@ -108,11 +108,15 @@ pub struct EraseRegionArgs {
     /// Connection configuration
     #[clap(flatten)]
     pub connect_args: ConnectArgs,
-    /// Offset to start erasing from
-    #[arg(value_name = "OFFSET", value_parser = parse_u32)]
-    pub addr: u32,
+    /// Start address
+    ///
+    /// Must be multiple of 4096(0x1000)
+    #[arg(value_parser = parse_u32)]
+    pub address: u32,
     /// Size of the region to erase
-    #[arg(value_name = "SIZE", value_parser = parse_u32)]
+    ///
+    /// Must be multiple of 4096(0x1000)
+    #[arg(value_parser = parse_u32)]
     pub size: u32,
 }
 
@@ -183,9 +187,9 @@ pub struct PartitionTableArgs {
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct ReadFlashArgs {
-    /// Offset to start reading from
-    #[arg(value_name = "OFFSET", value_parser = parse_u32)]
-    pub addr: u32,
+    /// Address to start reading from
+    #[arg(value_parser = parse_u32)]
+    pub address: u32,
     /// Size of each individual packet of data
     ///
     /// Defaults to 0x1000 (FLASH_SECTOR_SIZE)
@@ -195,10 +199,9 @@ pub struct ReadFlashArgs {
     #[clap(flatten)]
     connect_args: ConnectArgs,
     /// Size of the region to read
-    #[arg(value_name = "SIZE", value_parser = parse_u32)]
+    #[arg(value_parser = parse_u32)]
     pub size: u32,
-    /// Name of binary dump
-    #[arg(value_name = "FILE")]
+    /// File name to save the read data to
     pub file: PathBuf,
     /// Maximum number of un-acked packets
     #[arg(long, default_value = "64", value_parser = parse_u32)]
@@ -219,7 +222,7 @@ pub struct SaveImageArgs {
     #[arg(long)]
     pub merge: bool,
     /// Don't pad the image to the flash size
-    #[arg(long, short = 'P', requires = "merge")]
+    #[arg(long, requires = "merge")]
     pub skip_padding: bool,
     /// Cristal frequency of the target
     #[arg(long, short = 'x')]
@@ -236,7 +239,7 @@ pub struct ImageArgs {
     #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Path to a CSV file containing partition table
-    #[arg(long, short = 'T', value_name = "FILE")]
+    #[arg(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Partition table offset
     #[arg(long, value_name = "OFFSET", value_parser = parse_u32)]
@@ -264,11 +267,11 @@ pub struct MonitorArgs {
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct MonitorConfigArgs {
-    /// Baud rate at which to communicate with target device
+    /// Baud rate at which to monitor the target device
     #[arg(short = 'r', long, env = "MONITOR_BAUD", default_value = "115_200", value_parser = parse_u32)]
-    pub baud_rate: u32,
-    /// File name of the ELF image to load the symbols from
-    #[arg(short = 'e', long, value_name = "FILE")]
+    pub monitor_baud: u32,
+    /// ELF image to load the symbols from
+    #[arg(long, value_name = "FILE")]
     pub elf: Option<PathBuf>,
     /// Avoids asking the user for interactions like resetting the device
     #[arg(long)]
@@ -277,7 +280,7 @@ pub struct MonitorConfigArgs {
     #[arg(long, requires = "non_interactive")]
     no_reset: bool,
     /// Logging format.
-    #[arg(long, short = 'L', default_value = "serial", requires = "elf")]
+    #[arg(long, short = 'L', default_value = "serial")]
     log_format: LogFormat,
     /// External log processors to use (comma separated executables)
     #[arg(long)]
@@ -288,11 +291,11 @@ pub struct MonitorConfigArgs {
 #[non_exhaustive]
 pub struct ChecksumMd5Args {
     /// Start address
-    #[clap(long, value_parser=parse_u32)]
+    #[clap(value_parser=parse_u32)]
     address: u32,
-    /// Length
-    #[clap(short, long, value_parser=parse_u32)]
-    length: u32,
+    /// Size of the region to check
+    #[clap(value_parser=parse_u32)]
+    size: u32,
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
@@ -387,7 +390,7 @@ pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
 pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
 
-    let checksum = flasher.checksum_md5(args.address, args.length)?;
+    let checksum = flasher.checksum_md5(args.address, args.size)?;
     println!("0x{:x}", checksum);
 
     Ok(())
@@ -470,10 +473,10 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     // The 26MHz ESP32-C2's need to be treated as a special case.
     if chip == Chip::Esp32c2
         && target.crystal_freq(flasher.connection())? == XtalFrequency::_26Mhz
-        && monitor_args.baud_rate == 115_200
+        && monitor_args.monitor_baud == 115_200
     {
         // 115_200 * 26 MHz / 40 MHz = 74_880
-        monitor_args.baud_rate = 74_880;
+        monitor_args.monitor_baud = 74_880;
     }
 
     monitor(flasher.into_serial(), elf.as_deref(), pid, monitor_args)
@@ -629,10 +632,10 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
 
     info!(
         "Erasing region at 0x{:08x} ({} bytes)",
-        args.addr, args.size
+        args.address, args.size
     );
 
-    flasher.erase_region(args.addr, args.size)?;
+    flasher.erase_region(args.address, args.size)?;
     flasher
         .connection()
         .reset_after(!args.connect_args.no_stub)?;
@@ -733,7 +736,7 @@ pub fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
     flasher.read_flash(
-        args.addr,
+        args.address,
         args.size,
         args.block_size,
         args.max_in_flight,

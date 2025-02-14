@@ -11,7 +11,10 @@ use crate::cli::monitor::parser::InputParser;
 #[error("Could not set up defmt logger")]
 pub enum DefmtError {
     #[error("No elf data available")]
-    #[diagnostic(code(espflash::monitor::defmt::no_elf))]
+    #[diagnostic(
+        code(espflash::monitor::defmt::no_elf),
+        help("Please provide an ELF file with the `--elf` argument")
+    )]
     NoElf,
 
     #[error("No defmt data was found in the elf file")]

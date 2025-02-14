@@ -351,10 +351,10 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         // The 26MHz ESP32-C2's need to be treated as a special case.
         if chip == Chip::Esp32c2
             && target_xtal_freq == XtalFrequency::_26Mhz
-            && monitor_args.baud_rate == 115_200
+            && monitor_args.monitor_baud == 115_200
         {
             // 115_200 * 26 MHz / 40 MHz = 74_880
-            monitor_args.baud_rate = 74_880;
+            monitor_args.monitor_baud = 74_880;
         }
 
         monitor_args.elf = Some(build_ctx.artifact_path);

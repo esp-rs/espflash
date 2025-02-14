@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Split the baudrate for connecting and monitorinig in `flash` subcommand (#737)
+- Normalized arguments of the CLI commands (#759)
 
 - `board-info` now prints `Security information`. (#758)
 

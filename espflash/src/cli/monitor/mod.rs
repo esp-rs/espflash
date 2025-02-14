@@ -71,7 +71,6 @@ impl Drop for RawModeGuard {
 
 /// Open a serial monitor on the given serial port, using the given input
 /// parser.
-#[allow(clippy::too_many_arguments)]
 pub fn monitor(
     mut serial: Port,
     elf: Option<&[u8]>,
@@ -87,7 +86,7 @@ pub fn monitor(
         reset_after_flash(&mut serial, pid).into_diagnostic()?;
     }
 
-    let baud = monitor_args.baud_rate;
+    let baud = monitor_args.monitor_baud;
     debug!("Opening serial monitor with baudrate: {}", baud);
 
     // Explicitly set the baud rate when starting the serial monitor, to allow using
