@@ -260,7 +260,7 @@ impl FlashTarget for Esp32Target {
         }
 
         if reboot {
-            connection.reset_after(self.use_stub)?;
+            connection.reset_after(self.use_stub, self.chip)?;
         }
 
         Ok(())

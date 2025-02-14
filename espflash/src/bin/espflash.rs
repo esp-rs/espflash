@@ -183,6 +183,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     }
 
     let mut flasher = connect(&args.connect_args, config, false, false)?;
+    let chip = flasher.chip();
     let partition_table = match args.partition_table {
         Some(path) => Some(parse_partition_table(&path)?),
         None => None,
@@ -193,7 +194,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     erase_partitions(&mut flasher, partition_table, Some(args.erase_parts), None)?;
     flasher
         .connection()
-        .reset_after(!args.connect_args.no_stub)?;
+        .reset_after(!args.connect_args.no_stub, chip)?;
 
     info!("Specified partitions successfully erased!");
 
