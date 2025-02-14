@@ -43,6 +43,29 @@ impl Esp32s3 {
         Ok((self.read_efuse(connection, 20)? >> 24) & 0x7)
     }
 
+    #[cfg(feature = "serialport")]
+    /// Check if the connection is USB OTG
+    pub(crate) fn connection_is_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
+        const UARTDEV_BUF_NO: u32 = 0x3FCE_F14C; // Address which indicates OTG in use
+        const UARTDEV_BUF_NO_USB_OTG: u32 = 3; // Value of UARTDEV_BUF_NO when OTG is in use
+
+        Ok(connection.read_reg(UARTDEV_BUF_NO)? == UARTDEV_BUF_NO_USB_OTG)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Check the strapping register to see if we can perform RTC WDT reset
+    pub(crate) fn can_wtd_reset(&self, connection: &mut Connection) -> Result<bool, Error> {
+        const GPIO_STRAP: u32 = 0x6000_4038;
+        const OPTION1: u32 = 0x6000_812C;
+        const GPIO_STRAP_SPI_BOOT_MASK: u32 = 1 << 3; // Not download mode
+        const FORCE_DOWNLOAD_BOOT_MASK: u32 = 0x1;
+
+        Ok(
+            connection.read_reg(GPIO_STRAP)? & GPIO_STRAP_SPI_BOOT_MASK == 0 // GPIO0 low
+                && connection.read_reg(OPTION1)? & FORCE_DOWNLOAD_BOOT_MASK == 0,
+        )
+    }
+
     /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)

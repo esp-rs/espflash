@@ -35,9 +35,9 @@ pub struct Esp32s2;
 
 impl Esp32s2 {
     #[cfg(feature = "serialport")]
-    /// Return if the connection is USB OTG
-    fn connection_is_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
-        const UARTDEV_BUF_NO: u32 = 0x3fff_fd14; // Address which indicates OTG in use
+    /// Check if the connection is USB OTG
+    pub(crate) fn connection_is_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
+        const UARTDEV_BUF_NO: u32 = 0x3FFF_FD14; // Address which indicates OTG in use
         const UARTDEV_BUF_NO_USB_OTG: u32 = 2; // Value of UARTDEV_BUF_NO when OTG is in use
 
         Ok(connection.read_reg(UARTDEV_BUF_NO)? == UARTDEV_BUF_NO_USB_OTG)
@@ -68,6 +68,20 @@ impl Esp32s2 {
         let psram_version = (blk1_word3 >> 28) & 0xf;
 
         Ok(psram_version)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Check the strapping register to see if we can perform RTC WDT reset
+    pub(crate) fn can_wtd_reset(&self, connection: &mut Connection) -> Result<bool, Error> {
+        const GPIO_STRAP: u32 = 0x3F40_4038;
+        const OPTION1: u32 = 0x3F40_8128;
+        const GPIO_STRAP_SPI_BOOT_MASK: u32 = 1 << 3;
+        const FORCE_DOWNLOAD_BOOT_MASK: u32 = 0x1;
+
+        Ok(
+            connection.read_reg(GPIO_STRAP)? & GPIO_STRAP_SPI_BOOT_MASK == 0 // GPIO0 low
+                && connection.read_reg(OPTION1)? & FORCE_DOWNLOAD_BOOT_MASK == 0,
+        )
     }
 
     /// Check if the magic value contains the specified value

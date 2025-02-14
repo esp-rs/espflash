@@ -36,12 +36,12 @@ use crate::{
 
 mod esp32;
 mod esp32c2;
-mod esp32c3;
+pub(crate) mod esp32c3;
 mod esp32c6;
 mod esp32h2;
 mod esp32p4;
-mod esp32s2;
-mod esp32s3;
+pub(crate) mod esp32s2;
+pub(crate) mod esp32s3;
 
 #[cfg(feature = "serialport")]
 pub(crate) mod flash_target;

@@ -13,6 +13,7 @@ use std::{
 
 use log::{debug, info};
 use regex::Regex;
+use reset::wdt_reset;
 use serialport::{SerialPort, UsbPortInfo};
 use slip_codec::SlipDecoder;
 
@@ -33,7 +34,10 @@ use self::{
         UsbJtagSerialReset,
     },
 };
-use crate::error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind};
+use crate::{
+    error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
+    targets::{esp32s2, esp32s3, Chip},
+};
 
 pub(crate) mod command;
 pub(crate) mod reset;
@@ -274,7 +278,7 @@ impl Connection {
     }
 
     // Reset the device taking into account the reset after argument
-    pub fn reset_after(&mut self, is_stub: bool) -> Result<(), Error> {
+    pub fn reset_after(&mut self, is_stub: bool, chip: Chip) -> Result<(), Error> {
         let pid = self.usb_pid();
 
         match self.after_operation {
@@ -287,6 +291,39 @@ impl Connection {
             }
             ResetAfterOperation::NoResetNoStub => {
                 info!("Staying in flasher stub");
+                Ok(())
+            }
+            ResetAfterOperation::WatchdogReset => {
+                info!("Resetting device with watchdog");
+
+                match chip {
+                    Chip::Esp32c3 => {
+                        wdt_reset(chip, self)?;
+                    }
+                    Chip::Esp32s2 => {
+                        let esp32s2 = esp32s2::Esp32s2;
+                        // Check if the connection is USB OTG
+                        if esp32s2.connection_is_usb_otg(self)? {
+                            // Check the strapping register to see if we can perform RTC WDT
+                            // reset
+                            if esp32s2.can_wtd_reset(self)? {
+                                wdt_reset(chip, self)?;
+                            }
+                        }
+                    }
+                    Chip::Esp32s3 => {
+                        let esp32s3 = esp32s3::Esp32s3;
+                        if pid == USB_SERIAL_JTAG_PID || esp32s3.connection_is_usb_otg(self)? {
+                            // Check the strapping register to see if we can perform RTC WDT
+                            // reset
+                            if esp32s3.can_wtd_reset(self)? {
+                                wdt_reset(chip, self)?;
+                            }
+                        }
+                    }
+                    _ => println!("Unsupported chip for watchdog reset {:?}", chip),
+                }
+
                 Ok(())
             }
         }
