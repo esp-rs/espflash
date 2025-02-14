@@ -112,3 +112,6 @@ jobs:
 
       - name: checksum-md5 test
         run: bash espflash/tests/scripts/checksum-md5.sh
+
+      - name: list-ports test
+        run: bash espflash/tests/scripts/list-ports.sh
