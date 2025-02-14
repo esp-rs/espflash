@@ -71,7 +71,6 @@ impl Drop for RawModeGuard {
 
 /// Open a serial monitor on the given serial port, using the given input
 /// parser.
-#[allow(clippy::too_many_arguments)]
 pub fn monitor(
     mut serial: Port,
     elf: Option<&[u8]>,
