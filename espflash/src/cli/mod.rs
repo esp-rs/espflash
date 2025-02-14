@@ -25,7 +25,7 @@ use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
 use log::{debug, info, warn};
 use miette::{IntoDiagnostic, Result, WrapErr};
-use serialport::{FlowControl, SerialPortType, UsbPortInfo};
+use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo};
 
 use self::{
     config::Config,
@@ -301,6 +301,19 @@ pub struct ChecksumMd5Args {
     connect_args: ConnectArgs,
 }
 
+#[derive(Debug, Args)]
+#[non_exhaustive]
+pub struct ListPortsArgs {
+    /// List all available serial ports, instead of just those likely to be
+    /// development boards. Includes non-usb ports such as PCI devices.
+    #[arg(short = 'a', long)]
+    pub list_all_ports: bool,
+
+    /// Only print the name of the ports and nothing else. Useful for scripting.
+    #[arg(short, long)]
+    pub name_only: bool,
+}
+
 /// Parses an integer, in base-10 or hexadecimal format, into a [u32]
 pub fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
     let input: &str = &input.replace('_', "");
@@ -393,6 +406,81 @@ pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
     let checksum = flasher.checksum_md5(args.address, args.size)?;
     println!("0x{:x}", checksum);
 
+    Ok(())
+}
+
+pub fn list_ports(args: &ListPortsArgs, config: &Config) -> Result<()> {
+    let mut ports: Vec<SerialPortInfo> = serial::detect_usb_serial_ports(true)?
+        .into_iter()
+        .filter(|p| args.list_all_ports || serial::known_ports_filter(p, config))
+        .collect();
+    if ports.is_empty() {
+        if !args.name_only {
+            println!(
+                "No {}serial ports found.",
+                if args.list_all_ports { "" } else { "known " }
+            );
+        }
+    } else {
+        // We want display columns so we determine a width for each field
+        let name_width = ports.iter().map(|p| p.port_name.len()).max().unwrap_or(13) + 2;
+        let manufacturer_width = ports
+            .iter()
+            .filter_map(|p| match &p.port_type {
+                SerialPortType::UsbPort(p) => p.manufacturer.as_ref().map(|m| m.len()),
+                _ => None,
+            })
+            .max()
+            .unwrap_or(15)
+            + 2;
+
+        ports.sort_by(|p1, p2| {
+            p1.port_name
+                .to_lowercase()
+                .cmp(&p2.port_name.to_lowercase())
+        });
+        for port in ports {
+            if args.name_only {
+                println!("{}", port.port_name)
+            } else {
+                match port.port_type {
+                    SerialPortType::BluetoothPort => {
+                        println!(
+                            "{0: <name_width$}Bluetooth serial port",
+                            port.port_name,
+                            name_width = name_width + 11
+                        )
+                    }
+                    SerialPortType::UsbPort(p) => {
+                        println!(
+                            "{0: <name_width$}{3:04X}:{4:04X}  {1: <manufacturer_width$}{2}",
+                            port.port_name,
+                            p.manufacturer.unwrap_or_default(),
+                            p.product.unwrap_or_default(),
+                            p.pid,
+                            p.vid,
+                            name_width = name_width,
+                            manufacturer_width = manufacturer_width,
+                        )
+                    }
+                    SerialPortType::PciPort => {
+                        println!(
+                            "{0: <name_width$}PCI serial port",
+                            port.port_name,
+                            name_width = name_width + 11
+                        )
+                    }
+                    SerialPortType::Unknown => {
+                        println!(
+                            "{0: <name_width$}Unknown type of port",
+                            port.port_name,
+                            name_width = name_width + 11
+                        )
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }
 

@@ -59,6 +59,8 @@ enum Commands {
     /// Automatically detects and prints the chip type, crystal frequency, flash
     /// size, chip features, and MAC address of a connected target device.
     BoardInfo(ConnectArgs),
+    /// Calculate the MD5 checksum of the given region
+    ChecksumMd5(ChecksumMd5Args),
     /// Generate completions for the given shell
     ///
     /// The completions are printed to stdout, and can be redirected as needed.
@@ -86,6 +88,11 @@ enum Commands {
     Flash(FlashArgs),
     /// Hold the target device in reset
     HoldInReset(ConnectArgs),
+    /// List serial ports available for flashing.
+    ///
+    /// The default behavior is to only list ports of devices known to be used
+    /// on development boards.
+    ListPorts(ListPortsArgs),
     /// Open the serial monitor without flashing the connected target device
     Monitor(MonitorArgs),
     /// Convert partition tables between CSV and binary format
@@ -110,8 +117,6 @@ enum Commands {
     /// Otherwise, each segment will be saved as individual binaries, prefixed
     /// with their intended addresses in flash.
     SaveImage(SaveImageArgs),
-    /// Calculate the MD5 checksum of the given region
-    ChecksumMd5(ChecksumMd5Args),
 }
 
 #[derive(Debug, Args)]
@@ -222,18 +227,19 @@ fn main() -> Result<()> {
     // associated arguments.
     match args {
         Commands::BoardInfo(args) => board_info(&args, &config),
+        Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
         Commands::Completions(args) => completions(&args, &mut Cli::command(), "cargo"),
         Commands::EraseFlash(args) => erase_flash(args, &config),
         Commands::EraseParts(args) => erase_parts(args, &config),
         Commands::EraseRegion(args) => erase_region(args, &config),
         Commands::Flash(args) => flash(args, &config),
         Commands::HoldInReset(args) => hold_in_reset(args, &config),
+        Commands::ListPorts(args) => list_ports(&args, &config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
         Commands::ReadFlash(args) => read_flash(args, &config),
         Commands::Reset(args) => reset(args, &config),
         Commands::SaveImage(args) => save_image(args, &config),
-        Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
     }
 }
 
