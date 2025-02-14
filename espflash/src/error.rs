@@ -217,6 +217,9 @@ pub enum Error {
     #[error("Invalid response: {0}")]
     #[diagnostic(code(espflash::invalid_response))]
     InvalidResponse(String),
+
+    #[error("Invalid erase region argument: {0}")]
+    InvalidEraseRegionArgument(String),
 }
 
 #[cfg(feature = "serialport")]

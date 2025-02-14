@@ -1,5 +1,33 @@
 #!/usr/bin/env bash
 
+# Function to check expected failure for unaligned erase arguments
+check_unaligned_erase() {
+    local address=$1
+    local size=$2
+    result=$(espflash erase-region "$address" "$size" 2>&1)
+    echo "$result"
+    
+    if [[ $result =~ "Invalid erase region argument" ]]; then
+        echo "Unaligned erase correctly rejected: address=$address, size=$size"
+    else
+        echo "Test failed: unaligned erase was not rejected!"
+        exit 1
+    fi
+}
+
+# Test cases for unaligned address/size
+SECTOR_SIZE=0x1000  # FLASH_SECTOR_SIZE is 4096 (0x1000)
+
+# Unaligned address (not a multiple of 4096)
+check_unaligned_erase 0x1001 0x1000
+
+# Unaligned size (not a multiple of 4096)
+check_unaligned_erase 0x1000 0x1001
+
+# Both address and size unaligned
+check_unaligned_erase 0x1003 0x1005
+
+# Valid erase - should succeed
 result=$(espflash erase-region 0x1000 0x1000 2>&1)
 echo "$result"
 if [[ ! $result =~ "Erasing region at" ]]; then
