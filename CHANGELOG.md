@@ -8,17 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Add `non-interactive` flag to `flash` subcommand (#737)
 - Add `no-reset` flag to `monitor` subcommands (#737)
 - Add an environment variable to set monitoring baudrate (`MONITOR_BAUD`) (#737)
-Add list-ports command to list available serial ports.
-- Add list-ports command to list available serial ports.
+- Add list-ports command to list available serial ports. (#761)
 
 ### Changed
+
 - Split the baudrate for connecting and monitorinig in `flash` subcommand (#737)
 - Normalized arguments of the CLI commands (#759)
-
 - `board-info` now prints `Security information`. (#758)
+- The `command`, `elf` and `error` modules are no longer public (#772)
 
 ### Fixed
 
