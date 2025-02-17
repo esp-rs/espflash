@@ -218,8 +218,12 @@ pub enum Error {
     #[diagnostic(code(espflash::invalid_response))]
     InvalidResponse(String),
 
-    #[error("Invalid erase region argument: {0}")]
-    InvalidEraseRegionArgument(String),
+    #[error("Invalid `address`({address})  and/or `size`({size}) argument(s)")]
+    #[diagnostic(
+        code(espflash::erase_region::invalid_argument),
+        help("`address` and `size` must be multiples of 0x1000 (4096)")
+    )]
+    InvalidEraseRegionArgument { address: u32, size: u32 },
 }
 
 #[cfg(feature = "serialport")]

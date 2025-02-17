@@ -718,11 +718,11 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
     }
 
     if args.address % FLASH_SECTOR_SIZE as u32 != 0 || args.size % FLASH_SECTOR_SIZE as u32 != 0 {
-        return Err(Error::InvalidEraseRegionArgument(format!(
-            "Address ({}) and size ({}) must be multiples of {}",
-            args.address, args.size, FLASH_SECTOR_SIZE
-        ))
-        .into());
+        return Err(Error::InvalidEraseRegionArgument {
+            address: args.address,
+            size: args.size,
+        })
+        .into_diagnostic();
     }
 
     let mut flasher = connect(&args.connect_args, config, true, true)?;

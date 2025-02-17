@@ -15,9 +15,6 @@ check_unaligned_erase() {
     fi
 }
 
-# Test cases for unaligned address/size
-SECTOR_SIZE=0x1000  # FLASH_SECTOR_SIZE is 4096 (0x1000)
-
 # Unaligned address (not a multiple of 4096)
 check_unaligned_erase 0x1001 0x1000
 
