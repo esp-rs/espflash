@@ -9,16 +9,19 @@ use md5::{Digest, Md5};
 
 #[cfg(feature = "serialport")]
 use crate::{
-    command::{Command, CommandType},
-    connection::{Connection, USB_SERIAL_JTAG_PID},
+    connection::{
+        command::{Command, CommandType},
+        Connection,
+        USB_SERIAL_JTAG_PID,
+    },
     flasher::ProgressCallbacks,
     targets::FlashTarget,
 };
 use crate::{
     elf::RomSegment,
-    error::Error,
     flasher::{SpiAttachParams, FLASH_SECTOR_SIZE},
     targets::Chip,
+    Error,
 };
 
 /// Applications running from an ESP32's (or variant's) flash
@@ -149,7 +152,7 @@ impl FlashTarget for Esp32Target {
             let flash_checksum_md5: u128 =
                 connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
                     connection
-                        .command(crate::command::Command::FlashMd5 {
+                        .command(Command::FlashMd5 {
                             offset: addr,
                             size: segment.data.len() as u32,
                         })?
@@ -235,7 +238,7 @@ impl FlashTarget for Esp32Target {
             let flash_checksum_md5: u128 =
                 connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
                     connection
-                        .command(crate::command::Command::FlashMd5 {
+                        .command(Command::FlashMd5 {
                             offset: addr,
                             size: segment.data.len() as u32,
                         })?

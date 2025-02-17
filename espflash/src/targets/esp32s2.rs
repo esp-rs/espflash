@@ -4,10 +4,10 @@ use std::ops::Range;
 use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE, targets::MAX_RAM_BLOCK_SIZE};
 use crate::{
     elf::FirmwareImage,
-    error::Error,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
+    Error,
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x0000_07c6];

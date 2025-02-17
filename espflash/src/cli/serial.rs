@@ -9,7 +9,7 @@ use serialport::{available_ports, SerialPortInfo, SerialPortType};
 
 use crate::{
     cli::{config::UsbDevice, Config, ConnectArgs},
-    error::Error,
+    Error,
 };
 
 /// Return the information of a serial port taking into account the different

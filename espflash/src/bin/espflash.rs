@@ -7,11 +7,11 @@ use std::{
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{self, config::Config, monitor::monitor, *},
-    error::Error,
     flasher::parse_partition_table,
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
+    Error,
 };
 use log::{debug, info, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};

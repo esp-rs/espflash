@@ -19,11 +19,13 @@ use slip_codec::SlipDecoder;
 #[cfg(unix)]
 use self::reset::UnixTightReset;
 use self::{
+    command::{Command, CommandType},
     encoder::SlipEncoder,
     reset::{
         construct_reset_strategy_sequence,
         hard_reset,
         reset_after_flash,
+        soft_reset,
         ClassicReset,
         ResetAfterOperation,
         ResetBeforeOperation,
@@ -31,13 +33,10 @@ use self::{
         UsbJtagSerialReset,
     },
 };
-use crate::{
-    command::{Command, CommandType},
-    connection::reset::soft_reset,
-    error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
-};
+use crate::error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind};
 
-pub mod reset;
+pub(crate) mod command;
+pub(crate) mod reset;
 
 const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
@@ -56,36 +55,36 @@ pub enum CommandResponseValue {
 }
 
 impl TryInto<u32> for CommandResponseValue {
-    type Error = crate::error::Error;
+    type Error = Error;
 
     fn try_into(self) -> Result<u32, Self::Error> {
         match self {
             CommandResponseValue::ValueU32(value) => Ok(value),
-            CommandResponseValue::ValueU128(_) => Err(crate::error::Error::InternalError),
-            CommandResponseValue::Vector(_) => Err(crate::error::Error::InternalError),
+            CommandResponseValue::ValueU128(_) => Err(Error::InternalError),
+            CommandResponseValue::Vector(_) => Err(Error::InternalError),
         }
     }
 }
 
 impl TryInto<u128> for CommandResponseValue {
-    type Error = crate::error::Error;
+    type Error = Error;
 
     fn try_into(self) -> Result<u128, Self::Error> {
         match self {
-            CommandResponseValue::ValueU32(_) => Err(crate::error::Error::InternalError),
+            CommandResponseValue::ValueU32(_) => Err(Error::InternalError),
             CommandResponseValue::ValueU128(value) => Ok(value),
-            CommandResponseValue::Vector(_) => Err(crate::error::Error::InternalError),
+            CommandResponseValue::Vector(_) => Err(Error::InternalError),
         }
     }
 }
 
 impl TryInto<Vec<u8>> for CommandResponseValue {
-    type Error = crate::error::Error;
+    type Error = Error;
 
     fn try_into(self) -> Result<Vec<u8>, Self::Error> {
         match self {
-            CommandResponseValue::ValueU32(_) => Err(crate::error::Error::InternalError),
-            CommandResponseValue::ValueU128(_) => Err(crate::error::Error::InternalError),
+            CommandResponseValue::ValueU32(_) => Err(Error::InternalError),
+            CommandResponseValue::ValueU128(_) => Err(Error::InternalError),
             CommandResponseValue::Vector(value) => Ok(value),
         }
     }

@@ -4,10 +4,10 @@ use std::{collections::HashMap, ops::Range};
 use crate::connection::Connection;
 use crate::{
     elf::FirmwareImage,
-    error::Error,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
+    Error,
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0xD7B7_3E80];

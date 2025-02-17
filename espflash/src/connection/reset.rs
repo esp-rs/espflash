@@ -1,4 +1,5 @@
-//! Most of this module is copied from `esptool.py` (https://github.com/espressif/esptool/blob/a8586d02b1305ebc687d31783437a7f4d4dbb70f/esptool/reset.py)
+// Most of this module is copied from `esptool.py`:
+// https://github.com/espressif/esptool/blob/a8586d0/esptool/reset.py
 
 #[cfg(unix)]
 use std::{io, os::fd::AsRawFd};
@@ -10,12 +11,13 @@ use log::debug;
 use serialport::SerialPort;
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
-use crate::{
+use super::{
     command::{Command, CommandType},
-    connection::{Connection, Port, USB_SERIAL_JTAG_PID},
-    error::Error,
-    flasher::FLASH_WRITE_SIZE,
+    Connection,
+    Port,
+    USB_SERIAL_JTAG_PID,
 };
+use crate::{flasher::FLASH_WRITE_SIZE, Error};
 
 /// Default time to wait before releasing the boot pin after a reset
 const DEFAULT_RESET_DELAY: u64 = 50; // ms

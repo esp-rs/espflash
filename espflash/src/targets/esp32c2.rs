@@ -6,10 +6,10 @@ use log::debug;
 use crate::{connection::Connection, targets::bytes_to_mac_addr};
 use crate::{
     elf::FirmwareImage,
-    error::Error,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
+    Error,
 };
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[

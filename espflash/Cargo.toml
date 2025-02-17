@@ -15,7 +15,9 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "zip"
 
 [package.metadata.docs.rs]
-rustdoc-args = ["--cfg", "docsrs"]
+features            = ["serialport"]
+no-default-features = true
+rustdoc-args        = ["--cfg", "docsrs"]
 
 [[bin]]
 name              = "espflash"
@@ -73,11 +75,10 @@ cli = [
     "dep:directories",
     "dep:env_logger",
     "dep:indicatif",
-    "dep:toml",
     "dep:update-informer",
     "miette/fancy",
     "serialport",
 ]
 
-# enables connecting to a device via serial port
+# Enables connecting to a device via serial port
 serialport = ["dep:regex", "dep:serialport", "dep:slip-codec", "dep:toml"]
