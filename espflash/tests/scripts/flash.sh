@@ -12,8 +12,8 @@ if ! echo "$result" | grep -q "Hello world!"; then
 fi
 
 if [[ "$1" == "esp32c6" ]]; then
-    app="${app}_demft"
-    result=$(timeout 8s espflash flash --no-skip --monitor --non-interactive $app --log-format dfmt 2>&1)
+    app="${app}_defmt"
+    result=$(timeout 8s espflash flash --no-skip --monitor --non-interactive $app --log-format defmt 2>&1)
     echo "$result"
     if [[ ! $result =~ "Flashing has completed!" ]]; then
         echo "Flashing failed!"
