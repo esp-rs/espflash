@@ -45,6 +45,7 @@ use crate::{
         FlashSize,
         Flasher,
         ProgressCallbacks,
+        FLASH_SECTOR_SIZE,
     },
     targets::{Chip, XtalFrequency},
 };
@@ -714,6 +715,14 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
 pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(Error::StubRequired).into_diagnostic();
+    }
+
+    if args.address % FLASH_SECTOR_SIZE as u32 != 0 || args.size % FLASH_SECTOR_SIZE as u32 != 0 {
+        return Err(Error::InvalidEraseRegionArgument {
+            address: args.address,
+            size: args.size,
+        })
+        .into_diagnostic();
     }
 
     let mut flasher = connect(&args.connect_args, config, true, true)?;
