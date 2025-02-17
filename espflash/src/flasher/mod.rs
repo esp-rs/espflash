@@ -47,6 +47,11 @@ use crate::{
 #[cfg(feature = "serialport")]
 pub(crate) mod stubs;
 
+/// List of SPI parameters to try while detecting flash size
+#[cfg(feature = "serialport")]
+pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
+    [SpiAttachParams::default(), SpiAttachParams::esp32_pico_d4()];
+
 /// Security Info Response containing
 #[derive(Debug)]
 pub struct SecurityInfo {
@@ -359,7 +364,7 @@ impl FlashSize {
     ///
     /// ## Values:
     ///
-    /// * https://docs.espressif.com/projects/esptool/en/latest/esp32s3/advanced-topics/firmware-image-format.html#file-header
+    /// * <https://docs.espressif.com/projects/esptool/en/latest/esp32s3/advanced-topics/firmware-image-format.html#file-header>
     pub const fn encode_flash_size(self: FlashSize) -> Result<u8, Error> {
         use FlashSize::*;
 
@@ -381,7 +386,7 @@ impl FlashSize {
 
     /// Create a [FlashSize] from an [u8]
     ///
-    /// [source](https://github.com/espressif/esptool/blob/f4d2510e2c897621884f433ef3f191e8fc5ff184/esptool/cmds.py#L42)
+    /// [source](https://github.com/espressif/esptool/blob/f4d2510/esptool/cmds.py#L42)
     pub const fn from_detected(value: u8) -> Result<FlashSize, Error> {
         match value {
             0x12 | 0x32 => Ok(FlashSize::_256Kb),
@@ -419,14 +424,13 @@ impl FlashSize {
 
 impl FromStr for FlashSize {
     type Err = Error;
-    /// Create a [FlashSize] from a string
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let upper = s.to_uppercase();
         FlashSize::VARIANTS
             .iter()
             .copied()
             .zip(FlashSize::iter())
-            .find(|(name, _)| *name == upper)
+            .find(|(name, _)| *name == s.to_uppercase())
             .map(|(_, variant)| variant)
             .ok_or_else(|| Error::InvalidFlashSize(s.to_string()))
     }
@@ -513,7 +517,7 @@ impl FlashData {
 
 /// Parameters of the attached SPI flash chip (sizes, etc).
 ///
-/// See https://github.com/espressif/esptool/blob/da31d9d7a1bb496995f8e30a6be259689948e43e/esptool.py#L655
+/// See: <https://github.com/espressif/esptool/blob/da31d9d/esptool.py#L655>
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct SpiSetParams {
@@ -631,11 +635,6 @@ pub fn parse_partition_table(path: &Path) -> Result<PartitionTable, Error> {
     Ok(PartitionTable::try_from(data)?)
 }
 
-/// List of SPI parameters to try while detecting flash size
-#[cfg(feature = "serialport")]
-pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
-    [SpiAttachParams::default(), SpiAttachParams::esp32_pico_d4()];
-
 /// Connect to and flash a target device
 #[cfg(feature = "serialport")]
 #[derive(Debug)]
@@ -741,7 +740,6 @@ impl Flasher {
         Ok(())
     }
 
-    /// Load flash stub
     fn load_stub(&mut self) -> Result<(), Error> {
         debug!("Loading flash stub for chip: {:?}", self.chip);
 
