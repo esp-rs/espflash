@@ -19,11 +19,13 @@ use slip_codec::SlipDecoder;
 #[cfg(unix)]
 use self::reset::UnixTightReset;
 use self::{
+    command::{Command, CommandType},
     encoder::SlipEncoder,
     reset::{
         construct_reset_strategy_sequence,
         hard_reset,
         reset_after_flash,
+        soft_reset,
         ClassicReset,
         ResetAfterOperation,
         ResetBeforeOperation,
@@ -31,13 +33,10 @@ use self::{
         UsbJtagSerialReset,
     },
 };
-use crate::{
-    command::{Command, CommandType},
-    connection::reset::soft_reset,
-    error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
-};
+use crate::error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind};
 
-pub mod reset;
+pub(crate) mod command;
+pub(crate) mod reset;
 
 const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;

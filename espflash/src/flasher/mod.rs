@@ -24,8 +24,8 @@ pub(crate) use stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
 pub use crate::targets::flash_target::ProgressCallbacks;
 #[cfg(feature = "serialport")]
 use crate::{
-    command::{Command, CommandType},
     connection::{
+        command::{Command, CommandType},
         reset::{ResetAfterOperation, ResetBeforeOperation},
         Connection,
         Port,
@@ -1200,7 +1200,7 @@ impl Flasher {
         self.connection
             .with_timeout(CommandType::FlashMd5.timeout(), |connection| {
                 connection
-                    .command(crate::command::Command::FlashMd5 {
+                    .command(Command::FlashMd5 {
                         offset: addr,
                         size: length,
                     })?
@@ -1212,7 +1212,7 @@ impl Flasher {
     pub fn get_security_info(&mut self) -> Result<SecurityInfo, Error> {
         self.connection
             .with_timeout(CommandType::GetSecurityInfo.timeout(), |connection| {
-                let response = connection.command(crate::command::Command::GetSecurityInfo)?;
+                let response = connection.command(Command::GetSecurityInfo)?;
                 // Extract raw bytes and convert them into `SecurityInfo`
                 if let crate::connection::CommandResponseValue::Vector(data) = response {
                     // HACK: Not quite sure why there seem to be 4 extra bytes at the end of the

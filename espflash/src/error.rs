@@ -13,7 +13,7 @@ use thiserror::Error;
 #[cfg(feature = "cli")]
 use crate::cli::monitor::parser::esp_defmt::DefmtError;
 #[cfg(feature = "serialport")]
-use crate::command::CommandType;
+use crate::connection::command::CommandType;
 use crate::{
     flasher::{FlashFrequency, FlashSize},
     targets::Chip,

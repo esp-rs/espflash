@@ -33,8 +33,6 @@
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod cli;
 #[cfg(feature = "serialport")]
-pub mod command;
-#[cfg(feature = "serialport")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
 pub mod connection;
 pub mod elf;
