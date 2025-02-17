@@ -1250,7 +1250,7 @@ impl Flasher {
             let chunk: Vec<u8> = if let Some(response) = response {
                 response.value.try_into().unwrap()
             } else {
-                return Err(Error::IncorrectReposnse);
+                return Err(Error::IncorrectResponse);
             };
 
             data.extend_from_slice(&chunk);
@@ -1270,7 +1270,7 @@ impl Flasher {
         let digest: Vec<u8> = if let Some(response) = response {
             response.value.try_into().unwrap()
         } else {
-            return Err(Error::IncorrectReposnse);
+            return Err(Error::IncorrectResponse);
         };
 
         if digest.len() != 16 {
@@ -1282,7 +1282,7 @@ impl Flasher {
         let checksum_md5 = md5_hasher.finalize();
 
         if digest != checksum_md5.as_slice() {
-            return Err(Error::DigestMissmatch(
+            return Err(Error::DigestMismatch(
                 digest,
                 checksum_md5.as_slice().to_vec(),
             ));
