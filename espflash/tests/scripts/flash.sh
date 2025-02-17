@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-app="/espflash/tests/data/$1"
+app="espflash/tests/data/$1"
 result=$(timeout 8s espflash flash --no-skip --monitor --non-interactive $app 2>&1)
 echo "$result"
 if [[ ! $result =~ "Flashing has completed!" ]]; then

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-app="/espflash/tests/data/$1"
+app="espflash/tests/data/$1"
 
 # if $1 is esp32c2, create an variable that contains `-x 26mhz`
 if [[ $1 == "esp32c2" ]]; then
