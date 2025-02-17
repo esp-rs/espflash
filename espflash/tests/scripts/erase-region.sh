@@ -7,7 +7,7 @@ check_unaligned_erase() {
     result=$(espflash erase-region "$address" "$size" 2>&1)
     echo "$result"
     
-    if [[ $result =~ "Invalid erase region argument" ]]; then
+    if [[ $result =~ "Invalid `address`" ]]; then
         echo "Unaligned erase correctly rejected: address=$address, size=$size"
     else
         echo "Test failed: unaligned erase was not rejected!"
