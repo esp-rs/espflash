@@ -19,9 +19,9 @@ use crate::{
 };
 use crate::{
     elf::RomSegment,
-    error::Error,
     flasher::{SpiAttachParams, FLASH_SECTOR_SIZE},
     targets::Chip,
+    Error,
 };
 
 /// Applications running from an ESP32's (or variant's) flash

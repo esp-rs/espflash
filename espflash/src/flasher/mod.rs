@@ -40,8 +40,8 @@ use crate::{
     },
 };
 use crate::{
-    error::Error,
     targets::{Chip, XtalFrequency},
+    Error,
 };
 
 #[cfg(feature = "serialport")]
@@ -89,7 +89,7 @@ impl SecurityInfo {
 }
 
 impl TryFrom<&[u8]> for SecurityInfo {
-    type Error = crate::error::Error;
+    type Error = Error;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         let esp32s2 = bytes.len() == 12;

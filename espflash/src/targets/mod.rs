@@ -20,7 +20,6 @@ use crate::{
 };
 use crate::{
     elf::FirmwareImage,
-    error::Error,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{
@@ -33,6 +32,7 @@ use crate::{
         esp32s2::Esp32s2,
         esp32s3::Esp32s3,
     },
+    Error,
 };
 
 /// Max partition size is 16 MB

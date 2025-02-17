@@ -7,7 +7,7 @@ use crate::{
     flasher::ProgressCallbacks,
     targets::FlashTarget,
 };
-use crate::{elf::RomSegment, error::Error};
+use crate::{elf::RomSegment, Error};
 
 pub const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 

@@ -1,6 +1,6 @@
 pub(crate) use self::ram::MAX_RAM_BLOCK_SIZE;
 pub use self::{esp32::Esp32Target, ram::RamTarget};
-use crate::{connection::Connection, elf::RomSegment, error::Error};
+use crate::{connection::Connection, elf::RomSegment, Error};
 
 mod esp32;
 mod ram;

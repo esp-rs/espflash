@@ -9,9 +9,9 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     elf::{CodeSegment, FirmwareImage, RomSegment},
-    error::Error,
     flasher::{FlashFrequency, FlashMode, FlashSettings, FlashSize},
     targets::{Chip, Esp32Params},
+    Error,
 };
 
 const ESP_CHECKSUM_MAGIC: u8 = 0xef;

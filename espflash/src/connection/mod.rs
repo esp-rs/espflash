@@ -55,36 +55,36 @@ pub enum CommandResponseValue {
 }
 
 impl TryInto<u32> for CommandResponseValue {
-    type Error = crate::error::Error;
+    type Error = Error;
 
     fn try_into(self) -> Result<u32, Self::Error> {
         match self {
             CommandResponseValue::ValueU32(value) => Ok(value),
-            CommandResponseValue::ValueU128(_) => Err(crate::error::Error::InternalError),
-            CommandResponseValue::Vector(_) => Err(crate::error::Error::InternalError),
+            CommandResponseValue::ValueU128(_) => Err(Error::InternalError),
+            CommandResponseValue::Vector(_) => Err(Error::InternalError),
         }
     }
 }
 
 impl TryInto<u128> for CommandResponseValue {
-    type Error = crate::error::Error;
+    type Error = Error;
 
     fn try_into(self) -> Result<u128, Self::Error> {
         match self {
-            CommandResponseValue::ValueU32(_) => Err(crate::error::Error::InternalError),
+            CommandResponseValue::ValueU32(_) => Err(Error::InternalError),
             CommandResponseValue::ValueU128(value) => Ok(value),
-            CommandResponseValue::Vector(_) => Err(crate::error::Error::InternalError),
+            CommandResponseValue::Vector(_) => Err(Error::InternalError),
         }
     }
 }
 
 impl TryInto<Vec<u8>> for CommandResponseValue {
-    type Error = crate::error::Error;
+    type Error = Error;
 
     fn try_into(self) -> Result<Vec<u8>, Self::Error> {
         match self {
-            CommandResponseValue::ValueU32(_) => Err(crate::error::Error::InternalError),
-            CommandResponseValue::ValueU128(_) => Err(crate::error::Error::InternalError),
+            CommandResponseValue::ValueU32(_) => Err(Error::InternalError),
+            CommandResponseValue::ValueU128(_) => Err(Error::InternalError),
             CommandResponseValue::Vector(value) => Ok(value),
         }
     }
