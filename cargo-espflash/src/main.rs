@@ -8,11 +8,11 @@ use cargo_metadata::{Message, MetadataCommand};
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{self, config::Config, monitor::monitor, *},
-    error::Error as EspflashError,
     flasher::parse_partition_table,
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
+    Error as EspflashError,
 };
 use log::{debug, info, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};
