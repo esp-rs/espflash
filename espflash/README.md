@@ -89,6 +89,21 @@ It is _not_ currently possible to use `espflash` from within WSL1. There are no 
 
 It is also _not_ possible to flash chips using the built-in `USB_SERIAL_JTAG` peripheral when using WSL2, because resetting also resets `USB_SERIAL_JTAG` peripheral, which then disconnects the chip from WSL2. Chips _can_ be flashed via UART using WSL2, however.
 
+To be able to flash within WSL2, [systemd should be enabled](https://learn.microsoft.com/en-us/windows/wsl/wsl-config#systemd-support). To do so, create or edit `/etc/wsl.conf` using `sudo` for admin permissions and add the following:
+
+```
+[boot]
+systemd=true
+```
+
+and then close the WSL distribution on Windows side using PowerShell to restart WSL instances:
+
+```pwsh
+wsl.exe --shutdown
+```
+
+For more information, please refer [here](https://github.com/esp-rs/espflash/issues/641#issuecomment-2408771592).
+
 ### Cargo Runner
 
 You can also use `espflash` as a Cargo runner by adding the following to your project's `.cargo/config.toml` file, for example:
