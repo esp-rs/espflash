@@ -93,6 +93,21 @@ It is _not_ currently possible to use `cargo-espflash` from within WSL1. There a
 
 It is also _not_ possible to flash chips using the built-in `USB_SERIAL_JTAG` peripheral when using WSL2, because resetting also resets `USB_SERIAL_JTAG` peripheral, which then disconnects the chip from WSL2. Chips _can_ be flashed via UART using WSL2, however.
 
+To be able to flash within WSL2, `systemd` should be enabled. To do so, create or edit `/etc/wsl.conf` and add the following:
+
+```
+[boot]
+systemd=true
+```
+
+and on Windows side:
+
+```bash
+wsl.exe --shutdown
+```
+
+For more information, please refer [here](https://github.com/esp-rs/espflash/issues/641#issuecomment-2408771592).
+
 ## Bootloader and Partition Table
 
 `cargo-espflash` is able to detect if the package being built and flashed depends on [esp-idf-sys]; if it does, then the bootloader and partition table built by the `esp-idf-sys` build script will be used, otherwise the bundled bootloader and partition tables will be used instead.
