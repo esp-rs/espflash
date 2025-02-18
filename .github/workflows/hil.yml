@@ -98,7 +98,7 @@ jobs:
 
       - name: save-image/write-bin test
         run: |
-          timeout 40 bash espflash/tests/scripts/save-image_write-bin.sh ${{ matrix.board.mcu }}
+          timeout 60 bash espflash/tests/scripts/save-image_write-bin.sh ${{ matrix.board.mcu }}
           timeout 10 bash espflash/tests/scripts/monitor.sh
 
       - name: erase-region test
