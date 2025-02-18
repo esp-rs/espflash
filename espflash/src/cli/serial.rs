@@ -8,7 +8,7 @@ use miette::{IntoDiagnostic, Result};
 use serialport::{available_ports, SerialPortInfo, SerialPortType};
 
 use crate::{
-    cli::{config::UsbDevice, Config, ConnectArgs},
+    cli::{config::UsbDevice, ConnectArgs, PortConfig},
     Error,
 };
 
@@ -16,7 +16,7 @@ use crate::{
 /// ways of choosing a port.
 pub fn get_serial_port_info(
     matches: &ConnectArgs,
-    config: &Config,
+    config: &PortConfig,
 ) -> Result<SerialPortInfo, Error> {
     // A serial port should be specified either as a command-line argument or in a
     // configuration file. In the case that both have been provided the command-line
@@ -42,7 +42,6 @@ pub fn get_serial_port_info(
     } else {
         let ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
         let (port, matches) = select_serial_port(ports, config, matches.confirm_port)?;
-
         match &port.port_type {
             SerialPortType::UsbPort(usb_info) if !matches => {
                 let remember = Confirm::with_theme(&ColorfulTheme::default())
@@ -142,7 +141,7 @@ const KNOWN_DEVICES: &[UsbDevice] = &[
     }, // QinHeng Electronics CH340 serial converter
 ];
 
-pub(super) fn known_ports_filter(port: &SerialPortInfo, config: &Config) -> bool {
+pub(super) fn known_ports_filter(port: &SerialPortInfo, config: &PortConfig) -> bool {
     // Does this port match a known one?
     match &port.port_type {
         SerialPortType::UsbPort(info) => config
@@ -157,7 +156,7 @@ pub(super) fn known_ports_filter(port: &SerialPortInfo, config: &Config) -> bool
 /// Ask the user to select a serial port from a list of detected serial ports.
 fn select_serial_port(
     mut ports: Vec<SerialPortInfo>,
-    config: &Config,
+    config: &PortConfig,
     force_confirm_port: bool,
 ) -> Result<(SerialPortInfo, bool), Error> {
     if let [port] = ports
