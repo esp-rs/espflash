@@ -164,7 +164,6 @@ pub struct PortConfig {
     /// Preferred serial port connection information
     #[serde(default)]
     pub connection: Connection,
-    /// Partition table path
     /// Preferred USB devices
     #[serde(default)]
     pub usb_device: Vec<UsbDevice>,
