@@ -6,7 +6,12 @@ use std::{
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
-    cli::{self, config::Config, monitor::monitor, *},
+    cli::{
+        self,
+        config::{Config, PortConfig},
+        monitor::monitor,
+        *,
+    },
     flasher::parse_partition_table,
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
@@ -174,33 +179,36 @@ fn main() -> Result<()> {
     // Load any user configuration, if present.
     let config = Config::load()?;
 
+    // Load any user ports configuration, if present.
+    let ports_config = PortConfig::load()?;
+
     // Execute the correct action based on the provided subcommand and its
     // associated arguments.
     match args {
-        Commands::BoardInfo(args) => board_info(&args, &config),
-        Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
+        Commands::BoardInfo(args) => board_info(&args, &config, &ports_config),
+        Commands::ChecksumMd5(args) => checksum_md5(&args, &config, &ports_config),
         Commands::Completions(args) => completions(&args, &mut Cli::command(), "espflash"),
-        Commands::EraseFlash(args) => erase_flash(args, &config),
-        Commands::EraseParts(args) => erase_parts(args, &config),
-        Commands::EraseRegion(args) => erase_region(args, &config),
-        Commands::Flash(args) => flash(args, &config),
-        Commands::HoldInReset(args) => hold_in_reset(args, &config),
-        Commands::ListPorts(args) => list_ports(&args, &config),
-        Commands::Monitor(args) => serial_monitor(args, &config),
+        Commands::EraseFlash(args) => erase_flash(args, &config, &ports_config),
+        Commands::EraseParts(args) => erase_parts(args, &config, &ports_config),
+        Commands::EraseRegion(args) => erase_region(args, &config, &ports_config),
+        Commands::Flash(args) => flash(args, &config, &ports_config),
+        Commands::HoldInReset(args) => hold_in_reset(args, &config, &ports_config),
+        Commands::ListPorts(args) => list_ports(&args, &ports_config),
+        Commands::Monitor(args) => serial_monitor(args, &config, &ports_config),
         Commands::PartitionTable(args) => partition_table(args),
-        Commands::ReadFlash(args) => read_flash(args, &config),
-        Commands::Reset(args) => reset(args, &config),
+        Commands::ReadFlash(args) => read_flash(args, &config, &ports_config),
+        Commands::Reset(args) => reset(args, &config, &ports_config),
         Commands::SaveImage(args) => save_image(args, &config),
-        Commands::WriteBin(args) => write_bin(args, &config),
+        Commands::WriteBin(args) => write_bin(args, &config, &ports_config),
     }
 }
 
-pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
+pub fn erase_parts(args: ErasePartsArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(Error::StubRequired.into());
     }
 
-    let mut flasher = connect(&args.connect_args, config, false, false)?;
+    let mut flasher = connect(&args.connect_args, config, ports_config, false, false)?;
     let partition_table = match args.partition_table {
         Some(path) => Some(parse_partition_table(&path)?),
         None => None,
@@ -218,27 +226,28 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
-fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
+fn reset(args: ConnectArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
     let mut args = args.clone();
     args.no_stub = true;
-    let mut flash = connect(&args, config, true, true)?;
+    let mut flash = connect(&args, config, ports_config, true, true)?;
     info!("Resetting target device");
     flash.connection().reset()?;
 
     Ok(())
 }
 
-fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
-    connect(&args, config, true, true)?;
+fn hold_in_reset(args: ConnectArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
+    connect(&args, config, ports_config, true, true)?;
     info!("Holding target device in reset");
 
     Ok(())
 }
 
-fn flash(args: FlashArgs, config: &Config) -> Result<()> {
+fn flash(args: FlashArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
     let mut flasher = connect(
         &args.connect_args,
         config,
+        ports_config,
         args.flash_args.no_verify,
         args.flash_args.no_skip,
     )?;
@@ -342,8 +351,8 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
-fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config, false, false)?;
+fn write_bin(args: WriteBinArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
+    let mut flasher = connect(&args.connect_args, config, ports_config, false, false)?;
     print_board_info(&mut flasher)?;
 
     let mut f = File::open(&args.file).into_diagnostic()?;
