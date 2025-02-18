@@ -10,7 +10,7 @@ use espflash::{
     Error as EspflashError,
     cli::{
         self,
-        config::Config,
+        config::{Config, PortConfig},
         monitor::{check_monitor_args, monitor},
         *,
     },
@@ -231,24 +231,27 @@ fn main() -> Result<()> {
     // Load any user configuration, if present.
     let config = Config::load()?;
 
+    // Load any user ports configuration, if present.
+    let ports_config = PortConfig::load()?;
+
     // Execute the correct action based on the provided subcommand and its
     // associated arguments.
     match args {
-        Commands::BoardInfo(args) => board_info(&args, &config),
-        Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
+        Commands::BoardInfo(args) => board_info(&args, &config, &ports_config),
+        Commands::ChecksumMd5(args) => checksum_md5(&args, &config, &ports_config),
         Commands::Completions(args) => completions(&args, &mut Cli::command(), "cargo"),
-        Commands::EraseFlash(args) => erase_flash(args, &config),
-        Commands::EraseParts(args) => erase_parts(args, &config),
-        Commands::EraseRegion(args) => erase_region(args, &config),
-        Commands::Flash(args) => flash(args, &config),
-        Commands::HoldInReset(args) => hold_in_reset(args, &config),
-        Commands::ListPorts(args) => list_ports(&args, &config),
-        Commands::Monitor(args) => serial_monitor(args, &config),
+        Commands::EraseFlash(args) => erase_flash(args, &config, &ports_config),
+        Commands::EraseParts(args) => erase_parts(args, &config, &ports_config),
+        Commands::EraseRegion(args) => erase_region(args, &config, &ports_config),
+        Commands::Flash(args) => flash(args, &config, &ports_config),
+        Commands::HoldInReset(args) => hold_in_reset(args, &config, &ports_config),
+        Commands::ListPorts(args) => list_ports(&args, &ports_config),
+        Commands::Monitor(args) => serial_monitor(args, &config, &ports_config),
         Commands::PartitionTable(args) => partition_table(args),
-        Commands::ReadFlash(args) => read_flash(args, &config),
-        Commands::Reset(args) => reset(args, &config),
+        Commands::ReadFlash(args) => read_flash(args, &config, &ports_config),
+        Commands::Reset(args) => reset(args, &config, &ports_config),
         Commands::SaveImage(args) => save_image(args, &config),
-        Commands::WriteBin(args) => write_bin(args, &config),
+        Commands::WriteBin(args) => write_bin(args, &config, &ports_config),
     }
 }
 
@@ -259,7 +262,7 @@ struct BuildContext {
     pub partition_table_path: Option<PathBuf>,
 }
 
-pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
+pub fn erase_parts(args: ErasePartsArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(EspflashError::StubRequired).into_diagnostic();
     }
@@ -269,7 +272,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
         .as_deref()
         .or(config.partition_table.as_deref());
 
-    let mut flasher = connect(&args.connect_args, config, false, false)?;
+    let mut flasher = connect(&args.connect_args, config, ports_config, false, false)?;
     let chip = flasher.chip();
     let partition_table = match partition_table {
         Some(path) => Some(parse_partition_table(path)?),
@@ -286,13 +289,14 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
-fn flash(args: FlashArgs, config: &Config) -> Result<()> {
+fn flash(args: FlashArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
     let metadata = PackageMetadata::load(&args.build_args.package)?;
     let cargo_config = CargoConfig::load(&metadata.workspace_root, &metadata.package_root);
 
     let mut flasher = connect(
         &args.connect_args,
         config,
+        ports_config,
         args.flash_args.no_verify,
         args.flash_args.no_skip,
     )?;
