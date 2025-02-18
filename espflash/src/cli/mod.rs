@@ -21,6 +21,7 @@ use std::{
 use clap::{Args, ValueEnum};
 use clap_complete::Shell;
 use comfy_table::{Attribute, Cell, Color, Table, modifiers, presets::UTF8_FULL};
+use config::PortConfig;
 use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{HumanBytes, HumanCount, ProgressBar, style::ProgressStyle};
 use log::{debug, info, warn};
@@ -381,6 +382,7 @@ pub fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
 pub fn connect(
     args: &ConnectArgs,
     config: &Config,
+    ports_config: &PortConfig,
     no_verify: bool,
     no_skip: bool,
 ) -> Result<Flasher> {
@@ -393,7 +395,7 @@ pub fn connect(
         );
     }
 
-    let port_info = serial::serial_port_info(args, config)?;
+    let port_info = serial::serial_port_info(args, ports_config)?;
 
     // Attempt to open the serial port and set its initial baud rate.
     info!("Serial port: '{}'", port_info.port_name);
@@ -436,8 +438,8 @@ pub fn connect(
 }
 
 /// Connect to a target device and print information about its chip
-pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(args, config, true, true)?;
+pub fn board_info(args: &ConnectArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
+    let mut flasher = connect(args, config, ports_config, true, true)?;
     print_board_info(&mut flasher)?;
 
     let chip = flasher.chip();
@@ -454,8 +456,12 @@ pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
 }
 
 /// Connect to a target device and calculate the checksum of the given region
-pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config, true, true)?;
+pub fn checksum_md5(
+    args: &ChecksumMd5Args,
+    config: &Config,
+    ports_config: &PortConfig,
+) -> Result<()> {
+    let mut flasher = connect(&args.connect_args, config, ports_config, true, true)?;
 
     let checksum = flasher.checksum_md5(args.address, args.size)?;
     println!("0x{:x}", checksum);
@@ -468,7 +474,7 @@ pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
     Ok(())
 }
 
-pub fn list_ports(args: &ListPortsArgs, config: &Config) -> Result<()> {
+pub fn list_ports(args: &ListPortsArgs, config: &PortConfig) -> Result<()> {
     let mut ports: Vec<SerialPortInfo> = serial::detect_usb_serial_ports(true)?
         .into_iter()
         .filter(|p| args.list_all_ports || serial::known_ports_filter(p, config))
@@ -603,8 +609,8 @@ pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
 }
 
 /// Open a serial monitor
-pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config, true, true)?;
+pub fn serial_monitor(args: MonitorArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
+    let mut flasher = connect(&args.connect_args, config, ports_config, true, true)?;
     let pid = flasher.usb_pid();
 
     let elf = if let Some(elf_path) = args.monitor_args.elf.clone() {
@@ -753,12 +759,12 @@ impl ProgressCallbacks for EspflashProgress {
     }
 }
 
-pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
+pub fn erase_flash(args: EraseFlashArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(Error::StubRequired.into());
     }
 
-    let mut flasher = connect(&args.connect_args, config, true, true)?;
+    let mut flasher = connect(&args.connect_args, config, ports_config, true, true)?;
     info!("Erasing Flash...");
 
     let chip = flasher.chip();
@@ -773,7 +779,11 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
-pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
+pub fn erase_region(
+    args: EraseRegionArgs,
+    config: &Config,
+    ports_config: &PortConfig,
+) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(Error::StubRequired).into_diagnostic();
     }
@@ -786,7 +796,7 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
         .into_diagnostic();
     }
 
-    let mut flasher = connect(&args.connect_args, config, true, true)?;
+    let mut flasher = connect(&args.connect_args, config, ports_config, true, true)?;
     let chip = flasher.chip();
 
     info!(
@@ -887,8 +897,8 @@ fn erase_partition(flasher: &mut Flasher, part: &Partition) -> Result<()> {
 }
 
 /// Read flash content and write it to a file
-pub fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config, false, false)?;
+pub fn read_flash(args: ReadFlashArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
+    let mut flasher = connect(&args.connect_args, config, ports_config, false, false)?;
     print_board_info(&mut flasher)?;
 
     if args.connect_args.no_stub {
@@ -1059,7 +1069,7 @@ pub fn make_flash_data(
 }
 
 /// Write a binary to the flash memory of a target device
-pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
+pub fn write_bin(args: WriteBinArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
     // Check monitor arguments
     check_monitor_args(&args.monitor, &args.monitor_args)?;
 
@@ -1118,7 +1128,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
         }
     };
 
-    let mut flasher = connect(&args.connect_args, config, false, false)?;
+    let mut flasher = connect(&args.connect_args, config, ports_config, false, false)?;
     print_board_info(&mut flasher)?;
 
     let chip = flasher.chip();
@@ -1145,18 +1155,18 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
-pub fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
+pub fn reset(args: ConnectArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
     let mut args = args.clone();
     args.no_stub = true;
-    let mut flash = connect(&args, config, true, true)?;
+    let mut flasher = connect(&args, config, ports_config, true, true)?;
     info!("Resetting target device");
-    flash.connection().reset()?;
+    flasher.connection().reset()?;
 
     Ok(())
 }
 
-pub fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
-    connect(&args, config, true, true)?;
+pub fn hold_in_reset(args: ConnectArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
+    connect(&args, config, ports_config, true, true)?;
     info!("Holding target device in reset");
 
     Ok(())
