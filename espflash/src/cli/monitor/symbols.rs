@@ -15,6 +15,7 @@ pub(crate) struct Symbols<'sym> {
 }
 
 impl<'sym> Symbols<'sym> {
+    /// Tries to create a new `Symbols` instance from the given ELF file bytes.
     pub fn try_from(bytes: &'sym [u8]) -> Result<Self, Box<dyn Error>> {
         let object = File::parse(bytes)?;
         let dwarf = Dwarf::load(
