@@ -1,6 +1,6 @@
 use std::{
-    fs::{self, File},
-    io::Read,
+    fs::{self, File, OpenOptions},
+    io::{Read, Seek, SeekFrom, Write},
     path::PathBuf,
 };
 
@@ -342,11 +342,35 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
+fn pad_to(file: &mut File, alignment: u64, pad_character: u8) -> Result<()> {
+    let current_size = file.metadata().into_diagnostic()?.len();
+    let pad_mod = current_size % alignment;
+
+    if pad_mod != 0 {
+        let pad_size = alignment - pad_mod;
+
+        // Move the file cursor to the end of the file
+        file.seek(SeekFrom::End(0)).into_diagnostic()?;
+
+        file.write_all(&vec![pad_character; pad_size as usize])
+            .into_diagnostic()?;
+    }
+
+    Ok(())
+}
+
 fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
 
-    let mut f = File::open(&args.file).into_diagnostic()?;
+    // if the file size is not divisible by 4, we need to pad FF bytes to the end of
+    // the file, that's why we need `write` permission as well
+    let mut f = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&args.file)
+        .into_diagnostic()?;
+    pad_to(&mut f, 4, 0xFF)?;
     let size = f.metadata().into_diagnostic()?.len();
     let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
     f.read_to_end(&mut buffer).into_diagnostic()?;
