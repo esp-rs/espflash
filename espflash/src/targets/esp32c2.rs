@@ -59,12 +59,12 @@ impl Target for Esp32c2 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok(self.read_efuse(connection, 17)? >> 20 & 0x3)
+        Ok((self.read_efuse(connection, 17)? >> 20) & 0x3)
     }
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok(self.read_efuse(connection, 17)? >> 16 & 0xf)
+        Ok((self.read_efuse(connection, 17)? >> 16) & 0xf)
     }
 
     #[cfg(feature = "serialport")]
