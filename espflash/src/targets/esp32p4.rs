@@ -53,7 +53,7 @@ impl Target for Esp32p4 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok(self.read_efuse(connection, 19)? >> 4 & 0x03)
+        Ok((self.read_efuse(connection, 19)? >> 4) & 0x03)
     }
 
     #[cfg(feature = "serialport")]
