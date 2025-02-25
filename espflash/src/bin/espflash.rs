@@ -157,7 +157,6 @@ struct WriteBinArgs {
     /// Serial monitor configuration
     #[clap(flatten)]
     pub monitor_args: cli::MonitorConfigArgs,
-
 }
 
 fn main() -> Result<()> {
@@ -386,7 +385,7 @@ fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
         &buffer,
         Some(&mut EspflashProgress::default()),
     )?;
-    
+
     if args.monitor {
         let pid = flasher.get_usb_pid()?;
         let mut monitor_args = args.monitor_args;
