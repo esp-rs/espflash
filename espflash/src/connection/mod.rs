@@ -330,7 +330,12 @@ impl Connection {
                             }
                         }
                     }
-                    _ => println!("Unsupported chip for watchdog reset {:?}", chip),
+                    _ => {
+                        return Err(Error::UnsupportedFeature {
+                            chip,
+                            feature: "watchdog reset".into(),
+                        })
+                    }
                 }
 
                 Ok(())
