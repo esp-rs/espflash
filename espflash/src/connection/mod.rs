@@ -36,7 +36,7 @@ use self::{
 };
 use crate::{
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
-    targets::{esp32s2, esp32s3, Chip},
+    targets::{esp32p4, esp32s2, esp32s3, Chip},
 };
 
 pub(crate) mod command;
@@ -299,6 +299,13 @@ impl Connection {
                 match chip {
                     Chip::Esp32c3 => {
                         if pid == USB_SERIAL_JTAG_PID {
+                            wdt_reset(chip, self)?;
+                        }
+                    }
+                    Chip::Esp32p4 => {
+                        let esp32p4 = esp32p4::Esp32p4;
+                        // Check if the connection is USB OTG
+                        if esp32p4.connection_is_usb_otg(self)? {
                             wdt_reset(chip, self)?;
                         }
                     }

@@ -222,6 +222,21 @@ impl RtcWdtReset for crate::targets::esp32c3::Esp32c3 {
     }
 }
 
+impl RtcWdtReset for crate::targets::esp32p4::Esp32p4 {
+    fn wdt_wprotect(&self) -> u32 {
+        0x5011_6000 + 0x0018
+    }
+    fn wdt_wkey(&self) -> u32 {
+        0x50D8_3AA1
+    }
+    fn wdt_config0(&self) -> u32 {
+        0x5011_6000 // no offset here
+    }
+    fn wdt_config1(&self) -> u32 {
+        0x5011_6000 + 0x0004
+    }
+}
+
 impl RtcWdtReset for crate::targets::esp32s2::Esp32s2 {
     fn wdt_wprotect(&self) -> u32 {
         0x3F40_8000 + 0x00AC

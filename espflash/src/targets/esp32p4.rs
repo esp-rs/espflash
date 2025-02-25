@@ -31,8 +31,18 @@ const PARAMS: Esp32Params = Esp32Params::new(
 pub struct Esp32p4;
 
 impl Esp32p4 {
+    /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Check if the connection is USB OTG
+    pub(crate) fn connection_is_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
+        const UARTDEV_BUF_NO: u32 = 0x4FF3_FEC8; // Address which indicates OTG in use
+        const UARTDEV_BUF_NO_USB_OTG: u32 = 5; // Value of UARTDEV_BUF_NO when OTG is in use
+
+        Ok(connection.read_reg(UARTDEV_BUF_NO)? == UARTDEV_BUF_NO_USB_OTG)
     }
 }
 
