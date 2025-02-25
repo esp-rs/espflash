@@ -298,7 +298,9 @@ impl Connection {
 
                 match chip {
                     Chip::Esp32c3 => {
-                        wdt_reset(chip, self)?;
+                        if pid == USB_SERIAL_JTAG_PID {
+                            wdt_reset(chip, self)?;
+                        }
                     }
                     Chip::Esp32s2 => {
                         let esp32s2 = esp32s2::Esp32s2;
