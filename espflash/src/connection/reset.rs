@@ -5,6 +5,7 @@
 use std::{io, os::fd::AsRawFd};
 use std::{thread::sleep, time::Duration};
 
+use bitflags::bitflags;
 #[cfg(unix)]
 use libc::ioctl;
 use log::debug;
@@ -208,7 +209,7 @@ trait RtcWdtReset {
 
 impl RtcWdtReset for crate::targets::esp32c3::Esp32c3 {
     fn wdt_wprotect(&self) -> u32 {
-        0x6000_8000 + 0x00B0
+        0x6000_8000 + 0x00A0
     }
     fn wdt_wkey(&self) -> u32 {
         0x50D8_3AA1
@@ -223,16 +224,16 @@ impl RtcWdtReset for crate::targets::esp32c3::Esp32c3 {
 
 impl RtcWdtReset for crate::targets::esp32s2::Esp32s2 {
     fn wdt_wprotect(&self) -> u32 {
-        0x6000_F000 + 0x00B0
+        0x3F40_8000 + 0x00AC
     }
     fn wdt_wkey(&self) -> u32 {
-        0xA123_B456
+        0x50D8_3AA1
     }
     fn wdt_config0(&self) -> u32 {
-        0x6000_F000 + 0x0090
+        0x3F40_8000 + 0x0094
     }
     fn wdt_config1(&self) -> u32 {
-        0x6000_F000 + 0x0094
+        0x3F40_8000 + 0x0098
     }
 }
 
@@ -241,13 +242,13 @@ impl RtcWdtReset for crate::targets::esp32s3::Esp32s3 {
         0x6000_E000 + 0x00B0
     }
     fn wdt_wkey(&self) -> u32 {
-        0xB987_C654
+        0x50D8_3AA1
     }
     fn wdt_config0(&self) -> u32 {
-        0x6000_E000 + 0x0090
+        0x6000_E000 + 0x0098
     }
     fn wdt_config1(&self) -> u32 {
-        0x6000_E000 + 0x0094
+        0x6000_E000 + 0x009C
     }
 }
 
@@ -346,6 +347,15 @@ pub fn soft_reset(
     Ok(())
 }
 
+bitflags! {
+    struct WdtConfig0Flags: u32 {
+        const EN      = 1 << 31;
+        const STAGE0 = 5 << 28; // 5 (binary: 101) in bits 28-30
+        const CHIP_RESET_EN       = 1 << 8;  // 8th bit
+        const CHIP_RESET_WIDTH       = 1 << 2;  // 1st bit
+    }
+}
+
 /// Perform Watchdog reset
 pub fn wdt_reset(chip: Chip, connection: &mut Connection) -> Result<(), Error> {
     debug!("Resetting with RTC WDT");
@@ -358,13 +368,18 @@ pub fn wdt_reset(chip: Chip, connection: &mut Connection) -> Result<(), Error> {
     };
 
     connection.write_reg(chip.wdt_wprotect(), chip.wdt_wkey(), None)?;
-    connection.write_reg(chip.wdt_config1(), 5000, None)?;
+    connection.write_reg(chip.wdt_config1(), 2000, None)?;
     connection.write_reg(
         chip.wdt_config0(),
-        (1 << 31) | (5 << 28) | (1 << 8) | 2,
+        (WdtConfig0Flags::EN.bits()) // enable RTC watchdog
+            | (WdtConfig0Flags::STAGE0.bits()) // enable at the interrupt/system and RTC stage
+            | (WdtConfig0Flags::CHIP_RESET_EN.bits()) // enable chip reset
+            | WdtConfig0Flags::CHIP_RESET_WIDTH.bits(), // set chip reset width
         None,
     )?;
     connection.write_reg(chip.wdt_wprotect(), 0, None)?;
+
+    sleep(Duration::from_millis(50));
 
     Ok(())
 }
