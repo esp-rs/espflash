@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update the app image SHA in the correct location for padded images (#715)
 - Fix `-s` argument collision (#731)
 - `address` and `size` in `erase-region` have to be multiples of 4096 (#771)
+- Fixed typos in error variant names (#782)
 
 ### Removed
 

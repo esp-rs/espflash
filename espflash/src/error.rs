@@ -40,9 +40,9 @@ pub enum Error {
     )]
     ChipDetectError(u32),
 
-    #[error("Chip provided ({0}) with `-c/--chip` does not match the detected chip ({1})")]
+    #[error("Chip provided with `-c/--chip` ({0}) does not match the detected chip ({1})")]
     #[diagnostic(
-        code(espflash::chip_missmatch),
+        code(espflash::chip_mismatch),
         help("Ensure that the correct chip is selected, or remove the `-c/--chip` option to autodetect the chip")
     )]
     ChipMismatch(String, String),
@@ -59,8 +59,8 @@ pub enum Error {
     CorruptData(usize, usize),
 
     #[error("MD5 digest missmatch: expected {0:2x?}, received: {1:2x?}")]
-    #[diagnostic(code(espflash::read_flash::digest_missmatch))]
-    DigestMissmatch(Vec<u8>, Vec<u8>),
+    #[diagnostic(code(espflash::read_flash::digest_mismatch))]
+    DigestMismatch(Vec<u8>, Vec<u8>),
 
     #[error("Supplied ELF image can not be run from RAM, as it includes segments mapped to ROM addresses")]
     #[diagnostic(
@@ -89,7 +89,7 @@ pub enum Error {
 
     #[error("Incorrect response from the sutb/ROM loader")]
     #[diagnostic(code(espflash::read_flash::incorrect_response))]
-    IncorrectReposnse,
+    IncorrectResponse,
 
     #[error("The provided bootloader binary is invalid")]
     InvalidBootloader,
