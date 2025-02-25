@@ -1231,6 +1231,7 @@ version = "4.0.0-dev"
 dependencies = [
  "addr2line",
  "base64",
+ "bitflags 2.7.0",
  "bytemuck",
  "clap",
  "clap_complete",

@@ -27,6 +27,7 @@ required-features = ["cli", "serialport"]
 [dependencies]
 addr2line       = { version = "0.24.2", optional = true }
 base64          = "0.22.1"
+bitflags        = "2.4"
 bytemuck        = { version = "1.21.0", features = ["derive"] }
 clap            = { version = "4.5.24", features = ["derive", "env", "wrap_help"], optional = true }
 clap_complete   = { version = "4.5.41", optional = true }
