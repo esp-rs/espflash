@@ -119,13 +119,13 @@ impl Target for Esp32s2 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok(self.read_efuse(connection, 20)? >> 18 & 0x3)
+        Ok((self.read_efuse(connection, 20)? >> 18) & 0x3)
     }
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let hi = self.read_efuse(connection, 20)? >> 20 & 0x1;
-        let lo = self.read_efuse(connection, 21)? >> 4 & 0x7;
+        let hi = (self.read_efuse(connection, 20)? >> 20) & 0x1;
+        let lo = (self.read_efuse(connection, 21)? >> 4) & 0x7;
 
         Ok((hi << 3) + lo)
     }

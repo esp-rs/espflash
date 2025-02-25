@@ -906,7 +906,7 @@ impl Flasher {
         self.connection
             .write_reg(spi_registers.usr(), flags, None)?;
         self.connection
-            .write_reg(spi_registers.usr2(), 7 << 28 | command as u32, None)?;
+            .write_reg(spi_registers.usr2(), (7 << 28) | command as u32, None)?;
 
         if let (Some(mosi_data_length), Some(miso_data_length)) =
             (spi_registers.mosi_length(), spi_registers.miso_length())
@@ -928,7 +928,7 @@ impl Flasher {
             let miso_mask = if read_bits == 0 { 0 } else { read_bits - 1 };
             self.connection.write_reg(
                 spi_registers.usr1(),
-                miso_mask << 8 | mosi_mask << 17,
+                (miso_mask << 8) | (mosi_mask << 17),
                 None,
             )?;
         }

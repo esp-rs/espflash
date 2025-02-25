@@ -39,7 +39,7 @@ impl Esp32s3 {
     #[cfg(feature = "serialport")]
     /// Return the minor BLK version based on eFuses
     fn blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok(self.read_efuse(connection, 20)? >> 24 & 0x7)
+        Ok((self.read_efuse(connection, 20)? >> 24) & 0x7)
     }
 
     /// Check if the magic value contains the specified value
@@ -66,7 +66,7 @@ impl Target for Esp32s3 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let major = self.read_efuse(connection, 22)? >> 24 & 0x3;
+        let major = (self.read_efuse(connection, 22)? >> 24) & 0x3;
 
         // Workaround: The major version field was allocated to other purposes when
         // block version is v1.1. Luckily only chip v0.0 have this kind of block version
@@ -83,8 +83,8 @@ impl Target for Esp32s3 {
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let hi = self.read_efuse(connection, 22)? >> 23 & 0x1;
-        let lo = self.read_efuse(connection, 20)? >> 18 & 0x7;
+        let hi = (self.read_efuse(connection, 22)? >> 23) & 0x1;
+        let lo = (self.read_efuse(connection, 20)? >> 18) & 0x7;
 
         Ok((hi << 3) + lo)
     }
