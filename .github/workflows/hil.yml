@@ -107,11 +107,14 @@ jobs:
       - name: hold-in-reset test
         run: timeout 5 bash espflash/tests/scripts/hold-in-reset.sh
 
-      - name: timeout 5 reset test
-        run: bash espflash/tests/scripts/reset.sh
+      - name: reset test
+        run: timeout 5 bash espflash/tests/scripts/reset.sh
 
-      - name: timeout 40 checksum-md5 test
-        run: bash espflash/tests/scripts/checksum-md5.sh
+      - name: checksum-md5 test
+        run: timeout 40 bash espflash/tests/scripts/checksum-md5.sh
 
-      - name: timeout 10 list-ports test
-        run: bash espflash/tests/scripts/list-ports.sh
+      - name: list-ports test
+        run: timeout 10 bash espflash/tests/scripts/list-ports.sh
+
+      - name: write-bin test
+        run: timeout 20 bash espflash/tests/scripts/write-bin.sh

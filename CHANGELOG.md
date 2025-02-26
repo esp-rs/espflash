@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Normalized arguments of the CLI commands (#759)
 - `board-info` now prints `Security information`. (#758)
 - The `command`, `elf` and `error` modules are no longer public (#772)
-- `write-bin` now works for files whose lengths are not divisible by 4 (#780)
+- `write-bin` now works for files whose lengths are not divisible by 4 (#780, #788)
 
 ### Fixed
 
