@@ -117,6 +117,8 @@ enum Commands {
     /// Otherwise, each segment will be saved as individual binaries, prefixed
     /// with their intended addresses in flash.
     SaveImage(SaveImageArgs),
+    /// Write a binary file to a specific address in a target device's flash
+    WriteBin(WriteBinArgs),
 }
 
 #[derive(Debug, Args)]
@@ -240,6 +242,7 @@ fn main() -> Result<()> {
         Commands::ReadFlash(args) => read_flash(args, &config),
         Commands::Reset(args) => reset(args, &config),
         Commands::SaveImage(args) => save_image(args, &config),
+        Commands::WriteBin(args) => write_bin(args, &config),
     }
 }
 
