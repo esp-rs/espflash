@@ -356,7 +356,7 @@ fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     }
     let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
     f.read_to_end(&mut buffer).into_diagnostic()?;
-    buffer.extend_from_slice(&vec![0xFF; padded_bytes as usize]);
+    buffer.extend(std::iter::repeat(0xFF).take(padded_bytes as usize));
 
     flasher.write_bin_to_flash(
         args.address,
