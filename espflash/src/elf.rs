@@ -54,6 +54,7 @@ pub struct ElfFirmwareImage<'a> {
 }
 
 impl<'a> ElfFirmwareImage<'a> {
+    /// Create a new [`ElfFirmwareImage`] from an [ElfFile]
     pub fn new(elf: ElfFile<'a>) -> Self {
         Self { elf }
     }
@@ -126,6 +127,7 @@ pub struct CodeSegment<'a> {
 }
 
 impl<'a> CodeSegment<'a> {
+    /// Create a [CodeSegment]
     pub fn new(addr: u32, data: &'a [u8]) -> Self {
         let mut segment = CodeSegment {
             addr,
@@ -241,6 +243,8 @@ pub struct RomSegment<'a> {
 }
 
 impl<'a> RomSegment<'a> {
+    /// Borrows a `RomSegment` from the current instance, allowing access to its
+    /// address and data.
     pub fn borrow<'b>(&'b self) -> RomSegment<'b>
     where
         'a: 'b,
