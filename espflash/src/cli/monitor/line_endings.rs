@@ -35,6 +35,7 @@ where
     }
 }
 
+/// Normalize line endings to CRLF.
 pub(crate) fn normalized(iter: impl Iterator<Item = u8>) -> impl Iterator<Item = u8> {
     Normalized {
         iter,
