@@ -71,6 +71,7 @@ Commands:
   read-flash       Read SPI flash content
   reset            Reset the target device
   save-image       Generate a binary application image and save it to a local disk
+  write-bin        Write a binary file to a specific address in a target device's flash
   help             Print this message or the help of the given subcommand(s)
 
 Options:

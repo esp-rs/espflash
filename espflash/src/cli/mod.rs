@@ -12,8 +12,8 @@
 
 use std::{
     collections::HashMap,
-    fs,
-    io::Write,
+    fs::{self, File},
+    io::{Read, Write},
     num::ParseIntError,
     path::{Path, PathBuf},
 };
@@ -313,6 +313,20 @@ pub struct ListPortsArgs {
     /// Only print the name of the ports and nothing else. Useful for scripting.
     #[arg(short, long)]
     pub name_only: bool,
+}
+
+/// Writes a binary file to a specific address in the chip's flash
+#[derive(Debug, Args)]
+#[non_exhaustive]
+pub struct WriteBinArgs {
+    /// Address at which to write the binary file
+    #[arg(value_parser = parse_u32)]
+    pub address: u32,
+    /// File containing the binary data to write
+    pub file: String,
+    /// Connection configuration
+    #[clap(flatten)]
+    connect_args: ConnectArgs,
 }
 
 /// Parses an integer, in base-10 or hexadecimal format, into a [u32]
@@ -970,6 +984,32 @@ pub fn make_flash_data(
         flash_settings,
         image_args.min_chip_rev,
     )
+}
+
+/// Write a binary to the flash memory of a target device
+pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
+    let mut flasher = connect(&args.connect_args, config, false, false)?;
+    print_board_info(&mut flasher)?;
+
+    let mut f = File::open(&args.file).into_diagnostic()?;
+
+    // If the file size is not divisible by 4, we need to pad `FF` bytes to the end
+    let size = f.metadata().into_diagnostic()?.len();
+    let mut padded_bytes = 0;
+    if size % 4 != 0 {
+        padded_bytes = 4 - (size % 4);
+    }
+    let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
+    f.read_to_end(&mut buffer).into_diagnostic()?;
+    buffer.extend(std::iter::repeat(0xFF).take(padded_bytes as usize));
+
+    flasher.write_bin_to_flash(
+        args.address,
+        &buffer,
+        Some(&mut EspflashProgress::default()),
+    )?;
+
+    Ok(())
 }
 
 mod test {

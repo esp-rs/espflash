@@ -1,8 +1,4 @@
-use std::{
-    fs::{self, File},
-    io::Read,
-    path::PathBuf,
-};
+use std::{fs, path::PathBuf};
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
@@ -138,20 +134,6 @@ struct SaveImageArgs {
     /// Sage image arguments
     #[clap(flatten)]
     save_image_args: cli::SaveImageArgs,
-}
-
-/// Writes a binary file to a specific address in the chip's flash
-#[derive(Debug, Args)]
-#[non_exhaustive]
-struct WriteBinArgs {
-    /// Address at which to write the binary file
-    #[arg(value_parser = parse_u32)]
-    pub address: u32,
-    /// File containing the binary data to write
-    pub file: String,
-    /// Connection configuration
-    #[clap(flatten)]
-    connect_args: ConnectArgs,
 }
 
 fn main() -> Result<()> {
@@ -337,31 +319,6 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         args.save_image_args.merge,
         args.save_image_args.skip_padding,
         xtal_freq,
-    )?;
-
-    Ok(())
-}
-
-fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config, false, false)?;
-    print_board_info(&mut flasher)?;
-
-    let mut f = File::open(&args.file).into_diagnostic()?;
-
-    // If the file size is not divisible by 4, we need to pad `FF` bytes to the end
-    let size = f.metadata().into_diagnostic()?.len();
-    let mut padded_bytes = 0;
-    if size % 4 != 0 {
-        padded_bytes = 4 - (size % 4);
-    }
-    let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
-    f.read_to_end(&mut buffer).into_diagnostic()?;
-    buffer.extend(std::iter::repeat(0xFF).take(padded_bytes as usize));
-
-    flasher.write_bin_to_flash(
-        args.address,
-        &buffer,
-        Some(&mut EspflashProgress::default()),
     )?;
 
     Ok(())
