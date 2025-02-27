@@ -986,6 +986,7 @@ pub fn make_flash_data(
     )
 }
 
+/// Write a binary to the flash memory of a target device
 pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
