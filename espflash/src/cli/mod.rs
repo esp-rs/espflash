@@ -1005,6 +1005,10 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
 
+    let chip = flasher.chip();
+    let target = chip.into_target();
+    let target_xtal_freq = target.crystal_freq(flasher.connection())?;
+
     let mut f = File::open(&args.file).into_diagnostic()?;
 
     // If the file size is not divisible by 4, we need to pad `FF` bytes to the end
@@ -1026,9 +1030,6 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     if args.monitor {
         let pid = flasher.get_usb_pid()?;
         let mut monitor_args = args.monitor_args;
-        let chip = flasher.chip();
-        let target = chip.into_target();
-        let target_xtal_freq = target.crystal_freq(flasher.connection())?;
 
         if chip == Chip::Esp32c2
             && target_xtal_freq == XtalFrequency::_26Mhz
