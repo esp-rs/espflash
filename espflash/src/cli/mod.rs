@@ -326,6 +326,12 @@ pub struct WriteBinArgs {
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
+    /// Open a serial monitor after writing
+    #[arg(short = 'M', long)]
+    pub monitor: bool,
+    /// Serial monitor configuration
+    #[clap(flatten)]
+    pub monitor_args: MonitorConfigArgs,
 }
 
 /// Parses an integer, in base-10 or hexadecimal format, into a [u32]
@@ -1016,6 +1022,24 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
         &buffer,
         Some(&mut EspflashProgress::default()),
     )?;
+
+    if args.monitor {
+        let pid = flasher.get_usb_pid()?;
+        let mut monitor_args = args.monitor_args;
+        let chip = flasher.chip();
+        let target = chip.into_target();
+        let target_xtal_freq = target.crystal_freq(flasher.connection())?;
+
+        if chip == Chip::Esp32c2
+            && target_xtal_freq == XtalFrequency::_26Mhz
+            && monitor_args.monitor_baud == 115_200
+        {
+            // 115_200 * 26 MHz / 40 MHz = 74_880
+            monitor_args.monitor_baud = 74_880;
+        }
+
+        monitor(flasher.into_serial(), None, pid, monitor_args)?;
+    }
 
     Ok(())
 }
