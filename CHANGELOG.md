@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `no-reset` flag to `monitor` subcommands (#737)
 - Add an environment variable to set monitoring baudrate (`MONITOR_BAUD`) (#737)
 - Add list-ports command to list available serial ports. (#761)
+- [cargo-espflash]: Add `write-bin` subcommand (#789)
 
 ### Changed
 
