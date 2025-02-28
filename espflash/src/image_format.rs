@@ -8,7 +8,7 @@ use log::debug;
 use sha2::{Digest, Sha256};
 
 use crate::{
-    elf::{CodeSegment, FirmwareImage, RomSegment},
+    elf::{FirmwareImage, Segment},
     flasher::{FlashFrequency, FlashMode, FlashSettings, FlashSize},
     targets::{Chip, Esp32Params},
     Error,
@@ -108,7 +108,7 @@ pub struct IdfBootloaderFormat<'a> {
     params: Esp32Params,
     bootloader: Cow<'a, [u8]>,
     partition_table: PartitionTable,
-    flash_segment: RomSegment<'a>,
+    flash_segment: Segment<'a>,
     app_size: u32,
     part_size: u32,
     partition_table_offset: u32,
@@ -293,7 +293,7 @@ impl<'a> IdfBootloaderFormat<'a> {
             return Err(Error::ElfTooBig(app_size, part_size));
         }
 
-        let flash_segment = RomSegment {
+        let flash_segment = Segment {
             addr: target_app_partition.offset(),
             data: Cow::Owned(data),
         };
@@ -321,21 +321,21 @@ impl<'a> IdfBootloaderFormat<'a> {
         })
     }
 
-    pub fn flash_segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
+    pub fn flash_segments<'b>(&'b self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
     where
         'a: 'b,
     {
-        let bootloader_segment = RomSegment {
+        let bootloader_segment = Segment {
             addr: self.params.boot_addr,
             data: Cow::Borrowed(&self.bootloader),
         };
 
-        let partition_table_segment = RomSegment {
+        let partition_table_segment = Segment {
             addr: self.partition_table_offset,
             data: Cow::Owned(self.partition_table.to_bin().unwrap()),
         };
 
-        let app_segment = RomSegment {
+        let app_segment = Segment {
             addr: self.flash_segment.addr,
             data: Cow::Borrowed(&self.flash_segment.data),
         };
@@ -347,7 +347,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         )
     }
 
-    pub fn ota_segments<'b>(&'b self) -> Box<dyn Iterator<Item = RomSegment<'b>> + 'b>
+    pub fn ota_segments<'b>(&'b self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
     where
         'a: 'b,
     {
@@ -369,7 +369,7 @@ impl<'a> IdfBootloaderFormat<'a> {
 ///
 /// (this is because the segment's vaddr may not be IROM_ALIGNed, more likely is
 /// aligned IROM_ALIGN+0x18 to account for the binary file header)
-fn get_segment_padding(offset: usize, segment: &CodeSegment<'_>) -> u32 {
+fn get_segment_padding(offset: usize, segment: &Segment<'_>) -> u32 {
     let align_past = (segment.addr - SEG_HEADER_LEN) % IROM_ALIGN;
     let pad_len = ((IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past) % IROM_ALIGN;
 
@@ -383,10 +383,10 @@ fn get_segment_padding(offset: usize, segment: &CodeSegment<'_>) -> u32 {
 }
 
 /// Merge adjacent segments into one.
-fn merge_adjacent_segments(mut segments: Vec<CodeSegment<'_>>) -> Vec<CodeSegment<'_>> {
+fn merge_adjacent_segments(mut segments: Vec<Segment<'_>>) -> Vec<Segment<'_>> {
     segments.sort();
 
-    let mut merged: Vec<CodeSegment<'_>> = Vec::with_capacity(segments.len());
+    let mut merged: Vec<Segment<'_>> = Vec::with_capacity(segments.len());
     for segment in segments {
         match merged.last_mut() {
             Some(last) if last.addr + last.size() == segment.addr => {
@@ -404,7 +404,7 @@ fn merge_adjacent_segments(mut segments: Vec<CodeSegment<'_>>) -> Vec<CodeSegmen
 /// Save a segment to the data buffer.
 fn save_flash_segment(
     data: &mut Vec<u8>,
-    mut segment: CodeSegment<'_>,
+    mut segment: Segment<'_>,
     checksum: u8,
 ) -> Result<u8, Error> {
     let end_pos = (data.len() + segment.data().len()) as u32 + SEG_HEADER_LEN;
@@ -425,7 +425,7 @@ fn save_flash_segment(
 }
 
 /// Stores a segment header and the segment data in the data buffer.
-fn save_segment(data: &mut Vec<u8>, segment: &CodeSegment<'_>, checksum: u8) -> Result<u8, Error> {
+fn save_segment(data: &mut Vec<u8>, segment: &Segment<'_>, checksum: u8) -> Result<u8, Error> {
     let padding = (4 - segment.size() % 4) % 4;
     let header = SegmentHeader {
         addr: segment.addr,

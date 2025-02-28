@@ -17,9 +17,10 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
 use serialport::UsbPortInfo;
 use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
-#[cfg(feature = "serialport")]
-pub(crate) use stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
+use xmas_elf::ElfFile;
 
+#[cfg(feature = "serialport")]
+pub(crate) use self::stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
 #[cfg(feature = "serialport")]
 pub use crate::targets::flash_target::ProgressCallbacks;
 #[cfg(feature = "serialport")]
@@ -30,7 +31,7 @@ use crate::{
         Connection,
         Port,
     },
-    elf::{ElfFirmwareImage, FirmwareImage, RomSegment},
+    elf::{FirmwareImage, Segment},
     error::{ConnectionError, ResultExt},
     flasher::stubs::{
         FlashStub,
@@ -40,8 +41,8 @@ use crate::{
     },
 };
 use crate::{
+    error::{ElfError, Error},
     targets::{Chip, XtalFrequency},
-    Error,
 };
 
 #[cfg(feature = "serialport")]
@@ -760,7 +761,7 @@ impl Flasher {
         ram_target
             .write_segment(
                 &mut self.connection,
-                RomSegment {
+                Segment {
                     addr: text_addr,
                     data: Cow::Borrowed(&text),
                 },
@@ -774,7 +775,7 @@ impl Flasher {
         ram_target
             .write_segment(
                 &mut self.connection,
-                RomSegment {
+                Segment {
                     addr: data_addr,
                     data: Cow::Borrowed(&data),
                 },
@@ -1013,22 +1014,22 @@ impl Flasher {
         elf_data: &[u8],
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
-        let image = ElfFirmwareImage::try_from(elf_data)?;
-        if image.rom_segments(self.chip).next().is_some() {
+        let elf = ElfFile::new(elf_data).map_err(ElfError::from)?;
+        if elf.rom_segments(self.chip).next().is_some() {
             return Err(Error::ElfNotRamLoadable);
         }
 
         let mut target = self.chip.ram_target(
-            Some(image.entry()),
+            Some(elf.entry()),
             self.chip
                 .into_target()
                 .max_ram_block_size(&mut self.connection)?,
         );
         target.begin(&mut self.connection).flashing()?;
 
-        for segment in image.ram_segments(self.chip) {
+        for segment in elf.ram_segments(self.chip) {
             target
-                .write_segment(&mut self.connection, segment.into(), &mut progress)
+                .write_segment(&mut self.connection, segment, &mut progress)
                 .flashing()?;
         }
 
@@ -1043,7 +1044,7 @@ impl Flasher {
         mut progress: Option<&mut dyn ProgressCallbacks>,
         xtal_freq: XtalFrequency,
     ) -> Result<(), Error> {
-        let image = ElfFirmwareImage::try_from(elf_data)?;
+        let elf = ElfFile::new(elf_data).map_err(ElfError::from)?;
 
         let mut target =
             self.chip
@@ -1056,12 +1057,10 @@ impl Flasher {
                 .chip_revision(&mut self.connection)?,
         );
 
-        let image = self.chip.into_target().get_flash_image(
-            &image,
-            flash_data,
-            chip_revision,
-            xtal_freq,
-        )?;
+        let image =
+            self.chip
+                .into_target()
+                .get_flash_image(&elf, flash_data, chip_revision, xtal_freq)?;
 
         // When the `cli` feature is enabled, display the image size information.
         #[cfg(feature = "cli")]
@@ -1085,7 +1084,7 @@ impl Flasher {
         data: &[u8],
         progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
-        let segment = RomSegment {
+        let segment = Segment {
             addr,
             data: Cow::from(data),
         };
@@ -1099,7 +1098,7 @@ impl Flasher {
     /// Load multiple bin images to flash at specific addresses
     pub fn write_bins_to_flash(
         &mut self,
-        segments: &[RomSegment<'_>],
+        segments: &[Segment<'_>],
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let mut target = self

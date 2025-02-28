@@ -7,7 +7,7 @@ use crate::{
     flasher::ProgressCallbacks,
     targets::FlashTarget,
 };
-use crate::{elf::RomSegment, Error};
+use crate::{elf::Segment, Error};
 
 pub const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 
@@ -39,7 +39,7 @@ impl FlashTarget for RamTarget {
     fn write_segment(
         &mut self,
         connection: &mut Connection,
-        segment: RomSegment<'_>,
+        segment: Segment<'_>,
         progress: &mut Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let addr = segment.addr;

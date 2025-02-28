@@ -29,7 +29,10 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_debug_implementations, rust_2018_idioms)]
 
-pub use self::error::Error;
+pub use self::{
+    elf::{FirmwareImage, Segment},
+    error::Error,
+};
 
 #[cfg(feature = "serialport")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]

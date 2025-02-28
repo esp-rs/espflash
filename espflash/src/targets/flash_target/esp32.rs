@@ -17,7 +17,7 @@ use crate::{
     targets::FlashTarget,
 };
 use crate::{
-    elf::RomSegment,
+    elf::Segment,
     flasher::{SpiAttachParams, FLASH_SECTOR_SIZE},
     targets::Chip,
     Error,
@@ -138,7 +138,7 @@ impl FlashTarget for Esp32Target {
     fn write_segment(
         &mut self,
         connection: &mut Connection,
-        segment: RomSegment<'_>,
+        segment: Segment<'_>,
         progress: &mut Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let addr = segment.addr;

@@ -26,6 +26,7 @@ use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
 use log::{debug, info, warn};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo};
+use xmas_elf::ElfFile;
 
 use self::{
     config::Config,
@@ -34,8 +35,7 @@ use self::{
 };
 use crate::{
     connection::reset::{ResetAfterOperation, ResetBeforeOperation},
-    elf::ElfFirmwareImage,
-    error::{Error, MissingPartition, MissingPartitionTable},
+    error::{ElfError, Error, MissingPartition, MissingPartitionTable},
     flasher::{
         parse_partition_table,
         FlashData,
@@ -595,14 +595,16 @@ pub fn save_elf_as_image(
     skip_padding: bool,
     xtal_freq: XtalFrequency,
 ) -> Result<()> {
-    let image = ElfFirmwareImage::try_from(elf_data)?;
+    let elf = ElfFile::new(elf_data)
+        .map_err(ElfError::from)
+        .into_diagnostic()?;
 
     if merge {
         // To get a chip revision, the connection is needed
         // For simplicity, the revision None is used
         let image =
             chip.into_target()
-                .get_flash_image(&image, flash_data.clone(), None, xtal_freq)?;
+                .get_flash_image(&elf, flash_data.clone(), None, xtal_freq)?;
 
         display_image_size(image.app_size(), image.part_size());
 
@@ -636,7 +638,7 @@ pub fn save_elf_as_image(
     } else {
         let image = chip
             .into_target()
-            .get_flash_image(&image, flash_data, None, xtal_freq)?;
+            .get_flash_image(&elf, flash_data, None, xtal_freq)?;
 
         display_image_size(image.app_size(), image.part_size());
 
