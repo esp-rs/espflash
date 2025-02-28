@@ -1188,8 +1188,8 @@ impl Flasher {
         self.connection.into_serial()
     }
 
-    pub fn get_usb_pid(&self) -> Result<u16, Error> {
-        self.connection.get_usb_pid()
+    pub fn usb_pid(&self) -> u16 {
+        self.connection.usb_pid()
     }
 
     pub fn erase_region(&mut self, offset: u32, size: u32) -> Result<(), Error> {

@@ -40,7 +40,7 @@ pub(crate) mod reset;
 
 const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
-pub(crate) const USB_SERIAL_JTAG_PID: u16 = 0x1001;
+const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
 #[cfg(unix)]
 pub type Port = serialport::TTYPort;
@@ -263,7 +263,7 @@ impl Connection {
 
     // Reset the device taking into account the reset after argument
     pub fn reset_after(&mut self, is_stub: bool) -> Result<(), Error> {
-        let pid = self.get_usb_pid()?;
+        let pid = self.usb_pid();
 
         match self.after_operation {
             ResetAfterOperation::HardReset => hard_reset(&mut self.serial, pid),
@@ -502,8 +502,12 @@ impl Connection {
     }
 
     /// Get the USB PID of the serial port
-    pub fn get_usb_pid(&self) -> Result<u16, Error> {
-        Ok(self.port_info.pid)
+    pub fn usb_pid(&self) -> u16 {
+        self.port_info.pid
+    }
+
+    pub(crate) fn is_using_usb_serial_jtag(&self) -> bool {
+        self.port_info.pid == USB_SERIAL_JTAG_PID
     }
 }
 

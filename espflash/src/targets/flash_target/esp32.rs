@@ -12,7 +12,6 @@ use crate::{
     connection::{
         command::{Command, CommandType},
         Connection,
-        USB_SERIAL_JTAG_PID,
     },
     flasher::ProgressCallbacks,
     targets::FlashTarget,
@@ -76,7 +75,7 @@ impl FlashTarget for Esp32Target {
         //
         // TODO: the stub doesn't appear to disable the watchdog on ESP32-S3, so we
         //       explicitly disable the watchdog here.
-        if connection.get_usb_pid()? == USB_SERIAL_JTAG_PID {
+        if connection.is_using_usb_serial_jtag() {
             match self.chip {
                 Chip::Esp32c3 => {
                     connection.command(Command::WriteReg {
