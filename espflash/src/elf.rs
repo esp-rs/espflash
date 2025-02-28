@@ -14,10 +14,7 @@ use xmas_elf::{
     ElfFile,
 };
 
-use crate::{
-    error::{ElfError, Error},
-    targets::Chip,
-};
+use crate::targets::Chip;
 
 /// Operations for working with firmware images
 pub trait FirmwareImage<'a> {
@@ -47,39 +44,14 @@ pub trait FirmwareImage<'a> {
     }
 }
 
-/// A firmware image built from an ELF file
-#[derive(Debug)]
-pub struct ElfFirmwareImage<'a> {
-    elf: ElfFile<'a>,
-}
-
-impl<'a> ElfFirmwareImage<'a> {
-    pub fn new(elf: ElfFile<'a>) -> Self {
-        Self { elf }
-    }
-}
-
-impl<'a> TryFrom<&'a [u8]> for ElfFirmwareImage<'a> {
-    type Error = Error;
-
-    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-        let elf = ElfFile::new(value).map_err(ElfError::from)?;
-
-        let image = ElfFirmwareImage::new(elf);
-
-        Ok(image)
-    }
-}
-
-impl<'a> FirmwareImage<'a> for ElfFirmwareImage<'a> {
+impl<'a> FirmwareImage<'a> for ElfFile<'a> {
     fn entry(&self) -> u32 {
-        self.elf.header.pt2.entry_point() as u32
+        self.header.pt2.entry_point() as u32
     }
 
     fn segments(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
         Box::new(
-            self.elf
-                .section_iter()
+            self.section_iter()
                 .filter(|header| {
                     header.size() > 0
                         && header.get_type() == Ok(ShType::ProgBits)
@@ -88,7 +60,7 @@ impl<'a> FirmwareImage<'a> for ElfFirmwareImage<'a> {
                 })
                 .flat_map(move |header| {
                     let addr = header.address() as u32;
-                    let data = match header.get_data(&self.elf) {
+                    let data = match header.get_data(self) {
                         Ok(SectionData::Undefined(data)) => data,
                         _ => return None,
                     };
@@ -99,8 +71,7 @@ impl<'a> FirmwareImage<'a> for ElfFirmwareImage<'a> {
 
     fn segments_with_load_addresses(&'a self) -> Box<dyn Iterator<Item = CodeSegment<'a>> + 'a> {
         Box::new(
-            self.elf
-                .program_iter()
+            self.program_iter()
                 .filter(|header| {
                     header.file_size() > 0
                         && header.get_type() == Ok(Type::Load)
@@ -110,7 +81,7 @@ impl<'a> FirmwareImage<'a> for ElfFirmwareImage<'a> {
                     let addr = header.physical_addr() as u32;
                     let from = header.offset() as usize;
                     let to = header.offset() as usize + header.file_size() as usize;
-                    let data = &self.elf.input[from..to];
+                    let data = &self.input[from..to];
                     Some(CodeSegment::new(addr, data))
                 }),
         )
