@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `command`, `elf` and `error` modules are no longer public (#772)
 - `write-bin` now works for files whose lengths are not divisible by 4 (#780, #788)
 - `get_usb_pid` is now `usb_pid` and no longer needlessly returns a `Result` (#795)
+- `CodeSegment` and `RomSegment` have been merged into a single `Segment` struct (#796)
 
 ### Fixed
 
