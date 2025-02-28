@@ -31,7 +31,7 @@ use crate::{
         Connection,
         Port,
     },
-    elf::{FirmwareImage, RomSegment},
+    elf::{FirmwareImage, Segment},
     error::{ConnectionError, ResultExt},
     flasher::stubs::{
         FlashStub,
@@ -761,7 +761,7 @@ impl Flasher {
         ram_target
             .write_segment(
                 &mut self.connection,
-                RomSegment {
+                Segment {
                     addr: text_addr,
                     data: Cow::Borrowed(&text),
                 },
@@ -775,7 +775,7 @@ impl Flasher {
         ram_target
             .write_segment(
                 &mut self.connection,
-                RomSegment {
+                Segment {
                     addr: data_addr,
                     data: Cow::Borrowed(&data),
                 },
@@ -1029,7 +1029,7 @@ impl Flasher {
 
         for segment in elf.ram_segments(self.chip) {
             target
-                .write_segment(&mut self.connection, segment.into(), &mut progress)
+                .write_segment(&mut self.connection, segment, &mut progress)
                 .flashing()?;
         }
 
@@ -1084,7 +1084,7 @@ impl Flasher {
         data: &[u8],
         progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
-        let segment = RomSegment {
+        let segment = Segment {
             addr,
             data: Cow::from(data),
         };
@@ -1098,7 +1098,7 @@ impl Flasher {
     /// Load multiple bin images to flash at specific addresses
     pub fn write_bins_to_flash(
         &mut self,
-        segments: &[RomSegment<'_>],
+        segments: &[Segment<'_>],
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let mut target = self
