@@ -345,6 +345,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             config,
             build_ctx.bootloader_path.as_deref(),
             build_ctx.partition_table_path.as_deref(),
+            Some(&mut flasher),
         )?;
 
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
@@ -588,6 +589,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         config,
         build_ctx.bootloader_path.as_deref(),
         build_ctx.partition_table_path.as_deref(),
+        None,
     )?;
 
     let xtal_freq = args

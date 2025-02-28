@@ -243,16 +243,17 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(&args.image).into_diagnostic()?;
 
-    let mut flash_config = args.flash_config_args;
-    flash_config.flash_size = flash_config
-        .flash_size
-        .or_else(|| flasher.flash_detect().ok().flatten())
-        .or_else(|| Some(FlashSize::default()));
-
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
-        let flash_data = make_flash_data(args.flash_args.image, &flash_config, config, None, None)?;
+        let flash_data = make_flash_data(
+            args.flash_args.image,
+            &args.flash_config_args,
+            config,
+            None,
+            None,
+            Some(&mut flasher),
+        )?;
 
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
             erase_partitions(
@@ -298,15 +299,11 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     println!("Merge:             {}", args.save_image_args.merge);
     println!("Skip padding:      {}", args.save_image_args.skip_padding);
 
-    let mut flash_config = args.flash_config_args;
-    flash_config.flash_size = flash_config
-        .flash_size
-        .or_else(|| Some(FlashSize::default()));
-
     let flash_data = make_flash_data(
         args.save_image_args.image,
-        &flash_config,
+        &args.flash_config_args,
         config,
+        None,
         None,
         None,
     )?;

@@ -946,10 +946,23 @@ fn pretty_print(table: PartitionTable) {
     println!("{pretty}");
 }
 
-pub fn make_flash_settings(flash_config_args: &FlashConfigArgs, config: &Config) -> FlashSettings {
+pub fn make_flash_settings(
+    flash_config_args: &FlashConfigArgs,
+    config: &Config,
+    flasher: Option<&mut Flasher>,
+) -> FlashSettings {
+    let flash_size = flash_config_args
+        .flash_size // First try command line args
+        .or(config.flash.size) // Then try config file
+        .or_else(|| {
+            // Then try auto-detection if flasher available
+            flasher.and_then(|f| f.flash_detect().ok().flatten())
+        })
+        .or_else(|| Some(FlashSize::default())); // Finally fall back to default
+
     FlashSettings::new(
         flash_config_args.flash_mode.or(config.flash.mode),
-        flash_config_args.flash_size.or(config.flash.size),
+        flash_size,
         flash_config_args.flash_freq.or(config.flash.freq),
     )
 }
@@ -960,6 +973,7 @@ pub fn make_flash_data(
     config: &Config,
     default_bootloader: Option<&Path>,
     default_partition_table: Option<&Path>,
+    flasher: Option<&mut Flasher>,
 ) -> Result<FlashData, Error> {
     let bootloader = image_args
         .bootloader
@@ -983,7 +997,7 @@ pub fn make_flash_data(
         println!("Partition table:   {}", path.display());
     }
 
-    let flash_settings = make_flash_settings(flash_config_args, config);
+    let flash_settings = make_flash_settings(flash_config_args, config, flasher);
     FlashData::new(
         bootloader,
         partition_table,
