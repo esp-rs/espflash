@@ -1248,7 +1248,7 @@ impl Flasher {
         while data.len() < size as usize {
             let response = self.connection.read_response()?;
             let chunk: Vec<u8> = if let Some(response) = response {
-                response.value.try_into().unwrap()
+                response.value.try_into()?
             } else {
                 return Err(Error::IncorrectResponse);
             };
@@ -1268,7 +1268,7 @@ impl Flasher {
 
         let response = self.connection.read_response()?;
         let digest: Vec<u8> = if let Some(response) = response {
-            response.value.try_into().unwrap()
+            response.value.try_into()?
         } else {
             return Err(Error::IncorrectResponse);
         };

@@ -60,8 +60,12 @@ impl TryInto<u32> for CommandResponseValue {
     fn try_into(self) -> Result<u32, Self::Error> {
         match self {
             CommandResponseValue::ValueU32(value) => Ok(value),
-            CommandResponseValue::ValueU128(_) => Err(Error::InternalError),
-            CommandResponseValue::Vector(_) => Err(Error::InternalError),
+            CommandResponseValue::ValueU128(_) => Err(Error::InvalidResponse(
+                "expected `u32` but found `u128`".into(),
+            )),
+            CommandResponseValue::Vector(_) => Err(Error::InvalidResponse(
+                "expected `u32` but found `Vec`".into(),
+            )),
         }
     }
 }
@@ -71,9 +75,13 @@ impl TryInto<u128> for CommandResponseValue {
 
     fn try_into(self) -> Result<u128, Self::Error> {
         match self {
-            CommandResponseValue::ValueU32(_) => Err(Error::InternalError),
+            CommandResponseValue::ValueU32(_) => Err(Error::InvalidResponse(
+                "expected `u128` but found `u32`".into(),
+            )),
             CommandResponseValue::ValueU128(value) => Ok(value),
-            CommandResponseValue::Vector(_) => Err(Error::InternalError),
+            CommandResponseValue::Vector(_) => Err(Error::InvalidResponse(
+                "expected `u128` but found `Vec`".into(),
+            )),
         }
     }
 }
@@ -83,8 +91,12 @@ impl TryInto<Vec<u8>> for CommandResponseValue {
 
     fn try_into(self) -> Result<Vec<u8>, Self::Error> {
         match self {
-            CommandResponseValue::ValueU32(_) => Err(Error::InternalError),
-            CommandResponseValue::ValueU128(_) => Err(Error::InternalError),
+            CommandResponseValue::ValueU32(_) => Err(Error::InvalidResponse(
+                "expected `Vec` but found `u32`".into(),
+            )),
+            CommandResponseValue::ValueU128(_) => Err(Error::InvalidResponse(
+                "expected `Vec` but found `u128`".into(),
+            )),
             CommandResponseValue::Vector(value) => Ok(value),
         }
     }
@@ -461,10 +473,11 @@ impl Connection {
 
     /// Read a register command with a timeout
     pub fn read_reg(&mut self, reg: u32) -> Result<u32, Error> {
-        self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
+        let resp = self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
             connection.command(Command::ReadReg { address: reg })
-        })
-        .map(|v| v.try_into().unwrap())
+        })?;
+
+        resp.try_into()
     }
 
     /// Write a register command with a timeout

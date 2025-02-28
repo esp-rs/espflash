@@ -205,9 +205,6 @@ pub enum Error {
     #[error(transparent)]
     TryFromSlice(#[from] TryFromSliceError),
 
-    #[error("Internal Error")]
-    InternalError,
-
     #[error("Failed to open file: {0}")]
     FileOpenError(String, #[source] io::Error),
 
