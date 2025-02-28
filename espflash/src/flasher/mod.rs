@@ -840,7 +840,7 @@ impl Flasher {
         Err(Error::FlashConnect)
     }
 
-    fn flash_detect(&mut self) -> Result<Option<FlashSize>, Error> {
+    pub fn flash_detect(&mut self) -> Result<Option<FlashSize>, Error> {
         const FLASH_RETRY: u8 = 0xFF;
 
         let flash_id = self.spi_command(CommandType::FlashDetect, &[], 24)?;
