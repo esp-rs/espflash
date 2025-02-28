@@ -9,7 +9,6 @@ use std::{
 };
 
 use xmas_elf::{
-    program::Type,
     sections::{SectionData, ShType},
     ElfFile,
 };
@@ -23,9 +22,6 @@ pub trait FirmwareImage<'a> {
 
     /// Firmware image segments
     fn segments(&'a self) -> Box<dyn Iterator<Item = Segment<'a>> + 'a>;
-
-    /// Firmware image segments, with their associated load addresses
-    fn segments_with_load_addresses(&'a self) -> Box<dyn Iterator<Item = Segment<'a>> + 'a>;
 
     /// Firmware image ROM segments
     fn rom_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
@@ -64,24 +60,6 @@ impl<'a> FirmwareImage<'a> for ElfFile<'a> {
                         Ok(SectionData::Undefined(data)) => data,
                         _ => return None,
                     };
-                    Some(Segment::new(addr, data))
-                }),
-        )
-    }
-
-    fn segments_with_load_addresses(&'a self) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
-        Box::new(
-            self.program_iter()
-                .filter(|header| {
-                    header.file_size() > 0
-                        && header.get_type() == Ok(Type::Load)
-                        && header.offset() > 0
-                })
-                .flat_map(move |header| {
-                    let addr = header.physical_addr() as u32;
-                    let from = header.offset() as usize;
-                    let to = header.offset() as usize + header.file_size() as usize;
-                    let data = &self.input[from..to];
                     Some(Segment::new(addr, data))
                 }),
         )

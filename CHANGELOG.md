@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Removed the `libudev` feature (#742)
+- The `FirmwareImage` trait no longer includes the `segments_with_load_addresses` function (#796)
 
 ## [3.3.0] - 2025-01-13
 
