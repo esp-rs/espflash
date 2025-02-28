@@ -252,6 +252,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             config,
             None,
             None,
+            Some(&mut flasher),
         )?;
 
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
@@ -302,6 +303,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         args.save_image_args.image,
         &args.flash_config_args,
         config,
+        None,
         None,
         None,
     )?;
