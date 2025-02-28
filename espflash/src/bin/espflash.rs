@@ -267,7 +267,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     }
 
     if args.flash_args.monitor {
-        let pid = flasher.get_usb_pid()?;
+        let pid = flasher.usb_pid();
         let mut monitor_args = args.flash_args.monitor_args;
 
         // The 26MHz ESP32-C2's need to be treated as a special case.

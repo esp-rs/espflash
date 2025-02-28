@@ -1188,8 +1188,8 @@ impl Flasher {
         self.connection.into_serial()
     }
 
-    pub fn get_usb_pid(&self) -> Result<u16, Error> {
-        self.connection.get_usb_pid()
+    pub fn usb_pid(&self) -> u16 {
+        self.connection.usb_pid()
     }
 
     pub fn erase_region(&mut self, offset: u32, size: u32) -> Result<(), Error> {
@@ -1248,7 +1248,7 @@ impl Flasher {
         while data.len() < size as usize {
             let response = self.connection.read_response()?;
             let chunk: Vec<u8> = if let Some(response) = response {
-                response.value.try_into().unwrap()
+                response.value.try_into()?
             } else {
                 return Err(Error::IncorrectResponse);
             };
@@ -1268,7 +1268,7 @@ impl Flasher {
 
         let response = self.connection.read_response()?;
         let digest: Vec<u8> = if let Some(response) = response {
-            response.value.try_into().unwrap()
+            response.value.try_into()?
         } else {
             return Err(Error::IncorrectResponse);
         };

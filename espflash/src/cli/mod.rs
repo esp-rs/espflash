@@ -557,7 +557,7 @@ pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
 /// Open a serial monitor
 pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
-    let pid = flasher.get_usb_pid()?;
+    let pid = flasher.usb_pid();
 
     let elf = if let Some(elf_path) = args.monitor_args.elf.clone() {
         let path = fs::canonicalize(elf_path).into_diagnostic()?;

@@ -40,7 +40,7 @@ pub(crate) mod reset;
 
 const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
-pub(crate) const USB_SERIAL_JTAG_PID: u16 = 0x1001;
+const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
 #[cfg(unix)]
 pub type Port = serialport::TTYPort;
@@ -60,8 +60,12 @@ impl TryInto<u32> for CommandResponseValue {
     fn try_into(self) -> Result<u32, Self::Error> {
         match self {
             CommandResponseValue::ValueU32(value) => Ok(value),
-            CommandResponseValue::ValueU128(_) => Err(Error::InternalError),
-            CommandResponseValue::Vector(_) => Err(Error::InternalError),
+            CommandResponseValue::ValueU128(_) => Err(Error::InvalidResponse(
+                "expected `u32` but found `u128`".into(),
+            )),
+            CommandResponseValue::Vector(_) => Err(Error::InvalidResponse(
+                "expected `u32` but found `Vec`".into(),
+            )),
         }
     }
 }
@@ -71,9 +75,13 @@ impl TryInto<u128> for CommandResponseValue {
 
     fn try_into(self) -> Result<u128, Self::Error> {
         match self {
-            CommandResponseValue::ValueU32(_) => Err(Error::InternalError),
+            CommandResponseValue::ValueU32(_) => Err(Error::InvalidResponse(
+                "expected `u128` but found `u32`".into(),
+            )),
             CommandResponseValue::ValueU128(value) => Ok(value),
-            CommandResponseValue::Vector(_) => Err(Error::InternalError),
+            CommandResponseValue::Vector(_) => Err(Error::InvalidResponse(
+                "expected `u128` but found `Vec`".into(),
+            )),
         }
     }
 }
@@ -83,8 +91,12 @@ impl TryInto<Vec<u8>> for CommandResponseValue {
 
     fn try_into(self) -> Result<Vec<u8>, Self::Error> {
         match self {
-            CommandResponseValue::ValueU32(_) => Err(Error::InternalError),
-            CommandResponseValue::ValueU128(_) => Err(Error::InternalError),
+            CommandResponseValue::ValueU32(_) => Err(Error::InvalidResponse(
+                "expected `Vec` but found `u32`".into(),
+            )),
+            CommandResponseValue::ValueU128(_) => Err(Error::InvalidResponse(
+                "expected `Vec` but found `u128`".into(),
+            )),
             CommandResponseValue::Vector(value) => Ok(value),
         }
     }
@@ -263,7 +275,7 @@ impl Connection {
 
     // Reset the device taking into account the reset after argument
     pub fn reset_after(&mut self, is_stub: bool) -> Result<(), Error> {
-        let pid = self.get_usb_pid()?;
+        let pid = self.usb_pid();
 
         match self.after_operation {
             ResetAfterOperation::HardReset => hard_reset(&mut self.serial, pid),
@@ -461,10 +473,11 @@ impl Connection {
 
     /// Read a register command with a timeout
     pub fn read_reg(&mut self, reg: u32) -> Result<u32, Error> {
-        self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
+        let resp = self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
             connection.command(Command::ReadReg { address: reg })
-        })
-        .map(|v| v.try_into().unwrap())
+        })?;
+
+        resp.try_into()
     }
 
     /// Write a register command with a timeout
@@ -502,8 +515,12 @@ impl Connection {
     }
 
     /// Get the USB PID of the serial port
-    pub fn get_usb_pid(&self) -> Result<u16, Error> {
-        Ok(self.port_info.pid)
+    pub fn usb_pid(&self) -> u16 {
+        self.port_info.pid
+    }
+
+    pub(crate) fn is_using_usb_serial_jtag(&self) -> bool {
+        self.port_info.pid == USB_SERIAL_JTAG_PID
     }
 }
 
