@@ -12,7 +12,7 @@ if [[ ! $result =~ "Image successfully saved!" ]]; then
     exit 1
 fi
 echo "Writing binary"
-result=$(timeout 25 espflash write-bin --monitor 0x0 app.bin --non-interactive 2>&1)
+result=$(timeout 60 espflash write-bin --monitor 0x0 app.bin --non-interactive 2>&1)
 echo "$result"
 if [[ ! $result =~ "Binary successfully written to flash!" ]]; then
     exit 1
