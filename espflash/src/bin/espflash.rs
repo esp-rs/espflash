@@ -3,7 +3,6 @@ use std::{fs, path::PathBuf};
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{self, config::Config, monitor::monitor, *},
-    flasher::parse_partition_table,
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,

@@ -500,9 +500,13 @@ impl FlashData {
 
         // If the '-T' option is provided, load the partition table from
         // the CSV or binary file at the specified path.
-        let partition_table = match partition_table {
-            Some(path) => Some(parse_partition_table(path)?),
-            None => None,
+        let partition_table = if let Some(path) = partition_table {
+            let data =
+                fs::read(path).map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
+
+            Some(PartitionTable::try_from(data)?)
+        } else {
+            None
         };
 
         Ok(FlashData {
@@ -627,13 +631,6 @@ pub struct DeviceInfo {
     pub features: Vec<String>,
     /// MAC address
     pub mac_address: String,
-}
-
-/// Parse a [PartitionTable] from the provided path
-pub fn parse_partition_table(path: &Path) -> Result<PartitionTable, Error> {
-    let data = fs::read(path).map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
-
-    Ok(PartitionTable::try_from(data)?)
 }
 
 /// Connect to and flash a target device

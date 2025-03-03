@@ -37,7 +37,6 @@ use crate::{
     connection::reset::{ResetAfterOperation, ResetBeforeOperation},
     error::{ElfError, Error, MissingPartition, MissingPartitionTable},
     flasher::{
-        parse_partition_table,
         FlashData,
         FlashFrequency,
         FlashMode,
@@ -896,6 +895,13 @@ pub fn partition_table(args: PartitionTableArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Parse a [PartitionTable] from the provided path
+pub fn parse_partition_table(path: &Path) -> Result<PartitionTable, Error> {
+    let data = fs::read(path).map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
+
+    Ok(PartitionTable::try_from(data)?)
 }
 
 /// Pretty print a partition table
