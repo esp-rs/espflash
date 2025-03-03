@@ -81,17 +81,7 @@ impl Target for Esp32p4 {
             });
         }
 
-        IdfBootloaderFormat::new(
-            image,
-            Chip::Esp32p4,
-            flash_data.min_chip_rev,
-            PARAMS,
-            flash_data.partition_table,
-            flash_data.partition_table_offset,
-            flash_data.target_app_partition,
-            flash_data.bootloader,
-            flash_data.flash_settings,
-        )
+        IdfBootloaderFormat::new(image, Chip::Esp32p4, flash_data, PARAMS)
     }
 
     fn spi_registers(&self) -> SpiRegisters {

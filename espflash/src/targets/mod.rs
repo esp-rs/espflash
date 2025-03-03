@@ -6,7 +6,6 @@
 
 use std::collections::HashMap;
 
-use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
@@ -34,9 +33,6 @@ use crate::{
     },
     Error,
 };
-
-/// Max partition size is 16 MB
-const MAX_PARTITION_SIZE: u32 = 16 * 1000 * 1024;
 
 mod esp32;
 mod esp32c2;
@@ -206,42 +202,6 @@ impl Esp32Params {
             flash_freq,
             default_bootloader: bootloader,
         }
-    }
-
-    /// Generates a default partition table.
-    ///
-    /// `flash_size` is used to scale app partition when present, otherwise the
-    /// paramameter defaults are used.
-    pub fn default_partition_table(&self, flash_size: Option<u32>) -> PartitionTable {
-        PartitionTable::new(vec![
-            Partition::new(
-                String::from("nvs"),
-                Type::Data,
-                SubType::Data(DataType::Nvs),
-                self.nvs_addr,
-                self.nvs_size,
-                false,
-            ),
-            Partition::new(
-                String::from("phy_init"),
-                Type::Data,
-                SubType::Data(DataType::Phy),
-                self.phy_init_data_addr,
-                self.phy_init_data_size,
-                false,
-            ),
-            Partition::new(
-                String::from("factory"),
-                Type::App,
-                SubType::App(AppType::Factory),
-                self.app_addr,
-                core::cmp::min(
-                    flash_size.map_or(self.app_size, |size| size - self.app_addr),
-                    MAX_PARTITION_SIZE,
-                ),
-                false,
-            ),
-        ])
     }
 }
 
