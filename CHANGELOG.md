@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `write-bin` now works for files whose lengths are not divisible by 4 (#780, #788)
 - `get_usb_pid` is now `usb_pid` and no longer needlessly returns a `Result` (#795)
 - `CodeSegment` and `RomSegment` have been merged into a single `Segment` struct (#796)
+- `IdfBootloaderFormat` has had its constructor's parameters reduced/simplified (#798)
 
 ### Fixed
 
@@ -36,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed the `libudev` feature (#742)
 - The `FirmwareImage` trait no longer includes the `segments_with_load_addresses` function (#796)
+- Removed the `flasher::parse_partition_table` function (#798)
 
 ## [3.3.0] - 2025-01-13
 

@@ -3,22 +3,25 @@
 use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
 
 use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
-use esp_idf_part::{Partition, PartitionTable, Type};
+use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
 use log::debug;
 use sha2::{Digest, Sha256};
 
 use crate::{
     elf::{FirmwareImage, Segment},
-    flasher::{FlashFrequency, FlashMode, FlashSettings, FlashSize},
+    flasher::{FlashData, FlashFrequency, FlashMode, FlashSize},
     targets::{Chip, Esp32Params},
     Error,
 };
 
-const ESP_CHECKSUM_MAGIC: u8 = 0xef;
+const ESP_CHECKSUM_MAGIC: u8 = 0xEF;
 const ESP_MAGIC: u8 = 0xE9;
 const IROM_ALIGN: u32 = 0x10000;
 const SEG_HEADER_LEN: u32 = 8;
 const WP_PIN_DISABLED: u8 = 0xEE;
+
+/// Max partition size is 16 MB
+const MAX_PARTITION_SIZE: u32 = 16 * 1000 * 1024;
 
 /// Firmware header used by the ESP-IDF bootloader.
 ///
@@ -115,22 +118,16 @@ pub struct IdfBootloaderFormat<'a> {
 }
 
 impl<'a> IdfBootloaderFormat<'a> {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         image: &'a dyn FirmwareImage<'a>,
         chip: Chip,
-        min_rev_full: u16,
+        flash_data: FlashData,
         params: Esp32Params,
-        partition_table: Option<PartitionTable>,
-        partition_table_offset: Option<u32>,
-        target_app_partition: Option<String>,
-        bootloader: Option<Vec<u8>>,
-        flash_settings: FlashSettings,
     ) -> Result<Self, Error> {
-        let partition_table = partition_table.unwrap_or_else(|| {
-            params.default_partition_table(flash_settings.size.map(|v| v.size()))
+        let partition_table = flash_data.partition_table.unwrap_or_else(|| {
+            default_partition_table(&params, flash_data.flash_settings.size.map(|v| v.size()))
         });
-        let mut bootloader = if let Some(bytes) = bootloader {
+        let mut bootloader = if let Some(bytes) = flash_data.bootloader {
             Cow::Owned(bytes)
         } else {
             Cow::Borrowed(params.default_bootloader)
@@ -154,13 +151,13 @@ impl<'a> IdfBootloaderFormat<'a> {
         }
 
         // update the header if a user has specified any custom arguments
-        if let Some(mode) = flash_settings.mode {
+        if let Some(mode) = flash_data.flash_settings.mode {
             header.flash_mode = mode as u8;
         }
 
         header.write_flash_config(
-            flash_settings.size.unwrap_or_default(),
-            flash_settings.freq.unwrap_or(params.flash_freq),
+            flash_data.flash_settings.size.unwrap_or_default(),
+            flash_data.flash_settings.freq.unwrap_or(params.flash_freq),
             chip,
         )?;
 
@@ -197,7 +194,7 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         header.wp_pin = WP_PIN_DISABLED;
         header.chip_id = params.chip_id;
-        header.min_chip_rev_full = min_rev_full;
+        header.min_chip_rev_full = flash_data.min_chip_rev;
         header.append_digest = 1;
 
         let mut data = bytes_of(&header).to_vec();
@@ -267,17 +264,15 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         let target_app_partition: &Partition =
         // Use the target app partition if provided
-        if let Some(target_partition) = target_app_partition {
+        if let Some(target_partition) = flash_data.target_app_partition {
             partition_table
                 .find(&target_partition)
                 .ok_or(Error::AppPartitionNotFound)?
         } else {
-
             // The default partition table contains the "factory" partition, and if a user
             // provides a partition table via command-line then the validation step confirms
             // that at least one "app" partition is present. We prefer the "factory"
             // partition, and use any available "app" partitions if not present.
-
             partition_table
                 .find("factory")
                 .or_else(|| partition_table.find_by_type(Type::App))
@@ -301,7 +296,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // If the user did not specify a partition offset, we need to assume that the
         // partition offset is (first partition offset) - 0x1000, since this is
         // the most common case.
-        let partition_table_offset = partition_table_offset.unwrap_or_else(|| {
+        let partition_table_offset = flash_data.partition_table_offset.unwrap_or_else(|| {
             let partitions = partition_table.partitions();
             let first_partition = partitions
                 .iter()
@@ -361,6 +356,42 @@ impl<'a> IdfBootloaderFormat<'a> {
     pub fn part_size(&self) -> Option<u32> {
         Some(self.part_size)
     }
+}
+
+/// Generates a default partition table.
+///
+/// `flash_size` is used to scale app partition when present, otherwise the
+/// paramameter defaults are used.
+fn default_partition_table(params: &Esp32Params, flash_size: Option<u32>) -> PartitionTable {
+    PartitionTable::new(vec![
+        Partition::new(
+            String::from("nvs"),
+            Type::Data,
+            SubType::Data(DataType::Nvs),
+            params.nvs_addr,
+            params.nvs_size,
+            false,
+        ),
+        Partition::new(
+            String::from("phy_init"),
+            Type::Data,
+            SubType::Data(DataType::Phy),
+            params.phy_init_data_addr,
+            params.phy_init_data_size,
+            false,
+        ),
+        Partition::new(
+            String::from("factory"),
+            Type::App,
+            SubType::App(AppType::Factory),
+            params.app_addr,
+            core::cmp::min(
+                flash_size.map_or(params.app_size, |size| size - params.app_addr),
+                MAX_PARTITION_SIZE,
+            ),
+            false,
+        ),
+    ])
 }
 
 /// Actual alignment (in data bytes) required for a segment header: positioned
