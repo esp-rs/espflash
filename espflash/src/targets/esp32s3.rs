@@ -3,9 +3,8 @@ use std::ops::Range;
 use xmas_elf::ElfFile;
 
 #[cfg(feature = "serialport")]
-use crate::connection::Connection;
+use crate::connection::{reset::RtcWdtReset, Connection};
 use crate::{
-    connection::reset::RtcWdtReset,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
@@ -28,7 +27,9 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin"),
 );
 
+#[cfg(feature = "serialport")]
 pub(crate) const UARTDEV_BUF_NO: u32 = 0x3FCE_F14C; // Address which indicates OTG in use
+#[cfg(feature = "serialport")]
 pub(crate) const UARTDEV_BUF_NO_USB_OTG: u32 = 3; // Value of UARTDEV_BUF_NO when OTG is in use
 
 /// ESP32-S2 Target
@@ -148,6 +149,7 @@ impl Target for Esp32s3 {
     }
 }
 
+#[cfg(feature = "serialport")]
 impl RtcWdtReset for Esp32s3 {
     fn wdt_wprotect(&self) -> u32 {
         0x6000_8000 + 0x00B0

@@ -200,6 +200,7 @@ impl ResetStrategy for UsbJtagSerialReset {
     }
 }
 
+#[cfg(feature = "serialport")]
 pub(crate) trait RtcWdtReset {
     fn wdt_wprotect(&self) -> u32;
     fn wdt_wkey(&self) -> u32;

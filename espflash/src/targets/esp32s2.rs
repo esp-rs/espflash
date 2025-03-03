@@ -3,16 +3,15 @@ use std::ops::Range;
 use xmas_elf::ElfFile;
 
 #[cfg(feature = "serialport")]
-use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE, targets::MAX_RAM_BLOCK_SIZE};
+use super::flash_target::MAX_RAM_BLOCK_SIZE;
+#[cfg(feature = "serialport")]
+use crate::connection::{reset::RtcWdtReset, Connection};
 use crate::{
-    connection::reset::RtcWdtReset,
-    flasher::{FlashData, FlashFrequency},
+    flasher::{FlashData, FlashFrequency, FLASH_WRITE_SIZE},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
     Error,
 };
-#[cfg(feature = "serialport")]
-use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE, targets::MAX_RAM_BLOCK_SIZE};
 
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x0000_07c6];
 
@@ -33,7 +32,9 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin"),
 );
 
+#[cfg(feature = "serialport")]
 pub(crate) const UARTDEV_BUF_NO: u32 = 0x3FFF_FD14; // Address which indicates OTG in use
+#[cfg(feature = "serialport")]
 pub(crate) const UARTDEV_BUF_NO_USB_OTG: u32 = 2; // Value of UARTDEV_BUF_NO when OTG is in use
 
 /// ESP32-S2 Target
@@ -200,6 +201,7 @@ impl Target for Esp32s2 {
     }
 }
 
+#[cfg(feature = "serialport")]
 impl RtcWdtReset for Esp32s2 {
     fn wdt_wprotect(&self) -> u32 {
         0x3F40_8000 + 0x00AC
