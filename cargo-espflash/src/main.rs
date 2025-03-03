@@ -332,9 +332,10 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     let mut flash_config = args.build_args.flash_config_args;
     flash_config.flash_size = flash_config
-        .flash_size
-        .or_else(|| flasher.flash_detect().ok().flatten())
-        .or_else(|| Some(FlashSize::default()));
+        .flash_size // Use CLI argument if provided
+        .or(config.flash.size) // If no CLI argument, try the config file
+        .or_else(|| flasher.flash_detect().ok().flatten()) // Try detecting flash size next
+        .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
@@ -345,7 +346,6 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             config,
             build_ctx.bootloader_path.as_deref(),
             build_ctx.partition_table_path.as_deref(),
-            Some(&mut flasher),
         )?;
 
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
@@ -580,8 +580,9 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
 
     let mut flash_config = args.build_args.flash_config_args;
     flash_config.flash_size = flash_config
-        .flash_size
-        .or_else(|| Some(FlashSize::default()));
+        .flash_size // Use CLI argument if provided
+        .or(config.flash.size) // If no CLI argument, try the config file
+        .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
     let flash_data = make_flash_data(
         args.save_image_args.image,
@@ -589,7 +590,6 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         config,
         build_ctx.bootloader_path.as_deref(),
         build_ctx.partition_table_path.as_deref(),
-        None,
     )?;
 
     let xtal_freq = args
