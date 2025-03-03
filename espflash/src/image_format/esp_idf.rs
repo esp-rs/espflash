@@ -8,7 +8,7 @@ use log::debug;
 use sha2::{Digest, Sha256};
 use xmas_elf::ElfFile;
 
-use super::{FirmwareImage, Segment};
+use super::{ram_segments, rom_segments, Segment};
 use crate::{
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize},
     targets::{Chip, Esp32Params},
@@ -191,8 +191,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // write the header of the app
         // use the same settings as the bootloader
         // just update the entry point
-        header.entry = elf.entry();
-
+        header.entry = elf.header.pt2.entry_point() as u32;
         header.wp_pin = WP_PIN_DISABLED;
         header.chip_id = params.chip_id;
         header.min_chip_rev_full = flash_data.min_chip_rev;
@@ -200,8 +199,8 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         let mut data = bytes_of(&header).to_vec();
 
-        let flash_segments: Vec<_> = merge_adjacent_segments(elf.rom_segments(chip).collect());
-        let mut ram_segments: Vec<_> = merge_adjacent_segments(elf.ram_segments(chip).collect());
+        let flash_segments: Vec<_> = merge_adjacent_segments(rom_segments(chip, &elf).collect());
+        let mut ram_segments: Vec<_> = merge_adjacent_segments(ram_segments(chip, &elf).collect());
 
         let mut checksum = ESP_CHECKSUM_MAGIC;
         let mut segment_count = 0;
