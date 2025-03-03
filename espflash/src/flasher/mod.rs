@@ -31,7 +31,6 @@ use crate::{
         Connection,
         Port,
     },
-    elf::{FirmwareImage, Segment},
     error::{ConnectionError, ResultExt},
     flasher::stubs::{
         FlashStub,
@@ -39,6 +38,7 @@ use crate::{
         DEFAULT_TIMEOUT,
         EXPECTED_STUB_HANDSHAKE,
     },
+    image_format::{FirmwareImage, Segment},
 };
 use crate::{
     error::{ElfError, Error},

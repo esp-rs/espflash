@@ -30,8 +30,8 @@
 #![deny(missing_debug_implementations, rust_2018_idioms)]
 
 pub use self::{
-    elf::{FirmwareImage, Segment},
     error::Error,
+    image_format::{FirmwareImage, Segment},
 };
 
 #[cfg(feature = "serialport")]
@@ -41,7 +41,6 @@ pub mod flasher;
 pub mod image_format;
 pub mod targets;
 
-mod elf;
 mod error;
 
 // Command-line interface

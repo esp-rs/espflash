@@ -8,8 +8,8 @@ use log::debug;
 use sha2::{Digest, Sha256};
 use xmas_elf::ElfFile;
 
+use super::{FirmwareImage, Segment};
 use crate::{
-    elf::{FirmwareImage, Segment},
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize},
     targets::{Chip, Esp32Params},
     Error,
