@@ -1028,7 +1028,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     )?;
 
     if args.monitor {
-        let pid = flasher.get_usb_pid()?;
+        let pid = flasher.usb_pid();
         let mut monitor_args = args.monitor_args;
 
         if chip == Chip::Esp32c2
