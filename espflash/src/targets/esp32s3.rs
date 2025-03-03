@@ -5,6 +5,7 @@ use xmas_elf::ElfFile;
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
 use crate::{
+    connection::reset::RtcWdtReset,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
@@ -27,6 +28,9 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin"),
 );
 
+pub(crate) const UARTDEV_BUF_NO: u32 = 0x3FCE_F14C; // Address which indicates OTG in use
+pub(crate) const UARTDEV_BUF_NO_USB_OTG: u32 = 3; // Value of UARTDEV_BUF_NO when OTG is in use
+
 /// ESP32-S2 Target
 pub struct Esp32s3;
 
@@ -41,15 +45,6 @@ impl Esp32s3 {
     /// Return the minor BLK version based on eFuses
     fn blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
         Ok((self.read_efuse(connection, 20)? >> 24) & 0x7)
-    }
-
-    #[cfg(feature = "serialport")]
-    /// Check if the connection is USB OTG
-    pub(crate) fn connection_is_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
-        const UARTDEV_BUF_NO: u32 = 0x3FCE_F14C; // Address which indicates OTG in use
-        const UARTDEV_BUF_NO_USB_OTG: u32 = 3; // Value of UARTDEV_BUF_NO when OTG is in use
-
-        Ok(connection.read_reg(UARTDEV_BUF_NO)? == UARTDEV_BUF_NO_USB_OTG)
     }
 
     #[cfg(feature = "serialport")]
@@ -150,5 +145,20 @@ impl Target for Esp32s3 {
 
     fn supported_build_targets(&self) -> &[&str] {
         &["xtensa-esp32s3-none-elf", "xtensa-esp32s3-espidf"]
+    }
+}
+
+impl RtcWdtReset for Esp32s3 {
+    fn wdt_wprotect(&self) -> u32 {
+        0x6000_8000 + 0x00B0
+    }
+    fn wdt_wkey(&self) -> u32 {
+        0x50D8_3AA1
+    }
+    fn wdt_config0(&self) -> u32 {
+        0x6000_8000 + 0x0098
+    }
+    fn wdt_config1(&self) -> u32 {
+        0x6000_8000 + 0x009C
     }
 }

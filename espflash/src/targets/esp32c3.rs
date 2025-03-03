@@ -5,6 +5,7 @@ use xmas_elf::ElfFile;
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
 use crate::{
+    connection::reset::RtcWdtReset,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
@@ -112,5 +113,20 @@ impl Target for Esp32c3 {
             "riscv32imc-esp-espidf",
             "riscv32imc-unknown-none-elf",
         ]
+    }
+}
+
+impl RtcWdtReset for Esp32c3 {
+    fn wdt_wprotect(&self) -> u32 {
+        0x6000_8000 + 0x00A8
+    }
+    fn wdt_wkey(&self) -> u32 {
+        0x50D8_3AA1
+    }
+    fn wdt_config0(&self) -> u32 {
+        0x6000_8000 + 0x0090
+    }
+    fn wdt_config1(&self) -> u32 {
+        0x6000_8000 + 0x0094
     }
 }

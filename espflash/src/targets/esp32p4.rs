@@ -5,6 +5,7 @@ use xmas_elf::ElfFile;
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
 use crate::{
+    connection::reset::RtcWdtReset,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
@@ -27,6 +28,9 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32p4-bootloader.bin"),
 );
 
+pub(crate) const UARTDEV_BUF_NO: u32 = 0x4FF3_FEC8; // Address which indicates OTG in use
+pub(crate) const UARTDEV_BUF_NO_USB_OTG: u32 = 5; // Value of UARTDEV_BUF_NO when OTG is in use
+
 /// ESP32-P4 Target
 pub struct Esp32p4;
 
@@ -34,15 +38,6 @@ impl Esp32p4 {
     /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
-    }
-
-    #[cfg(feature = "serialport")]
-    /// Check if the connection is USB OTG
-    pub(crate) fn connection_is_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
-        const UARTDEV_BUF_NO: u32 = 0x4FF3_FEC8; // Address which indicates OTG in use
-        const UARTDEV_BUF_NO_USB_OTG: u32 = 5; // Value of UARTDEV_BUF_NO when OTG is in use
-
-        Ok(connection.read_reg(UARTDEV_BUF_NO)? == UARTDEV_BUF_NO_USB_OTG)
     }
 }
 
@@ -109,5 +104,20 @@ impl Target for Esp32p4 {
 
     fn supported_build_targets(&self) -> &[&str] {
         &["riscv32imafc-esp-espidf", "riscv32imafc-unknown-none-elf"]
+    }
+}
+
+impl RtcWdtReset for crate::targets::esp32p4::Esp32p4 {
+    fn wdt_wprotect(&self) -> u32 {
+        0x5011_6000 + 0x0018
+    }
+    fn wdt_wkey(&self) -> u32 {
+        0x50D8_3AA1
+    }
+    fn wdt_config0(&self) -> u32 {
+        0x5011_6000 // no offset here
+    }
+    fn wdt_config1(&self) -> u32 {
+        0x5011_6000 + 0x0004
     }
 }

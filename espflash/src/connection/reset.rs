@@ -200,71 +200,11 @@ impl ResetStrategy for UsbJtagSerialReset {
     }
 }
 
-trait RtcWdtReset {
+pub(crate) trait RtcWdtReset {
     fn wdt_wprotect(&self) -> u32;
     fn wdt_wkey(&self) -> u32;
     fn wdt_config0(&self) -> u32;
     fn wdt_config1(&self) -> u32;
-}
-
-impl RtcWdtReset for crate::targets::esp32c3::Esp32c3 {
-    fn wdt_wprotect(&self) -> u32 {
-        0x6000_8000 + 0x00A8
-    }
-    fn wdt_wkey(&self) -> u32 {
-        0x50D8_3AA1
-    }
-    fn wdt_config0(&self) -> u32 {
-        0x6000_8000 + 0x0090
-    }
-    fn wdt_config1(&self) -> u32 {
-        0x6000_8000 + 0x0094
-    }
-}
-
-impl RtcWdtReset for crate::targets::esp32p4::Esp32p4 {
-    fn wdt_wprotect(&self) -> u32 {
-        0x5011_6000 + 0x0018
-    }
-    fn wdt_wkey(&self) -> u32 {
-        0x50D8_3AA1
-    }
-    fn wdt_config0(&self) -> u32 {
-        0x5011_6000 // no offset here
-    }
-    fn wdt_config1(&self) -> u32 {
-        0x5011_6000 + 0x0004
-    }
-}
-
-impl RtcWdtReset for crate::targets::esp32s2::Esp32s2 {
-    fn wdt_wprotect(&self) -> u32 {
-        0x3F40_8000 + 0x00AC
-    }
-    fn wdt_wkey(&self) -> u32 {
-        0x50D8_3AA1
-    }
-    fn wdt_config0(&self) -> u32 {
-        0x3F40_8000 + 0x0094
-    }
-    fn wdt_config1(&self) -> u32 {
-        0x3F40_8000 + 0x0098
-    }
-}
-
-impl RtcWdtReset for crate::targets::esp32s3::Esp32s3 {
-    fn wdt_wprotect(&self) -> u32 {
-        0x6000_8000 + 0x00B0
-    }
-    fn wdt_wkey(&self) -> u32 {
-        0x50D8_3AA1
-    }
-    fn wdt_config0(&self) -> u32 {
-        0x6000_8000 + 0x0098
-    }
-    fn wdt_config1(&self) -> u32 {
-        0x6000_8000 + 0x009C
-    }
 }
 
 /// Reset the target device

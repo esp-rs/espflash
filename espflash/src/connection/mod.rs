@@ -303,16 +303,15 @@ impl Connection {
                         }
                     }
                     Chip::Esp32p4 => {
-                        let esp32p4 = esp32p4::Esp32p4;
                         // Check if the connection is USB OTG
-                        if esp32p4.connection_is_usb_otg(self)? {
+                        if self.is_using_usb_otg(chip)? {
                             wdt_reset(chip, self)?;
                         }
                     }
                     Chip::Esp32s2 => {
                         let esp32s2 = esp32s2::Esp32s2;
                         // Check if the connection is USB OTG
-                        if esp32s2.connection_is_usb_otg(self)? {
+                        if self.is_using_usb_otg(chip)? {
                             // Check the strapping register to see if we can perform RTC WDT
                             // reset
                             if esp32s2.can_wtd_reset(self)? {
@@ -322,7 +321,7 @@ impl Connection {
                     }
                     Chip::Esp32s3 => {
                         let esp32s3 = esp32s3::Esp32s3;
-                        if pid == USB_SERIAL_JTAG_PID || esp32s3.connection_is_usb_otg(self)? {
+                        if pid == USB_SERIAL_JTAG_PID || self.is_using_usb_otg(chip)? {
                             // Check the strapping register to see if we can perform RTC WDT
                             // reset
                             if esp32s3.can_wtd_reset(self)? {
@@ -595,6 +594,19 @@ impl Connection {
 
     pub(crate) fn is_using_usb_serial_jtag(&self) -> bool {
         self.port_info.pid == USB_SERIAL_JTAG_PID
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Check if the connection is USB OTG
+    pub(crate) fn is_using_usb_otg(&mut self, chip: Chip) -> Result<bool, Error> {
+        let (buf_no, no_usb_otg) = match chip {
+            Chip::Esp32p4 => (esp32p4::UARTDEV_BUF_NO, esp32p4::UARTDEV_BUF_NO_USB_OTG),
+            Chip::Esp32s2 => (esp32s2::UARTDEV_BUF_NO, esp32s2::UARTDEV_BUF_NO_USB_OTG),
+            Chip::Esp32s3 => (esp32s3::UARTDEV_BUF_NO, esp32s3::UARTDEV_BUF_NO_USB_OTG),
+            _ => unreachable!(),
+        };
+
+        Ok(self.read_reg(buf_no)? == no_usb_otg)
     }
 }
 
