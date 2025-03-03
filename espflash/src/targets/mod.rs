@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, VariantNames};
+use xmas_elf::ElfFile;
 
 #[cfg(feature = "serialport")]
 pub use self::flash_target::{Esp32Target, RamTarget};
@@ -18,7 +19,6 @@ use crate::{
     targets::flash_target::{FlashTarget, MAX_RAM_BLOCK_SIZE},
 };
 use crate::{
-    elf::FirmwareImage,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{
@@ -306,7 +306,7 @@ pub trait Target: ReadEFuse {
     /// Build an image from the provided data for flashing
     fn get_flash_image<'a>(
         &self,
-        image: &'a dyn FirmwareImage<'a>,
+        elf: ElfFile<'a>,
         flash_data: FlashData,
         chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,

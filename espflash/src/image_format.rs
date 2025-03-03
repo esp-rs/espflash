@@ -6,6 +6,7 @@ use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
 use log::debug;
 use sha2::{Digest, Sha256};
+use xmas_elf::ElfFile;
 
 use crate::{
     elf::{FirmwareImage, Segment},
@@ -119,7 +120,7 @@ pub struct IdfBootloaderFormat<'a> {
 
 impl<'a> IdfBootloaderFormat<'a> {
     pub fn new(
-        image: &'a dyn FirmwareImage<'a>,
+        elf: ElfFile<'a>,
         chip: Chip,
         flash_data: FlashData,
         params: Esp32Params,
@@ -190,7 +191,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // write the header of the app
         // use the same settings as the bootloader
         // just update the entry point
-        header.entry = image.entry();
+        header.entry = elf.entry();
 
         header.wp_pin = WP_PIN_DISABLED;
         header.chip_id = params.chip_id;
@@ -199,8 +200,8 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         let mut data = bytes_of(&header).to_vec();
 
-        let flash_segments: Vec<_> = merge_adjacent_segments(image.rom_segments(chip).collect());
-        let mut ram_segments: Vec<_> = merge_adjacent_segments(image.ram_segments(chip).collect());
+        let flash_segments: Vec<_> = merge_adjacent_segments(elf.rom_segments(chip).collect());
+        let mut ram_segments: Vec<_> = merge_adjacent_segments(elf.ram_segments(chip).collect());
 
         let mut checksum = ESP_CHECKSUM_MAGIC;
         let mut segment_count = 0;

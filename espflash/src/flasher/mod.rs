@@ -1057,7 +1057,7 @@ impl Flasher {
         let image =
             self.chip
                 .into_target()
-                .get_flash_image(&elf, flash_data, chip_revision, xtal_freq)?;
+                .get_flash_image(elf, flash_data, chip_revision, xtal_freq)?;
 
         // When the `cli` feature is enabled, display the image size information.
         #[cfg(feature = "cli")]

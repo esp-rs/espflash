@@ -1,11 +1,11 @@
 use std::{collections::HashMap, ops::Range};
 
 use log::debug;
+use xmas_elf::ElfFile;
 
 #[cfg(feature = "serialport")]
 use crate::{connection::Connection, targets::bytes_to_mac_addr};
 use crate::{
-    elf::FirmwareImage,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
@@ -90,7 +90,7 @@ impl Target for Esp32c2 {
 
     fn get_flash_image<'a>(
         &self,
-        image: &'a dyn FirmwareImage<'a>,
+        elf: ElfFile<'a>,
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
@@ -121,7 +121,7 @@ impl Target for Esp32c2 {
             booloader,
         );
 
-        IdfBootloaderFormat::new(image, Chip::Esp32c2, flash_data, params)
+        IdfBootloaderFormat::new(elf, Chip::Esp32c2, flash_data, params)
     }
 
     #[cfg(feature = "serialport")]

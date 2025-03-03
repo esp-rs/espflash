@@ -607,9 +607,9 @@ pub fn save_elf_as_image(
     if merge {
         // To get a chip revision, the connection is needed
         // For simplicity, the revision None is used
-        let image =
-            chip.into_target()
-                .get_flash_image(&elf, flash_data.clone(), None, xtal_freq)?;
+        let image = chip
+            .into_target()
+            .get_flash_image(elf, flash_data.clone(), None, xtal_freq)?;
 
         display_image_size(image.app_size(), image.part_size());
 
@@ -643,7 +643,7 @@ pub fn save_elf_as_image(
     } else {
         let image = chip
             .into_target()
-            .get_flash_image(&elf, flash_data, None, xtal_freq)?;
+            .get_flash_image(elf, flash_data, None, xtal_freq)?;
 
         display_image_size(image.app_size(), image.part_size());
 
