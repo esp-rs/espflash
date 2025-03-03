@@ -1,9 +1,8 @@
 use std::ops::Range;
 
 #[cfg(feature = "serialport")]
-use crate::connection::Connection;
+use crate::connection::{reset::RtcWdtReset, Connection};
 use crate::{
-    connection::reset::RtcWdtReset,
     elf::FirmwareImage,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
@@ -27,7 +26,9 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32p4-bootloader.bin"),
 );
 
+#[cfg(feature = "serialport")]
 pub(crate) const UARTDEV_BUF_NO: u32 = 0x4FF3_FEC8; // Address which indicates OTG in use
+#[cfg(feature = "serialport")]
 pub(crate) const UARTDEV_BUF_NO_USB_OTG: u32 = 5; // Value of UARTDEV_BUF_NO when OTG is in use
 
 /// ESP32-P4 Target
@@ -116,6 +117,7 @@ impl Target for Esp32p4 {
     }
 }
 
+#[cfg(feature = "serialport")]
 impl RtcWdtReset for crate::targets::esp32p4::Esp32p4 {
     fn wdt_wprotect(&self) -> u32 {
         0x5011_6000 + 0x0018
