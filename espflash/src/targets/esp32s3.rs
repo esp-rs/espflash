@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 #[cfg(feature = "serialport")]
-use crate::connection::Connection;
+use crate::connection::{reset::RtcWdtReset, Connection};
 use crate::{
     elf::FirmwareImage,
     flasher::{FlashData, FlashFrequency},
@@ -26,6 +26,11 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin"),
 );
 
+#[cfg(feature = "serialport")]
+pub(crate) const UARTDEV_BUF_NO: u32 = 0x3FCE_F14C; // Address which indicates OTG in use
+#[cfg(feature = "serialport")]
+pub(crate) const UARTDEV_BUF_NO_USB_OTG: u32 = 3; // Value of UARTDEV_BUF_NO when OTG is in use
+
 /// ESP32-S2 Target
 pub struct Esp32s3;
 
@@ -40,6 +45,20 @@ impl Esp32s3 {
     /// Return the minor BLK version based on eFuses
     fn blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
         Ok((self.read_efuse(connection, 20)? >> 24) & 0x7)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Check the strapping register to see if we can perform RTC WDT reset
+    pub(crate) fn can_wtd_reset(&self, connection: &mut Connection) -> Result<bool, Error> {
+        const GPIO_STRAP: u32 = 0x6000_4038;
+        const OPTION1: u32 = 0x6000_812C;
+        const GPIO_STRAP_SPI_BOOT_MASK: u32 = 1 << 3; // Not download mode
+        const FORCE_DOWNLOAD_BOOT_MASK: u32 = 0x1;
+
+        Ok(
+            connection.read_reg(GPIO_STRAP)? & GPIO_STRAP_SPI_BOOT_MASK == 0 // GPIO0 low
+                && connection.read_reg(OPTION1)? & FORCE_DOWNLOAD_BOOT_MASK == 0,
+        )
     }
 
     /// Check if the magic value contains the specified value
@@ -126,5 +145,21 @@ impl Target for Esp32s3 {
 
     fn supported_build_targets(&self) -> &[&str] {
         &["xtensa-esp32s3-none-elf", "xtensa-esp32s3-espidf"]
+    }
+}
+
+#[cfg(feature = "serialport")]
+impl RtcWdtReset for Esp32s3 {
+    fn wdt_wprotect(&self) -> u32 {
+        0x6000_8000 + 0x00B0
+    }
+    fn wdt_wkey(&self) -> u32 {
+        0x50D8_3AA1
+    }
+    fn wdt_config0(&self) -> u32 {
+        0x6000_8000 + 0x0098
+    }
+    fn wdt_config1(&self) -> u32 {
+        0x6000_8000 + 0x009C
     }
 }

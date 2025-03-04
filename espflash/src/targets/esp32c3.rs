@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 #[cfg(feature = "serialport")]
-use crate::connection::Connection;
+use crate::connection::{reset::RtcWdtReset, Connection};
 use crate::{
     elf::FirmwareImage,
     flasher::{FlashData, FlashFrequency},
@@ -111,5 +111,21 @@ impl Target for Esp32c3 {
             "riscv32imc-esp-espidf",
             "riscv32imc-unknown-none-elf",
         ]
+    }
+}
+
+#[cfg(feature = "serialport")]
+impl RtcWdtReset for Esp32c3 {
+    fn wdt_wprotect(&self) -> u32 {
+        0x6000_8000 + 0x00A8
+    }
+    fn wdt_wkey(&self) -> u32 {
+        0x50D8_3AA1
+    }
+    fn wdt_config0(&self) -> u32 {
+        0x6000_8000 + 0x0090
+    }
+    fn wdt_config1(&self) -> u32 {
+        0x6000_8000 + 0x0094
     }
 }

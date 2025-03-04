@@ -1,7 +1,12 @@
 use std::ops::Range;
 
 #[cfg(feature = "serialport")]
-use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE, targets::MAX_RAM_BLOCK_SIZE};
+use crate::{
+    connection::reset::RtcWdtReset,
+    connection::Connection,
+    flasher::FLASH_WRITE_SIZE,
+    targets::MAX_RAM_BLOCK_SIZE,
+};
 use crate::{
     elf::FirmwareImage,
     flasher::{FlashData, FlashFrequency},
@@ -29,19 +34,15 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin"),
 );
 
+#[cfg(feature = "serialport")]
+pub(crate) const UARTDEV_BUF_NO: u32 = 0x3FFF_FD14; // Address which indicates OTG in use
+#[cfg(feature = "serialport")]
+pub(crate) const UARTDEV_BUF_NO_USB_OTG: u32 = 2; // Value of UARTDEV_BUF_NO when OTG is in use
+
 /// ESP32-S2 Target
 pub struct Esp32s2;
 
 impl Esp32s2 {
-    #[cfg(feature = "serialport")]
-    /// Return if the connection is USB OTG
-    fn connection_is_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
-        const UARTDEV_BUF_NO: u32 = 0x3fff_fd14; // Address which indicates OTG in use
-        const UARTDEV_BUF_NO_USB_OTG: u32 = 2; // Value of UARTDEV_BUF_NO when OTG is in use
-
-        Ok(connection.read_reg(UARTDEV_BUF_NO)? == UARTDEV_BUF_NO_USB_OTG)
-    }
-
     #[cfg(feature = "serialport")]
     /// Return the block2 version based on eFuses
     fn get_block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
@@ -67,6 +68,20 @@ impl Esp32s2 {
         let psram_version = (blk1_word3 >> 28) & 0xf;
 
         Ok(psram_version)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Check the strapping register to see if we can perform RTC WDT reset
+    pub(crate) fn can_wtd_reset(&self, connection: &mut Connection) -> Result<bool, Error> {
+        const GPIO_STRAP: u32 = 0x3F40_4038;
+        const OPTION1: u32 = 0x3F40_8128;
+        const GPIO_STRAP_SPI_BOOT_MASK: u32 = 1 << 3;
+        const FORCE_DOWNLOAD_BOOT_MASK: u32 = 0x1;
+
+        Ok(
+            connection.read_reg(GPIO_STRAP)? & GPIO_STRAP_SPI_BOOT_MASK == 0 // GPIO0 low
+                && connection.read_reg(OPTION1)? & FORCE_DOWNLOAD_BOOT_MASK == 0,
+        )
     }
 
     /// Check if the magic value contains the specified value
@@ -138,7 +153,7 @@ impl Target for Esp32s2 {
 
     #[cfg(feature = "serialport")]
     fn flash_write_size(&self, connection: &mut Connection) -> Result<usize, Error> {
-        Ok(if self.connection_is_usb_otg(connection)? {
+        Ok(if connection.is_using_usb_otg(Chip::Esp32s2)? {
             MAX_USB_BLOCK_SIZE
         } else {
             FLASH_WRITE_SIZE
@@ -164,7 +179,7 @@ impl Target for Esp32s2 {
 
     #[cfg(feature = "serialport")]
     fn max_ram_block_size(&self, connection: &mut Connection) -> Result<usize, Error> {
-        Ok(if self.connection_is_usb_otg(connection)? {
+        Ok(if connection.is_using_usb_otg(Chip::Esp32s2)? {
             MAX_USB_BLOCK_SIZE
         } else {
             MAX_RAM_BLOCK_SIZE
@@ -185,5 +200,21 @@ impl Target for Esp32s2 {
 
     fn supported_build_targets(&self) -> &[&str] {
         &["xtensa-esp32s2-none-elf", "xtensa-esp32s2-espidf"]
+    }
+}
+
+#[cfg(feature = "serialport")]
+impl RtcWdtReset for Esp32s2 {
+    fn wdt_wprotect(&self) -> u32 {
+        0x3F40_8000 + 0x00AC
+    }
+    fn wdt_wkey(&self) -> u32 {
+        0x50D8_3AA1
+    }
+    fn wdt_config0(&self) -> u32 {
+        0x3F40_8000 + 0x0094
+    }
+    fn wdt_config1(&self) -> u32 {
+        0x3F40_8000 + 0x0098
     }
 }
