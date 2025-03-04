@@ -3,6 +3,7 @@ use std::{fs, path::PathBuf};
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     cli::{self, config::Config, monitor::monitor, *},
+    flasher::FlashSize,
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
@@ -233,8 +234,6 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         flasher.set_flash_size(flash_size);
     }
 
-    print_board_info(&mut flasher)?;
-
     let chip = flasher.chip();
     let target = chip.into_target();
     let target_xtal_freq = target.crystal_freq(flasher.connection())?;
@@ -242,16 +241,19 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(&args.image).into_diagnostic()?;
 
+    print_board_info(&mut flasher)?;
+
+    let mut flash_config = args.flash_config_args;
+    flash_config.flash_size = flash_config
+        .flash_size // Use CLI argument if provided
+        .or(config.flash.size) // If no CLI argument, try the config file
+        .or_else(|| flasher.flash_detect().ok().flatten()) // Try detecting flash size next
+        .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
+
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
-        let flash_data = make_flash_data(
-            args.flash_args.image,
-            &args.flash_config_args,
-            config,
-            None,
-            None,
-        )?;
+        let flash_data = make_flash_data(args.flash_args.image, &flash_config, config, None, None)?;
 
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
             erase_partitions(
@@ -297,9 +299,15 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     println!("Merge:             {}", args.save_image_args.merge);
     println!("Skip padding:      {}", args.save_image_args.skip_padding);
 
+    let mut flash_config = args.flash_config_args;
+    flash_config.flash_size = flash_config
+        .flash_size // Use CLI argument if provided
+        .or(config.flash.size) // If no CLI argument, try the config file
+        .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
+
     let flash_data = make_flash_data(
         args.save_image_args.image,
-        &args.flash_config_args,
+        &flash_config,
         config,
         None,
         None,

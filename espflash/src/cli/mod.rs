@@ -946,14 +946,6 @@ fn pretty_print(table: PartitionTable) {
     println!("{pretty}");
 }
 
-pub fn make_flash_settings(flash_config_args: &FlashConfigArgs, config: &Config) -> FlashSettings {
-    FlashSettings::new(
-        flash_config_args.flash_mode.or(config.flash.mode),
-        flash_config_args.flash_size.or(config.flash.size),
-        flash_config_args.flash_freq.or(config.flash.freq),
-    )
-}
-
 pub fn make_flash_data(
     image_args: ImageArgs,
     flash_config_args: &FlashConfigArgs,
@@ -983,7 +975,12 @@ pub fn make_flash_data(
         println!("Partition table:   {}", path.display());
     }
 
-    let flash_settings = make_flash_settings(flash_config_args, config);
+    let flash_settings = FlashSettings::new(
+        flash_config_args.flash_mode.or(config.flash.mode),
+        flash_config_args.flash_size,
+        flash_config_args.flash_freq.or(config.flash.freq),
+    );
+
     FlashData::new(
         bootloader,
         partition_table,
