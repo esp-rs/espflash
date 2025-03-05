@@ -1241,17 +1241,13 @@ impl Flasher {
                 })
             })?;
 
-        println!("Entering the loop...");
         while data.len() < size as usize {
-            println!("Reading response");
-            let response = self.connection.fuck_response()?;
-            println!("Response read: {:?}", response);
+            let response = self.connection.read_flash_response()?;
             let chunk: Vec<u8> = if let Some(response) = response {
                 response.value.try_into()?
             } else {
                 return Err(Error::IncorrectResponse);
             };
-            println!("Chunked: {:?}", chunk);
 
             data.extend_from_slice(&chunk);
 
@@ -1266,7 +1262,7 @@ impl Flasher {
             return Err(Error::ReadMoreThanExpected);
         }
 
-        let response = self.connection.read_response()?;
+        let response = self.connection.read_flash_response()?;
         let digest: Vec<u8> = if let Some(response) = response {
             response.value.try_into()?
         } else {

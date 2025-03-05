@@ -348,81 +348,34 @@ impl Connection {
     }
 
     /// Read the response from a serial port
-    pub fn fuck_response(&mut self) -> Result<Option<CommandResponse>, Error> {
-        println!("In read_response...");
-        match self.fucky_read()? {
-            None => {println!("No response"); Ok(None)},
-            Some(response) => {
-                // Here is what esptool does: https://github.com/espressif/esptool/blob/master/esptool/loader.py#L458
-                // from esptool: things are a bit weird here, bear with us
+    pub fn read_flash_response(&mut self) -> Result<Option<CommandResponse>, Error> {
+        let mut response = Vec::new();
 
-                // We rely on the known and expected response sizes which should be fine for now
-                // - if that changes we need to pass the command type we are parsing the
-                // response for.
-                //
-                // For most commands the response length is 10 (for the stub) or 12 (for ROM
-                // code). The MD5 command response is 44 for ROM loader, 26 for the stub.
-                //
-                // See:
-                // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#response-packet
-                // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#status-bytes
-                // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#verifying-uploaded-data
-                println!("Caught response: {:?}, len = {}", response, response.len());
-                let status_len = if response.len() == 10 || response.len() == 26 {
-                    2
-                } else {
-                    4
-                };
+        self.decoder.decode(&mut self.serial, &mut response)?;
 
-                println!("Before response fuckery..");
-                let value = match response.len() {
-                    10 | 12 => {println!("10 or 12"); CommandResponseValue::ValueU32(u32::from_le_bytes(
-                        response[4..][..4].try_into().unwrap(),
-                    ))},
-                    44 => {
-                        println!("44");
-                        // MD5 is in ASCII
-                        CommandResponseValue::ValueU128(
-                            u128::from_str_radix(
-                                std::str::from_utf8(&response[8..][..32]).unwrap(),
-                                16,
-                            )
-                            .unwrap(),
-                        )
-                    }
-                    26 => {
-                        println!("26..");
-                        // MD5 is BE bytes
-                        CommandResponseValue::ValueU128(u128::from_be_bytes(
-                            response[8..][..16].try_into().unwrap(),
-                        ))
-                    }
-                    _ => CommandResponseValue::Vector(response.clone()),
-                };
-
-                println!("Value from response: {:?}", value);
-
-                let header = CommandResponse {
-                    resp: response[0],
-                    return_op: response[1],
-                    return_length: u16::from_le_bytes(response[2..][..2].try_into().unwrap()),
-                    value,
-                    error: response[response.len() - status_len],
-                    status: response[response.len() - status_len + 1],
-                };
-
-                Ok(Some(header))
-            }
+        if response.is_empty() {
+            return Ok(None);
         }
+        let value = CommandResponseValue::Vector(response.clone());
+
+        let header = CommandResponse {
+            resp: 1 as u8,
+            return_op: CommandType::ReadFlash as u8,
+            return_length: response.len() as u16,
+            value,
+            error: 0 as u8,
+            status: 0 as u8,
+        };
+
+        Ok(Some(header))
     }
 
     /// Read the response from a serial port
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
-        println!("In read_response...");
         match self.read(10)? {
-            None => {println!("No response"); Ok(None)},
+            None => Ok(None),
             Some(response) => {
-                // Here is what esptool does: https://github.com/espressif/esptool/blob/master/esptool/loader.py#L458
+                // Here is what esptool does: https://github.com/espressif/esptool/blob/81b2eaee261aed0d3d754e32c57959d6b235bfed/esptool/loader.py#L518
                 // from esptool: things are a bit weird here, bear with us
 
                 // We rely on the known and expected response sizes which should be fine for now
@@ -436,20 +389,17 @@ impl Connection {
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#response-packet
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#status-bytes
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#verifying-uploaded-data
-                println!("Caught response: {:?}", response);
                 let status_len = if response.len() == 10 || response.len() == 26 {
                     2
                 } else {
                     4
                 };
 
-                println!("Before response fuckery..");
                 let value = match response.len() {
-                    10 | 12 => {println!("10 or 12"); CommandResponseValue::ValueU32(u32::from_le_bytes(
+                    10 | 12 => CommandResponseValue::ValueU32(u32::from_le_bytes(
                         response[4..][..4].try_into().unwrap(),
-                    ))},
+                    )),
                     44 => {
-                        println!("44");
                         // MD5 is in ASCII
                         CommandResponseValue::ValueU128(
                             u128::from_str_radix(
@@ -460,7 +410,6 @@ impl Connection {
                         )
                     }
                     26 => {
-                        println!("26..");
                         // MD5 is BE bytes
                         CommandResponseValue::ValueU128(u128::from_be_bytes(
                             response[8..][..16].try_into().unwrap(),
@@ -468,8 +417,6 @@ impl Connection {
                     }
                     _ => CommandResponseValue::Vector(response.clone()),
                 };
-
-                println!("Value from response: {:?}", value);
 
                 let header = CommandResponse {
                     resp: response[0],
@@ -516,8 +463,6 @@ impl Connection {
     ///  Write a command and reads the response
     pub fn command(&mut self, command: Command<'_>) -> Result<CommandResponseValue, Error> {
         let ty = command.command_type();
-
-        println!("Command: {:?}\nType: {:?}", command, ty);
         self.write_command(command).for_command(ty)?;
 
         for _ in 0..100 {
@@ -532,7 +477,6 @@ impl Connection {
                     } else {
                         // Check if the response is a Vector and strip header (first 8 bytes)
                         // https://github.com/espressif/esptool/blob/749d1ad/esptool/loader.py#L481
-                        println!("Response: {:?}",response);
                         let modified_value = match response.value {
                             CommandResponseValue::Vector(mut vec) if vec.len() >= 8 => {
                                 vec = vec[8..][..response.return_length as usize].to_vec();
@@ -573,22 +517,13 @@ impl Connection {
     }
 
     pub(crate) fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
-        println!("in read");
         let mut tmp = Vec::with_capacity(1024);
         loop {
             self.decoder.decode(&mut self.serial, &mut tmp)?;
-            println!("TMP caught:\ttmp:{:?}(len = {:?} >= {})", tmp, tmp.len(), len);
             if tmp.len() >= len {
                 return Ok(Some(tmp));
             }
         }
-    }
-
-    pub(crate) fn fucky_read(&mut self) -> Result<Option<Vec<u8>>, Error> {
-        let mut tmp = Vec::new();
-        self.decoder.decode(&mut self.serial, &mut tmp)?;
-
-        Ok(Some(tmp))
     }
 
     /// Flush the serial port

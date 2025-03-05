@@ -87,7 +87,7 @@ pub enum Error {
     #[diagnostic(code(espflash::read_flash::incorrect_digest_length))]
     IncorrectDigestLength(usize),
 
-    #[error("Incorrect response from the sutb/ROM loader")]
+    #[error("Incorrect response from the stub/ROM loader")]
     #[diagnostic(code(espflash::read_flash::incorrect_response))]
     IncorrectResponse,
 
