@@ -38,8 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Removed the `libudev` feature (#742)
-- The `FirmwareImage` trait no longer includes the `segments_with_load_addresses` function (#796)
 - Removed the `flasher::parse_partition_table` function (#798)
+- The `FirmwareImage` trait has been removed (#802)
+- The `elf` module has been removed, and its contents moved to the `image_format` module (#802)
 
 ## [3.3.0] - 2025-01-13
 
