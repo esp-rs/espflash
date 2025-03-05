@@ -17,8 +17,8 @@ use crate::{
     targets::FlashTarget,
 };
 use crate::{
-    elf::Segment,
     flasher::{SpiAttachParams, FLASH_SECTOR_SIZE},
+    image_format::Segment,
     targets::Chip,
     Error,
 };

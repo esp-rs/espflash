@@ -1,4 +1,4 @@
-//! ELF (Executable and Linkable Format) file operations
+//! Binary application image formats
 
 use std::{
     borrow::Cow,
@@ -13,58 +13,10 @@ use xmas_elf::{
     ElfFile,
 };
 
+pub use self::esp_idf::IdfBootloaderFormat;
 use crate::targets::Chip;
 
-/// Operations for working with firmware images
-pub trait FirmwareImage<'a> {
-    /// Firmware image entry point
-    fn entry(&self) -> u32;
-
-    /// Firmware image segments
-    fn segments(&'a self) -> Box<dyn Iterator<Item = Segment<'a>> + 'a>;
-
-    /// Firmware image ROM segments
-    fn rom_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
-        Box::new(
-            self.segments()
-                .filter(move |segment| chip.into_target().addr_is_flash(segment.addr)),
-        )
-    }
-
-    /// Firmware image RAM segments
-    fn ram_segments(&'a self, chip: Chip) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
-        Box::new(
-            self.segments()
-                .filter(move |segment| !chip.into_target().addr_is_flash(segment.addr)),
-        )
-    }
-}
-
-impl<'a> FirmwareImage<'a> for ElfFile<'a> {
-    fn entry(&self) -> u32 {
-        self.header.pt2.entry_point() as u32
-    }
-
-    fn segments(&'a self) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
-        Box::new(
-            self.section_iter()
-                .filter(|header| {
-                    header.size() > 0
-                        && header.get_type() == Ok(ShType::ProgBits)
-                        && header.offset() > 0
-                        && header.address() > 0
-                })
-                .flat_map(move |header| {
-                    let addr = header.address() as u32;
-                    let data = match header.get_data(self) {
-                        Ok(SectionData::Undefined(data)) => data,
-                        _ => return None,
-                    };
-                    Some(Segment::new(addr, data))
-                }),
-        )
-    }
-}
+mod esp_idf;
 
 /// A segment of code from the source ELF
 #[derive(Default, Clone, Eq)]
@@ -191,4 +143,39 @@ impl Ord for Segment<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.addr.cmp(&other.addr)
     }
+}
+
+/// Returns an iterator over all RAM segments for a given chip and ELF file.
+pub(crate) fn ram_segments<'a>(
+    chip: Chip,
+    elf: &'a ElfFile<'a>,
+) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
+    Box::new(segments(elf).filter(move |segment| !chip.into_target().addr_is_flash(segment.addr)))
+}
+
+/// Returns an iterator over all ROM segments for a given chip and ELF file.
+pub(crate) fn rom_segments<'a>(
+    chip: Chip,
+    elf: &'a ElfFile<'a>,
+) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
+    Box::new(segments(elf).filter(move |segment| chip.into_target().addr_is_flash(segment.addr)))
+}
+
+fn segments<'a>(elf: &'a ElfFile<'a>) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
+    Box::new(
+        elf.section_iter()
+            .filter(|header| {
+                header.size() > 0
+                    && header.get_type() == Ok(ShType::ProgBits)
+                    && header.offset() > 0
+                    && header.address() > 0
+            })
+            .flat_map(move |header| {
+                let addr = header.address() as u32;
+                match header.get_data(elf) {
+                    Ok(SectionData::Undefined(data)) => Some(Segment::new(addr, data)),
+                    _ => None,
+                }
+            }),
+    )
 }

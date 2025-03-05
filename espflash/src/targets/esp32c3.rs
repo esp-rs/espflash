@@ -1,9 +1,10 @@
 use std::ops::Range;
 
+use xmas_elf::ElfFile;
+
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
 use crate::{
-    elf::FirmwareImage,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
@@ -78,7 +79,7 @@ impl Target for Esp32c3 {
 
     fn get_flash_image<'a>(
         &self,
-        image: &'a dyn FirmwareImage<'a>,
+        elf: ElfFile<'a>,
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
@@ -90,7 +91,7 @@ impl Target for Esp32c3 {
             });
         }
 
-        IdfBootloaderFormat::new(image, Chip::Esp32c3, flash_data, PARAMS)
+        IdfBootloaderFormat::new(elf, Chip::Esp32c3, flash_data, PARAMS)
     }
 
     fn spi_registers(&self) -> SpiRegisters {

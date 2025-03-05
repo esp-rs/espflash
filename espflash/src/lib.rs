@@ -29,10 +29,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_debug_implementations, rust_2018_idioms)]
 
-pub use self::{
-    elf::{FirmwareImage, Segment},
-    error::Error,
-};
+pub use self::{error::Error, image_format::Segment};
 
 #[cfg(feature = "serialport")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
@@ -41,7 +38,6 @@ pub mod flasher;
 pub mod image_format;
 pub mod targets;
 
-mod elf;
 mod error;
 
 // Command-line interface

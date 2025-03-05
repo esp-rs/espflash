@@ -31,7 +31,6 @@ use crate::{
         Connection,
         Port,
     },
-    elf::{FirmwareImage, Segment},
     error::{ConnectionError, ResultExt},
     flasher::stubs::{
         FlashStub,
@@ -39,6 +38,7 @@ use crate::{
         DEFAULT_TIMEOUT,
         EXPECTED_STUB_HANDSHAKE,
     },
+    image_format::{ram_segments, rom_segments, Segment},
 };
 use crate::{
     error::{ElfError, Error},
@@ -1012,19 +1012,19 @@ impl Flasher {
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let elf = ElfFile::new(elf_data).map_err(ElfError::from)?;
-        if elf.rom_segments(self.chip).next().is_some() {
+        if rom_segments(self.chip, &elf).next().is_some() {
             return Err(Error::ElfNotRamLoadable);
         }
 
         let mut target = self.chip.ram_target(
-            Some(elf.entry()),
+            Some(elf.header.pt2.entry_point() as u32),
             self.chip
                 .into_target()
                 .max_ram_block_size(&mut self.connection)?,
         );
         target.begin(&mut self.connection).flashing()?;
 
-        for segment in elf.ram_segments(self.chip) {
+        for segment in ram_segments(self.chip, &elf) {
             target
                 .write_segment(&mut self.connection, segment, &mut progress)
                 .flashing()?;
@@ -1057,7 +1057,7 @@ impl Flasher {
         let image =
             self.chip
                 .into_target()
-                .get_flash_image(&elf, flash_data, chip_revision, xtal_freq)?;
+                .get_flash_image(elf, flash_data, chip_revision, xtal_freq)?;
 
         // When the `cli` feature is enabled, display the image size information.
         #[cfg(feature = "cli")]
