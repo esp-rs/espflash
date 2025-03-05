@@ -359,12 +359,12 @@ impl Connection {
         let value = CommandResponseValue::Vector(response.clone());
 
         let header = CommandResponse {
-            resp: 1 as u8,
+            resp: 1_u8,
             return_op: CommandType::ReadFlash as u8,
             return_length: response.len() as u16,
             value,
-            error: 0 as u8,
-            status: 0 as u8,
+            error: 0_u8,
+            status: 0_u8,
         };
 
         Ok(Some(header))

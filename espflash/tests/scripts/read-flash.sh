@@ -8,8 +8,9 @@ KNOWN_PATTERN+=$'\xE5\x33\xF5\x44\x06\x55\x16\x66\x26\x77\x36\x88\x46\x99\x56\xA
 KNOWN_PATTERN+=$'\x66\xBB\x76\xCC\x86\xDD\x96\xEE\xA6\xFF\xB6\x00\xC6\x11\xD6\x22'
 
 echo -ne "$KNOWN_PATTERN" > pattern.bin
-cargo r -r --bin espflash write-bin 0x0 pattern.bin --port /dev/cu.usbserial-130 2>&1
-if [[ $? -ne 0 ]]; then
+result=$(espflash write-bin 0x0 pattern.bin 2>&1)
+echo "$result"
+if [[ ! $result =~ "Binary successfully written to flash!" ]]; then
     echo "Failed to write binary to flash"
     exit 1
 fi
@@ -19,8 +20,9 @@ lengths=(2 5 10 26 44 86)
 for len in "${lengths[@]}"; do
     echo "Testing read-flash with length: $len"
 
-    cargo r -r --bin espflash read-flash 0 "$len" flash_content.bin --port /dev/cu.usbserial-130 2>&1
-    if [[ $? -ne 0 ]]; then
+    result=$(espflash read-flash 0 "$len" flash_content.bin 2>&1)
+    echo "$result"
+    if [[ ! $result =~ "Flash content successfully read and written to" ]]; then
         echo "Failed to read $len bytes from flash"
         exit 1
     fi
