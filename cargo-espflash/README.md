@@ -52,7 +52,7 @@ OPENSSL_NO_VENDOR=1 cargo install cargo-espflash
 ## Usage
 
 ```text
-Cargo subcommand for flashing Espressif devices
+Cargo subcommand for interacting with Espressif devices
 
 Usage: cargo espflash [OPTIONS] <COMMAND>
 
@@ -65,7 +65,7 @@ Commands:
   erase-region     Erase specified region
   flash            Flash an application in ELF format to a target device
   hold-in-reset    Hold the target device in reset
-  list-ports       List serial ports available for flashing
+  list-ports       List available serial ports
   monitor          Open the serial monitor without flashing the connected target device
   partition-table  Convert partition tables between CSV and binary format
   read-flash       Read SPI flash content
@@ -176,8 +176,9 @@ You can have a local and/or a global configuration file:
   - See [`defmt` section] of `esp-println` readme.
   - For a detailed guide on how to use `defmt` in the `no_std` ecosystem, see [`defmt` project] of Embedded Rust (no_std) on Espressif book.
 
-[`defmt` section]: https://github.com/esp-rs/esp-println?tab=readme-ov-file#defmt
-[`defmt` project]: https://esp-rs.github.io/no_std-training/03_6_defmt.html
+[`defmt`]: https://defmt.ferrous-systems.com/
+[`defmt` section]: https://github.com/esp-rs/esp-hal/tree/main/esp-println#defmt
+[`defmt` project]: https://docs.esp-rs.org/no_std-training/03_7_defmt.html
 
 ## License
 
