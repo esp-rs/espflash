@@ -348,11 +348,34 @@ impl Connection {
     }
 
     /// Read the response from a serial port
+    pub fn read_flash_response(&mut self) -> Result<Option<CommandResponse>, Error> {
+        let mut response = Vec::new();
+
+        self.decoder.decode(&mut self.serial, &mut response)?;
+
+        if response.is_empty() {
+            return Ok(None);
+        }
+        let value = CommandResponseValue::Vector(response.clone());
+
+        let header = CommandResponse {
+            resp: 1_u8,
+            return_op: CommandType::ReadFlash as u8,
+            return_length: response.len() as u16,
+            value,
+            error: 0_u8,
+            status: 0_u8,
+        };
+
+        Ok(Some(header))
+    }
+
+    /// Read the response from a serial port
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
         match self.read(10)? {
             None => Ok(None),
             Some(response) => {
-                // Here is what esptool does: https://github.com/espressif/esptool/blob/master/esptool/loader.py#L458
+                // Here is what esptool does: https://github.com/espressif/esptool/blob/81b2eaee261aed0d3d754e32c57959d6b235bfed/esptool/loader.py#L518
                 // from esptool: things are a bit weird here, bear with us
 
                 // We rely on the known and expected response sizes which should be fine for now
