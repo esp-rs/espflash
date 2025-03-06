@@ -59,7 +59,7 @@ enum Commands {
     Flash(FlashArgs),
     /// Hold the target device in reset
     HoldInReset(ConnectArgs),
-    /// List serial ports available.
+    /// List available serial ports.
     ///
     /// The default behavior is to only list ports of devices known to be used
     /// on development boards.
