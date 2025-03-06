@@ -190,8 +190,8 @@ You can have a local and/or a global configuration file:
   - For a detailed guide on how to use `defmt` in the `no_std` ecosystem, see [`defmt` project] of Embedded Rust (no_std) on Espressif book.
 
 [`defmt`]: https://defmt.ferrous-systems.com/
-[`defmt` section]: https://github.com/esp-rs/esp-println?tab=readme-ov-file#defmt
-[`defmt` project]: https://esp-rs.github.io/no_std-training/03_6_defmt.html
+[`defmt` section]: https://github.com/esp-rs/esp-hal/tree/main/esp-println#defmt
+[`defmt` project]: https://docs.esp-rs.org/no_std-training/03_7_defmt.html
 
 ## License
 
