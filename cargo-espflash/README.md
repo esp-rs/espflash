@@ -52,7 +52,7 @@ OPENSSL_NO_VENDOR=1 cargo install cargo-espflash
 ## Usage
 
 ```text
-Cargo subcommand for flashing Espressif devices
+Cargo subcommand for interacting with Espressif devices
 
 Usage: cargo espflash [OPTIONS] <COMMAND>
 
@@ -65,7 +65,7 @@ Commands:
   erase-region     Erase specified region
   flash            Flash an application in ELF format to a target device
   hold-in-reset    Hold the target device in reset
-  list-ports       List serial ports available for flashing
+  list-ports       List available serial ports
   monitor          Open the serial monitor without flashing the connected target device
   partition-table  Convert partition tables between CSV and binary format
   read-flash       Read SPI flash content

@@ -47,7 +47,7 @@ cargo binstall espflash
 ## Usage
 
 ```text
-A command-line tool for flashing Espressif devices
+A command-line tool for interacting with Espressif devices
 
 Usage: espflash [OPTIONS] <COMMAND>
 
@@ -60,7 +60,7 @@ Commands:
   erase-region     Erase specified region
   flash            Flash an application in ELF format to a connected target device
   hold-in-reset    Hold the target device in reset
-  list-ports       List serial ports available for flashing
+  list-ports       List available serial ports
   monitor          Open the serial monitor without flashing the connected target device
   partition-table  Convert partition tables between CSV and binary format
   read-flash       Read SPI flash content
