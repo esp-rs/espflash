@@ -120,7 +120,7 @@ With this configuration you can flash and monitor you application using `cargo r
 `espflash` can be used as a library in other applications:
 
 ```toml
-espflash = { version = "2.1", default-features = false }
+espflash = { version = "3.3", default-features = false }
 ```
 
 or `cargo add espflash --no-default-features`
@@ -189,6 +189,7 @@ You can have a local and/or a global configuration file:
   - See [`defmt` section] of `esp-println` readme.
   - For a detailed guide on how to use `defmt` in the `no_std` ecosystem, see [`defmt` project] of Embedded Rust (no_std) on Espressif book.
 
+[`defmt`]: https://defmt.ferrous-systems.com/
 [`defmt` section]: https://github.com/esp-rs/esp-println?tab=readme-ov-file#defmt
 [`defmt` project]: https://esp-rs.github.io/no_std-training/03_6_defmt.html
 
