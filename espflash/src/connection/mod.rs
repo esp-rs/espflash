@@ -297,7 +297,7 @@ impl Connection {
 
                 match chip {
                     Chip::Esp32c3 => {
-                        if pid == USB_SERIAL_JTAG_PID {
+                        if self.is_using_usb_serial_jtag() {
                             chip.into_rtc_wdt_reset()?.rtc_wdt_reset(self)?;
                         }
                     }
@@ -320,7 +320,7 @@ impl Connection {
                         }
                     }
                     Chip::Esp32s3 => {
-                        if pid == USB_SERIAL_JTAG_PID
+                        if self.is_using_usb_serial_jtag()
                             || chip.into_usb_otg()?.is_using_usb_otg(self)?
                         {
                             let target = chip.into_rtc_wdt_reset()?;
@@ -347,7 +347,7 @@ impl Connection {
 
     // Reset the device to flash mode
     pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
-        if self.port_info.pid == USB_SERIAL_JTAG_PID {
+        if self.is_using_usb_serial_jtag() {
             UsbJtagSerialReset.reset(&mut self.serial)
         } else {
             #[cfg(unix)]
