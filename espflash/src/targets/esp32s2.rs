@@ -5,9 +5,9 @@ use xmas_elf::ElfFile;
 #[cfg(feature = "serialport")]
 use super::flash_target::MAX_RAM_BLOCK_SIZE;
 #[cfg(feature = "serialport")]
-use crate::connection::Connection;
+use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE};
 use crate::{
-    flasher::{FlashData, FlashFrequency, FLASH_WRITE_SIZE},
+    flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
     Error,

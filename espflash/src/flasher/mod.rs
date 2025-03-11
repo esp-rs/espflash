@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
 use serialport::UsbPortInfo;
 use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
+#[cfg(feature = "serialport")]
 use xmas_elf::ElfFile;
 
 #[cfg(feature = "serialport")]
@@ -31,7 +32,7 @@ use crate::{
         Connection,
         Port,
     },
-    error::{ConnectionError, ResultExt},
+    error::{ConnectionError, ElfError, ResultExt as _},
     flasher::stubs::{
         FlashStub,
         CHIP_DETECT_MAGIC_REG_ADDR,
@@ -41,8 +42,8 @@ use crate::{
     image_format::{ram_segments, rom_segments, Segment},
 };
 use crate::{
-    error::{ElfError, Error},
     targets::{Chip, XtalFrequency},
+    Error,
 };
 
 #[cfg(feature = "serialport")]

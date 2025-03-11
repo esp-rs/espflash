@@ -144,27 +144,27 @@ impl Chip {
     }
 
     #[cfg(feature = "serialport")]
-    pub(crate) fn into_rtc_wdt_reset(&self) -> Result<Box<dyn RtcWdtReset>, Error> {
+    pub(crate) fn into_rtc_wdt_reset(self) -> Result<Box<dyn RtcWdtReset>, Error> {
         match self {
             Chip::Esp32c3 => Ok(Box::new(Esp32c3)),
             Chip::Esp32p4 => Ok(Box::new(Esp32p4)),
             Chip::Esp32s2 => Ok(Box::new(Esp32s2)),
             Chip::Esp32s3 => Ok(Box::new(Esp32s3)),
             _ => Err(Error::UnsupportedFeature {
-                chip: *self,
+                chip: self,
                 feature: "RTC WDT reset".into(),
             }),
         }
     }
 
     #[cfg(feature = "serialport")]
-    pub(crate) fn into_usb_otg(&self) -> Result<Box<dyn UsbOtg>, Error> {
+    pub(crate) fn into_usb_otg(self) -> Result<Box<dyn UsbOtg>, Error> {
         match self {
             Chip::Esp32p4 => Ok(Box::new(Esp32p4)),
             Chip::Esp32s2 => Ok(Box::new(Esp32s2)),
             Chip::Esp32s3 => Ok(Box::new(Esp32s3)),
             _ => Err(Error::UnsupportedFeature {
-                chip: *self,
+                chip: self,
                 feature: "USB OTG".into(),
             }),
         }
