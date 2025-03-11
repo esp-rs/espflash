@@ -5,7 +5,6 @@
 use std::{io, os::fd::AsRawFd};
 use std::{thread::sleep, time::Duration};
 
-use bitflags::bitflags;
 #[cfg(unix)]
 use libc::ioctl;
 use log::debug;
@@ -18,7 +17,7 @@ use super::{
     Port,
     USB_SERIAL_JTAG_PID,
 };
-use crate::{flasher::FLASH_WRITE_SIZE, targets::Chip, Error};
+use crate::{flasher::FLASH_WRITE_SIZE, Error};
 
 /// Default time to wait before releasing the boot pin after a reset
 const DEFAULT_RESET_DELAY: u64 = 50; // ms
@@ -200,14 +199,6 @@ impl ResetStrategy for UsbJtagSerialReset {
     }
 }
 
-#[cfg(feature = "serialport")]
-pub(crate) trait RtcWdtReset {
-    fn wdt_wprotect(&self) -> u32;
-    fn wdt_wkey(&self) -> u32;
-    fn wdt_config0(&self) -> u32;
-    fn wdt_config1(&self) -> u32;
-}
-
 /// Reset the target device
 pub fn reset_after_flash(serial: &mut Port, pid: u16) -> Result<(), serialport::Error> {
     sleep(Duration::from_millis(100));
@@ -299,43 +290,6 @@ pub fn soft_reset(
             connection.command(Command::RunUserCode)
         })?;
     }
-
-    Ok(())
-}
-
-bitflags! {
-    struct WdtConfig0Flags: u32 {
-        const EN      = 1 << 31;
-        const STAGE0 = 5 << 28; // 5 (binary: 101) in bits 28-30
-        const CHIP_RESET_EN       = 1 << 8;  // 8th bit
-        const CHIP_RESET_WIDTH       = 1 << 2;  // 1st bit
-    }
-}
-
-/// Perform Watchdog reset
-pub fn wdt_reset(chip: Chip, connection: &mut Connection) -> Result<(), Error> {
-    debug!("Resetting with RTC WDT");
-
-    let chip: Box<dyn RtcWdtReset> = match chip {
-        Chip::Esp32c3 => Box::new(crate::targets::esp32c3::Esp32c3),
-        Chip::Esp32s2 => Box::new(crate::targets::esp32s2::Esp32s2),
-        Chip::Esp32s3 => Box::new(crate::targets::esp32s3::Esp32s3),
-        _ => unreachable!(),
-    };
-
-    connection.write_reg(chip.wdt_wprotect(), chip.wdt_wkey(), None)?;
-    connection.write_reg(chip.wdt_config1(), 2000, None)?;
-    connection.write_reg(
-        chip.wdt_config0(),
-        (WdtConfig0Flags::EN.bits()) // enable RTC watchdog
-            | (WdtConfig0Flags::STAGE0.bits()) // enable at the interrupt/system and RTC stage
-            | (WdtConfig0Flags::CHIP_RESET_EN.bits()) // enable chip reset
-            | WdtConfig0Flags::CHIP_RESET_WIDTH.bits(), // set chip reset width
-        None,
-    )?;
-    connection.write_reg(chip.wdt_wprotect(), 0, None)?;
-
-    sleep(Duration::from_millis(50));
 
     Ok(())
 }

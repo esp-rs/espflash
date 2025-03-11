@@ -144,6 +144,20 @@ impl Chip {
     }
 
     #[cfg(feature = "serialport")]
+    pub(crate) fn into_rtc_wdt_reset(&self) -> Result<Box<dyn RtcWdtReset>, Error> {
+        match self {
+            Chip::Esp32c3 => Ok(Box::new(Esp32c3)),
+            Chip::Esp32p4 => Ok(Box::new(Esp32p4)),
+            Chip::Esp32s2 => Ok(Box::new(Esp32s2)),
+            Chip::Esp32s3 => Ok(Box::new(Esp32s3)),
+            _ => Err(Error::UnsupportedFeature {
+                chip: *self,
+                feature: "RTC WDT reset".into(),
+            }),
+        }
+    }
+
+    #[cfg(feature = "serialport")]
     pub fn flash_target(
         &self,
         spi_params: SpiAttachParams,
@@ -340,6 +354,48 @@ pub trait Target: ReadEFuse {
     /// Is the build target `target` supported by the chip?
     fn supports_build_target(&self, target: &str) -> bool {
         self.supported_build_targets().contains(&target)
+    }
+}
+
+#[cfg(feature = "serialport")]
+pub(crate) trait RtcWdtReset {
+    fn wdt_wkey(&self) -> u32 {
+        0x50D8_3AA1
+    }
+
+    fn wdt_wprotect(&self) -> u32;
+
+    fn wdt_config0(&self) -> u32;
+
+    fn wdt_config1(&self) -> u32;
+
+    fn can_rtc_wdt_reset(&self, connection: &mut Connection) -> Result<bool, Error>;
+
+    fn rtc_wdt_reset(&self, connection: &mut Connection) -> Result<(), Error> {
+        bitflags::bitflags! {
+            struct WdtConfig0Flags: u32 {
+                const EN               = 1 << 31;
+                const STAGE0           = 5 << 28; // 5 (binary: 101) in bits 28-30
+                const CHIP_RESET_EN    = 1 << 8;  // 8th bit
+                const CHIP_RESET_WIDTH = 1 << 2;  // 1st bit
+            }
+        }
+
+        let flags = (WdtConfig0Flags::EN // enable RTC watchdog
+            | WdtConfig0Flags::STAGE0 // enable at the interrupt/system and RTC stage
+            | WdtConfig0Flags::CHIP_RESET_EN // enable chip reset
+            | WdtConfig0Flags::CHIP_RESET_WIDTH) // set chip reset width
+            .bits();
+
+        log::debug!("Resetting with RTC WDT");
+        connection.write_reg(self.wdt_wprotect(), self.wdt_wkey(), None)?;
+        connection.write_reg(self.wdt_config1(), 2000, None)?;
+        connection.write_reg(self.wdt_config0(), flags, None)?;
+        connection.write_reg(self.wdt_wprotect(), 0, None)?;
+
+        std::thread::sleep(std::time::Duration::from_millis(50));
+
+        Ok(())
     }
 }
 

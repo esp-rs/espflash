@@ -13,7 +13,6 @@ use std::{
 
 use log::{debug, info};
 use regex::Regex;
-use reset::wdt_reset;
 use serialport::{SerialPort, UsbPortInfo};
 use slip_codec::SlipDecoder;
 
@@ -36,7 +35,7 @@ use self::{
 };
 use crate::{
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
-    targets::{esp32p4, esp32s2, esp32s3, Chip},
+    targets::Chip,
 };
 
 pub(crate) mod command;
@@ -299,33 +298,35 @@ impl Connection {
                 match chip {
                     Chip::Esp32c3 => {
                         if pid == USB_SERIAL_JTAG_PID {
-                            wdt_reset(chip, self)?;
+                            chip.into_rtc_wdt_reset()?.rtc_wdt_reset(self)?;
                         }
                     }
                     Chip::Esp32p4 => {
                         // Check if the connection is USB OTG
                         if self.is_using_usb_otg(chip)? {
-                            wdt_reset(chip, self)?;
+                            chip.into_rtc_wdt_reset()?.rtc_wdt_reset(self)?;
                         }
                     }
                     Chip::Esp32s2 => {
-                        let esp32s2 = esp32s2::Esp32s2;
                         // Check if the connection is USB OTG
                         if self.is_using_usb_otg(chip)? {
+                            let target = chip.into_rtc_wdt_reset()?;
+
                             // Check the strapping register to see if we can perform RTC WDT
                             // reset
-                            if esp32s2.can_wtd_reset(self)? {
-                                wdt_reset(chip, self)?;
+                            if target.can_rtc_wdt_reset(self)? {
+                                target.rtc_wdt_reset(self)?;
                             }
                         }
                     }
                     Chip::Esp32s3 => {
-                        let esp32s3 = esp32s3::Esp32s3;
                         if pid == USB_SERIAL_JTAG_PID || self.is_using_usb_otg(chip)? {
+                            let target = chip.into_rtc_wdt_reset()?;
+
                             // Check the strapping register to see if we can perform RTC WDT
                             // reset
-                            if esp32s3.can_wtd_reset(self)? {
-                                wdt_reset(chip, self)?;
+                            if target.can_rtc_wdt_reset(self)? {
+                                target.rtc_wdt_reset(self)?;
                             }
                         }
                     }

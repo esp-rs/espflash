@@ -3,7 +3,7 @@ use std::ops::Range;
 use xmas_elf::ElfFile;
 
 #[cfg(feature = "serialport")]
-use crate::connection::{reset::RtcWdtReset, Connection};
+use crate::connection::Connection;
 use crate::{
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
@@ -109,17 +109,20 @@ impl Target for Esp32p4 {
 }
 
 #[cfg(feature = "serialport")]
-impl RtcWdtReset for crate::targets::esp32p4::Esp32p4 {
+impl super::RtcWdtReset for Esp32p4 {
     fn wdt_wprotect(&self) -> u32 {
-        0x5011_6000 + 0x0018
+        0x5011_6018
     }
-    fn wdt_wkey(&self) -> u32 {
-        0x50D8_3AA1
-    }
+
     fn wdt_config0(&self) -> u32 {
-        0x5011_6000 // no offset here
+        0x5011_6000
     }
+
     fn wdt_config1(&self) -> u32 {
-        0x5011_6000 + 0x0004
+        0x5011_6004
+    }
+
+    fn can_rtc_wdt_reset(&self, _connection: &mut Connection) -> Result<bool, Error> {
+        Ok(true)
     }
 }
