@@ -36,12 +36,12 @@ use crate::{
 
 mod esp32;
 mod esp32c2;
-pub(crate) mod esp32c3;
+mod esp32c3;
 mod esp32c6;
 mod esp32h2;
-pub(crate) mod esp32p4;
-pub(crate) mod esp32s2;
-pub(crate) mod esp32s3;
+mod esp32p4;
+mod esp32s2;
+mod esp32s3;
 
 #[cfg(feature = "serialport")]
 pub(crate) mod flash_target;
@@ -153,6 +153,19 @@ impl Chip {
             _ => Err(Error::UnsupportedFeature {
                 chip: *self,
                 feature: "RTC WDT reset".into(),
+            }),
+        }
+    }
+
+    #[cfg(feature = "serialport")]
+    pub(crate) fn into_usb_otg(&self) -> Result<Box<dyn UsbOtg>, Error> {
+        match self {
+            Chip::Esp32p4 => Ok(Box::new(Esp32p4)),
+            Chip::Esp32s2 => Ok(Box::new(Esp32s2)),
+            Chip::Esp32s3 => Ok(Box::new(Esp32s3)),
+            _ => Err(Error::UnsupportedFeature {
+                chip: *self,
+                feature: "USB OTG".into(),
             }),
         }
     }
@@ -396,6 +409,19 @@ pub(crate) trait RtcWdtReset {
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         Ok(())
+    }
+}
+
+#[cfg(feature = "serialport")]
+pub(crate) trait UsbOtg {
+    fn uartdev_buf_no(&self) -> u32;
+
+    fn uartdev_buf_no_usb_otg(&self) -> u32;
+
+    fn is_using_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
+        connection
+            .read_reg(self.uartdev_buf_no())
+            .map(|value| value == self.uartdev_buf_no_usb_otg())
     }
 }
 

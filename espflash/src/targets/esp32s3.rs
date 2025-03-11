@@ -27,11 +27,6 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin"),
 );
 
-#[cfg(feature = "serialport")]
-pub(crate) const UARTDEV_BUF_NO: u32 = 0x3FCE_F14C; // Address which indicates OTG in use
-#[cfg(feature = "serialport")]
-pub(crate) const UARTDEV_BUF_NO_USB_OTG: u32 = 3; // Value of UARTDEV_BUF_NO when OTG is in use
-
 /// ESP32-S2 Target
 pub struct Esp32s3;
 
@@ -159,5 +154,16 @@ impl super::RtcWdtReset for Esp32s3 {
             connection.read_reg(GPIO_STRAP)? & GPIO_STRAP_SPI_BOOT_MASK == 0 // GPIO0 low
                 && connection.read_reg(OPTION1)? & FORCE_DOWNLOAD_BOOT_MASK == 0,
         )
+    }
+}
+
+#[cfg(feature = "serialport")]
+impl super::UsbOtg for Esp32s3 {
+    fn uartdev_buf_no(&self) -> u32 {
+        0x3FCE_F14C
+    }
+
+    fn uartdev_buf_no_usb_otg(&self) -> u32 {
+        3
     }
 }

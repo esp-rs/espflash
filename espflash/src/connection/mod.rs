@@ -303,13 +303,13 @@ impl Connection {
                     }
                     Chip::Esp32p4 => {
                         // Check if the connection is USB OTG
-                        if self.is_using_usb_otg(chip)? {
+                        if chip.into_usb_otg()?.is_using_usb_otg(self)? {
                             chip.into_rtc_wdt_reset()?.rtc_wdt_reset(self)?;
                         }
                     }
                     Chip::Esp32s2 => {
                         // Check if the connection is USB OTG
-                        if self.is_using_usb_otg(chip)? {
+                        if chip.into_usb_otg()?.is_using_usb_otg(self)? {
                             let target = chip.into_rtc_wdt_reset()?;
 
                             // Check the strapping register to see if we can perform RTC WDT
@@ -320,7 +320,9 @@ impl Connection {
                         }
                     }
                     Chip::Esp32s3 => {
-                        if pid == USB_SERIAL_JTAG_PID || self.is_using_usb_otg(chip)? {
+                        if pid == USB_SERIAL_JTAG_PID
+                            || chip.into_usb_otg()?.is_using_usb_otg(self)?
+                        {
                             let target = chip.into_rtc_wdt_reset()?;
 
                             // Check the strapping register to see if we can perform RTC WDT
@@ -595,19 +597,6 @@ impl Connection {
 
     pub(crate) fn is_using_usb_serial_jtag(&self) -> bool {
         self.port_info.pid == USB_SERIAL_JTAG_PID
-    }
-
-    #[cfg(feature = "serialport")]
-    /// Check if the connection is USB OTG
-    pub(crate) fn is_using_usb_otg(&mut self, chip: Chip) -> Result<bool, Error> {
-        let (buf_no, no_usb_otg) = match chip {
-            Chip::Esp32p4 => (esp32p4::UARTDEV_BUF_NO, esp32p4::UARTDEV_BUF_NO_USB_OTG),
-            Chip::Esp32s2 => (esp32s2::UARTDEV_BUF_NO, esp32s2::UARTDEV_BUF_NO_USB_OTG),
-            Chip::Esp32s3 => (esp32s3::UARTDEV_BUF_NO, esp32s3::UARTDEV_BUF_NO_USB_OTG),
-            _ => unreachable!(),
-        };
-
-        Ok(self.read_reg(buf_no)? == no_usb_otg)
     }
 }
 

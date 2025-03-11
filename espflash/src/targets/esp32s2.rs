@@ -32,11 +32,6 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin"),
 );
 
-#[cfg(feature = "serialport")]
-pub(crate) const UARTDEV_BUF_NO: u32 = 0x3FFF_FD14; // Address which indicates OTG in use
-#[cfg(feature = "serialport")]
-pub(crate) const UARTDEV_BUF_NO_USB_OTG: u32 = 2; // Value of UARTDEV_BUF_NO when OTG is in use
-
 /// ESP32-S2 Target
 pub struct Esp32s2;
 
@@ -137,7 +132,9 @@ impl Target for Esp32s2 {
 
     #[cfg(feature = "serialport")]
     fn flash_write_size(&self, connection: &mut Connection) -> Result<usize, Error> {
-        Ok(if connection.is_using_usb_otg(Chip::Esp32s2)? {
+        use super::UsbOtg;
+
+        Ok(if self.is_using_usb_otg(connection)? {
             MAX_USB_BLOCK_SIZE
         } else {
             FLASH_WRITE_SIZE
@@ -163,7 +160,9 @@ impl Target for Esp32s2 {
 
     #[cfg(feature = "serialport")]
     fn max_ram_block_size(&self, connection: &mut Connection) -> Result<usize, Error> {
-        Ok(if connection.is_using_usb_otg(Chip::Esp32s2)? {
+        use super::UsbOtg;
+
+        Ok(if self.is_using_usb_otg(connection)? {
             MAX_USB_BLOCK_SIZE
         } else {
             MAX_RAM_BLOCK_SIZE
@@ -211,5 +210,16 @@ impl super::RtcWdtReset for Esp32s2 {
             connection.read_reg(GPIO_STRAP)? & GPIO_STRAP_SPI_BOOT_MASK == 0 // GPIO0 low
                 && connection.read_reg(OPTION1)? & FORCE_DOWNLOAD_BOOT_MASK == 0,
         )
+    }
+}
+
+#[cfg(feature = "serialport")]
+impl super::UsbOtg for Esp32s2 {
+    fn uartdev_buf_no(&self) -> u32 {
+        0x3FFF_FD14
+    }
+
+    fn uartdev_buf_no_usb_otg(&self) -> u32 {
+        2
     }
 }

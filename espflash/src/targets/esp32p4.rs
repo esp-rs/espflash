@@ -27,11 +27,6 @@ const PARAMS: Esp32Params = Esp32Params::new(
     include_bytes!("../../resources/bootloaders/esp32p4-bootloader.bin"),
 );
 
-#[cfg(feature = "serialport")]
-pub(crate) const UARTDEV_BUF_NO: u32 = 0x4FF3_FEC8; // Address which indicates OTG in use
-#[cfg(feature = "serialport")]
-pub(crate) const UARTDEV_BUF_NO_USB_OTG: u32 = 5; // Value of UARTDEV_BUF_NO when OTG is in use
-
 /// ESP32-P4 Target
 pub struct Esp32p4;
 
@@ -124,5 +119,16 @@ impl super::RtcWdtReset for Esp32p4 {
 
     fn can_rtc_wdt_reset(&self, _connection: &mut Connection) -> Result<bool, Error> {
         Ok(true)
+    }
+}
+
+#[cfg(feature = "serialport")]
+impl super::UsbOtg for Esp32p4 {
+    fn uartdev_buf_no(&self) -> u32 {
+        0x4FF3_FEC8
+    }
+
+    fn uartdev_buf_no_usb_otg(&self) -> u32 {
+        5
     }
 }
