@@ -114,3 +114,22 @@ impl Target for Esp32c3 {
         ]
     }
 }
+
+#[cfg(feature = "serialport")]
+impl super::RtcWdtReset for Esp32c3 {
+    fn wdt_wprotect(&self) -> u32 {
+        0x6000_80A8
+    }
+
+    fn wdt_config0(&self) -> u32 {
+        0x6000_8090
+    }
+
+    fn wdt_config1(&self) -> u32 {
+        0x6000_8094
+    }
+
+    fn can_rtc_wdt_reset(&self, _connection: &mut Connection) -> Result<bool, Error> {
+        Ok(true)
+    }
+}

@@ -362,4 +362,6 @@ pub enum ResetAfterOperation {
     NoReset,
     /// Leaves the chip in the stub bootloader, no reset is performed.
     NoResetNoStub,
+    /// Hard-resets the chip by triggering an internal watchdog reset.
+    WatchdogReset,
 }

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add list-ports command to list available serial ports. (#761)
 - [cargo-espflash]: Add `write-bin` subcommand (#789)
 - Add `--monitor` option to `write-bin`. (#783)
+- Add `watchdog-reset` strategy to `--after` subcommand (#779)
 
 ### Changed
 
