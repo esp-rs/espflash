@@ -280,8 +280,8 @@ pub struct MonitorConfigArgs {
     #[arg(long, requires = "non_interactive")]
     no_reset: bool,
     /// Logging format.
-    #[arg(long, short = 'L', default_value = "serial")]
-    log_format: LogFormat,
+    #[arg(long, short = 'L')]
+    log_format: Option<LogFormat>,
     /// External log processors to use (comma separated executables)
     #[arg(long)]
     processors: Option<String>,

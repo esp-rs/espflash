@@ -20,7 +20,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 use external_processors::ExternalProcessors;
-use log::{debug, error};
+use log::{debug, error, warn};
 use miette::{IntoDiagnostic, Result};
 #[cfg(feature = "serialport")]
 use serialport::SerialPort;
@@ -28,7 +28,10 @@ use strum::{Display, EnumIter, EnumString, VariantNames};
 
 use crate::{
     cli::{
-        monitor::parser::{InputParser, ResolvingPrinter},
+        monitor::{
+            parser::{InputParser, ResolvingPrinter},
+            symbols::Symbols,
+        },
         MonitorConfigArgs,
     },
     connection::{reset::reset_after_flash, Port},
@@ -102,7 +105,10 @@ pub fn monitor(
     let stdout = stdout();
     let mut stdout = ResolvingPrinter::new(elf, stdout.lock());
 
-    let mut parser: Box<dyn InputParser> = match monitor_args.log_format {
+    let mut parser: Box<dyn InputParser> = match monitor_args
+        .log_format
+        .unwrap_or_else(|| deduce_log_format(elf))
+    {
         LogFormat::Defmt => Box::new(parser::esp_defmt::EspDefmt::new(elf)?),
         LogFormat::Serial => Box::new(parser::serial::Serial),
     };
@@ -149,6 +155,32 @@ pub fn monitor(
     }
 
     Ok(())
+}
+
+fn deduce_log_format(elf: Option<&[u8]>) -> LogFormat {
+    let Some(elf) = elf else {
+        return LogFormat::Serial;
+    };
+
+    let Ok(symbols) = Symbols::try_from(elf) else {
+        return LogFormat::Serial;
+    };
+
+    let Some(format_symbol) = symbols.get_symbol_data(b"_ESPFLASH_LOG_FORMAT") else {
+        return LogFormat::Serial;
+    };
+
+    match format_symbol {
+        b"defmt-espflash" => LogFormat::Defmt,
+        b"serial" => LogFormat::Serial,
+        other => {
+            warn!(
+                "Unknown log format symbol: {}. Defaulting to serial.",
+                String::from_utf8_lossy(other),
+            );
+            LogFormat::Serial
+        }
+    }
 }
 
 // Converts key events from crossterm into appropriate character/escape
