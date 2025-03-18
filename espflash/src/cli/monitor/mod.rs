@@ -166,7 +166,10 @@ fn deduce_log_format(elf: Option<&[u8]>) -> LogFormat {
         return LogFormat::Serial;
     };
 
-    let Some(format_symbol) = symbols.get_symbol_data(b"_ESPFLASH_LOG_FORMAT") else {
+    let Some(format_symbol) = symbols.get_symbol_data(
+        Some(".espressif.metadata.espflash"),
+        b"_METADATA_ESPFLASH_LOG_FORMAT",
+    ) else {
         return LogFormat::Serial;
     };
 
