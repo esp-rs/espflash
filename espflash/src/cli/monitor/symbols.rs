@@ -98,4 +98,14 @@ impl<'sym> Symbols<'sym> {
             }
         })?
     }
+
+    pub(crate) fn get_symbol_data(&self, name_bytes: &[u8]) -> Option<&'sym [u8]> {
+        let sym = self.object.symbol_by_name_bytes(name_bytes)?;
+        self.object
+            .section_by_index(sym.section().index()?)
+            .ok()?
+            .data_range(sym.address(), sym.size())
+            .ok()
+            .flatten()
+    }
 }
