@@ -448,8 +448,6 @@ dependencies = [
  "cargo",
  "cargo_metadata",
  "clap",
- "env_logger",
- "esp-idf-part",
  "espflash",
  "log",
  "miette",
