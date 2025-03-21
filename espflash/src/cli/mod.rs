@@ -1045,6 +1045,23 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
+pub fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
+    let mut args = args.clone();
+    args.no_stub = true;
+    let mut flash = connect(&args, config, true, true)?;
+    info!("Resetting target device");
+    flash.connection().reset()?;
+
+    Ok(())
+}
+
+pub fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
+    connect(&args, config, true, true)?;
+    info!("Holding target device in reset");
+
+    Ok(())
+}
+
 mod test {
     use clap::Parser;
 

@@ -280,23 +280,6 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
-fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
-    let mut args = args.clone();
-    args.no_stub = true;
-    let mut flash = connect(&args, config, true, true)?;
-    info!("Resetting target device");
-    flash.connection().reset()?;
-
-    Ok(())
-}
-
-fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
-    connect(&args, config, true, true)?;
-    info!("Holding target device in reset");
-
-    Ok(())
-}
-
 fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let metadata = PackageMetadata::load(&args.build_args.package)?;
     let cargo_config = CargoConfig::load(&metadata.workspace_root, &metadata.package_root);
