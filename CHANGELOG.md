@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [cargo-espflash]: Add `write-bin` subcommand (#789)
 - Add `--monitor` option to `write-bin`. (#783)
 - Add `watchdog-reset` strategy to `--after` subcommand (#779)
+- Add `ROM` version of `read-flash` command (#812)
 
 ### Changed
 
