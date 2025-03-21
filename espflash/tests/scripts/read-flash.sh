@@ -37,6 +37,12 @@ for len in "${lengths[@]}"; do
     echo "Testing ROM read-flash with length: $len"
     result=$(espflash read-flash --no-stub 0 "$len" flash_content.bin 2>&1)
     echo "$result"
+
+    if ! cmp -s <(echo -ne "$EXPECTED") flash_content.bin; then
+        echo "Verification failed: content does not match expected for length"
+        exit 1
+    fi
+
     if [[ ! $result =~ "Flash content successfully read and written to" ]]; then
         echo "Failed to read $len bytes from flash"
         exit 1
