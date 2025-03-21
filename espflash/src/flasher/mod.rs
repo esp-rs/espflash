@@ -1214,6 +1214,63 @@ impl Flasher {
         Ok(())
     }
 
+    pub fn read_flash_rom(
+        &mut self,
+        offset: u32,
+        size: u32,
+        block_size: u32,
+        max_in_flight: u32,
+        file_path: PathBuf,
+    ) -> Result<(), Error> {
+        // ROM read limit per command
+        const BLOCK_LEN: usize = 64;
+
+        let mut data: Vec<u8> = Vec::new();
+
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(&file_path)?;
+
+        let mut correct_offset = offset;
+
+        while data.len() < size as usize {
+            let block_len = std::cmp::min(BLOCK_LEN, size as usize - data.len());
+
+            correct_offset += data.len() as u32;
+
+            let response = self.connection.with_timeout(
+                CommandType::ReadFlashSlow.timeout(),
+                |connection| {
+                    connection.command(Command::ReadFlashSlow {
+                        offset: correct_offset,
+                        size: block_len as u32,
+                        block_size,
+                        max_in_flight,
+                    })
+                },
+            )?;
+
+            let payload: Vec<u8> = response.try_into()?;
+
+            assert!(payload.len() >= block_len);
+
+            // command always returns 64 byte buffer,
+            // regardless of how many bytes were actually read from flash
+            data.append(&mut payload[..block_len].to_vec());
+        }
+
+        file.write_all(&data)?;
+
+        info!(
+            "Flash content successfully read and written to '{}'!",
+            file_path.display()
+        );
+
+        Ok(())
+    }
+
     pub fn read_flash(
         &mut self,
         offset: u32,

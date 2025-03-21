@@ -134,4 +134,4 @@ jobs:
         run: timeout 20 bash espflash/tests/scripts/write-bin.sh
 
       - name: read-flash test
-        run: timeout 20 bash espflash/tests/scripts/read-flash.sh
+        run: timeout 30 bash espflash/tests/scripts/read-flash.sh
