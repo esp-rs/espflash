@@ -850,19 +850,26 @@ fn erase_partition(flasher: &mut Flasher, part: &Partition) -> Result<()> {
 
 /// Read flash content and write it to a file
 pub fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
-    if args.connect_args.no_stub {
-        return Err(Error::StubRequired.into());
-    }
-
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
-    flasher.read_flash(
-        args.address,
-        args.size,
-        args.block_size,
-        args.max_in_flight,
-        args.file,
-    )?;
+
+    if args.connect_args.no_stub {
+        flasher.read_flash_rom(
+            args.address,
+            args.size,
+            args.block_size,
+            args.max_in_flight,
+            args.file,
+        )?;
+    } else {
+        flasher.read_flash(
+            args.address,
+            args.size,
+            args.block_size,
+            args.max_in_flight,
+            args.file,
+        )?;
+    }
 
     Ok(())
 }

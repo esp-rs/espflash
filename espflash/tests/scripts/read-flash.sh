@@ -33,6 +33,15 @@ for len in "${lengths[@]}"; do
         echo "Verification failed: content does not match expected for length"
         exit 1
     fi
+
+    echo "Testing ROM read-flash with length: $len"
+    result=$(espflash read-flash --no-stub 0 "$len" flash_content.bin 2>&1)
+    echo "$result"
+    if [[ ! $result =~ "Flash content successfully read and written to" ]]; then
+        echo "Failed to read $len bytes from flash"
+        exit 1
+    fi
+
 done
 
 echo "All read-flash tests passed!"
