@@ -181,16 +181,23 @@ impl Connection {
             // Reset the chip to bootloader (download mode)
             reset_strategy.reset(&mut self.serial)?;
 
+            // S2 in USB download mode responds with 0 available bytes here
             let available_bytes = self.serial.bytes_to_read()?;
-            buff = vec![0; available_bytes as usize];
-            let read_bytes = self.serial.read(&mut buff)? as u32;
 
-            if read_bytes != available_bytes {
-                return Err(Error::Connection(ConnectionError::ReadMissmatch(
-                    available_bytes,
-                    read_bytes,
-                )));
-            }
+            buff = vec![0; available_bytes as usize];
+            let read_bytes = if available_bytes > 0 {
+                let read_bytes = self.serial.read(&mut buff)? as u32;
+
+                if read_bytes != available_bytes {
+                    return Err(Error::Connection(ConnectionError::ReadMissmatch(
+                        available_bytes,
+                        read_bytes,
+                    )));
+                }
+                read_bytes
+            } else {
+                0
+            };
 
             let read_slice = String::from_utf8_lossy(&buff[..read_bytes as usize]).into_owned();
 
