@@ -11,6 +11,8 @@ use crate::{
     Error,
 };
 
+pub(crate) const CHIP_ID: u16 = 0;
+
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0x00f0_1d83];
 
 const FLASH_RANGES: &[Range<u32>] = &[
@@ -179,7 +181,7 @@ impl Target for Esp32 {
             0x1000,
             0x1_0000,
             0x3f_0000,
-            0,
+            CHIP_ID,
             FlashFrequency::_40Mhz,
             booloader,
         );

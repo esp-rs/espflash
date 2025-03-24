@@ -126,7 +126,9 @@ impl Chip {
         } else if Esp32s3::has_magic_value(magic) {
             Ok(Chip::Esp32s3)
         } else {
-            Err(Error::ChipDetectError(magic))
+            Err(Error::ChipDetectError(format!(
+                "unrecognized magic value: {magic:#x}"
+            )))
         }
     }
 
@@ -188,6 +190,26 @@ impl Chip {
         max_ram_block_size: usize,
     ) -> Box<dyn FlashTarget> {
         Box::new(RamTarget::new(entry, max_ram_block_size))
+    }
+}
+
+impl TryFrom<u16> for Chip {
+    type Error = Error;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value {
+            esp32::CHIP_ID => Ok(Chip::Esp32),
+            esp32c2::CHIP_ID => Ok(Chip::Esp32c2),
+            esp32c3::CHIP_ID => Ok(Chip::Esp32c3),
+            esp32c6::CHIP_ID => Ok(Chip::Esp32c6),
+            esp32h2::CHIP_ID => Ok(Chip::Esp32h2),
+            esp32p4::CHIP_ID => Ok(Chip::Esp32p4),
+            esp32s2::CHIP_ID => Ok(Chip::Esp32s2),
+            esp32s3::CHIP_ID => Ok(Chip::Esp32s3),
+            _ => Err(Error::ChipDetectError(format!(
+                "unrecognized chip ID: {value}"
+            ))),
+        }
     }
 }
 
