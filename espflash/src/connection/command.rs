@@ -56,6 +56,7 @@ pub enum CommandType {
     EraseFlash = 0xD0,
     EraseRegion = 0xD1,
     ReadFlash = 0xD2,
+    ReadFlashSlow = 0x0E, // ROM only, much slower than the stub read_flash
     RunUserCode = 0xD3,
     // Flash encryption debug mode supported command
     FlashEncryptedData = 0xD4,
@@ -189,6 +190,12 @@ pub enum Command<'a> {
         block_size: u32,
         max_in_flight: u32,
     },
+    ReadFlashSlow {
+        offset: u32,
+        size: u32,
+        block_size: u32,
+        max_in_flight: u32,
+    },
     RunUserCode,
     FlashDetect,
     GetSecurityInfo,
@@ -218,6 +225,7 @@ impl Command<'_> {
             Command::EraseFlash { .. } => CommandType::EraseFlash,
             Command::EraseRegion { .. } => CommandType::EraseRegion,
             Command::ReadFlash { .. } => CommandType::ReadFlash,
+            Command::ReadFlashSlow { .. } => CommandType::ReadFlashSlow,
             Command::RunUserCode { .. } => CommandType::RunUserCode,
             Command::FlashDetect => CommandType::FlashDetect,
             Command::GetSecurityInfo => CommandType::GetSecurityInfo,
@@ -402,6 +410,22 @@ impl Command<'_> {
                 writer.write_all(&size.to_le_bytes())?;
             }
             Command::ReadFlash {
+                offset,
+                size,
+                block_size,
+                max_in_flight,
+            } => {
+                // length
+                writer.write_all(&(16u16.to_le_bytes()))?;
+                // checksum
+                writer.write_all(&(0u32.to_le_bytes()))?;
+                // data
+                writer.write_all(&offset.to_le_bytes())?;
+                writer.write_all(&size.to_le_bytes())?;
+                writer.write_all(&block_size.to_le_bytes())?;
+                writer.write_all(&(max_in_flight.to_le_bytes()))?;
+            }
+            Command::ReadFlashSlow {
                 offset,
                 size,
                 block_size,
