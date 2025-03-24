@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `address` and `size` in `erase-region` have to be multiples of 4096 (#771)
 - Fixed typos in error variant names (#782)
 - Fix `read-flash` which didn't work with some lengths (#804)
+- espflash can now flash an ESP32-S2 in download mode over USB (#813)
 
 ### Removed
 
