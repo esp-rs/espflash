@@ -41,7 +41,7 @@ pub mod external_processors;
 pub mod parser;
 
 mod line_endings;
-mod symbols;
+pub(crate) mod symbols;
 
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames)]

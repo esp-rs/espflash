@@ -18,7 +18,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::Args;
+use clap::{Args, ValueEnum};
 use clap_complete::Shell;
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
@@ -34,6 +34,7 @@ use self::{
     serial::get_serial_port_info,
 };
 use crate::{
+    cli::monitor::symbols::Symbols,
     connection::reset::{ResetAfterOperation, ResetBeforeOperation},
     error::{ElfError, Error, MissingPartition, MissingPartitionTable},
     flasher::{
@@ -581,6 +582,9 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     };
 
     let chip = flasher.chip();
+
+    ensure_chip_compatibility(chip, elf.as_deref())?;
+
     let target = chip.into_target();
 
     let mut monitor_args = args.monitor_args;
@@ -1074,6 +1078,35 @@ pub fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
     info!("Holding target device in reset");
 
     Ok(())
+}
+
+pub fn ensure_chip_compatibility(chip: Chip, elf: Option<&[u8]>) -> Result<()> {
+    let Some(elf) = elf else {
+        // No elf given, assume compatible
+        return Ok(());
+    };
+
+    let Ok(symbols) = Symbols::try_from(elf) else {
+        // No symbols found, assume compatible
+        return Ok(());
+    };
+
+    let Some(chip_bytes) =
+        symbols.get_symbol_data(Some(".espressif.metadata"), b"build_info.CHIP_NAME")
+    else {
+        // No chip name in the ELF, assume compatible
+        return Ok(());
+    };
+
+    let elf_chip = String::from_utf8_lossy(chip_bytes).to_lowercase();
+    match Chip::from_str(&elf_chip, false) {
+        Ok(elf_chip) if chip == elf_chip => Ok(()),
+        _ => Err(Error::FirmwareChipMismatch {
+            elf: elf_chip,
+            detected: chip,
+        })
+        .into_diagnostic(),
+    }
 }
 
 mod test {

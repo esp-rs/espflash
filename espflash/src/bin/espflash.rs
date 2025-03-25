@@ -226,6 +226,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let elf_data = fs::read(&args.image).into_diagnostic()?;
 
     print_board_info(&mut flasher)?;
+    ensure_chip_compatibility(chip, Some(elf_data.as_slice()))?;
 
     let mut flash_config = args.flash_config_args;
     flash_config.flash_size = flash_config
