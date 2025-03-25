@@ -221,6 +221,13 @@ pub enum Error {
         help("`address` and `size` must be multiples of 0x1000 (4096)")
     )]
     InvalidEraseRegionArgument { address: u32, size: u32 },
+
+    #[error("The firmware was built for {elf}, but the detected chip is {detected}")]
+    #[diagnostic(
+        code(espflash::chip_mismatch),
+        help("Ensure that the device is connected and your host recognizes the serial adapter")
+    )]
+    FirmwareChipMismatch { elf: String, detected: Chip },
 }
 
 #[cfg(feature = "serialport")]

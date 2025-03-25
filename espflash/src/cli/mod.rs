@@ -18,7 +18,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::Args;
+use clap::{Args, ValueEnum};
 use clap_complete::Shell;
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
@@ -44,6 +44,7 @@ use crate::{
         ProgressCallbacks,
         FLASH_SECTOR_SIZE,
     },
+    image_format::Metadata,
     targets::{Chip, XtalFrequency},
 };
 
@@ -579,6 +580,9 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     };
 
     let chip = flasher.chip();
+
+    ensure_chip_compatibility(chip, elf.as_deref())?;
+
     let target = chip.into_target();
 
     let mut monitor_args = args.monitor_args;
@@ -1023,7 +1027,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     }
     let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
     f.read_to_end(&mut buffer).into_diagnostic()?;
-    buffer.extend(std::iter::repeat(0xFF).take(padded_bytes as usize));
+    buffer.extend(std::iter::repeat_n(0xFF, padded_bytes as usize));
 
     flasher.write_bin_to_flash(
         args.address,
@@ -1064,6 +1068,23 @@ pub fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
     info!("Holding target device in reset");
 
     Ok(())
+}
+
+pub fn ensure_chip_compatibility(chip: Chip, elf: Option<&[u8]>) -> Result<()> {
+    let metadata = Metadata::from_bytes(elf);
+    let Some(elf_chip) = metadata.chip_name() else {
+        // No chip name in the ELF, assume compatible
+        return Ok(());
+    };
+
+    match Chip::from_str(elf_chip, false) {
+        Ok(elf_chip) if chip == elf_chip => Ok(()),
+        _ => Err(Error::FirmwareChipMismatch {
+            elf: elf_chip.to_string(),
+            detected: chip,
+        })
+        .into_diagnostic(),
+    }
 }
 
 mod test {

@@ -28,20 +28,18 @@ use strum::{Display, EnumIter, EnumString, VariantNames};
 
 use crate::{
     cli::{
-        monitor::{
-            parser::{InputParser, ResolvingPrinter},
-            symbols::Symbols,
-        },
+        monitor::parser::{InputParser, ResolvingPrinter},
         MonitorConfigArgs,
     },
     connection::{reset::reset_after_flash, Port},
+    image_format::Metadata,
 };
 
 pub mod external_processors;
 pub mod parser;
 
 mod line_endings;
-mod symbols;
+pub(crate) mod symbols;
 
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames)]
@@ -192,28 +190,16 @@ fn key_event() -> std::io::Result<Option<KeyEvent>> {
 }
 
 fn deduce_log_format(elf: Option<&[u8]>) -> LogFormat {
-    let Some(elf) = elf else {
+    let metadata = Metadata::from_bytes(elf);
+    let Some(log_format) = metadata.log_format() else {
         return LogFormat::Serial;
     };
 
-    let Ok(symbols) = Symbols::try_from(elf) else {
-        return LogFormat::Serial;
-    };
-
-    let Some(format_symbol) =
-        symbols.symbol_data(Some(".espressif.metadata"), b"espflash.LOG_FORMAT")
-    else {
-        return LogFormat::Serial;
-    };
-
-    match format_symbol {
-        b"defmt-espflash" => LogFormat::Defmt,
-        b"serial" => LogFormat::Serial,
+    match log_format {
+        "defmt-espflash" => LogFormat::Defmt,
+        "serial" => LogFormat::Serial,
         other => {
-            warn!(
-                "Unknown log format symbol: {}. Defaulting to serial.",
-                String::from_utf8_lossy(other),
-            );
+            warn!("Unknown log format symbol: {other}. Defaulting to serial.");
             LogFormat::Serial
         }
     }
