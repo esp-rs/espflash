@@ -279,9 +279,16 @@ pub struct MonitorConfigArgs {
     /// Avoids restarting the device before monitoring
     #[arg(long, requires = "non_interactive")]
     no_reset: bool,
-    /// Logging format.
+    /// The encoding of the target's serial output.
     #[arg(long, short = 'L')]
     log_format: Option<LogFormat>,
+    /// The format of the printed defmt messages.
+    ///
+    /// You can also use one of two presets: oneline (default) and full.
+    ///
+    /// See <https://defmt.ferrous-systems.com/custom-log-output>
+    #[arg(long, short = 'F')]
+    output_format: Option<String>,
     /// External log processors to use (comma separated executables)
     #[arg(long)]
     processors: Option<String>,
