@@ -1,8 +1,13 @@
 use std::io::Write;
 
 use crossterm::{style::Print, QueueableCommand};
-use defmt_decoder::{Frame, Table};
-use miette::{bail, Context, Diagnostic, Result};
+use defmt_decoder::{
+    log::format::{Formatter, FormatterConfig},
+    Frame,
+    Table,
+};
+use log::warn;
+use miette::{bail, ensure, Context, Diagnostic, Result};
 use thiserror::Error;
 
 use crate::cli::monitor::parser::InputParser;
@@ -22,8 +27,12 @@ pub enum DefmtError {
     NoDefmtData,
 
     #[error("Failed to parse defmt data")]
-    #[diagnostic(code(espflash::monitor::defmt::parse_failed))]
+    #[diagnostic(code(espflash::monitor::defmt::table_parse_failed))]
     TableParseFailed,
+
+    #[error("Failed to parse defmt location data")]
+    #[diagnostic(code(espflash::monitor::defmt::location_parse_failed))]
+    LocationDataParseFailed,
 
     #[error("Unsupported defmt encoding: {0:?}. Only rzcobs is supported.")]
     #[diagnostic(code(espflash::monitor::defmt::unsupported_encoding))]
@@ -101,16 +110,16 @@ impl FrameDelimiter {
     }
 }
 
-#[derive(Debug)]
-pub struct EspDefmt {
-    delimiter: FrameDelimiter,
+struct DefmtData {
     table: Table,
+    locs: Option<defmt_decoder::Locations>,
+    formatter: Formatter,
 }
 
-impl EspDefmt {
+impl DefmtData {
     /// Loads symbols from the ELF file (if provided) and initializes the
     /// context.
-    fn load_table(elf: Option<&[u8]>) -> Result<Table> {
+    fn load(elf: Option<&[u8]>) -> Result<Self> {
         let Some(elf) = elf else {
             bail!(DefmtError::NoElf);
         };
@@ -125,25 +134,33 @@ impl EspDefmt {
 
         // We only support rzcobs encoding because it is the only way to multiplex
         // a defmt stream and an ASCII log stream over the same serial port.
-        if encoding == defmt_decoder::Encoding::Rzcobs {
-            Ok(table)
-        } else {
-            bail!(DefmtError::UnsupportedEncoding(encoding))
-        }
-    }
+        ensure!(
+            encoding == defmt_decoder::Encoding::Rzcobs,
+            DefmtError::UnsupportedEncoding(encoding)
+        );
 
-    pub fn new(elf: Option<&[u8]>, _output_format: Option<String>) -> Result<Self> {
-        Self::load_table(elf).map(|table| Self {
-            delimiter: FrameDelimiter::new(),
+        let locs = table
+            .get_locations(elf)
+            .map_err(|_e| DefmtError::LocationDataParseFailed)?;
+
+        let locs = if !table.is_empty() && locs.is_empty() {
+            warn!("Insufficient DWARF info; compile your program with `debug = 2` to enable location info.");
+            None
+        } else if table.indices().all(|idx| locs.contains_key(&(idx as u64))) {
+            Some(locs)
+        } else {
+            warn!("Location info is incomplete; it will be omitted from the output.");
+            None
+        };
+
+        Ok(Self {
             table,
+            locs,
+            formatter: Formatter::new(FormatterConfig::default()),
         })
     }
 
-    fn handle_raw(bytes: &[u8], out: &mut dyn Write) {
-        out.write_all(bytes).unwrap();
-    }
-
-    fn handle_defmt(frame: Frame<'_>, out: &mut dyn Write) {
+    fn print(&self, frame: Frame<'_>, out: &mut dyn Write) {
         out.queue(Print(frame.display(true).to_string())).unwrap();
         out.queue(Print("\r\n")).unwrap();
 
@@ -151,9 +168,29 @@ impl EspDefmt {
     }
 }
 
+pub struct EspDefmt {
+    delimiter: FrameDelimiter,
+    defmt_data: DefmtData,
+}
+
+impl std::fmt::Debug for EspDefmt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EspDefmt").finish()
+    }
+}
+
+impl EspDefmt {
+    pub fn new(elf: Option<&[u8]>, _output_format: Option<String>) -> Result<Self> {
+        DefmtData::load(elf).map(|defmt_data| Self {
+            delimiter: FrameDelimiter::new(),
+            defmt_data,
+        })
+    }
+}
+
 impl InputParser for EspDefmt {
     fn feed(&mut self, bytes: &[u8], out: &mut dyn Write) {
-        let mut decoder = self.table.new_stream_decoder();
+        let mut decoder = self.defmt_data.table.new_stream_decoder();
 
         self.delimiter.feed(bytes, |frame| match frame {
             FrameKind::Defmt(frame) => {
@@ -162,12 +199,12 @@ impl InputParser for EspDefmt {
                 decoder.received(FRAME_END);
 
                 if let Ok(frame) = decoder.decode() {
-                    Self::handle_defmt(frame, out);
+                    self.defmt_data.print(frame, out);
                 } else {
                     log::warn!("Failed to decode defmt frame");
                 }
             }
-            FrameKind::Raw(bytes) => Self::handle_raw(bytes, out),
+            FrameKind::Raw(bytes) => out.write_all(bytes).unwrap(),
         });
     }
 }
