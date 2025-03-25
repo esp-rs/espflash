@@ -132,7 +132,7 @@ impl EspDefmt {
         }
     }
 
-    pub fn new(elf: Option<&[u8]>) -> Result<Self> {
+    pub fn new(elf: Option<&[u8]>, _output_format: Option<String>) -> Result<Self> {
         Self::load_table(elf).map(|table| Self {
             delimiter: FrameDelimiter::new(),
             table,

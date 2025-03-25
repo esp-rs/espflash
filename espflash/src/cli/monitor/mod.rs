@@ -109,8 +109,16 @@ pub fn monitor(
         .log_format
         .unwrap_or_else(|| deduce_log_format(elf))
     {
-        LogFormat::Defmt => Box::new(parser::esp_defmt::EspDefmt::new(elf)?),
-        LogFormat::Serial => Box::new(parser::serial::Serial),
+        LogFormat::Defmt => Box::new(parser::esp_defmt::EspDefmt::new(
+            elf,
+            monitor_args.output_format,
+        )?),
+        LogFormat::Serial => {
+            if monitor_args.output_format.is_some() {
+                warn!("Output format specified but log format is serial. Ignoring output format.");
+            }
+            Box::new(parser::serial::Serial)
+        }
     };
 
     let mut external_processors =
