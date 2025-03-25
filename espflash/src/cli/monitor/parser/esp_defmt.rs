@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crossterm::{style::Print, QueueableCommand};
 use defmt_decoder::{
-    log::format::{Formatter, FormatterConfig},
+    log::format::{Formatter, FormatterConfig, FormatterFormat},
     Frame,
     Table,
 };
@@ -119,7 +119,7 @@ struct DefmtData {
 impl DefmtData {
     /// Loads symbols from the ELF file (if provided) and initializes the
     /// context.
-    fn load(elf: Option<&[u8]>) -> Result<Self> {
+    fn load(elf: Option<&[u8]>, output_format: Option<String>) -> Result<Self> {
         let Some(elf) = elf else {
             bail!(DefmtError::NoElf);
         };
@@ -153,15 +153,45 @@ impl DefmtData {
             None
         };
 
+        let show_location = locs.is_some();
+        let has_timestamp = table.has_timestamp();
+
+        let format = match output_format.as_deref() {
+            None | Some("oneline") => FormatterFormat::OneLine {
+                with_location: show_location,
+            },
+            Some("full") => FormatterFormat::Default {
+                with_location: show_location,
+            },
+            Some(format) => FormatterFormat::Custom(format),
+        };
+
         Ok(Self {
             table,
             locs,
-            formatter: Formatter::new(FormatterConfig::default()),
+            formatter: Formatter::new(FormatterConfig {
+                format,
+                is_timestamp_available: has_timestamp,
+            }),
         })
     }
 
     fn print(&self, frame: Frame<'_>, out: &mut dyn Write) {
-        out.queue(Print(frame.display(true).to_string())).unwrap();
+        let loc = self.locs.as_ref().and_then(|locs| locs.get(&frame.index()));
+        let (file, line, module) = if let Some(loc) = loc {
+            (
+                Some(loc.file.display().to_string()),
+                Some(loc.line.try_into().unwrap()),
+                Some(loc.module.as_str()),
+            )
+        } else {
+            (None, None, None)
+        };
+        let s = self
+            .formatter
+            .format_frame(frame, file.as_deref(), line, module);
+
+        out.queue(Print(s)).unwrap();
         out.queue(Print("\r\n")).unwrap();
 
         out.flush().unwrap();
@@ -180,8 +210,8 @@ impl std::fmt::Debug for EspDefmt {
 }
 
 impl EspDefmt {
-    pub fn new(elf: Option<&[u8]>, _output_format: Option<String>) -> Result<Self> {
-        DefmtData::load(elf).map(|defmt_data| Self {
+    pub fn new(elf: Option<&[u8]>, output_format: Option<String>) -> Result<Self> {
+        DefmtData::load(elf, output_format).map(|defmt_data| Self {
             delimiter: FrameDelimiter::new(),
             defmt_data,
         })

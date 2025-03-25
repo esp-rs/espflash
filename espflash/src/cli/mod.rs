@@ -283,6 +283,10 @@ pub struct MonitorConfigArgs {
     #[arg(long, short = 'L')]
     log_format: Option<LogFormat>,
     /// The format of the printed defmt messages.
+    ///
+    /// You can also use one of two presets: oneline (default) and full.
+    ///
+    /// See <https://defmt.ferrous-systems.com/custom-log-output>
     #[arg(long, short = 'F')]
     output_format: Option<String>,
     /// External log processors to use (comma separated executables)
