@@ -80,12 +80,12 @@ pub fn monitor(
     pid: u16,
     monitor_args: MonitorConfigArgs,
 ) -> miette::Result<()> {
-    if !monitor_args.non_interactive {
-        println!("Commands:");
-        println!("    CTRL+R    Reset chip");
-        println!("    CTRL+C    Exit");
-        println!();
-    } else if !monitor_args.no_reset {
+    println!("Commands:");
+    println!("    CTRL+R    Reset chip");
+    println!("    CTRL+C    Exit");
+    println!();
+
+    if monitor_args.non_interactive && !monitor_args.no_reset {
         reset_after_flash(&mut serial, pid).into_diagnostic()?;
     }
 
@@ -131,30 +131,56 @@ pub fn monitor(
         // Don't forget to flush the writer!
         stdout.flush().ok();
 
-        if !monitor_args.non_interactive && poll(Duration::from_secs(0)).into_diagnostic()? {
-            if let Event::Key(key) = read().into_diagnostic()? {
-                if key.kind == KeyEventKind::Press {
-                    if key.modifiers.contains(KeyModifiers::CONTROL) {
-                        match key.code {
-                            KeyCode::Char('c') => break,
-                            KeyCode::Char('r') => {
-                                reset_after_flash(&mut serial, pid).into_diagnostic()?;
-                                continue;
-                            }
-                            _ => {}
-                        }
-                    }
-
-                    if let Some(bytes) = handle_key_event(key) {
-                        serial.write_all(&bytes).into_diagnostic()?;
-                        serial.flush().into_diagnostic()?;
-                    }
-                }
-            }
+        if !handle_user_input(&mut serial, pid, monitor_args.non_interactive)? {
+            break;
         }
     }
 
     Ok(())
+}
+
+/// Handle user input from the terminal.
+///
+/// Returns `true` if the program should continue running, `false` if it should
+/// exit.
+fn handle_user_input(serial: &mut Port, pid: u16, non_interactive: bool) -> Result<bool> {
+    let key = match key_event().into_diagnostic() {
+        Ok(Some(event)) => event,
+        Ok(None) => return Ok(true),
+        Err(_) if non_interactive => return Ok(true),
+        Err(err) => return Err(err),
+    };
+
+    if key.kind == KeyEventKind::Press {
+        if key.modifiers.contains(KeyModifiers::CONTROL) {
+            match key.code {
+                KeyCode::Char('c') => return Ok(false),
+                KeyCode::Char('r') => {
+                    reset_after_flash(serial, pid).into_diagnostic()?;
+                    return Ok(true);
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(bytes) = handle_key_event(key) {
+            serial.write_all(&bytes).into_diagnostic()?;
+            serial.flush().into_diagnostic()?;
+        }
+    }
+
+    Ok(true)
+}
+
+fn key_event() -> std::io::Result<Option<KeyEvent>> {
+    if !poll(Duration::ZERO)? {
+        return Ok(None);
+    }
+
+    match read()? {
+        Event::Key(key) => Ok(Some(key)),
+        _ => Ok(None),
+    }
 }
 
 fn deduce_log_format(elf: Option<&[u8]>) -> LogFormat {
