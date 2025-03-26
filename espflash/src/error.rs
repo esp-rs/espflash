@@ -31,14 +31,14 @@ pub enum Error {
     #[diagnostic(code(espflash::cancelled))]
     Cancelled,
 
-    #[error("Unrecognized magic value: {0:#x}")]
+    #[error("{0}")]
     #[diagnostic(
         code(espflash::chip_detect_error),
         help("Supported chips are: {}\n\
               If your chip is supported, try hard-resetting the device and try again",
              Chip::VARIANTS.join(", "))
     )]
-    ChipDetectError(u32),
+    ChipDetectError(String),
 
     #[error("Chip provided with `-c/--chip` ({0}) does not match the detected chip ({1})")]
     #[diagnostic(

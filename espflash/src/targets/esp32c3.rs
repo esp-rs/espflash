@@ -11,6 +11,8 @@ use crate::{
     Error,
 };
 
+pub(crate) const CHIP_ID: u16 = 5;
+
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
     0x6921_506f, // ECO1 + ECO2
     0x1b31_506f, // ECO3
@@ -27,7 +29,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
     0x0,
     0x1_0000,
     0x3f_0000,
-    5,
+    CHIP_ID,
     FlashFrequency::_40Mhz,
     include_bytes!("../../resources/bootloaders/esp32c3-bootloader.bin"),
 );

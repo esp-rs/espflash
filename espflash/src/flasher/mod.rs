@@ -676,8 +676,7 @@ impl Flasher {
 
         let detected_chip = if before_operation != ResetBeforeOperation::NoResetNoSync {
             // Detect which chip we are connected to.
-            let magic = connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
-            let detected_chip = Chip::from_magic(magic)?;
+            let detected_chip = detect_chip(&mut connection, use_stub)?;
             if let Some(chip) = chip {
                 if chip != detected_chip {
                     return Err(Error::ChipMismatch(
@@ -686,6 +685,7 @@ impl Flasher {
                     ));
                 }
             }
+
             detected_chip
         } else if before_operation == ResetBeforeOperation::NoResetNoSync && chip.is_some() {
             chip.unwrap()
@@ -792,8 +792,7 @@ impl Flasher {
         }?;
 
         // Re-detect chip to check stub is up
-        let magic = self.connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
-        let chip = Chip::from_magic(magic)?;
+        let chip = detect_chip(&mut self.connection, self.use_stub)?;
         debug!("Re-detected chip: {:?}", chip);
 
         Ok(())
@@ -1126,25 +1125,7 @@ impl Flasher {
 
     /// Get security info
     pub fn get_security_info(&mut self) -> Result<SecurityInfo, Error> {
-        self.connection
-            .with_timeout(CommandType::GetSecurityInfo.timeout(), |connection| {
-                let response = connection.command(Command::GetSecurityInfo)?;
-                // Extract raw bytes and convert them into `SecurityInfo`
-                if let crate::connection::CommandResponseValue::Vector(data) = response {
-                    // HACK: Not quite sure why there seem to be 4 extra bytes at the end of the
-                    //       response when the stub is not being used...
-                    let end = if self.use_stub {
-                        data.len()
-                    } else {
-                        data.len() - 4
-                    };
-                    SecurityInfo::try_from(&data[..end])
-                } else {
-                    Err(Error::InvalidResponse(
-                        "response was not a vector of bytes".into(),
-                    ))
-                }
-            })
+        get_security_info(&mut self.connection, self.use_stub)
     }
 
     pub fn change_baud(&mut self, speed: u32) -> Result<(), Error> {
@@ -1365,5 +1346,41 @@ impl Flasher {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(feature = "serialport")]
+fn get_security_info(connection: &mut Connection, use_stub: bool) -> Result<SecurityInfo, Error> {
+    connection.with_timeout(CommandType::GetSecurityInfo.timeout(), |connection| {
+        let response = connection.command(Command::GetSecurityInfo)?;
+        // Extract raw bytes and convert them into `SecurityInfo`
+        if let crate::connection::CommandResponseValue::Vector(data) = response {
+            // HACK: Not quite sure why there seem to be 4 extra bytes at the end of the
+            //       response when the stub is not being used...
+            let end = if use_stub { data.len() } else { data.len() - 4 };
+            SecurityInfo::try_from(&data[..end])
+        } else {
+            Err(Error::InvalidResponse(
+                "response was not a vector of bytes".into(),
+            ))
+        }
+    })
+}
+
+#[cfg(feature = "serialport")]
+fn detect_chip(connection: &mut Connection, use_stub: bool) -> Result<Chip, Error> {
+    match get_security_info(connection, use_stub) {
+        Ok(info) if info.chip_id.is_some() => {
+            let chip_id = info.chip_id.unwrap() as u16;
+            let chip = Chip::try_from(chip_id)?;
+
+            Ok(chip)
+        }
+        _ => {
+            let magic = connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
+            let chip = Chip::from_magic(magic)?;
+
+            Ok(chip)
+        }
     }
 }

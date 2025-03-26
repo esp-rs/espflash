@@ -12,6 +12,8 @@ use crate::{
     Error,
 };
 
+pub(crate) const CHIP_ID: u16 = 12;
+
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[
     0x6f51_306f, // ECO0
     0x7c41_a06f, // ECO1
@@ -116,7 +118,7 @@ impl Target for Esp32c2 {
             0x0,
             0x1_0000,
             0x1f_0000,
-            12,
+            CHIP_ID,
             FlashFrequency::_30Mhz,
             booloader,
         );

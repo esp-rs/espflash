@@ -11,6 +11,8 @@ use crate::{
     Error,
 };
 
+pub(crate) const CHIP_ID: u16 = 16;
+
 const CHIP_DETECT_MAGIC_VALUES: &[u32] = &[0xD7B7_3E80];
 
 const FLASH_RANGES: &[Range<u32>] = &[
@@ -22,7 +24,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
     0x0,
     0x1_0000,
     0x3f_0000,
-    16,
+    CHIP_ID,
     FlashFrequency::_24Mhz,
     include_bytes!("../../resources/bootloaders/esp32h2-bootloader.bin"),
 );
