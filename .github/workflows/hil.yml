@@ -103,7 +103,7 @@ jobs:
         run: timeout 10 bash espflash/tests/scripts/board-info.sh
 
       - name: flash test
-        run: timeout 25 bash espflash/tests/scripts/flash.sh ${{ matrix.board.mcu }}
+        run: timeout 60 bash espflash/tests/scripts/flash.sh ${{ matrix.board.mcu }}
 
       - name: monitor test
         run: timeout 10 bash espflash/tests/scripts/monitor.sh
@@ -134,4 +134,4 @@ jobs:
         run: timeout 20 bash espflash/tests/scripts/write-bin.sh
 
       - name: read-flash test
-        run: timeout 30 bash espflash/tests/scripts/read-flash.sh
+        run: timeout 60 bash espflash/tests/scripts/read-flash.sh

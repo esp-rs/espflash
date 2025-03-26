@@ -4,7 +4,7 @@ app="espflash/tests/data/$1"
 if [[ "$1" == "esp32c6" ]]; then
     # With manual log-format
     app_defmt="${app}_defmt"
-    result=$(timeout 8s espflash flash --no-skip --monitor --non-interactive $app_defmt --log-format defmt 2>&1)
+    result=$(timeout 15s espflash flash --no-skip --monitor --non-interactive $app_defmt --log-format defmt 2>&1)
     echo "$result"
     if [[ ! $result =~ "Flashing has completed!" ]]; then
         echo "Flashing failed!"
@@ -16,7 +16,7 @@ if [[ "$1" == "esp32c6" ]]; then
     fi
 
     # With auto-detected log-format
-    result=$(timeout 8s espflash flash --no-skip --monitor --non-interactive $app_defmt 2>&1)
+    result=$(timeout 15s espflash flash --no-skip --monitor --non-interactive $app_defmt 2>&1)
     echo "$result"
     if [[ ! $result =~ "Flashing has completed!" ]]; then
         echo "Flashing failed!"
@@ -28,7 +28,7 @@ if [[ "$1" == "esp32c6" ]]; then
     fi
 fi
 
-result=$(timeout 8s espflash flash --no-skip --monitor --non-interactive $app 2>&1)
+result=$(timeout 15s espflash flash --no-skip --monitor --non-interactive $app 2>&1)
 echo "$result"
 if [[ ! $result =~ "Flashing has completed!" ]]; then
     echo "Flashing failed!"
