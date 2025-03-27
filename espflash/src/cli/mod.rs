@@ -1037,7 +1037,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     }
     let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
     f.read_to_end(&mut buffer).into_diagnostic()?;
-    buffer.extend(std::iter::repeat(0xFF).take(padded_bytes as usize));
+    buffer.extend(std::iter::repeat_n(0xFF, padded_bytes as usize));
 
     flasher.write_bin_to_flash(
         args.address,
@@ -1087,7 +1087,7 @@ pub fn ensure_chip_compatibility(chip: Chip, elf: Option<&[u8]>) -> Result<()> {
         return Ok(());
     };
 
-    match Chip::from_str(&elf_chip, false) {
+    match Chip::from_str(elf_chip, false) {
         Ok(elf_chip) if chip == elf_chip => Ok(()),
         _ => Err(Error::FirmwareChipMismatch {
             elf: elf_chip.to_string(),
