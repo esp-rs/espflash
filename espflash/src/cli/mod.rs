@@ -34,7 +34,6 @@ use self::{
     serial::get_serial_port_info,
 };
 use crate::{
-    cli::monitor::symbols::Symbols,
     connection::reset::{ResetAfterOperation, ResetBeforeOperation},
     error::{ElfError, Error, MissingPartition, MissingPartitionTable},
     flasher::{
@@ -47,6 +46,7 @@ use crate::{
         ProgressCallbacks,
         FLASH_SECTOR_SIZE,
     },
+    image_format::Metadata,
     targets::{Chip, XtalFrequency},
 };
 
@@ -1081,28 +1081,16 @@ pub fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
 }
 
 pub fn ensure_chip_compatibility(chip: Chip, elf: Option<&[u8]>) -> Result<()> {
-    let Some(elf) = elf else {
-        // No elf given, assume compatible
-        return Ok(());
-    };
-
-    let Ok(symbols) = Symbols::try_from(elf) else {
-        // No symbols found, assume compatible
-        return Ok(());
-    };
-
-    let Some(chip_bytes) =
-        symbols.get_symbol_data(Some(".espressif.metadata"), b"build_info.CHIP_NAME")
-    else {
+    let metadata = Metadata::from_bytes(elf);
+    let Some(elf_chip) = metadata.chip_name() else {
         // No chip name in the ELF, assume compatible
         return Ok(());
     };
 
-    let elf_chip = String::from_utf8_lossy(chip_bytes).to_lowercase();
     match Chip::from_str(&elf_chip, false) {
         Ok(elf_chip) if chip == elf_chip => Ok(()),
         _ => Err(Error::FirmwareChipMismatch {
-            elf: elf_chip,
+            elf: elf_chip.to_string(),
             detected: chip,
         })
         .into_diagnostic(),
