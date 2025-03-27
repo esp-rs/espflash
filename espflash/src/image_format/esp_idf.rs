@@ -4,7 +4,6 @@ use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
 
 use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
-use log::debug;
 use sha2::{Digest, Sha256};
 use xmas_elf::ElfFile;
 
@@ -181,10 +180,10 @@ impl<'a> IdfBootloaderFormat<'a> {
         let mut hasher = Sha256::new();
         hasher.update(&bootloader[..bootloader_sha_start]);
         let hash = hasher.finalize();
-        debug!(
+        log::debug!(
             "Updating bootloader SHA256 from {} to {}",
-            hex::encode(&bootloader[bootloader_sha_start..bootloader_sha_end]),
-            hex::encode(hash)
+            encode_hex(&bootloader[bootloader_sha_start..bootloader_sha_end]),
+            encode_hex(hash)
         );
         bootloader.to_mut()[bootloader_sha_start..bootloader_sha_end].copy_from_slice(&hash);
 
@@ -481,6 +480,21 @@ fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
     checksum
 }
 
+fn encode_hex<T>(data: T) -> String
+where
+    T: AsRef<[u8]>,
+{
+    const HEX_CHARS: &[u8] = b"0123456789abcdef";
+
+    let mut s = String::new();
+    for byte in data.as_ref() {
+        s.push(HEX_CHARS[(byte >> 4) as usize] as char);
+        s.push(HEX_CHARS[(byte & 0x0F) as usize] as char);
+    }
+
+    s
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -497,5 +511,14 @@ mod tests {
             .write_flash_config(FlashSize::_32Mb, FlashFrequency::_80Mhz, Chip::Esp32s3)
             .unwrap();
         assert_eq!(header.flash_config, 0x5F);
+    }
+
+    #[test]
+    fn test_encode_hex() {
+        assert_eq!(encode_hex(&[0u8]), "00");
+        assert_eq!(encode_hex(&[10u8]), "0a");
+        assert_eq!(encode_hex(&[255u8]), "ff");
+
+        assert_eq!(encode_hex(&[222u8, 202, 251, 173]), "decafbad");
     }
 }

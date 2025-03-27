@@ -32,31 +32,32 @@ pub struct Connection {
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct UsbDevice {
     /// USB Vendor ID
-    #[serde(serialize_with = "parse_u16_hex", deserialize_with = "parse_hex_u16")]
+    #[serde(
+        serialize_with = "serialize_u16_to_hex",
+        deserialize_with = "deserialize_hex_to_u16"
+    )]
     pub vid: u16,
     /// USB Product ID
-    #[serde(serialize_with = "parse_u16_hex", deserialize_with = "parse_hex_u16")]
+    #[serde(
+        serialize_with = "serialize_u16_to_hex",
+        deserialize_with = "deserialize_hex_to_u16"
+    )]
     pub pid: u16,
 }
 
-fn parse_hex_u16<'de, D>(deserializer: D) -> Result<u16, D::Error>
+fn deserialize_hex_to_u16<'de, D>(deserializer: D) -> Result<u16, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
-    let s = String::deserialize(deserializer)?;
-    let bytes = hex::decode(if s.len() % 2 == 1 {
-        format!("0{}", s)
-    } else {
-        s
-    })
-    .map_err(serde::de::Error::custom)?;
-    let padding = vec![0; 2_usize.saturating_sub(bytes.len())];
-    let vec = [&padding[..], &bytes[..]].concat();
-    let decimal = u16::from_be_bytes(vec.try_into().unwrap());
-    Ok(decimal)
+    let hex = String::deserialize(deserializer)?.to_lowercase();
+    let hex = hex.trim_start_matches("0x");
+
+    let int = u16::from_str_radix(hex, 16).map_err(serde::de::Error::custom)?;
+
+    Ok(int)
 }
 
-fn parse_u16_hex<S>(decimal: &u16, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_u16_to_hex<S>(decimal: &u16, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -172,12 +173,15 @@ mod tests {
 
     #[derive(Debug, Deserialize, Serialize)]
     struct TestData {
-        #[serde(serialize_with = "parse_u16_hex", deserialize_with = "parse_hex_u16")]
+        #[serde(
+            serialize_with = "serialize_u16_to_hex",
+            deserialize_with = "deserialize_hex_to_u16"
+        )]
         value: u16,
     }
 
     #[test]
-    fn test_parse_hex_u16() {
+    fn test_deserialize_hex_to_u16() {
         // Test no padding
         let result: Result<TestData, _> = toml::from_str(r#"value = "aaaa""#);
         assert_eq!(result.unwrap().value, 0xaaaa);
@@ -208,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_u16_hex() {
+    fn test_serialize_u16_to_hex() {
         // Valid hexadecimal input with 1 digit
         let result: Result<TestData, _> = toml::from_str(r#"value = "1""#);
         assert_eq!(result.unwrap().value, 0x1);
