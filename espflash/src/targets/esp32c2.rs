@@ -1,7 +1,7 @@
 use std::{collections::HashMap, ops::Range};
 
 use log::debug;
-use xmas_elf::ElfFile;
+use object::read::elf::ElfFile32 as ElfFile;
 
 #[cfg(feature = "serialport")]
 use crate::{connection::Connection, targets::bytes_to_mac_addr};

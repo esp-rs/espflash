@@ -25,8 +25,8 @@ use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
 use log::{debug, info, warn};
 use miette::{IntoDiagnostic, Result, WrapErr};
+use object::read::elf::ElfFile32 as ElfFile;
 use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo};
-use xmas_elf::ElfFile;
 
 use self::{
     config::Config,
@@ -35,7 +35,7 @@ use self::{
 };
 use crate::{
     connection::reset::{ResetAfterOperation, ResetBeforeOperation},
-    error::{ElfError, Error, MissingPartition, MissingPartitionTable},
+    error::{Error, MissingPartition, MissingPartitionTable},
     flasher::{
         FlashData,
         FlashFrequency,
@@ -607,9 +607,7 @@ pub fn save_elf_as_image(
     skip_padding: bool,
     xtal_freq: XtalFrequency,
 ) -> Result<()> {
-    let elf = ElfFile::new(elf_data)
-        .map_err(ElfError::from)
-        .into_diagnostic()?;
+    let elf = ElfFile::parse(elf_data).into_diagnostic()?;
 
     if merge {
         // To get a chip revision, the connection is needed

@@ -8,9 +8,12 @@ use std::{
     ops::AddAssign,
 };
 
-use xmas_elf::{
-    sections::{SectionData, ShType},
-    ElfFile,
+use object::{
+    elf::SHT_PROGBITS,
+    read::elf::{ElfFile32 as ElfFile, SectionHeader},
+    Endianness,
+    Object as _,
+    ObjectSection as _,
 };
 
 pub use self::esp_idf::IdfBootloaderFormat;
@@ -163,19 +166,18 @@ pub(crate) fn rom_segments<'a>(
 
 fn segments<'a>(elf: &'a ElfFile<'a>) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
     Box::new(
-        elf.section_iter()
-            .filter(|header| {
-                header.size() > 0
-                    && header.get_type() == Ok(ShType::ProgBits)
-                    && header.offset() > 0
-                    && header.address() > 0
+        elf.sections()
+            .filter(|section| {
+                let header = section.elf_section_header();
+
+                section.size() > 0
+                    && header.sh_type(Endianness::Little) == SHT_PROGBITS
+                    && header.sh_offset.get(Endianness::Little) > 0
+                    && section.address() > 0
             })
-            .flat_map(move |header| {
-                let addr = header.address() as u32;
-                match header.get_data(elf) {
-                    Ok(SectionData::Undefined(data)) => Some(Segment::new(addr, data)),
-                    _ => None,
-                }
+            .flat_map(move |section| match section.data() {
+                Ok(data) => Some(Segment::new(section.address() as u32, data)),
+                _ => None,
             }),
     )
 }

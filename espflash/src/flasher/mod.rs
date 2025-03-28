@@ -13,12 +13,12 @@ use esp_idf_part::PartitionTable;
 use log::{debug, info, warn};
 #[cfg(feature = "serialport")]
 use md5::{Digest, Md5};
+#[cfg(feature = "serialport")]
+use object::{read::elf::ElfFile32 as ElfFile, Endianness};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
 use serialport::UsbPortInfo;
 use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
-#[cfg(feature = "serialport")]
-use xmas_elf::ElfFile;
 
 #[cfg(feature = "serialport")]
 pub(crate) use self::stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
@@ -32,7 +32,7 @@ use crate::{
         Connection,
         Port,
     },
-    error::{ConnectionError, ElfError, ResultExt as _},
+    error::{ConnectionError, ResultExt as _},
     flasher::stubs::{
         FlashStub,
         CHIP_DETECT_MAGIC_REG_ADDR,
@@ -1011,13 +1011,13 @@ impl Flasher {
         elf_data: &[u8],
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
-        let elf = ElfFile::new(elf_data).map_err(ElfError::from)?;
+        let elf = ElfFile::parse(elf_data)?;
         if rom_segments(self.chip, &elf).next().is_some() {
             return Err(Error::ElfNotRamLoadable);
         }
 
         let mut target = self.chip.ram_target(
-            Some(elf.header.pt2.entry_point() as u32),
+            Some(elf.elf_header().e_entry.get(Endianness::Little)),
             self.chip
                 .into_target()
                 .max_ram_block_size(&mut self.connection)?,
@@ -1041,7 +1041,7 @@ impl Flasher {
         mut progress: Option<&mut dyn ProgressCallbacks>,
         xtal_freq: XtalFrequency,
     ) -> Result<(), Error> {
-        let elf = ElfFile::new(elf_data).map_err(ElfError::from)?;
+        let elf = ElfFile::parse(elf_data)?;
 
         let mut target =
             self.chip

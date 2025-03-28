@@ -4,8 +4,8 @@ use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
 
 use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
+use object::{read::elf::ElfFile32 as ElfFile, Endianness};
 use sha2::{Digest, Sha256};
-use xmas_elf::ElfFile;
 
 use super::{ram_segments, rom_segments, Segment};
 use crate::{
@@ -190,7 +190,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // write the header of the app
         // use the same settings as the bootloader
         // just update the entry point
-        header.entry = elf.header.pt2.entry_point() as u32;
+        header.entry = elf.elf_header().e_entry.get(Endianness::Little);
         header.wp_pin = WP_PIN_DISABLED;
         header.chip_id = params.chip_id;
         header.min_chip_rev_full = flash_data.min_chip_rev;
