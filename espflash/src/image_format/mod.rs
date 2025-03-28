@@ -16,10 +16,11 @@ use object::{
     ObjectSection as _,
 };
 
-pub use self::esp_idf::IdfBootloaderFormat;
+pub use self::{esp_idf::IdfBootloaderFormat, metadata::Metadata};
 use crate::targets::Chip;
 
 mod esp_idf;
+mod metadata;
 
 /// A segment of code from the source ELF
 #[derive(Default, Clone, Eq)]

@@ -17,10 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `--monitor` option to `write-bin`. (#783)
 - Add `watchdog-reset` strategy to `--after` subcommand (#779)
 - Add `ROM` version of `read-flash` command (#812)
-- `espflash` can detect the log format automatically from ESP-HAL metadata. Reqires `esp-println` 0.14 (presumably, yet to be released) (#809)
+- `espflash` can detect the log format automatically from ESP-HAL metadata. Requires `esp-println` 0.14 (presumably, yet to be released) (#809)
 - Add `--output-format` option to monitor (#818)
 - Added chip detection based on security info, where supported (#814)
-
+- `espflash` can detect the chip from ESP-HAL metadata to prevent flashing firmware built for a different device. Requires `esp-hal` 1.0.0-beta.0 (presumably, yet to be released) (#816)
 ### Changed
 
 - Split the baudrate for connecting and monitorinig in `flash` subcommand (#737)
