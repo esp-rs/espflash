@@ -1237,7 +1237,6 @@ dependencies = [
  "crossterm",
  "ctrlc",
  "defmt-decoder",
- "defmt-parser",
  "dialoguer",
  "directories",
  "env_logger",
