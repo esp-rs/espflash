@@ -181,7 +181,7 @@ pub enum Error {
         code(espflash::invalid_elf),
         help("Try running `cargo clean` and rebuilding the image")
     )]
-    InvalidElf(#[from] ElfError),
+    InvalidElf(#[from] object::Error),
 
     #[error("The bootloader returned an error")]
     #[cfg(feature = "serialport")]
@@ -491,17 +491,6 @@ impl From<String> for MissingPartition {
     help("Try providing a CSV or binary paritition table with the `--partition-table` argument.")
 )]
 pub struct MissingPartitionTable;
-
-/// Invalid ELF file error
-#[derive(Debug, Error)]
-#[error("{0}")]
-pub struct ElfError(&'static str);
-
-impl From<&'static str> for ElfError {
-    fn from(err: &'static str) -> Self {
-        ElfError(err)
-    }
-}
 
 #[cfg(feature = "serialport")]
 pub(crate) trait ResultExt {

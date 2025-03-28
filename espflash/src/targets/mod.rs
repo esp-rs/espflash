@@ -6,9 +6,9 @@
 
 use std::collections::HashMap;
 
+use object::read::elf::ElfFile32 as ElfFile;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, VariantNames};
-use xmas_elf::ElfFile;
 
 #[cfg(feature = "serialport")]
 pub use self::flash_target::{Esp32Target, RamTarget};

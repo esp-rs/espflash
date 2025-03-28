@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Range};
 
-use xmas_elf::ElfFile;
+use object::read::elf::ElfFile32 as ElfFile;
 
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
