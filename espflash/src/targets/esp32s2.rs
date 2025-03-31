@@ -38,27 +38,27 @@ const PARAMS: Esp32Params = Esp32Params::new(
 pub struct Esp32s2;
 
 impl Esp32s2 {
-    #[cfg(feature = "serialport")]
     /// Return the block2 version based on eFuses
-    fn get_block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+    #[cfg(feature = "serialport")]
+    fn block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let blk2_word4 = self.read_efuse(connection, 27)?;
         let block2_version = (blk2_word4 >> 4) & 0x7;
 
         Ok(block2_version)
     }
 
-    #[cfg(feature = "serialport")]
     /// Return the flash version based on eFuses
-    fn get_flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+    #[cfg(feature = "serialport")]
+    fn flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let blk1_word3 = self.read_efuse(connection, 20)?;
         let flash_version = (blk1_word3 >> 21) & 0xf;
 
         Ok(flash_version)
     }
 
-    #[cfg(feature = "serialport")]
     /// Return the PSRAM version based on eFuses
-    fn get_psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+    #[cfg(feature = "serialport")]
+    fn psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let blk1_word3 = self.read_efuse(connection, 20)?;
         let psram_version = (blk1_word3 >> 28) & 0xf;
 
@@ -86,7 +86,7 @@ impl Target for Esp32s2 {
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
         let mut features = vec!["WiFi"];
 
-        let flash_version = match self.get_flash_version(connection)? {
+        let flash_version = match self.flash_version(connection)? {
             0 => "No Embedded Flash",
             1 => "Embedded Flash 2MB",
             2 => "Embedded Flash 4MB",
@@ -94,7 +94,7 @@ impl Target for Esp32s2 {
         };
         features.push(flash_version);
 
-        let psram_version = match self.get_psram_version(connection)? {
+        let psram_version = match self.psram_version(connection)? {
             0 => "No Embedded PSRAM",
             1 => "Embedded PSRAM 2MB",
             2 => "Embedded PSRAM 4MB",
@@ -102,7 +102,7 @@ impl Target for Esp32s2 {
         };
         features.push(psram_version);
 
-        let block2_version = match self.get_block2_version(connection)? {
+        let block2_version = match self.block2_version(connection)? {
             0 => "No calibration in BLK2 of efuse",
             1 => "ADC and temperature sensor calibration in BLK2 of efuse V1",
             2 => "ADC and temperature sensor calibration in BLK2 of efuse V2",
@@ -143,7 +143,7 @@ impl Target for Esp32s2 {
         })
     }
 
-    fn get_flash_image<'a>(
+    fn flash_image<'a>(
         &self,
         elf: ElfFile<'a>,
         flash_data: FlashData,

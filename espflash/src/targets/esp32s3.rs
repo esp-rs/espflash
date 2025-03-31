@@ -98,7 +98,7 @@ impl Target for Esp32s3 {
         Ok(XtalFrequency::_40Mhz)
     }
 
-    fn get_flash_image<'a>(
+    fn flash_image<'a>(
         &self,
         elf: ElfFile<'a>,
         flash_data: FlashData,

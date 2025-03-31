@@ -31,7 +31,6 @@ use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo};
 use self::{
     config::Config,
     monitor::{monitor, LogFormat},
-    serial::get_serial_port_info,
 };
 use crate::{
     connection::reset::{ResetAfterOperation, ResetBeforeOperation},
@@ -369,7 +368,7 @@ pub fn connect(
         );
     }
 
-    let port_info = get_serial_port_info(args, config)?;
+    let port_info = serial::serial_port_info(args, config)?;
 
     // Attempt to open the serial port and set its initial baud rate.
     info!("Serial port: '{}'", port_info.port_name);
@@ -417,7 +416,7 @@ pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
     print_board_info(&mut flasher)?;
 
     if flasher.chip() != Chip::Esp32 {
-        let security_info = flasher.get_security_info()?;
+        let security_info = flasher.security_info()?;
         println!("{security_info}");
     } else {
         println!("Security features: None");
@@ -614,7 +613,7 @@ pub fn save_elf_as_image(
         // For simplicity, the revision None is used
         let image = chip
             .into_target()
-            .get_flash_image(elf, flash_data.clone(), None, xtal_freq)?;
+            .flash_image(elf, flash_data.clone(), None, xtal_freq)?;
 
         display_image_size(image.app_size(), image.part_size());
 
@@ -648,7 +647,7 @@ pub fn save_elf_as_image(
     } else {
         let image = chip
             .into_target()
-            .get_flash_image(elf, flash_data, None, xtal_freq)?;
+            .flash_image(elf, flash_data, None, xtal_freq)?;
 
         display_image_size(image.app_size(), image.part_size());
 

@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IdfBootloaderFormat` has had its constructor's parameters reduced/simplified (#798)
 - Update flash size when creating the app partition (#797)
 - `--non-interactive` may now react to key events (user input, Ctrl-C, Ctrl-R) if possible (#819)
+- Removed `get_` prefix from any functions which previously had it (#824)
 
 ### Fixed
 
