@@ -31,7 +31,6 @@ use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo};
 use self::{
     config::Config,
     monitor::{monitor, LogFormat},
-    serial::get_serial_port_info,
 };
 use crate::{
     connection::reset::{ResetAfterOperation, ResetBeforeOperation},
@@ -369,7 +368,7 @@ pub fn connect(
         );
     }
 
-    let port_info = get_serial_port_info(args, config)?;
+    let port_info = serial::serial_port_info(args, config)?;
 
     // Attempt to open the serial port and set its initial baud rate.
     info!("Serial port: '{}'", port_info.port_name);
