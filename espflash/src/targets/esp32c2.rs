@@ -72,7 +72,7 @@ impl Target for Esp32c2 {
     #[cfg(feature = "serialport")]
     fn crystal_freq(&self, connection: &mut Connection) -> Result<XtalFrequency, Error> {
         let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
-        let est_xtal = (connection.get_baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
+        let est_xtal = (connection.baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
         let norm_xtal = if est_xtal > 33 {
             XtalFrequency::_40Mhz
         } else {

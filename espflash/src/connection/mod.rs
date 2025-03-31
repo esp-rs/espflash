@@ -383,7 +383,7 @@ impl Connection {
     }
 
     /// Get the current baud rate of the serial port
-    pub fn get_baud(&self) -> Result<u32, Error> {
+    pub fn baud(&self) -> Result<u32, Error> {
         Ok(self.serial.baud_rate()?)
     }
 

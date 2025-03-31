@@ -416,7 +416,7 @@ pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
     print_board_info(&mut flasher)?;
 
     if flasher.chip() != Chip::Esp32 {
-        let security_info = flasher.get_security_info()?;
+        let security_info = flasher.security_info()?;
         println!("{security_info}");
     } else {
         println!("Security features: None");

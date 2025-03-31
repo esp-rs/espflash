@@ -86,7 +86,7 @@ impl SecurityInfo {
         ])
     }
 
-    fn get_security_flag_status(&self, flag_name: &str) -> bool {
+    fn security_flag_status(&self, flag_name: &str) -> bool {
         if let Some(&flag) = Self::security_flag_map().get(flag_name) {
             (self.flags & flag) != 0
         } else {
@@ -162,9 +162,9 @@ impl fmt::Display for SecurityInfo {
         }
 
         // Secure Boot
-        if self.get_security_flag_status("SECURE_BOOT_EN") {
+        if self.security_flag_status("SECURE_BOOT_EN") {
             writeln!(f, "Secure Boot: Enabled")?;
-            if self.get_security_flag_status("SECURE_BOOT_AGGRESSIVE_REVOKE") {
+            if self.security_flag_status("SECURE_BOOT_AGGRESSIVE_REVOKE") {
                 writeln!(f, "Secure Boot Aggressive key revocation: Enabled")?;
             }
 
@@ -175,7 +175,7 @@ impl fmt::Display for SecurityInfo {
             ]
             .iter()
             .enumerate()
-            .filter(|(_, &key)| self.get_security_flag_status(key))
+            .filter(|(_, &key)| self.security_flag_status(key))
             .map(|(i, _)| format!("Secure Boot Key{} is Revoked", i))
             .collect();
 
@@ -201,22 +201,22 @@ impl fmt::Display for SecurityInfo {
         writeln!(f, "{}: 0x{:x}", crypt_cnt_str, self.flash_crypt_cnt)?;
 
         // Cache Disabling
-        if self.get_security_flag_status("DIS_DOWNLOAD_DCACHE") {
+        if self.security_flag_status("DIS_DOWNLOAD_DCACHE") {
             writeln!(f, "Dcache in UART download mode: Disabled")?;
         }
-        if self.get_security_flag_status("DIS_DOWNLOAD_ICACHE") {
+        if self.security_flag_status("DIS_DOWNLOAD_ICACHE") {
             writeln!(f, "Icache in UART download mode: Disabled")?;
         }
 
         // JTAG Status
-        if self.get_security_flag_status("HARD_DIS_JTAG") {
+        if self.security_flag_status("HARD_DIS_JTAG") {
             writeln!(f, "JTAG: Permanently Disabled")?;
-        } else if self.get_security_flag_status("SOFT_DIS_JTAG") {
+        } else if self.security_flag_status("SOFT_DIS_JTAG") {
             writeln!(f, "JTAG: Software Access Disabled")?;
         }
 
         // USB Access
-        if self.get_security_flag_status("DIS_USB") {
+        if self.security_flag_status("DIS_USB") {
             writeln!(f, "USB Access: Disabled")?;
         }
 
@@ -1124,15 +1124,15 @@ impl Flasher {
     }
 
     /// Get security info
-    pub fn get_security_info(&mut self) -> Result<SecurityInfo, Error> {
-        get_security_info(&mut self.connection, self.use_stub)
+    pub fn security_info(&mut self) -> Result<SecurityInfo, Error> {
+        security_info(&mut self.connection, self.use_stub)
     }
 
     pub fn change_baud(&mut self, speed: u32) -> Result<(), Error> {
         debug!("Change baud to: {}", speed);
 
         let prior_baud = match self.use_stub {
-            true => self.connection.get_baud()?,
+            true => self.connection.baud()?,
             false => 0,
         };
 
@@ -1350,7 +1350,7 @@ impl Flasher {
 }
 
 #[cfg(feature = "serialport")]
-fn get_security_info(connection: &mut Connection, use_stub: bool) -> Result<SecurityInfo, Error> {
+fn security_info(connection: &mut Connection, use_stub: bool) -> Result<SecurityInfo, Error> {
     connection.with_timeout(CommandType::GetSecurityInfo.timeout(), |connection| {
         let response = connection.command(Command::GetSecurityInfo)?;
         // Extract raw bytes and convert them into `SecurityInfo`
@@ -1369,7 +1369,7 @@ fn get_security_info(connection: &mut Connection, use_stub: bool) -> Result<Secu
 
 #[cfg(feature = "serialport")]
 fn detect_chip(connection: &mut Connection, use_stub: bool) -> Result<Chip, Error> {
-    match get_security_info(connection, use_stub) {
+    match security_info(connection, use_stub) {
         Ok(info) if info.chip_id.is_some() => {
             let chip_id = info.chip_id.unwrap() as u16;
             let chip = Chip::try_from(chip_id)?;
