@@ -1,7 +1,6 @@
 use std::{collections::HashMap, ops::Range};
 
 use log::debug;
-use object::read::elf::ElfFile32 as ElfFile;
 
 #[cfg(feature = "serialport")]
 use crate::{connection::Connection, targets::bytes_to_mac_addr};
@@ -92,12 +91,12 @@ impl Target for Esp32c2 {
 
     fn flash_image<'a>(
         &self,
-        elf: ElfFile<'a>,
+        elf_data: &'a [u8],
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
     ) -> Result<IdfBootloaderFormat<'a>, Error> {
-        let booloader: &'static [u8] = match xtal_freq {
+        let bootloader: &'static [u8] = match xtal_freq {
             XtalFrequency::_40Mhz => {
                 debug!("Using 40MHz bootloader");
                 include_bytes!("../../resources/bootloaders/esp32c2-bootloader.bin")
@@ -120,10 +119,10 @@ impl Target for Esp32c2 {
             0x1f_0000,
             CHIP_ID,
             FlashFrequency::_30Mhz,
-            booloader,
+            bootloader,
         );
 
-        IdfBootloaderFormat::new(elf, Chip::Esp32c2, flash_data, params)
+        IdfBootloaderFormat::new(elf_data, Chip::Esp32c2, flash_data, params)
     }
 
     #[cfg(feature = "serialport")]

@@ -6,7 +6,6 @@
 
 use std::collections::HashMap;
 
-use object::read::elf::ElfFile32 as ElfFile;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
@@ -355,7 +354,7 @@ pub trait Target: ReadEFuse {
     /// Build an image from the provided data for flashing
     fn flash_image<'a>(
         &self,
-        elf: ElfFile<'a>,
+        elf_data: &'a [u8],
         flash_data: FlashData,
         chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,

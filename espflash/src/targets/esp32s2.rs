@@ -1,7 +1,5 @@
 use std::ops::Range;
 
-use object::read::elf::ElfFile32 as ElfFile;
-
 #[cfg(feature = "serialport")]
 use super::flash_target::MAX_RAM_BLOCK_SIZE;
 #[cfg(feature = "serialport")]
@@ -145,7 +143,7 @@ impl Target for Esp32s2 {
 
     fn flash_image<'a>(
         &self,
-        elf: ElfFile<'a>,
+        elf_data: &'a [u8],
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
@@ -157,7 +155,7 @@ impl Target for Esp32s2 {
             });
         }
 
-        IdfBootloaderFormat::new(elf, Chip::Esp32s2, flash_data, PARAMS)
+        IdfBootloaderFormat::new(elf_data, Chip::Esp32s2, flash_data, PARAMS)
     }
 
     #[cfg(feature = "serialport")]
