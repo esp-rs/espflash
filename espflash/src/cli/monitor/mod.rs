@@ -201,7 +201,7 @@ fn deduce_log_format(elf: Option<&[u8]>) -> LogFormat {
     };
 
     let Some(format_symbol) =
-        symbols.get_symbol_data(Some(".espressif.metadata"), b"espflash.LOG_FORMAT")
+        symbols.symbol_data(Some(".espressif.metadata"), b"espflash.LOG_FORMAT")
     else {
         return LogFormat::Serial;
     };

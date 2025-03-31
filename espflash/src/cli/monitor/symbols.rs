@@ -34,7 +34,7 @@ impl<'sym> Symbols<'sym> {
 
     /// Returns the name of the function at the given address, if one can be
     /// found.
-    pub fn get_name(&self, addr: u64) -> Option<String> {
+    pub fn name(&self, addr: u64) -> Option<String> {
         // No need to try an address not contained in any segment:
         if !self.object.segments().any(|segment| {
             (segment.address()..(segment.address() + segment.size())).contains(&addr)
@@ -85,7 +85,7 @@ impl<'sym> Symbols<'sym> {
 
     /// Returns the file name and line number of the function at the given
     /// address, if one can be.
-    pub fn get_location(&self, addr: u64) -> Option<(String, u32)> {
+    pub fn location(&self, addr: u64) -> Option<(String, u32)> {
         // Find the location which `addr` is in. If we can dedetermine a file name and
         // line number for this function we will return them both in a tuple.
         self.ctx.find_location(addr).ok()?.map(|location| {
@@ -99,7 +99,7 @@ impl<'sym> Symbols<'sym> {
         })?
     }
 
-    pub(crate) fn get_symbol_data(
+    pub(crate) fn symbol_data(
         &self,
         section_name: Option<&str>,
         name_bytes: &[u8],

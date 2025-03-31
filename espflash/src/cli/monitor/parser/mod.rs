@@ -32,8 +32,8 @@ fn resolve_addresses(
         // successfully into an integer.
         let addr = u64::from_str_radix(&matched[2..], 16).unwrap();
 
-        let name = symbols.get_name(addr);
-        let location = symbols.get_location(addr);
+        let name = symbols.name(addr);
+        let location = symbols.location(addr);
 
         if let Some(name) = name {
             let output = if line.trim() == format!("0x{:x}", addr) {
