@@ -90,7 +90,7 @@ impl Target for Esp32c2 {
         HashMap::from(encodings)
     }
 
-    fn get_flash_image<'a>(
+    fn flash_image<'a>(
         &self,
         elf: ElfFile<'a>,
         flash_data: FlashData,

@@ -143,7 +143,7 @@ impl Target for Esp32s2 {
         })
     }
 
-    fn get_flash_image<'a>(
+    fn flash_image<'a>(
         &self,
         elf: ElfFile<'a>,
         flash_data: FlashData,
