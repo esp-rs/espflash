@@ -1250,7 +1250,6 @@ dependencies = [
  "object 0.36.7",
  "regex",
  "serde",
- "serde_json",
  "serialport",
  "sha2",
  "slip-codec",
