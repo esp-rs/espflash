@@ -119,14 +119,17 @@ pub struct IdfBootloaderFormat<'a> {
 
 impl<'a> IdfBootloaderFormat<'a> {
     pub fn new(
-        elf: ElfFile<'a>,
+        elf_data: &'a [u8],
         chip: Chip,
         flash_data: FlashData,
         params: Esp32Params,
     ) -> Result<Self, Error> {
+        let elf = ElfFile::parse(elf_data)?;
+
         let partition_table = flash_data.partition_table.unwrap_or_else(|| {
             default_partition_table(&params, flash_data.flash_settings.size.map(|v| v.size()))
         });
+
         let mut bootloader = if let Some(bytes) = flash_data.bootloader {
             Cow::Owned(bytes)
         } else {

@@ -1,7 +1,5 @@
 use std::ops::Range;
 
-use object::read::elf::ElfFile32 as ElfFile;
-
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
 use crate::{
@@ -76,7 +74,7 @@ impl Target for Esp32c6 {
 
     fn flash_image<'a>(
         &self,
-        elf: ElfFile<'a>,
+        elf_data: &'a [u8],
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
@@ -88,7 +86,7 @@ impl Target for Esp32c6 {
             });
         }
 
-        IdfBootloaderFormat::new(elf, Chip::Esp32c6, flash_data, PARAMS)
+        IdfBootloaderFormat::new(elf_data, Chip::Esp32c6, flash_data, PARAMS)
     }
 
     fn spi_registers(&self) -> SpiRegisters {

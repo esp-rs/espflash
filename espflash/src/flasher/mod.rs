@@ -1041,8 +1041,6 @@ impl Flasher {
         mut progress: Option<&mut dyn ProgressCallbacks>,
         xtal_freq: XtalFrequency,
     ) -> Result<(), Error> {
-        let elf = ElfFile::parse(elf_data)?;
-
         let mut target =
             self.chip
                 .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
@@ -1057,7 +1055,7 @@ impl Flasher {
         let image =
             self.chip
                 .into_target()
-                .flash_image(elf, flash_data, chip_revision, xtal_freq)?;
+                .flash_image(elf_data, flash_data, chip_revision, xtal_freq)?;
 
         // When the `cli` feature is enabled, display the image size information.
         #[cfg(feature = "cli")]

@@ -25,7 +25,6 @@ use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
 use log::{debug, info, warn};
 use miette::{IntoDiagnostic, Result, WrapErr};
-use object::read::elf::ElfFile32 as ElfFile;
 use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo};
 
 use self::{
@@ -606,15 +605,13 @@ pub fn save_elf_as_image(
     skip_padding: bool,
     xtal_freq: XtalFrequency,
 ) -> Result<()> {
-    let elf = ElfFile::parse(elf_data).into_diagnostic()?;
+    // To get a chip revision, the connection is needed
+    // For simplicity, the revision None is used
+    let image = chip
+        .into_target()
+        .flash_image(elf_data, flash_data.clone(), None, xtal_freq)?;
 
     if merge {
-        // To get a chip revision, the connection is needed
-        // For simplicity, the revision None is used
-        let image = chip
-            .into_target()
-            .flash_image(elf, flash_data.clone(), None, xtal_freq)?;
-
         display_image_size(image.app_size(), image.part_size());
 
         let mut file = fs::OpenOptions::new()
@@ -645,10 +642,6 @@ pub fn save_elf_as_image(
             file.write_all(&padding_bytes).into_diagnostic()?;
         }
     } else {
-        let image = chip
-            .into_target()
-            .flash_image(elf, flash_data, None, xtal_freq)?;
-
         display_image_size(image.app_size(), image.part_size());
 
         let parts = image.ota_segments().collect::<Vec<_>>();
