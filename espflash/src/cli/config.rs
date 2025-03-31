@@ -102,27 +102,9 @@ pub struct Config {
 }
 
 impl Config {
-    /// Gets the path to the configuration file.
-    pub fn get_config_path() -> Result<PathBuf, Error> {
-        let local_config = std::env::current_dir()?.join("espflash.toml");
-        if local_config.exists() {
-            return Ok(local_config);
-        }
-        if let Some(parent_folder) = std::env::current_dir()?.parent() {
-            let workspace_config = parent_folder.join("espflash.toml");
-            if workspace_config.exists() {
-                return Ok(workspace_config);
-            }
-        }
-
-        let project_dirs = ProjectDirs::from("rs", "esp", "espflash").unwrap();
-        let global_config = project_dirs.config_dir().join("espflash.toml");
-        Ok(global_config)
-    }
-
     /// Load configuration from the configuration file
     pub fn load() -> Result<Self> {
-        let file = Self::get_config_path()?;
+        let file = Self::config_path()?;
 
         let mut config = if let Ok(data) = read_to_string(&file) {
             toml::from_str(&data).into_diagnostic()?
@@ -162,6 +144,23 @@ impl Config {
         write(&self.save_path, serialized)
             .into_diagnostic()
             .wrap_err_with(|| format!("Failed to write config to {}", self.save_path.display()))
+    }
+
+    fn config_path() -> Result<PathBuf, Error> {
+        let local_config = std::env::current_dir()?.join("espflash.toml");
+        if local_config.exists() {
+            return Ok(local_config);
+        }
+        if let Some(parent_folder) = std::env::current_dir()?.parent() {
+            let workspace_config = parent_folder.join("espflash.toml");
+            if workspace_config.exists() {
+                return Ok(workspace_config);
+            }
+        }
+
+        let project_dirs = ProjectDirs::from("rs", "esp", "espflash").unwrap();
+        let global_config = project_dirs.config_dir().join("espflash.toml");
+        Ok(global_config)
     }
 }
 

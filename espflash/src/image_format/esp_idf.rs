@@ -206,7 +206,7 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         for segment in flash_segments {
             loop {
-                let pad_len = get_segment_padding(data.len(), &segment);
+                let pad_len = segment_padding(data.len(), &segment);
                 if pad_len > 0 {
                     if pad_len > SEG_HEADER_LEN {
                         if let Some(ram_segment) = ram_segments.first_mut() {
@@ -399,7 +399,7 @@ fn default_partition_table(params: &Esp32Params, flash_size: Option<u32>) -> Par
 ///
 /// (this is because the segment's vaddr may not be IROM_ALIGNed, more likely is
 /// aligned IROM_ALIGN+0x18 to account for the binary file header)
-fn get_segment_padding(offset: usize, segment: &Segment<'_>) -> u32 {
+fn segment_padding(offset: usize, segment: &Segment<'_>) -> u32 {
     let align_past = (segment.addr - SEG_HEADER_LEN) % IROM_ALIGN;
     let pad_len = ((IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past) % IROM_ALIGN;
 
