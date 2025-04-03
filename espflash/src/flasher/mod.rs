@@ -726,7 +726,6 @@ impl Flasher {
         if !secure_download_mode {
             flasher.spi_autodetect()?;
         }
-        
 
         // Now that we have established a connection and detected the chip and flash
         // size, we can set the baud rate of the connection to the configured value.
@@ -748,7 +747,9 @@ impl Flasher {
         let mut target = self
             .chip
             .flash_target(self.spi_params, self.use_stub, false, false);
-        target.begin(&mut self.connection, self.secure_download_mode).flashing()?;
+        target
+            .begin(&mut self.connection, self.secure_download_mode)
+            .flashing()?;
         Ok(())
     }
 
@@ -764,7 +765,9 @@ impl Flasher {
                 .into_target()
                 .max_ram_block_size(&mut self.connection)?,
         );
-        ram_target.begin(&mut self.connection, self.secure_download_mode).flashing()?;
+        ram_target
+            .begin(&mut self.connection, self.secure_download_mode)
+            .flashing()?;
 
         let (text_addr, text) = stub.text();
         debug!("Write {} byte stub text", text.len());
@@ -995,13 +998,13 @@ impl Flasher {
         let chip = self.chip();
         let target = chip.into_target();
 
-        // chip_revision reads from efuse, which is not possible in Secure Download Mode        
+        // chip_revision reads from efuse, which is not possible in Secure Download Mode
         let revision = if !self.secure_download_mode {
             Some(target.chip_revision(self.connection())?)
         } else {
             None
         };
-    
+
         let crystal_frequency = target.crystal_freq(self.connection())?;
         let features = target
             .chip_features(self.connection())?
@@ -1046,7 +1049,9 @@ impl Flasher {
                 .into_target()
                 .max_ram_block_size(&mut self.connection)?,
         );
-        target.begin(&mut self.connection, self.secure_download_mode).flashing()?;
+        target
+            .begin(&mut self.connection, self.secure_download_mode)
+            .flashing()?;
 
         for segment in ram_segments(self.chip, &elf) {
             target
@@ -1068,7 +1073,9 @@ impl Flasher {
         let mut target =
             self.chip
                 .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
-        target.begin(&mut self.connection, self.secure_download_mode).flashing()?;
+        target
+            .begin(&mut self.connection, self.secure_download_mode)
+            .flashing()?;
 
         let chip_revision = Some(
             self.chip
@@ -1124,8 +1131,10 @@ impl Flasher {
             .chip
             .flash_target(self.spi_params, self.use_stub, false, false);
 
-        target.begin(&mut self.connection, self.secure_download_mode).flashing()?;
-        
+        target
+            .begin(&mut self.connection, self.secure_download_mode)
+            .flashing()?;
+
         for segment in segments {
             if self.secure_download_mode {
                 target.write_segment_sdm(&mut self.connection, segment.borrow(), &mut progress)?;
@@ -1133,7 +1142,7 @@ impl Flasher {
                 target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;
             }
         }
-        
+
         target.finish(&mut self.connection, true).flashing()?;
 
         Ok(())

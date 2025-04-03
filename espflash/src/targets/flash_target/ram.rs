@@ -32,16 +32,20 @@ impl Default for RamTarget {
 
 #[cfg(feature = "serialport")]
 impl FlashTarget for RamTarget {
-    fn begin(&mut self, _connection: &mut Connection, _secure_download_mode: bool) -> Result<(), Error> {
+    fn begin(
+        &mut self,
+        _connection: &mut Connection,
+        _secure_download_mode: bool,
+    ) -> Result<(), Error> {
         Ok(())
     }
 
     fn write_segment_sdm(
-            &mut self,
-            _connection: &mut Connection,
-            _segment: Segment<'_>,
-            _progress: &mut Option<&mut dyn ProgressCallbacks>,
-        ) -> Result<(), Error> {
+        &mut self,
+        _connection: &mut Connection,
+        _segment: Segment<'_>,
+        _progress: &mut Option<&mut dyn ProgressCallbacks>,
+    ) -> Result<(), Error> {
         todo!()
     }
 

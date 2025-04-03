@@ -450,7 +450,6 @@ impl Connection {
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#status-bytes
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#verifying-uploaded-data
 
-
                 // TODO: status len should be 2 for SDM
 
                 let status_len = if response.len() == 10 || response.len() == 26 {

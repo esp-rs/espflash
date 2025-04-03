@@ -55,7 +55,11 @@ impl Esp32Target {
 
 #[cfg(feature = "serialport")]
 impl FlashTarget for Esp32Target {
-    fn begin(&mut self, connection: &mut Connection, secure_download_mode: bool) -> Result<(), Error> {
+    fn begin(
+        &mut self,
+        connection: &mut Connection,
+        secure_download_mode: bool,
+    ) -> Result<(), Error> {
         connection.with_timeout(CommandType::SpiAttach.timeout(), |connection| {
             let command = if self.use_stub {
                 Command::SpiAttachStub {
@@ -63,8 +67,9 @@ impl FlashTarget for Esp32Target {
                 }
             } else {
                 if secure_download_mode {
-                    Command::SpiAttach { 
-                        spi_params: SpiAttachParams::default()}
+                    Command::SpiAttach {
+                        spi_params: SpiAttachParams::default(),
+                    }
                 } else {
                     Command::SpiAttach {
                         spi_params: self.spi_attach_params,
@@ -176,12 +181,12 @@ impl FlashTarget for Esp32Target {
             if remaining_data.is_empty() {
                 break;
             }
-        
+
             let block_size = std::cmp::min(flash_write_size, remaining_data.len());
             let block = &remaining_data[..block_size];
-        
+
             let padding_needed = flash_write_size.saturating_sub(block.len());
-        
+
             let block_vec = if padding_needed > 0 {
                 let mut owned = block.to_vec();
                 owned.extend(std::iter::repeat(0xFF).take(padding_needed));
@@ -189,7 +194,7 @@ impl FlashTarget for Esp32Target {
             } else {
                 block.to_vec()
             };
-            
+
             connection.with_timeout(
                 CommandType::FlashData.timeout_for_size(remaining_data.len() as u32),
                 |connection| {
@@ -202,7 +207,7 @@ impl FlashTarget for Esp32Target {
                     Ok(())
                 },
             )?;
-            
+
             remaining_data = &remaining_data[block_size..];
 
             if let Some(cb) = progress.as_mut() {
