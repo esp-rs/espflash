@@ -523,12 +523,15 @@ impl Connection {
     ///  Write a command and reads the response
     pub fn command(&mut self, command: Command<'_>) -> Result<CommandResponseValue, Error> {
         let ty = command.command_type();
+        info!("deb: Why");
         self.write_command(command).for_command(ty)?;
-
+        info!("deb: is");
         for _ in 0..100 {
             match self.read_response().for_command(ty)? {
                 Some(response) if response.return_op == ty as u8 => {
+                    info!("deb: nefailing (return_op {} and ty {})\nwhole resp: {:?})", response.return_op, ty, response);
                     return if response.error != 0 {
+                        info!("deb: resp error {}", response.error);
                         let _error = self.flush();
                         Err(Error::RomError(RomError::new(
                             command.command_type(),
@@ -537,6 +540,7 @@ impl Connection {
                     } else {
                         // Check if the response is a Vector and strip header (first 8 bytes)
                         // https://github.com/espressif/esptool/blob/749d1ad/esptool/loader.py#L481
+                        info!("deb: fuck");
                         let modified_value = match response.value {
                             CommandResponseValue::Vector(mut vec) if vec.len() >= 8 => {
                                 vec = vec[8..][..response.return_length as usize].to_vec();

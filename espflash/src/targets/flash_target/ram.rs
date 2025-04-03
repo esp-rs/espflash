@@ -32,7 +32,7 @@ impl Default for RamTarget {
 
 #[cfg(feature = "serialport")]
 impl FlashTarget for RamTarget {
-    fn begin(&mut self, _connection: &mut Connection) -> Result<(), Error> {
+    fn begin(&mut self, _connection: &mut Connection, _secure_download_mode: bool) -> Result<(), Error> {
         Ok(())
     }
 
@@ -41,6 +41,7 @@ impl FlashTarget for RamTarget {
         connection: &mut Connection,
         segment: Segment<'_>,
         progress: &mut Option<&mut dyn ProgressCallbacks>,
+        _secure_download_mode: bool,
     ) -> Result<(), Error> {
         let addr = segment.addr;
 

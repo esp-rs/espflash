@@ -631,7 +631,7 @@ pub struct DeviceInfo {
     /// Device features
     pub features: Vec<String>,
     /// MAC address
-    pub mac_address: String,
+    pub mac_address: Option<String>,
 }
 
 /// Connect to and flash a target device
@@ -652,6 +652,8 @@ pub struct Flasher {
     verify: bool,
     /// Indicate skipping of already flashed regions
     skip: bool,
+    /// FUCKME
+    secure_download_mode: bool,
 }
 
 #[cfg(feature = "serialport")]
@@ -673,6 +675,8 @@ impl Flasher {
         let mut connection = Connection::new(serial, port_info, after_operation, before_operation);
         connection.begin()?;
         connection.set_timeout(DEFAULT_TIMEOUT)?;
+
+        let secure_download_mode = detect_sdm(&mut connection)?;
 
         let detected_chip = if before_operation != ResetBeforeOperation::NoResetNoSync {
             // Detect which chip we are connected to.
@@ -701,6 +705,7 @@ impl Flasher {
             use_stub,
             verify,
             skip,
+            secure_download_mode,
         };
 
         if before_operation == ResetBeforeOperation::NoResetNoSync {
@@ -709,11 +714,19 @@ impl Flasher {
 
         // Load flash stub if enabled
         if use_stub {
-            info!("Using flash stub");
-            flasher.load_stub()?;
+            if !secure_download_mode {
+                info!("Using flash stub");
+                flasher.load_stub()?;
+            } else {
+                warn!("Stub is not supported in Secure Download Mode, setting --no-stub");
+                flasher.use_stub = !use_stub;
+            }
         }
 
-        flasher.spi_autodetect()?;
+        if !secure_download_mode {
+            flasher.spi_autodetect()?;
+        }
+        
 
         // Now that we have established a connection and detected the chip and flash
         // size, we can set the baud rate of the connection to the configured value.
@@ -735,7 +748,7 @@ impl Flasher {
         let mut target = self
             .chip
             .flash_target(self.spi_params, self.use_stub, false, false);
-        target.begin(&mut self.connection).flashing()?;
+        target.begin(&mut self.connection, self.secure_download_mode).flashing()?;
         Ok(())
     }
 
@@ -751,7 +764,7 @@ impl Flasher {
                 .into_target()
                 .max_ram_block_size(&mut self.connection)?,
         );
-        ram_target.begin(&mut self.connection).flashing()?;
+        ram_target.begin(&mut self.connection, self.secure_download_mode).flashing()?;
 
         let (text_addr, text) = stub.text();
         debug!("Write {} byte stub text", text.len());
@@ -764,6 +777,7 @@ impl Flasher {
                     data: Cow::Borrowed(&text),
                 },
                 &mut None,
+                self.secure_download_mode,
             )
             .flashing()?;
 
@@ -778,6 +792,7 @@ impl Flasher {
                     data: Cow::Borrowed(&data),
                 },
                 &mut None,
+                self.secure_download_mode,
             )
             .flashing()?;
 
@@ -982,14 +997,25 @@ impl Flasher {
         let chip = self.chip();
         let target = chip.into_target();
 
-        let revision = Some(target.chip_revision(self.connection())?);
+        // chip_revision reads from efuse, which is not possible in Secure Download Mode        
+        let revision = if !self.secure_download_mode {
+            Some(target.chip_revision(self.connection())?)
+        } else {
+            None
+        };
+    
         let crystal_frequency = target.crystal_freq(self.connection())?;
         let features = target
             .chip_features(self.connection())?
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let mac_address = target.mac_address(self.connection())?;
+
+        let mac_address = if !self.secure_download_mode {
+            Some(target.mac_address(self.connection())?)
+        } else {
+            None
+        };
 
         let info = DeviceInfo {
             chip,
@@ -1022,11 +1048,11 @@ impl Flasher {
                 .into_target()
                 .max_ram_block_size(&mut self.connection)?,
         );
-        target.begin(&mut self.connection).flashing()?;
+        target.begin(&mut self.connection, self.secure_download_mode).flashing()?;
 
         for segment in ram_segments(self.chip, &elf) {
             target
-                .write_segment(&mut self.connection, segment, &mut progress)
+                .write_segment(&mut self.connection, segment, &mut progress, self.secure_download_mode)
                 .flashing()?;
         }
 
@@ -1044,7 +1070,7 @@ impl Flasher {
         let mut target =
             self.chip
                 .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
-        target.begin(&mut self.connection).flashing()?;
+        target.begin(&mut self.connection, self.secure_download_mode).flashing()?;
 
         let chip_revision = Some(
             self.chip
@@ -1063,7 +1089,7 @@ impl Flasher {
 
         for segment in image.flash_segments() {
             target
-                .write_segment(&mut self.connection, segment, &mut progress)
+                .write_segment(&mut self.connection, segment, &mut progress, self.secure_download_mode)
                 .flashing()?;
         }
 
@@ -1096,13 +1122,17 @@ impl Flasher {
         segments: &[Segment<'_>],
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
+        info!("deb: write_bins_to_flash: flash target");
         let mut target = self
             .chip
             .flash_target(self.spi_params, self.use_stub, false, false);
-        target.begin(&mut self.connection).flashing()?;
+        info!("deb: write_bins_to_flash: begin");
+        target.begin(&mut self.connection, self.secure_download_mode).flashing()?;
+        info!("deb: write_bins_to_flash: writing segments");
         for segment in segments {
-            target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;
+            target.write_segment(&mut self.connection, segment.borrow(), &mut progress, self.secure_download_mode)?;
         }
+        info!("deb: write_bins_to_flash: finish");
         target.finish(&mut self.connection, true).flashing()?;
 
         Ok(())
@@ -1381,4 +1411,14 @@ fn detect_chip(connection: &mut Connection, use_stub: bool) -> Result<Chip, Erro
             Ok(chip)
         }
     }
+}
+
+fn detect_sdm(connection: &mut Connection) -> Result<bool, Error> {
+    match connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR) {
+        Ok(_) => return Ok(false),
+        Err(_) => {
+            log::warn!("Secure Download Mode is enabled on this chip");
+            return Ok(true);
+        }
+    };
 }
