@@ -124,6 +124,7 @@ pub struct Connection {
     decoder: SlipDecoder,
     after_operation: ResetAfterOperation,
     before_operation: ResetBeforeOperation,
+    pub(crate) secure_download_mode: bool,
 }
 
 impl Connection {
@@ -139,11 +140,12 @@ impl Connection {
             decoder: SlipDecoder::new(),
             after_operation,
             before_operation,
+            secure_download_mode: false,
         }
     }
 
     /// Initialize a connection with a device
-    pub fn begin(&mut self) -> Result<(), Error> {
+    pub fn begin(&mut self) -> Result<bool, Error> {
         let port_name = self.serial.name().unwrap_or_default();
         let reset_sequence = construct_reset_strategy_sequence(
             &port_name,
@@ -154,7 +156,14 @@ impl Connection {
         for (_, reset_strategy) in zip(0..MAX_CONNECT_ATTEMPTS, reset_sequence.iter().cycle()) {
             match self.connect_attempt(reset_strategy) {
                 Ok(_) => {
-                    return Ok(());
+                    match self.read_reg(crate::flasher::stubs::CHIP_DETECT_MAGIC_REG_ADDR) {
+                        Ok(_) => return Ok(false),
+                        Err(_) => {
+                            log::warn!("Secure Download Mode is enabled on this chip");
+                            self.secure_download_mode = true;
+                            return Ok(true);
+                        }
+                    };
                 }
                 Err(e) => {
                     debug!("Failed to reset, error {:#?}, retrying", e);
@@ -449,6 +458,7 @@ impl Connection {
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#response-packet
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#status-bytes
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#verifying-uploaded-data
+
                 let status_len = if response.len() == 10 || response.len() == 26 {
                     2
                 } else {
@@ -483,8 +493,8 @@ impl Connection {
                     return_op: response[1],
                     return_length: u16::from_le_bytes(response[2..][..2].try_into().unwrap()),
                     value,
-                    error: response[response.len() - status_len],
-                    status: response[response.len() - status_len + 1],
+                    error: response[response.len() - status_len + 1],
+                    status: response[response.len() - status_len],
                 };
 
                 Ok(Some(header))
@@ -524,11 +534,10 @@ impl Connection {
     pub fn command(&mut self, command: Command<'_>) -> Result<CommandResponseValue, Error> {
         let ty = command.command_type();
         self.write_command(command).for_command(ty)?;
-
         for _ in 0..100 {
             match self.read_response().for_command(ty)? {
                 Some(response) if response.return_op == ty as u8 => {
-                    return if response.error != 0 {
+                    return if response.status != 0 {
                         let _error = self.flush();
                         Err(Error::RomError(RomError::new(
                             command.command_type(),
