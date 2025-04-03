@@ -117,7 +117,8 @@ enum Commands {
     /// Otherwise, each segment will be saved as individual binaries, prefixed
     /// with their intended addresses in flash.
     SaveImage(SaveImageArgs),
-    /// Write a binary file to a specific address in a target device's flash
+    /// Write a binary file to a specific address or partition in a target
+    /// device's flash
     WriteBin(WriteBinArgs),
 }
 
