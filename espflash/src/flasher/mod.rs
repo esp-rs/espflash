@@ -777,7 +777,6 @@ impl Flasher {
                     data: Cow::Borrowed(&text),
                 },
                 &mut None,
-                self.secure_download_mode,
             )
             .flashing()?;
 
@@ -792,7 +791,6 @@ impl Flasher {
                     data: Cow::Borrowed(&data),
                 },
                 &mut None,
-                self.secure_download_mode,
             )
             .flashing()?;
 
@@ -1052,7 +1050,7 @@ impl Flasher {
 
         for segment in ram_segments(self.chip, &elf) {
             target
-                .write_segment(&mut self.connection, segment, &mut progress, self.secure_download_mode)
+                .write_segment(&mut self.connection, segment, &mut progress)
                 .flashing()?;
         }
 
@@ -1089,7 +1087,7 @@ impl Flasher {
 
         for segment in image.flash_segments() {
             target
-                .write_segment(&mut self.connection, segment, &mut progress, self.secure_download_mode)
+                .write_segment(&mut self.connection, segment, &mut progress)
                 .flashing()?;
         }
 
@@ -1122,17 +1120,20 @@ impl Flasher {
         segments: &[Segment<'_>],
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
-        info!("deb: write_bins_to_flash: flash target");
         let mut target = self
             .chip
             .flash_target(self.spi_params, self.use_stub, false, false);
-        info!("deb: write_bins_to_flash: begin");
+
         target.begin(&mut self.connection, self.secure_download_mode).flashing()?;
-        info!("deb: write_bins_to_flash: writing segments");
+        
         for segment in segments {
-            target.write_segment(&mut self.connection, segment.borrow(), &mut progress, self.secure_download_mode)?;
+            if self.secure_download_mode {
+                target.write_segment_sdm(&mut self.connection, segment.borrow(), &mut progress)?;
+            } else {
+                target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;
+            }
         }
-        info!("deb: write_bins_to_flash: finish");
+        
         target.finish(&mut self.connection, true).flashing()?;
 
         Ok(())

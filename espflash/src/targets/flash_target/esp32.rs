@@ -140,175 +140,194 @@ impl FlashTarget for Esp32Target {
         Ok(())
     }
 
+    fn write_segment_sdm(
+        &mut self,
+        connection: &mut Connection,
+        segment: Segment<'_>,
+        progress: &mut Option<&mut dyn ProgressCallbacks>,
+    ) -> Result<(), Error> {
+        let addr = segment.addr;
+
+        let target = self.chip.into_target();
+        let flash_write_size = target.flash_write_size(connection)?;
+        let block_count = segment.data.len().div_ceil(flash_write_size);
+
+        connection.with_timeout(
+            CommandType::FlashBegin.timeout_for_size(segment.data.len() as u32),
+            |connection| {
+                connection.command(Command::FlashBegin {
+                    size: segment.data.len() as u32,
+                    blocks: block_count as u32,
+                    block_size: flash_write_size as u32,
+                    offset: addr,
+                    supports_encryption: false,
+                })?;
+                Ok(())
+            },
+        )?;
+
+        if let Some(cb) = progress.as_mut() {
+            cb.init(addr, block_count)
+        }
+
+        let mut remaining_data = &segment.data[..];
+
+        for i in 0.. {
+            if remaining_data.is_empty() {
+                break;
+            }
+        
+            let block_size = std::cmp::min(flash_write_size, remaining_data.len());
+            let block = &remaining_data[..block_size];
+        
+            let padding_needed = flash_write_size.saturating_sub(block.len());
+        
+            let block_vec = if padding_needed > 0 {
+                let mut owned = block.to_vec();
+                owned.extend(std::iter::repeat(0xFF).take(padding_needed));
+                owned
+            } else {
+                block.to_vec()
+            };
+            
+            connection.with_timeout(
+                CommandType::FlashData.timeout_for_size(remaining_data.len() as u32),
+                |connection| {
+                    connection.command(Command::FlashData {
+                        data: &block_vec,
+                        pad_to: 0,
+                        pad_byte: 0,
+                        sequence: i,
+                    })?;
+                    Ok(())
+                },
+            )?;
+            
+            remaining_data = &remaining_data[block_size..];
+
+            if let Some(cb) = progress.as_mut() {
+                cb.update(i as usize + 1)
+            }
+        }
+
+        if let Some(cb) = progress.as_mut() {
+            cb.finish()
+        }
+
+        Ok(())
+    }
+
     fn write_segment(
         &mut self,
         connection: &mut Connection,
         segment: Segment<'_>,
         progress: &mut Option<&mut dyn ProgressCallbacks>,
-        secure_download_mode: bool,
     ) -> Result<(), Error> {
         let addr = segment.addr;
 
-        if !secure_download_mode {
-            let mut md5_hasher = Md5::new();
-            md5_hasher.update(&segment.data);
-            let checksum_md5 = md5_hasher.finalize();
+        let mut md5_hasher = Md5::new();
+        md5_hasher.update(&segment.data);
+        let checksum_md5 = md5_hasher.finalize();
 
-            if self.skip {
-                let flash_checksum_md5: u128 =
-                    connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
-                        connection
-                            .command(Command::FlashMd5 {
-                                offset: addr,
-                                size: segment.data.len() as u32,
-                            })?
-                            .try_into()
-                    })?;
+        if self.skip {
+            let flash_checksum_md5: u128 =
+                connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
+                    connection
+                        .command(Command::FlashMd5 {
+                            offset: addr,
+                            size: segment.data.len() as u32,
+                        })?
+                        .try_into()
+                })?;
 
-                if checksum_md5.as_slice() == flash_checksum_md5.to_be_bytes() {
-                    info!(
-                        "Segment at address '0x{:x}' has not changed, skipping write",
-                        addr
-                    );
-                    return Ok(());
-                }
+            if checksum_md5.as_slice() == flash_checksum_md5.to_be_bytes() {
+                info!(
+                    "Segment at address '0x{:x}' has not changed, skipping write",
+                    addr
+                );
+                return Ok(());
             }
+        }
 
-            let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
-            encoder.write_all(&segment.data)?;
-            let compressed = encoder.finish()?;
+        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
+        encoder.write_all(&segment.data)?;
+        let compressed = encoder.finish()?;
 
-            let target = self.chip.into_target();
-            let flash_write_size = target.flash_write_size(connection)?;
-            let block_count = compressed.len().div_ceil(flash_write_size);
-            let erase_count = segment.data.len().div_ceil(FLASH_SECTOR_SIZE);
+        let target = self.chip.into_target();
+        let flash_write_size = target.flash_write_size(connection)?;
+        let block_count = compressed.len().div_ceil(flash_write_size);
+        let erase_count = segment.data.len().div_ceil(FLASH_SECTOR_SIZE);
 
-            // round up to sector size
-            let erase_size = (erase_count * FLASH_SECTOR_SIZE) as u32;
+        // round up to sector size
+        let erase_size = (erase_count * FLASH_SECTOR_SIZE) as u32;
+
+        connection.with_timeout(
+            CommandType::FlashDeflBegin.timeout_for_size(erase_size),
+            |connection| {
+                connection.command(Command::FlashDeflBegin {
+                    size: segment.data.len() as u32,
+                    blocks: block_count as u32,
+                    block_size: flash_write_size as u32,
+                    offset: addr,
+                    supports_encryption: self.chip != Chip::Esp32 && !self.use_stub,
+                })?;
+                Ok(())
+            },
+        )?;
+        self.need_deflate_end = true;
+
+        let chunks = compressed.chunks(flash_write_size);
+        let num_chunks = chunks.len();
+
+        if let Some(cb) = progress.as_mut() {
+            cb.init(addr, num_chunks)
+        }
+
+        // decode the chunks to see how much data the device will have to save
+        let mut decoder = ZlibDecoder::new(Vec::new());
+        let mut decoded_size = 0;
+
+        for (i, block) in chunks.enumerate() {
+            decoder.write_all(block)?;
+            decoder.flush()?;
+            let size = decoder.get_ref().len() - decoded_size;
+            decoded_size = decoder.get_ref().len();
 
             connection.with_timeout(
-                CommandType::FlashDeflBegin.timeout_for_size(erase_size),
+                CommandType::FlashDeflData.timeout_for_size(size as u32),
                 |connection| {
-                    connection.command(Command::FlashDeflBegin {
-                        size: segment.data.len() as u32,
-                        blocks: block_count as u32,
-                        block_size: flash_write_size as u32,
-                        offset: addr,
-                        supports_encryption: self.chip != Chip::Esp32 && !self.use_stub,
-                    })?;
-                    Ok(())
-                },
-            )?;
-            self.need_deflate_end = true;
-
-            let chunks = compressed.chunks(flash_write_size);
-            let num_chunks = chunks.len();
-
-            if let Some(cb) = progress.as_mut() {
-                cb.init(addr, num_chunks)
-            }
-
-            // decode the chunks to see how much data the device will have to save
-            let mut decoder = ZlibDecoder::new(Vec::new());
-            let mut decoded_size = 0;
-
-            for (i, block) in chunks.enumerate() {
-                decoder.write_all(block)?;
-                decoder.flush()?;
-                let size = decoder.get_ref().len() - decoded_size;
-                decoded_size = decoder.get_ref().len();
-
-                connection.with_timeout(
-                    CommandType::FlashDeflData.timeout_for_size(size as u32),
-                    |connection| {
-                        connection.command(Command::FlashDeflData {
-                            sequence: i as u32,
-                            pad_to: 0,
-                            pad_byte: 0xff,
-                            data: block,
-                        })?;
-                        Ok(())
-                    },
-                )?;
-
-                if let Some(cb) = progress.as_mut() {
-                    cb.update(i + 1)
-                }
-            }
-
-            if let Some(cb) = progress.as_mut() {
-                cb.finish()
-            }
-
-            if self.verify {
-                let flash_checksum_md5: u128 =
-                    connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
-                        connection
-                            .command(Command::FlashMd5 {
-                                offset: addr,
-                                size: segment.data.len() as u32,
-                            })?
-                            .try_into()
-                    })?;
-
-                if checksum_md5.as_slice() != flash_checksum_md5.to_be_bytes() {
-                    return Err(Error::VerifyFailed);
-                }
-            }
-        } else {
-            let target = self.chip.into_target();
-            let flash_write_size = target.flash_write_size(connection)?;
-            let block_count = segment.data.len().div_ceil(flash_write_size);
-
-            connection.with_timeout(
-                CommandType::FlashBegin.timeout_for_size(segment.data.len() as u32),
-                |connection| {
-                    connection.command(Command::FlashBegin {
-                        size: segment.data.len() as u32,
-                        blocks: block_count as u32,
-                        block_size: flash_write_size as u32,
-                        offset: addr,
-                        supports_encryption: false,
+                    connection.command(Command::FlashDeflData {
+                        sequence: i as u32,
+                        pad_to: 0,
+                        pad_byte: 0xff,
+                        data: block,
                     })?;
                     Ok(())
                 },
             )?;
 
-            let mut attempt = 0;
+            if let Some(cb) = progress.as_mut() {
+                cb.update(i + 1)
+            }
+        }
 
-            let mut remaining_data = &segment.data[..];  
+        if let Some(cb) = progress.as_mut() {
+            cb.finish()
+        }
 
-            while !remaining_data.is_empty() {
-                attempt += 1;
-            
-                let block_size = std::cmp::min(flash_write_size, remaining_data.len());
-                let block = &remaining_data[..block_size];
-            
-                let padding_needed = flash_write_size.saturating_sub(block.len());
-            
-                let block_vec = if padding_needed > 0 {
-                    let mut owned = block.to_vec();
-                    owned.extend(std::iter::repeat(0xFF).take(padding_needed));
-                    owned
-                } else {
-                    block.to_vec()
-                };
-                
-                connection.with_timeout(
-                    CommandType::FlashData.timeout_for_size(remaining_data.len() as u32),
-                    |connection| {
-                        connection.command(Command::FlashData {
-                            data: &block_vec,
-                            pad_to: 0,
-                            pad_byte: 0,
-                            sequence: attempt,
-                        })?;
-                        Ok(())
-                    },
-                )?;
-                
-                // Advance our view into the data without modifying the original
-                remaining_data = &remaining_data[block_size..];
+        if self.verify {
+            let flash_checksum_md5: u128 =
+                connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
+                    connection
+                        .command(Command::FlashMd5 {
+                            offset: addr,
+                            size: segment.data.len() as u32,
+                        })?
+                        .try_into()
+                })?;
+
+            if checksum_md5.as_slice() != flash_checksum_md5.to_be_bytes() {
+                return Err(Error::VerifyFailed);
             }
         }
 

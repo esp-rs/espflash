@@ -36,12 +36,20 @@ impl FlashTarget for RamTarget {
         Ok(())
     }
 
+    fn write_segment_sdm(
+            &mut self,
+            _connection: &mut Connection,
+            _segment: Segment<'_>,
+            _progress: &mut Option<&mut dyn ProgressCallbacks>,
+        ) -> Result<(), Error> {
+        todo!()
+    }
+
     fn write_segment(
         &mut self,
         connection: &mut Connection,
         segment: Segment<'_>,
         progress: &mut Option<&mut dyn ProgressCallbacks>,
-        _secure_download_mode: bool,
     ) -> Result<(), Error> {
         let addr = segment.addr;
 

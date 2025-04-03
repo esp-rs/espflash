@@ -26,7 +26,14 @@ pub trait FlashTarget {
         connection: &mut Connection,
         segment: Segment<'_>,
         progress: &mut Option<&mut dyn ProgressCallbacks>,
-        secure_download_mode: bool,
+    ) -> Result<(), Error>;
+
+     /// Write a segment to the target device in SDM mode
+     fn write_segment_sdm(
+        &mut self,
+        connection: &mut Connection,
+        segment: Segment<'_>,
+        progress: &mut Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error>;
 
     /// Complete the flashing operation
