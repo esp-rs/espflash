@@ -213,6 +213,10 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         let mut data = bytes_of(&header).to_vec();
 
+        // The bootloader needs segments to be 4-byte aligned, but ensuring that
+        // alignment by padding segments might result in overlapping segments. We
+        // need to merge adjacent segments first to avoid the possibility of them
+        // overlapping, and then do the padding.
         let flash_segments: Vec<_> =
             pad_align_segments(merge_adjacent_segments(rom_segments(chip, &elf).collect()));
         let mut ram_segments: Vec<_> =
