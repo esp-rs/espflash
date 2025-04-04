@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed typos in error variant names (#782)
 - Fix `read-flash` which didn't work with some lengths (#804)
 - espflash can now flash an ESP32-S2 in download mode over USB (#813)
+- Fixed a case where esplash transformed the firmware elf in a way that made it unbootable (#831)
 
 ### Removed
 

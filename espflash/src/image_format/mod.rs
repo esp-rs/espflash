@@ -33,13 +33,12 @@ pub struct Segment<'a> {
 
 impl<'a> Segment<'a> {
     pub fn new(addr: u32, data: &'a [u8]) -> Self {
-        let mut segment = Segment {
+        // Do not pad the data here, as it might result in overlapping segments
+        // in the ELF file. The padding should be done after merging adjacent segments.
+        Segment {
             addr,
             data: Cow::Borrowed(data),
-        };
-        segment.pad_align(4);
-
-        segment
+        }
     }
 
     /// Split of the first `count` bytes into a new segment, adjusting the
