@@ -22,7 +22,7 @@ use clap::{Args, ValueEnum};
 use clap_complete::Shell;
 use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use esp_idf_part::{DataType, Partition, PartitionTable};
-use indicatif::{style::ProgressStyle, HumanCount, ProgressBar};
+use indicatif::{style::ProgressStyle, HumanBytes, HumanCount, ProgressBar};
 use log::{debug, info, warn};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo};
@@ -324,9 +324,13 @@ pub struct ListPortsArgs {
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct WriteBinArgs {
-    /// Address at which to write the binary file
-    #[arg(value_parser = parse_u32)]
-    pub address: u32,
+    /// Address or partition label at which to write the binary file
+    #[arg(value_parser = parse_write_target)]
+    pub target: WriteTarget,
+    /// Path to a CSV file containing partition table, needed to resolve the
+    /// partition label.
+    #[arg(long, value_name = "FILE")]
+    pub partition_table: Option<PathBuf>,
     /// File containing the binary data to write
     pub file: String,
     /// Connection configuration
@@ -338,6 +342,24 @@ pub struct WriteBinArgs {
     /// Serial monitor configuration
     #[clap(flatten)]
     pub monitor_args: MonitorConfigArgs,
+}
+
+/// Represents the target address for writing a binary file
+#[derive(Debug, Clone)]
+pub enum WriteTarget {
+    Address(u32),
+    Partition(String),
+}
+
+/// Parses a string into a [WriteTarget].
+///
+/// If the input is a valid u32, it is treated as an address, otherwise as a
+/// partition label.
+pub fn parse_write_target(input: &str) -> Result<WriteTarget, ParseIntError> {
+    Ok(parse_u32(input).map_or_else(
+        |_| WriteTarget::Partition(input.to_string()),
+        WriteTarget::Address,
+    ))
 }
 
 /// Parses an integer, in base-10 or hexadecimal format, into a [u32]
@@ -1010,13 +1032,7 @@ pub fn make_flash_data(
 
 /// Write a binary to the flash memory of a target device
 pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config, false, false)?;
-    print_board_info(&mut flasher)?;
-
-    let chip = flasher.chip();
-    let target = chip.into_target();
-    let target_xtal_freq = target.crystal_freq(flasher.connection())?;
-
+    // Load the file to be flashed
     let mut f = File::open(&args.file).into_diagnostic()?;
 
     // If the file size is not divisible by 4, we need to pad `FF` bytes to the end
@@ -1029,11 +1045,56 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     f.read_to_end(&mut buffer).into_diagnostic()?;
     buffer.extend(std::iter::repeat_n(0xFF, padded_bytes as usize));
 
-    flasher.write_bin_to_flash(
-        args.address,
-        &buffer,
-        Some(&mut EspflashProgress::default()),
-    )?;
+    // Figure out where to flash the file
+    let address = match args.target {
+        WriteTarget::Address(address) => address,
+        WriteTarget::Partition(label) => {
+            let Some(partition_table) = args
+                .partition_table
+                .as_deref()
+                .or(config.partition_table.as_deref())
+            else {
+                miette::bail!("A partition table is required to resolve partition label");
+            };
+
+            let data = fs::read(partition_table)
+                .into_diagnostic()
+                .with_context(|| {
+                    format!(
+                        "Failed to read partition table from {}",
+                        partition_table.display(),
+                    )
+                })?;
+
+            let partition_table = PartitionTable::try_from(data)
+                .into_diagnostic()
+                .context("Failed to parse partition table")?;
+
+            let Some(partition) = partition_table.find(&label) else {
+                miette::bail!("{} partition not found in partition table", label);
+            };
+
+            if partition.size() < buffer.len() as u32 {
+                miette::bail!(
+                    "Can not flash a binary image of {} to {} partition ({})",
+                    HumanBytes(buffer.len() as u64),
+                    label,
+                    HumanBytes(partition.size() as u64)
+                );
+            }
+
+            partition.offset()
+        }
+    };
+
+    let mut flasher = connect(&args.connect_args, config, false, false)?;
+    print_board_info(&mut flasher)?;
+
+    let chip = flasher.chip();
+    let target = chip.into_target();
+    let target_xtal_freq = target.crystal_freq(flasher.connection())?;
+
+    flasher.write_bin_to_flash(address, &buffer, Some(&mut EspflashProgress::default()))?;
 
     if args.monitor {
         let pid = flasher.usb_pid();
