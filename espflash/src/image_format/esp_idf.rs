@@ -213,8 +213,10 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         let mut data = bytes_of(&header).to_vec();
 
-        let flash_segments: Vec<_> = merge_adjacent_segments(rom_segments(chip, &elf).collect());
-        let mut ram_segments: Vec<_> = merge_adjacent_segments(ram_segments(chip, &elf).collect());
+        let flash_segments: Vec<_> =
+            pad_align_segments(merge_adjacent_segments(rom_segments(chip, &elf).collect()));
+        let mut ram_segments: Vec<_> =
+            pad_align_segments(merge_adjacent_segments(ram_segments(chip, &elf).collect()));
 
         let mut checksum = ESP_CHECKSUM_MAGIC;
         let mut segment_count = 0;
@@ -444,6 +446,11 @@ fn merge_adjacent_segments(mut segments: Vec<Segment<'_>>) -> Vec<Segment<'_>> {
     }
 
     merged
+}
+
+fn pad_align_segments(mut segments: Vec<Segment<'_>>) -> Vec<Segment<'_>> {
+    segments.iter_mut().for_each(|segment| segment.pad_align(4));
+    segments
 }
 
 /// Save a segment to the data buffer.
