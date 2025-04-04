@@ -295,6 +295,17 @@ impl SpiRegisters {
     }
 }
 
+/// Defines an eFuse field with its block, word offset, bit position and size
+#[derive(Debug, Clone, Copy)]
+pub struct EfuseField {
+    /// Word offset within the block
+    pub word_offset: u32,
+    /// Bit position within the word
+    pub bit_offset: u32,
+    /// Number of bits in the field
+    pub bit_count: u32,
+}
+
 /// Enable the reading of eFuses for a target
 pub trait ReadEFuse {
     /// Returns the base address of the eFuse register
@@ -305,6 +316,78 @@ pub trait ReadEFuse {
     fn read_efuse(&self, connection: &mut Connection, n: u32) -> Result<u32, Error> {
         let reg = self.efuse_reg() + (n * 0x4);
         connection.read_reg(reg)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Read an eFuse field defined by its position parameters
+    fn read_efuse_field(
+        &self,
+        connection: &mut Connection,
+        word_offset: u32,
+        bit_offset: u32,
+        bit_count: u32,
+    ) -> Result<u32, Error> {
+        let value = self.read_efuse(connection, word_offset)?;
+        let mask = if bit_count == 32 {
+            0xFFFF_FFFF
+        } else {
+            (1 << bit_count) - 1
+        };
+        Ok((value >> bit_offset) & mask)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Read an eFuse field defined by a structured EfuseField
+    fn read_field(&self, connection: &mut Connection, field: EfuseField) -> Result<u32, Error> {
+        self.read_efuse_field(
+            connection,
+            field.word_offset,
+            field.bit_offset,
+            field.bit_count,
+        )
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Read a MAC address from eFuse fields
+    fn read_mac_address(
+        &self,
+        connection: &mut Connection,
+        fields: &[EfuseField; 6],
+    ) -> Result<String, Error> {
+        let mut mac_bytes = [0u8; 6];
+
+        for (i, field) in fields.iter().enumerate() {
+            let byte_value = self.read_field(connection, *field)? as u8;
+            mac_bytes[i] = byte_value;
+        }
+
+        Ok(bytes_to_mac_addr(&mac_bytes))
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Read a MAC address using word-based fields
+    fn read_mac_address_from_words(
+        &self,
+        connection: &mut Connection,
+        word_field_1: EfuseField,
+        word_field_2: EfuseField,
+    ) -> Result<String, Error> {
+        let word1 = self.read_field(connection, word_field_1)?;
+        let word2 = self.read_field(connection, word_field_2)?;
+
+        let bytes = ((word2 as u64) << 32) | word1 as u64;
+        let bytes = bytes.to_be_bytes();
+        // Skip first two bytes as MAC address is typically stored in the last 6 bytes
+        let mac_bytes = &bytes[2..8];
+
+        Ok(bytes_to_mac_addr(mac_bytes))
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Return fields common to most/all chips
+    fn common_fields(&self) -> HashMap<&'static str, EfuseField> {
+        HashMap::new() // Default empty implementation, to be overridden by
+                       // chips
     }
 }
 
@@ -362,16 +445,7 @@ pub trait Target: ReadEFuse {
 
     #[cfg(feature = "serialport")]
     /// What is the MAC address?
-    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let word5 = self.read_efuse(connection, 17)?;
-        let word6 = self.read_efuse(connection, 18)?;
-
-        let bytes = ((word6 as u64) << 32) | word5 as u64;
-        let bytes = bytes.to_be_bytes();
-        let bytes = &bytes[2..];
-
-        Ok(bytes_to_mac_addr(bytes))
-    }
+    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error>;
 
     #[cfg(feature = "serialport")]
     /// Maximum RAM block size for writing
