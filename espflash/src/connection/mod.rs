@@ -124,6 +124,7 @@ pub struct Connection {
     decoder: SlipDecoder,
     after_operation: ResetAfterOperation,
     before_operation: ResetBeforeOperation,
+    pub(crate) secure_download_mode: bool,
 }
 
 impl Connection {
@@ -139,6 +140,7 @@ impl Connection {
             decoder: SlipDecoder::new(),
             after_operation,
             before_operation,
+            secure_download_mode: false,
         }
     }
 
@@ -449,11 +451,13 @@ impl Connection {
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#response-packet
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#status-bytes
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#verifying-uploaded-data
-                let status_len = if response.len() == 10 || response.len() == 26 {
-                    2
-                } else {
-                    4
-                };
+
+                let status_len =
+                    if response.len() == 10 || response.len() == 26 || self.secure_download_mode {
+                        2
+                    } else {
+                        4
+                    };
 
                 let value = match response.len() {
                     10 | 12 => CommandResponseValue::ValueU32(u32::from_le_bytes(
@@ -524,7 +528,6 @@ impl Connection {
     pub fn command(&mut self, command: Command<'_>) -> Result<CommandResponseValue, Error> {
         let ty = command.command_type();
         self.write_command(command).for_command(ty)?;
-
         for _ in 0..100 {
             match self.read_response().for_command(ty)? {
                 Some(response) if response.return_op == ty as u8 => {

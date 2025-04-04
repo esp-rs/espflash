@@ -631,7 +631,7 @@ pub struct DeviceInfo {
     /// Device features
     pub features: Vec<String>,
     /// MAC address
-    pub mac_address: String,
+    pub mac_address: Option<String>,
 }
 
 /// Connect to and flash a target device
@@ -674,6 +674,8 @@ impl Flasher {
         connection.begin()?;
         connection.set_timeout(DEFAULT_TIMEOUT)?;
 
+        let sdm = detect_sdm(&mut connection)?;
+
         let detected_chip = if before_operation != ResetBeforeOperation::NoResetNoSync {
             // Detect which chip we are connected to.
             let detected_chip = detect_chip(&mut connection, use_stub)?;
@@ -709,11 +711,18 @@ impl Flasher {
 
         // Load flash stub if enabled
         if use_stub {
-            info!("Using flash stub");
-            flasher.load_stub()?;
+            if !sdm {
+                info!("Using flash stub");
+                flasher.load_stub()?;
+            } else {
+                warn!("Stub is not supported in Secure Download Mode, setting --no-stub");
+                flasher.use_stub = !use_stub;
+            }
         }
 
-        flasher.spi_autodetect()?;
+        if !sdm {
+            flasher.spi_autodetect()?;
+        }
 
         // Now that we have established a connection and detected the chip and flash
         // size, we can set the baud rate of the connection to the configured value.
@@ -982,14 +991,25 @@ impl Flasher {
         let chip = self.chip();
         let target = chip.into_target();
 
-        let revision = Some(target.chip_revision(self.connection())?);
+        // chip_revision reads from efuse, which is not possible in Secure Download Mode
+        let revision = if !self.connection.secure_download_mode {
+            Some(target.chip_revision(self.connection())?)
+        } else {
+            None
+        };
+
         let crystal_frequency = target.crystal_freq(self.connection())?;
         let features = target
             .chip_features(self.connection())?
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let mac_address = target.mac_address(self.connection())?;
+
+        let mac_address = if !self.connection.secure_download_mode {
+            Some(target.mac_address(self.connection())?)
+        } else {
+            None
+        };
 
         let info = DeviceInfo {
             chip,
@@ -1099,10 +1119,17 @@ impl Flasher {
         let mut target = self
             .chip
             .flash_target(self.spi_params, self.use_stub, false, false);
+
         target.begin(&mut self.connection).flashing()?;
+
         for segment in segments {
-            target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;
+            if self.connection.secure_download_mode {
+                target.write_segment_sdm(&mut self.connection, segment.borrow(), &mut progress)?;
+            } else {
+                target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;
+            }
         }
+
         target.finish(&mut self.connection, true).flashing()?;
 
         Ok(())
@@ -1381,4 +1408,15 @@ fn detect_chip(connection: &mut Connection, use_stub: bool) -> Result<Chip, Erro
             Ok(chip)
         }
     }
+}
+
+fn detect_sdm(connection: &mut Connection) -> Result<bool, Error> {
+    match connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR) {
+        Ok(_) => return Ok(false),
+        Err(_) => {
+            log::warn!("Secure Download Mode is enabled on this chip");
+            connection.secure_download_mode = true;
+            return Ok(true);
+        }
+    };
 }
