@@ -1,11 +1,13 @@
+#[cfg(feature = "serialport")]
+use std::collections::HashMap;
 use std::ops::Range;
 
 #[cfg(feature = "serialport")]
-use crate::{connection::Connection, targets::bytes_to_mac_addr};
+use crate::connection::Connection;
 use crate::{
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
-    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
+    targets::{Chip, EfuseField, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
     Error,
 };
 
@@ -38,18 +40,150 @@ impl Esp32 {
     #[cfg(feature = "serialport")]
     /// Return the package version based on the eFuses
     fn package_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let word3 = self.read_efuse(connection, 3)?;
+        let fields = self.common_fields();
+        let pkg_version = self.read_field(connection, fields["CHIP_VER_PKG"])?;
+        let pkg_version_4bit = self.read_field(connection, fields["CHIP_VER_PKG_4BIT"])?;
 
-        let pkg_version = (word3 >> 9) & 0x7;
-        let pkg_version = pkg_version + (((word3 >> 2) & 0x1) << 3);
-
-        Ok(pkg_version)
+        Ok(pkg_version + (pkg_version_4bit << 3))
     }
 }
 
 impl ReadEFuse for Esp32 {
     fn efuse_reg(&self) -> u32 {
         0x3ff5_a000
+    }
+
+    #[cfg(feature = "serialport")]
+    fn common_fields(&self) -> HashMap<&'static str, EfuseField> {
+        let mut fields = HashMap::new();
+
+        // MAC address fields
+        fields.insert(
+            "MAC_FACTORY_0",
+            EfuseField {
+                word_offset: 1,
+                bit_offset: 0,
+                bit_count: 32,
+            },
+        );
+        fields.insert(
+            "MAC_FACTORY_1",
+            EfuseField {
+                word_offset: 2,
+                bit_offset: 0,
+                bit_count: 16,
+            },
+        );
+
+        // Chip version fields
+        fields.insert(
+            "CHIP_VER_REV1",
+            EfuseField {
+                word_offset: 3,
+                bit_offset: 15,
+                bit_count: 1,
+            },
+        );
+        fields.insert(
+            "CHIP_VERSION",
+            EfuseField {
+                word_offset: 3,
+                bit_offset: 12,
+                bit_count: 2,
+            },
+        );
+        fields.insert(
+            "CHIP_VER_REV2",
+            EfuseField {
+                word_offset: 5,
+                bit_offset: 20,
+                bit_count: 1,
+            },
+        );
+        fields.insert(
+            "CHIP_CPU_FREQ_RATED",
+            EfuseField {
+                word_offset: 3,
+                bit_offset: 13,
+                bit_count: 1,
+            },
+        );
+        fields.insert(
+            "CHIP_CPU_FREQ_LOW",
+            EfuseField {
+                word_offset: 3,
+                bit_offset: 12,
+                bit_count: 1,
+            },
+        );
+        fields.insert(
+            "CHIP_VER_PKG",
+            EfuseField {
+                word_offset: 3,
+                bit_offset: 9,
+                bit_count: 3,
+            },
+        );
+        fields.insert(
+            "CHIP_VER_PKG_4BIT",
+            EfuseField {
+                word_offset: 3,
+                bit_offset: 2,
+                bit_count: 1,
+            },
+        );
+        fields.insert(
+            "CODING_SCHEME",
+            EfuseField {
+                word_offset: 6,
+                bit_offset: 0,
+                bit_count: 2,
+            },
+        );
+
+        // Feature bits
+        fields.insert(
+            "CHIP_VER_DIS_APP_CPU",
+            EfuseField {
+                word_offset: 3,
+                bit_offset: 0,
+                bit_count: 1,
+            },
+        );
+        fields.insert(
+            "CHIP_VER_DIS_BT",
+            EfuseField {
+                word_offset: 3,
+                bit_offset: 1,
+                bit_count: 1,
+            },
+        );
+        fields.insert(
+            "ADC_VREF",
+            EfuseField {
+                word_offset: 4,
+                bit_offset: 8,
+                bit_count: 1,
+            },
+        );
+        fields.insert(
+            "BLK3_PART_RESERVE",
+            EfuseField {
+                word_offset: 3,
+                bit_offset: 14,
+                bit_count: 1,
+            },
+        );
+        fields.insert(
+            "MINOR_VERSION",
+            EfuseField {
+                word_offset: 5,
+                bit_offset: 24,
+                bit_count: 2,
+            },
+        );
+
+        fields
     }
 }
 
@@ -60,27 +194,25 @@ impl Target for Esp32 {
 
     #[cfg(feature = "serialport")]
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
-        let word3 = self.read_efuse(connection, 3)?;
-        let word4 = self.read_efuse(connection, 4)?;
-        let word6 = self.read_efuse(connection, 6)?;
+        let fields = self.common_fields();
 
         let mut features = vec!["WiFi"];
 
-        let chip_ver_dis_bt = word3 & 0x2;
+        let chip_ver_dis_bt = self.read_field(connection, fields["CHIP_VER_DIS_BT"])?;
         if chip_ver_dis_bt == 0 {
             features.push("BT");
         }
 
-        let chip_ver_dis_app_cpu = word3 & 0x1;
+        let chip_ver_dis_app_cpu = self.read_field(connection, fields["CHIP_VER_DIS_APP_CPU"])?;
         if chip_ver_dis_app_cpu == 0 {
             features.push("Dual Core");
         } else {
             features.push("Single Core");
         }
 
-        let chip_cpu_freq_rated = word3 & (1 << 13);
+        let chip_cpu_freq_rated = self.read_field(connection, fields["CHIP_CPU_FREQ_RATED"])?;
         if chip_cpu_freq_rated != 0 {
-            let chip_cpu_freq_low = word3 & (1 << 12);
+            let chip_cpu_freq_low = self.read_field(connection, fields["CHIP_CPU_FREQ_LOW"])?;
             if chip_cpu_freq_low != 0 {
                 features.push("160MHz");
             } else {
@@ -96,17 +228,17 @@ impl Target for Esp32 {
             features.push("Embedded PSRAM");
         }
 
-        let adc_vref = (word4 >> 8) & 0x1;
+        let adc_vref = self.read_field(connection, fields["ADC_VREF"])?;
         if adc_vref != 0 {
             features.push("VRef calibration in efuse");
         }
 
-        let blk3_part_res = (word3 >> 14) & 0x1;
+        let blk3_part_res = self.read_field(connection, fields["BLK3_PART_RESERVE"])?;
         if blk3_part_res != 0 {
             features.push("BLK3 partially reserved");
         }
 
-        let coding_scheme = word6 & 0x3;
+        let coding_scheme = self.read_field(connection, fields["CODING_SCHEME"])?;
         features.push(match coding_scheme {
             0 => "Coding Scheme None",
             1 => "Coding Scheme 3/4",
@@ -120,9 +252,10 @@ impl Target for Esp32 {
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let apb_ctl_date = connection.read_reg(0x3FF6_607C)?;
+        let fields = self.common_fields();
 
-        let rev_bit0 = (self.read_efuse(connection, 3)? >> 15) & 0x1;
-        let rev_bit1 = (self.read_efuse(connection, 5)? >> 20) & 0x1;
+        let rev_bit0 = self.read_field(connection, fields["CHIP_VER_REV1"])?;
+        let rev_bit1 = self.read_field(connection, fields["CHIP_VER_REV2"])?;
         let rev_bit2 = (apb_ctl_date >> 31) & 0x1;
 
         let combine_value = (rev_bit2 << 2) | (rev_bit1 << 1) | rev_bit0;
@@ -137,7 +270,8 @@ impl Target for Esp32 {
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok((self.read_efuse(connection, 5)? >> 24) & 0x3)
+        let fields = self.common_fields();
+        self.read_field(connection, fields["MINOR_VERSION"])
     }
 
     #[cfg(feature = "serialport")]
@@ -189,14 +323,12 @@ impl Target for Esp32 {
 
     #[cfg(feature = "serialport")]
     fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let word1 = self.read_efuse(connection, 1)?;
-        let word2 = self.read_efuse(connection, 2)?;
-
-        let words = ((word2 as u64) << 32) | word1 as u64;
-        let bytes = words.to_be_bytes();
-        let bytes = &bytes[2..8];
-
-        Ok(bytes_to_mac_addr(bytes))
+        let fields = self.common_fields();
+        self.read_mac_address_from_words(
+            connection,
+            fields["MAC_FACTORY_0"],
+            fields["MAC_FACTORY_1"],
+        )
     }
 
     fn spi_registers(&self) -> SpiRegisters {

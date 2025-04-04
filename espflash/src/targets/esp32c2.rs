@@ -1,13 +1,15 @@
-use std::{collections::HashMap, ops::Range};
+#[cfg(feature = "serialport")]
+use std::collections::HashMap;
+use std::ops::Range;
 
 use log::debug;
 
 #[cfg(feature = "serialport")]
-use crate::{connection::Connection, targets::bytes_to_mac_addr};
+use crate::connection::Connection;
 use crate::{
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
-    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
+    targets::{Chip, EfuseField, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
     Error,
 };
 
@@ -46,6 +48,49 @@ impl ReadEFuse for Esp32c2 {
     fn efuse_reg(&self) -> u32 {
         0x6000_8800
     }
+
+    #[cfg(feature = "serialport")]
+    fn common_fields(&self) -> HashMap<&'static str, EfuseField> {
+        let mut fields = HashMap::new();
+
+        // MAC address fields
+        fields.insert(
+            "MAC_FACTORY_0",
+            EfuseField {
+                word_offset: 16,
+                bit_offset: 0,
+                bit_count: 32,
+            },
+        );
+        fields.insert(
+            "MAC_FACTORY_1",
+            EfuseField {
+                word_offset: 17,
+                bit_offset: 0,
+                bit_count: 16,
+            },
+        );
+
+        // Chip version fields
+        fields.insert(
+            "MAJOR_VERSION",
+            EfuseField {
+                word_offset: 17,
+                bit_offset: 20,
+                bit_count: 2,
+            },
+        );
+        fields.insert(
+            "MINOR_VERSION",
+            EfuseField {
+                word_offset: 17,
+                bit_offset: 16,
+                bit_count: 4,
+            },
+        );
+
+        fields
+    }
 }
 
 impl Target for Esp32c2 {
@@ -60,12 +105,14 @@ impl Target for Esp32c2 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok((self.read_efuse(connection, 17)? >> 20) & 0x3)
+        let fields = self.common_fields();
+        self.read_field(connection, fields["MAJOR_VERSION"])
     }
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok((self.read_efuse(connection, 17)? >> 16) & 0xf)
+        let fields = self.common_fields();
+        self.read_field(connection, fields["MINOR_VERSION"])
     }
 
     #[cfg(feature = "serialport")]
@@ -128,14 +175,12 @@ impl Target for Esp32c2 {
     #[cfg(feature = "serialport")]
     /// What is the MAC address?
     fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let word5 = self.read_efuse(connection, 16)?;
-        let word6 = self.read_efuse(connection, 17)?;
-
-        let bytes = ((word6 as u64) << 32) | word5 as u64;
-        let bytes = bytes.to_be_bytes();
-        let bytes = &bytes[2..];
-
-        Ok(bytes_to_mac_addr(bytes))
+        let fields = self.common_fields();
+        self.read_mac_address_from_words(
+            connection,
+            fields["MAC_FACTORY_0"],
+            fields["MAC_FACTORY_1"],
+        )
     }
 
     fn spi_registers(&self) -> SpiRegisters {
