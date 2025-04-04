@@ -5,7 +5,7 @@ use crate::connection::Connection;
 use crate::{
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
-    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
+    targets::{Chip, EfuseField, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
     Error,
 };
 
@@ -40,6 +40,57 @@ impl ReadEFuse for Esp32h2 {
     fn efuse_reg(&self) -> u32 {
         0x600B_0800
     }
+
+    #[cfg(feature = "serialport")]
+    fn common_fields(&self) -> HashMap<&'static str, EfuseField> {
+        let mut fields = HashMap::new();
+
+        // MAC address fields
+        fields.insert(
+            "MAC_FACTORY_0",
+            EfuseField {
+                word_offset: 1,
+                bit_offset: 0,
+                bit_count: 32,
+            },
+        );
+        fields.insert(
+            "MAC_FACTORY_1",
+            EfuseField {
+                word_offset: 2,
+                bit_offset: 0,
+                bit_count: 16,
+            },
+        );
+
+        // Chip version fields
+        fields.insert(
+            "MAJOR_VERSION",
+            EfuseField {
+                word_offset: 22,
+                bit_offset: 24,
+                bit_count: 2,
+            },
+        );
+        fields.insert(
+            "MINOR_VERSION_HI",
+            EfuseField {
+                word_offset: 22,
+                bit_offset: 23,
+                bit_count: 1,
+            },
+        );
+        fields.insert(
+            "MINOR_VERSION_LO",
+            EfuseField {
+                word_offset: 20,
+                bit_offset: 18,
+                bit_count: 3,
+            },
+        );
+
+        fields
+    }
 }
 
 impl Target for Esp32h2 {
@@ -54,13 +105,15 @@ impl Target for Esp32h2 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok((self.read_efuse(connection, 22)? >> 24) & 0x3)
+        let fields = self.common_fields();
+        self.read_field(connection, fields["MAJOR_VERSION"])
     }
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let hi = (self.read_efuse(connection, 22)? >> 23) & 0x1;
-        let lo = (self.read_efuse(connection, 20)? >> 18) & 0x7;
+        let fields = self.common_fields();
+        let hi = self.read_field(connection, fields["MINOR_VERSION_HI"])?;
+        let lo = self.read_field(connection, fields["MINOR_VERSION_LO"])?;
 
         Ok((hi << 3) + lo)
     }
@@ -110,5 +163,15 @@ impl Target for Esp32h2 {
 
     fn supported_build_targets(&self) -> &[&str] {
         &["riscv32imac-esp-espidf", "riscv32imac-unknown-none-elf"]
+    }
+
+    #[cfg(feature = "serialport")]
+    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
+        let fields = self.common_fields();
+        self.read_mac_address_from_words(
+            connection,
+            fields["MAC_FACTORY_0"],
+            fields["MAC_FACTORY_1"],
+        )
     }
 }
