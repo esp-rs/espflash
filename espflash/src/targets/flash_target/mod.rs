@@ -18,11 +18,7 @@ pub trait ProgressCallbacks {
 /// Operations for interacting with a flash target
 pub trait FlashTarget {
     /// Begin the flashing operation
-    fn begin(
-        &mut self,
-        connection: &mut Connection,
-        secure_download_mode: bool,
-    ) -> Result<(), Error>;
+    fn begin(&mut self, connection: &mut Connection) -> Result<(), Error>;
 
     /// Write a segment to the target device
     fn write_segment(

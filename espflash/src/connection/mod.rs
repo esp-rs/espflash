@@ -124,6 +124,7 @@ pub struct Connection {
     decoder: SlipDecoder,
     after_operation: ResetAfterOperation,
     before_operation: ResetBeforeOperation,
+    pub(crate) secure_download_mode: bool,
 }
 
 impl Connection {
@@ -139,6 +140,7 @@ impl Connection {
             decoder: SlipDecoder::new(),
             after_operation,
             before_operation,
+            secure_download_mode: false,
         }
     }
 
@@ -450,15 +452,12 @@ impl Connection {
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#status-bytes
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#verifying-uploaded-data
 
-                // TODO: status len should be 2 for SDM
-
-                let status_len = if response.len() == 10 || response.len() == 26 {
-                    2
-                } else {
-                    4
-                };
-
-                let status_len = 2;
+                let status_len =
+                    if response.len() == 10 || response.len() == 26 || self.secure_download_mode {
+                        2
+                    } else {
+                        4
+                    };
 
                 let value = match response.len() {
                     10 | 12 => CommandResponseValue::ValueU32(u32::from_le_bytes(

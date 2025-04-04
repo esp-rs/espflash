@@ -55,18 +55,14 @@ impl Esp32Target {
 
 #[cfg(feature = "serialport")]
 impl FlashTarget for Esp32Target {
-    fn begin(
-        &mut self,
-        connection: &mut Connection,
-        secure_download_mode: bool,
-    ) -> Result<(), Error> {
+    fn begin(&mut self, connection: &mut Connection) -> Result<(), Error> {
         connection.with_timeout(CommandType::SpiAttach.timeout(), |connection| {
             let command = if self.use_stub {
                 Command::SpiAttachStub {
                     spi_params: self.spi_attach_params,
                 }
             } else {
-                if secure_download_mode {
+                if connection.secure_download_mode {
                     Command::SpiAttach {
                         spi_params: SpiAttachParams::default(),
                     }

@@ -652,8 +652,6 @@ pub struct Flasher {
     verify: bool,
     /// Indicate skipping of already flashed regions
     skip: bool,
-    /// FUCKME
-    secure_download_mode: bool,
 }
 
 #[cfg(feature = "serialport")]
@@ -676,7 +674,7 @@ impl Flasher {
         connection.begin()?;
         connection.set_timeout(DEFAULT_TIMEOUT)?;
 
-        let secure_download_mode = detect_sdm(&mut connection)?;
+        let sdm = detect_sdm(&mut connection)?;
 
         let detected_chip = if before_operation != ResetBeforeOperation::NoResetNoSync {
             // Detect which chip we are connected to.
@@ -705,7 +703,6 @@ impl Flasher {
             use_stub,
             verify,
             skip,
-            secure_download_mode,
         };
 
         if before_operation == ResetBeforeOperation::NoResetNoSync {
@@ -714,7 +711,7 @@ impl Flasher {
 
         // Load flash stub if enabled
         if use_stub {
-            if !secure_download_mode {
+            if !sdm {
                 info!("Using flash stub");
                 flasher.load_stub()?;
             } else {
@@ -723,7 +720,7 @@ impl Flasher {
             }
         }
 
-        if !secure_download_mode {
+        if !sdm {
             flasher.spi_autodetect()?;
         }
 
@@ -747,9 +744,7 @@ impl Flasher {
         let mut target = self
             .chip
             .flash_target(self.spi_params, self.use_stub, false, false);
-        target
-            .begin(&mut self.connection, self.secure_download_mode)
-            .flashing()?;
+        target.begin(&mut self.connection).flashing()?;
         Ok(())
     }
 
@@ -765,9 +760,7 @@ impl Flasher {
                 .into_target()
                 .max_ram_block_size(&mut self.connection)?,
         );
-        ram_target
-            .begin(&mut self.connection, self.secure_download_mode)
-            .flashing()?;
+        ram_target.begin(&mut self.connection).flashing()?;
 
         let (text_addr, text) = stub.text();
         debug!("Write {} byte stub text", text.len());
@@ -999,7 +992,7 @@ impl Flasher {
         let target = chip.into_target();
 
         // chip_revision reads from efuse, which is not possible in Secure Download Mode
-        let revision = if !self.secure_download_mode {
+        let revision = if !self.connection.secure_download_mode {
             Some(target.chip_revision(self.connection())?)
         } else {
             None
@@ -1012,7 +1005,7 @@ impl Flasher {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
 
-        let mac_address = if !self.secure_download_mode {
+        let mac_address = if !self.connection.secure_download_mode {
             Some(target.mac_address(self.connection())?)
         } else {
             None
@@ -1049,9 +1042,7 @@ impl Flasher {
                 .into_target()
                 .max_ram_block_size(&mut self.connection)?,
         );
-        target
-            .begin(&mut self.connection, self.secure_download_mode)
-            .flashing()?;
+        target.begin(&mut self.connection).flashing()?;
 
         for segment in ram_segments(self.chip, &elf) {
             target
@@ -1073,9 +1064,7 @@ impl Flasher {
         let mut target =
             self.chip
                 .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
-        target
-            .begin(&mut self.connection, self.secure_download_mode)
-            .flashing()?;
+        target.begin(&mut self.connection).flashing()?;
 
         let chip_revision = Some(
             self.chip
@@ -1131,12 +1120,10 @@ impl Flasher {
             .chip
             .flash_target(self.spi_params, self.use_stub, false, false);
 
-        target
-            .begin(&mut self.connection, self.secure_download_mode)
-            .flashing()?;
+        target.begin(&mut self.connection).flashing()?;
 
         for segment in segments {
-            if self.secure_download_mode {
+            if self.connection.secure_download_mode {
                 target.write_segment_sdm(&mut self.connection, segment.borrow(), &mut progress)?;
             } else {
                 target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;
@@ -1428,6 +1415,7 @@ fn detect_sdm(connection: &mut Connection) -> Result<bool, Error> {
         Ok(_) => return Ok(false),
         Err(_) => {
             log::warn!("Secure Download Mode is enabled on this chip");
+            connection.secure_download_mode = true;
             return Ok(true);
         }
     };

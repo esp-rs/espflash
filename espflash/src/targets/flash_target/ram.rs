@@ -32,11 +32,7 @@ impl Default for RamTarget {
 
 #[cfg(feature = "serialport")]
 impl FlashTarget for RamTarget {
-    fn begin(
-        &mut self,
-        _connection: &mut Connection,
-        _secure_download_mode: bool,
-    ) -> Result<(), Error> {
+    fn begin(&mut self, _connection: &mut Connection) -> Result<(), Error> {
         Ok(())
     }
 
