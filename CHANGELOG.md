@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `--output-format` option to monitor (#818)
 - Added chip detection based on security info, where supported (#814)
 - `espflash` can detect the chip from ESP-HAL metadata to prevent flashing firmware built for a different device. Reqires `esp-hal` 1.0.0-beta.0 (presumably, yet to be released) (#816)
+- `espflash` no longer allows flashing a too-big partition table (#830)
 
 ### Changed
 

@@ -130,6 +130,18 @@ impl<'a> IdfBootloaderFormat<'a> {
             default_partition_table(&params, flash_data.flash_settings.size.map(|v| v.size()))
         });
 
+        if partition_table
+            .partitions()
+            .iter()
+            .map(|p| p.size())
+            .sum::<u32>()
+            > flash_data.flash_settings.size.unwrap_or_default().size()
+        {
+            return Err(Error::PartitionTableDoesNotFit(
+                flash_data.flash_settings.size.unwrap_or_default(),
+            ));
+        }
+
         let mut bootloader = if let Some(bytes) = flash_data.bootloader {
             Cow::Owned(bytes)
         } else {
@@ -406,7 +418,7 @@ fn segment_padding(offset: usize, segment: &Segment<'_>) -> u32 {
     let align_past = (segment.addr - SEG_HEADER_LEN) % IROM_ALIGN;
     let pad_len = ((IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past) % IROM_ALIGN;
 
-    if pad_len == 0 || pad_len == IROM_ALIGN {
+    if pad_len % IROM_ALIGN == 0 {
         0
     } else if pad_len > SEG_HEADER_LEN {
         pad_len - SEG_HEADER_LEN

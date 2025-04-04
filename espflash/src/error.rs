@@ -228,6 +228,13 @@ pub enum Error {
         help("Ensure that the device is connected and your host recognizes the serial adapter")
     )]
     FirmwareChipMismatch { elf: String, detected: Chip },
+
+    #[error("The partition table does not fit into the flash ({0})")]
+    #[diagnostic(
+        code(espflash::partition_table::does_not_fit),
+        help("Make sure you set the correct flash size with the `--flash-size` option")
+    )]
+    PartitionTableDoesNotFit(FlashSize),
 }
 
 #[cfg(feature = "serialport")]
