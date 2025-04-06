@@ -6,7 +6,16 @@
 
 #[cfg(feature = "serialport")]
 use std::{borrow::Cow, io::Write, path::PathBuf, thread::sleep, time::Duration};
-use std::{collections::HashMap, fmt, fs, path::Path, str::FromStr};
+
+#[cfg(feature = "std")]
+use std::{fs, path::Path};
+
+use alloc::collections::BTreeMap;
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::{vec, vec::Vec};
+use core::fmt;
+use core::str::FromStr;
 
 use esp_idf_part::PartitionTable;
 #[cfg(feature = "serialport")]
@@ -26,18 +35,14 @@ pub(crate) use self::stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
 pub use crate::targets::flash_target::ProgressCallbacks;
 #[cfg(feature = "serialport")]
 use crate::{
+    command::{Command, CommandType},
     connection::{
-        command::{Command, CommandType},
         reset::{ResetAfterOperation, ResetBeforeOperation},
-        Connection,
-        Port,
+        Connection, Port,
     },
     error::{ConnectionError, ResultExt as _},
     flasher::stubs::{
-        FlashStub,
-        CHIP_DETECT_MAGIC_REG_ADDR,
-        DEFAULT_TIMEOUT,
-        EXPECTED_STUB_HANDSHAKE,
+        FlashStub, CHIP_DETECT_MAGIC_REG_ADDR, DEFAULT_TIMEOUT, EXPECTED_STUB_HANDSHAKE,
     },
     image_format::{ram_segments, rom_segments, Segment},
 };
@@ -70,8 +75,8 @@ pub struct SecurityInfo {
 }
 
 impl SecurityInfo {
-    fn security_flag_map() -> HashMap<&'static str, u32> {
-        HashMap::from([
+    fn security_flag_map() -> BTreeMap<&'static str, u32> {
+        BTreeMap::from([
             ("SECURE_BOOT_EN", 1 << 0),
             ("SECURE_BOOT_AGGRESSIVE_REVOKE", 1 << 1),
             ("SECURE_DOWNLOAD_ENABLE", 1 << 2),
@@ -229,7 +234,19 @@ impl fmt::Display for SecurityInfo {
 /// Note that not all frequencies are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(
-    Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Display, VariantNames, Serialize, Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    Display,
+    VariantNames,
+    Serialize,
+    Deserialize,
+    PartialOrd,
+    Ord,
 )]
 #[non_exhaustive]
 #[repr(u8)]
@@ -479,6 +496,7 @@ pub struct FlashData {
 }
 
 impl FlashData {
+    #[cfg(feature = "std")]
     pub fn new(
         bootloader: Option<&Path>,
         partition_table: Option<&Path>,

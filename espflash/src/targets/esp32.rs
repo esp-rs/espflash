@@ -1,4 +1,4 @@
-use std::ops::Range;
+use core::ops::Range;
 
 #[cfg(feature = "serialport")]
 use crate::{connection::Connection, targets::bytes_to_mac_addr};

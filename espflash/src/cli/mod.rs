@@ -11,12 +11,14 @@
 //! [espflash]: https://crates.io/crates/espflash
 
 use std::{
-    collections::HashMap,
     fs::{self, File},
     io::{Read, Write},
     num::ParseIntError,
     path::{Path, PathBuf},
 };
+
+use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 
 use clap::{Args, ValueEnum};
 use clap_complete::Shell;
@@ -35,13 +37,7 @@ use crate::{
     connection::reset::{ResetAfterOperation, ResetBeforeOperation},
     error::{Error, MissingPartition, MissingPartitionTable},
     flasher::{
-        FlashData,
-        FlashFrequency,
-        FlashMode,
-        FlashSettings,
-        FlashSize,
-        Flasher,
-        ProgressCallbacks,
+        FlashData, FlashFrequency, FlashMode, FlashSettings, FlashSize, Flasher, ProgressCallbacks,
         FLASH_SECTOR_SIZE,
     },
     image_format::Metadata,
@@ -830,7 +826,7 @@ pub fn erase_partitions(
                 .ok_or_else(|| MissingPartition::from(label))?;
 
             parts_to_erase
-                .get_or_insert(HashMap::new())
+                .get_or_insert(BTreeMap::new())
                 .insert(part.offset(), part);
         }
     }
@@ -845,7 +841,7 @@ pub fn erase_partitions(
                     && part.subtype() == esp_idf_part::SubType::Data(ty)
                 {
                     parts_to_erase
-                        .get_or_insert(HashMap::new())
+                        .get_or_insert(BTreeMap::new())
                         .insert(part.offset(), part);
                 }
             }

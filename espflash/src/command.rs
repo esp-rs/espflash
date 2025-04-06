@@ -1,6 +1,8 @@
 //! Commands to work with a flasher stub running on a target device
 
-use std::{io::Write, mem::size_of, time::Duration};
+use core::{mem::size_of, time::Duration};
+
+use embedded_io::Write;
 
 use bytemuck::{bytes_of, Pod, Zeroable};
 use strum::Display;
@@ -81,7 +83,7 @@ impl CommandType {
     pub fn timeout_for_size(&self, size: u32) -> Duration {
         fn calc_timeout(timeout_per_mb: Duration, size: u32) -> Duration {
             let mb = size as f64 / 1_000_000.0;
-            std::cmp::max(
+            core::cmp::max(
                 FLASH_DEFLATE_END_TIMEOUT,
                 Duration::from_millis((timeout_per_mb.as_millis() as f64 * mb) as u64),
             )
@@ -238,7 +240,7 @@ impl Command<'_> {
     }
 
     /// Write a command
-    pub fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
+    pub fn write<W: Write>(&self, mut writer: W) -> Result<(), W::Error> {
         // Write the Direction and Command Indentifier
         writer.write_all(&[0, self.command_type() as u8])?;
         match *self {
@@ -456,7 +458,7 @@ impl Command<'_> {
 }
 
 /// Write a data array and its checksum to a writer
-fn write_basic<W: Write>(mut writer: W, data: &[u8], checksum: u32) -> std::io::Result<()> {
+fn write_basic<W: Write>(mut writer: W, data: &[u8], checksum: u32) -> Result<(), W::Error> {
     writer.write_all(&((data.len() as u16).to_le_bytes()))?;
     writer.write_all(&(checksum.to_le_bytes()))?;
     writer.write_all(data)?;
@@ -471,7 +473,7 @@ fn begin_command<W: Write>(
     block_size: u32,
     offset: u32,
     supports_encryption: bool,
-) -> std::io::Result<()> {
+) -> Result<(), W::Error> {
     #[derive(Zeroable, Pod, Copy, Clone, Debug)]
     #[repr(C)]
     struct BeginParams {
@@ -508,7 +510,7 @@ fn data_command<W: Write>(
     pad_to: usize,
     pad_byte: u8,
     sequence: u32,
-) -> std::io::Result<()> {
+) -> Result<(), W::Error> {
     #[derive(Zeroable, Pod, Copy, Clone, Debug)]
     #[repr(C)]
     struct BlockParams {

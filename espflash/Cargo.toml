@@ -26,7 +26,7 @@ required-features = ["cli", "serialport"]
 
 [dependencies]
 addr2line       = { version = "0.24.2", optional = true }
-base64          = "0.22.1"
+base64          = { version = "0.22.1", default-features = false }
 bitflags        = "2.9.0"
 bytemuck        = { version = "1.21.0", features = ["derive"] }
 clap            = { version = "4.5.24", features = ["derive", "env", "wrap_help"], optional = true }
@@ -38,22 +38,26 @@ defmt-decoder   = { version = "=0.4.0", features = ["unstable"], optional = true
 dialoguer       = { version = "0.11.0", optional = true }
 directories     = { version = "5.0.1", optional = true }
 env_logger      = { version = "0.11.6", optional = true }
-esp-idf-part    = "0.5.0"
-flate2          = "1.0.35"
+esp-idf-part    = { path = "../../esp-idf-part", default-features = false }
+flate2          = { version = "1.0.35", optional = true }
 indicatif       = { version = "0.17.9", optional = true }
 log             = "0.4.22"
-md-5            = "0.10.6"
-miette          = "7.4.0"
-object          = "0.36.7"
+md-5            = { version = "0.10.6", default-features = false}
+miette          = { version = "7.4.0", optional = true}
+object          = { version = "0.36.7", default-features = false, features = ['read'] }
 regex           = { version = "1.11.1", optional = true }
-serde           = { version = "1.0.217", features = ["derive"] }
+serde           = { version = "1.0.217", features = ["derive"], default-features = false }
 serialport      = { version = "4.7.0", default-features = false, optional = true }
-sha2            = "0.10.8"
+sha2            = { version = "0.10.8", default-features = false}
 slip-codec      = { version = "0.4.0", optional = true }
-strum           = { version = "0.26.3", features = ["derive"] }
-thiserror       = "2.0.10"
+strum           = { version = "0.26.3", default-features = false, features = ["derive"] }
+thiserror       = { version = "2.0.10", default-features = false }
 toml            = { version = "0.8.19", optional = true }
 update-informer = { version = "1.2.0", optional = true }
+
+heapless        = { version = "0.8.0" }
+embedded-io     = { version = "0.6.1", features = ["alloc"]}
+embedded-io-adapters     = { version = "0.6.1"}
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.169"
@@ -75,7 +79,10 @@ cli = [
     "dep:update-informer",
     "miette/fancy",
     "serialport",
+    "std"
 ]
 
 # Enables connecting to a device via serial port
-serialport = ["dep:regex", "dep:serialport", "dep:slip-codec", "dep:toml"]
+serialport = ["dep:regex", "dep:serialport", "dep:slip-codec", "dep:toml", "std"]
+
+std = ["dep:miette", "dep:flate2", "object/default", "serde/std", "thiserror/std", "strum/std", "esp-idf-part/std", "md-5/std", "sha2/std", "base64/std", "embedded-io/std", "embedded-io-adapters/std"]

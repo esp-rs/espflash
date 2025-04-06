@@ -1,4 +1,4 @@
-use std::ops::Range;
+use core::ops::Range;
 
 #[cfg(feature = "serialport")]
 use super::flash_target::MAX_RAM_BLOCK_SIZE;

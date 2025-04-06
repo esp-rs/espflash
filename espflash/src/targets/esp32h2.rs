@@ -1,4 +1,5 @@
-use std::{collections::HashMap, ops::Range};
+use alloc::collections::BTreeMap;
+use core::ops::Range;
 
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
@@ -71,12 +72,12 @@ impl Target for Esp32h2 {
         Ok(XtalFrequency::_32Mhz)
     }
 
-    fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
+    fn flash_frequency_encodings(&self) -> BTreeMap<FlashFrequency, u8> {
         use FlashFrequency::*;
 
         let encodings = [(_12Mhz, 0x2), (_16Mhz, 0x1), (_24Mhz, 0x0), (_48Mhz, 0xF)];
 
-        HashMap::from(encodings)
+        BTreeMap::from(encodings)
     }
 
     fn flash_image<'a>(

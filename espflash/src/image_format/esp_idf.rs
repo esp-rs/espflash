@@ -1,6 +1,12 @@
 //! ESP-IDF application binary image format
 
-use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
+use core::iter::once;
+use core::mem::size_of;
+#[cfg(not(feature = "std"))]
+use embedded_io::Write;
+
+#[cfg(feature = "std")]
+use std::io::Write;
 
 use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
@@ -13,6 +19,11 @@ use crate::{
     targets::{Chip, Esp32Params},
     Error,
 };
+
+use alloc::borrow::Cow;
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 const ESP_CHECKSUM_MAGIC: u8 = 0xEF;
 const ESP_MAGIC: u8 = 0xE9;
@@ -336,6 +347,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         })
     }
 
+    #[cfg(feature = "std")]
     pub fn flash_segments<'b>(&'b self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
     where
         'a: 'b,
@@ -383,35 +395,38 @@ impl<'a> IdfBootloaderFormat<'a> {
 /// `flash_size` is used to scale app partition when present, otherwise the
 /// paramameter defaults are used.
 fn default_partition_table(params: &Esp32Params, flash_size: Option<u32>) -> PartitionTable {
-    PartitionTable::new(vec![
-        Partition::new(
-            String::from("nvs"),
-            Type::Data,
-            SubType::Data(DataType::Nvs),
-            params.nvs_addr,
-            params.nvs_size,
-            false,
-        ),
-        Partition::new(
-            String::from("phy_init"),
-            Type::Data,
-            SubType::Data(DataType::Phy),
-            params.phy_init_data_addr,
-            params.phy_init_data_size,
-            false,
-        ),
-        Partition::new(
-            String::from("factory"),
-            Type::App,
-            SubType::App(AppType::Factory),
-            params.app_addr,
-            core::cmp::min(
-                flash_size.map_or(params.app_size, |size| size - params.app_addr),
-                MAX_PARTITION_SIZE,
+    PartitionTable::new(
+        [
+            Partition::new(
+                String::from("nvs"),
+                Type::Data,
+                SubType::Data(DataType::Nvs),
+                params.nvs_addr,
+                params.nvs_size,
+                false,
             ),
-            false,
-        ),
-    ])
+            Partition::new(
+                String::from("phy_init"),
+                Type::Data,
+                SubType::Data(DataType::Phy),
+                params.phy_init_data_addr,
+                params.phy_init_data_size,
+                false,
+            ),
+            Partition::new(
+                String::from("factory"),
+                Type::App,
+                SubType::App(AppType::Factory),
+                params.app_addr,
+                core::cmp::min(
+                    flash_size.map_or(params.app_size, |size| size - params.app_addr),
+                    MAX_PARTITION_SIZE,
+                ),
+                false,
+            ),
+        ]
+        .into(),
+    )
 }
 
 /// Actual alignment (in data bytes) required for a segment header: positioned

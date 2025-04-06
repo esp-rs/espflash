@@ -1,7 +1,9 @@
 //! Binary application image formats
 
-use std::{
-    borrow::Cow,
+use alloc::borrow::Cow;
+use alloc::boxed::Box;
+
+use core::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
     mem::take,
@@ -11,9 +13,7 @@ use std::{
 use object::{
     elf::SHT_PROGBITS,
     read::elf::{ElfFile32 as ElfFile, SectionHeader},
-    Endianness,
-    Object as _,
-    ObjectSection as _,
+    Endianness, Object as _, ObjectSection as _,
 };
 
 pub use self::{esp_idf::IdfBootloaderFormat, metadata::Metadata};
@@ -122,7 +122,7 @@ impl AddAssign<&'_ Segment<'_>> for Segment<'_> {
 }
 
 impl Debug for Segment<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> alloc::fmt::Result {
         f.debug_struct("CodeSegment")
             .field("addr", &self.addr)
             .field("size", &self.size())

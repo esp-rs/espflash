@@ -4,12 +4,14 @@
 //! sending/decoding of commands, and provides higher-level operations with the
 //! device.
 
+#[cfg(feature = "std")]
 use std::{
     io::{BufWriter, Read, Write},
-    iter::zip,
     thread::sleep,
-    time::Duration,
 };
+
+use core::iter::zip;
+use core::time::Duration;
 
 use log::{debug, info};
 use regex::Regex;
@@ -22,15 +24,8 @@ use self::{
     command::{Command, CommandType},
     encoder::SlipEncoder,
     reset::{
-        construct_reset_strategy_sequence,
-        hard_reset,
-        reset_after_flash,
-        soft_reset,
-        ClassicReset,
-        ResetAfterOperation,
-        ResetBeforeOperation,
-        ResetStrategy,
-        UsbJtagSerialReset,
+        construct_reset_strategy_sequence, hard_reset, reset_after_flash, soft_reset, ClassicReset,
+        ResetAfterOperation, ResetBeforeOperation, ResetStrategy, UsbJtagSerialReset,
     },
 };
 use crate::{
@@ -38,7 +33,7 @@ use crate::{
     targets::Chip,
 };
 
-pub(crate) mod command;
+use super::command;
 pub(crate) mod reset;
 
 const MAX_CONNECT_ATTEMPTS: usize = 7;
@@ -513,9 +508,9 @@ impl Connection {
 
         serial.clear(serialport::ClearBuffer::Input)?;
         let mut writer = BufWriter::new(serial);
-        let mut encoder = SlipEncoder::new(&mut writer)?;
+        let mut encoder = embedded_io_adapters::std::FromStd::new(SlipEncoder::new(&mut writer)?);
         command.write(&mut encoder)?;
-        encoder.finish()?;
+        encoder.into_inner().finish()?;
         writer.flush()?;
         Ok(())
     }
@@ -608,7 +603,7 @@ impl Connection {
 }
 
 mod encoder {
-    use std::io::Write;
+    use super::Write;
 
     const END: u8 = 0xC0;
     const ESC: u8 = 0xDB;
