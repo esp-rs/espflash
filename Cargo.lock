@@ -1225,6 +1225,7 @@ dependencies = [
 [[package]]
 name = "esp-idf-part"
 version = "0.5.0"
+source = "git+https://github.com/i404788/esp-idf-part.git#094ab03c1e99281e8de4e3e45dc5374b5ad89445"
 dependencies = [
  "csv",
  "deku",
