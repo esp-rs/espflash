@@ -4,7 +4,6 @@
 use std::fmt::{Display, Formatter};
 use std::{array::TryFromSliceError, io};
 
-use indicatif::HumanBytes;
 use miette::Diagnostic;
 #[cfg(feature = "serialport")]
 use slip_codec::SlipError;
@@ -270,18 +269,14 @@ impl From<SlipError> for Error {
 pub enum AppDescriptorError {
     #[error("Invalid app descriptor magic word: {0:#x}")]
     #[diagnostic(code(espflash::invalid_app_descriptor_magic_word))]
-    InvalidMagicWord(u32),
+    MagicWordMismatch(u32),
 
     #[error("The app description segment is not aligned to any valid MMU page size.")]
     #[diagnostic(
         code(espflash::invalid_app_descriptor_alignment),
         help("Try specifying the MMU page size manually.")
     )]
-    InvalidAlignment,
-
-    #[error("Invalid MMU page size: (0)")]
-    #[diagnostic(code(espflash::invalid_app_descriptor_mmu_page_size))]
-    InvalidMmuPageSize(HumanBytes),
+    IncorrectDescriptorAlignment,
 }
 
 /// Connection-related errors

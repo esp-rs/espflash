@@ -285,7 +285,7 @@ impl<'a> IdfBootloaderFormat<'a> {
             None
         };
 
-        let valid_page_sizes = params.mmu_page_sizes.as_deref().unwrap_or(&[IROM_ALIGN]);
+        let valid_page_sizes = params.mmu_page_sizes.unwrap_or(&[IROM_ALIGN]);
         let valid_page_sizes_string = valid_page_sizes
             .iter()
             .map(|size| format!("{:#x}", size))
@@ -302,7 +302,9 @@ impl<'a> IdfBootloaderFormat<'a> {
             let app_descriptor: AppDescriptor = pod_read_unaligned(app_descriptor_bytes);
 
             if app_descriptor.magic_word != AppDescriptor::ESP_APP_DESC_MAGIC_WORD {
-                return Err(AppDescriptorError::InvalidMagicWord(app_descriptor.magic_word).into());
+                return Err(
+                    AppDescriptorError::MagicWordMismatch(app_descriptor.magic_word).into(),
+                );
             }
 
             if app_descriptor.mmu_page_size != 0 {
@@ -329,7 +331,7 @@ impl<'a> IdfBootloaderFormat<'a> {
                         supported page sizes: {}",
                         address, valid_page_sizes_string
                     );
-                    return Err(AppDescriptorError::InvalidAlignment.into());
+                    return Err(AppDescriptorError::IncorrectDescriptorAlignment.into());
                 }
 
                 page_size
@@ -353,7 +355,7 @@ impl<'a> IdfBootloaderFormat<'a> {
                 "MMU page size {:#x} is not supported. Supported page sizes are: {}",
                 mmu_page_size, valid_page_sizes_string
             );
-            return Err(AppDescriptorError::InvalidAlignment.into());
+            return Err(AppDescriptorError::IncorrectDescriptorAlignment.into());
         };
 
         for segment in flash_segments {
