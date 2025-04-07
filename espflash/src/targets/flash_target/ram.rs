@@ -1,9 +1,7 @@
 #[cfg(feature = "serialport")]
 use crate::{
-    connection::{
-        command::{Command, CommandType},
-        Connection,
-    },
+    command::{Command, CommandType},
+    connection::Connection,
     flasher::ProgressCallbacks,
     targets::FlashTarget,
 };

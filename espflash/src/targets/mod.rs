@@ -4,8 +4,11 @@
 //! possible to write an application to and boot from RAM, where a bootloader is
 //! obviously not required either.
 
-use std::collections::HashMap;
+use alloc::boxed::Box;
+use alloc::collections::BTreeMap;
+use alloc::format;
 
+#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
@@ -21,14 +24,8 @@ use crate::{
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{
-        esp32::Esp32,
-        esp32c2::Esp32c2,
-        esp32c3::Esp32c3,
-        esp32c6::Esp32c6,
-        esp32h2::Esp32h2,
-        esp32p4::Esp32p4,
-        esp32s2::Esp32s2,
-        esp32s3::Esp32s3,
+        esp32::Esp32, esp32c2::Esp32c2, esp32c3::Esp32c3, esp32c6::Esp32c6, esp32h2::Esp32h2,
+        esp32p4::Esp32p4, esp32s2::Esp32s2, esp32s3::Esp32s3,
     },
     Error,
 };
@@ -49,9 +46,8 @@ pub(crate) mod flash_target;
 ///
 /// Note that not all frequencies are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(
-    Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Display, VariantNames, Serialize, Deserialize,
-)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize,))]
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Display, VariantNames)]
 #[non_exhaustive]
 #[repr(u32)]
 pub enum XtalFrequency {
@@ -337,12 +333,12 @@ pub trait Target: ReadEFuse {
     fn crystal_freq(&self, connection: &mut Connection) -> Result<XtalFrequency, Error>;
 
     /// Numeric encodings for the flash frequencies supported by a chip
-    fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
+    fn flash_frequency_encodings(&self) -> BTreeMap<FlashFrequency, u8> {
         use FlashFrequency::*;
 
         let encodings = [(_20Mhz, 0x2), (_26Mhz, 0x1), (_40Mhz, 0x0), (_80Mhz, 0xf)];
 
-        HashMap::from(encodings)
+        BTreeMap::from(encodings)
     }
 
     #[cfg(feature = "serialport")]

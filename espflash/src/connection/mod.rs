@@ -4,41 +4,33 @@
 //! sending/decoding of commands, and provides higher-level operations with the
 //! device.
 
+#[cfg(feature = "std")]
 use std::{
-    io::{BufWriter, Read, Write},
-    iter::zip,
+    io::{BufWriter, Read, Write as _},
     thread::sleep,
-    time::Duration,
 };
+
+use core::iter::zip;
+use core::time::Duration;
+use embedded_io::Write;
 
 use log::{debug, info};
 use regex::Regex;
 use serialport::{SerialPort, UsbPortInfo};
-use slip_codec::SlipDecoder;
 
 #[cfg(unix)]
 use self::reset::UnixTightReset;
-use self::{
-    command::{Command, CommandType},
-    encoder::SlipEncoder,
-    reset::{
-        construct_reset_strategy_sequence,
-        hard_reset,
-        reset_after_flash,
-        soft_reset,
-        ClassicReset,
-        ResetAfterOperation,
-        ResetBeforeOperation,
-        ResetStrategy,
-        UsbJtagSerialReset,
-    },
+pub use self::reset::{
+    construct_reset_strategy_sequence, hard_reset, reset_after_flash, soft_reset, ClassicReset,
+    ResetAfterOperation, ResetBeforeOperation, ResetStrategy, UsbJtagSerialReset,
 };
 use crate::{
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
     targets::Chip,
 };
 
-pub(crate) mod command;
+use super::command::{Command, CommandResponse, CommandResponseValue, CommandType};
+use super::slip::{decoder::SlipDecoder, encoder::SlipEncoder};
 pub(crate) mod reset;
 
 const MAX_CONNECT_ATTEMPTS: usize = 7;
@@ -49,72 +41,6 @@ const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 pub type Port = serialport::TTYPort;
 #[cfg(windows)]
 pub type Port = serialport::COMPort;
-
-#[derive(Debug, Clone)]
-pub enum CommandResponseValue {
-    ValueU32(u32),
-    ValueU128(u128),
-    Vector(Vec<u8>),
-}
-
-impl TryInto<u32> for CommandResponseValue {
-    type Error = Error;
-
-    fn try_into(self) -> Result<u32, Self::Error> {
-        match self {
-            CommandResponseValue::ValueU32(value) => Ok(value),
-            CommandResponseValue::ValueU128(_) => Err(Error::InvalidResponse(
-                "expected `u32` but found `u128`".into(),
-            )),
-            CommandResponseValue::Vector(_) => Err(Error::InvalidResponse(
-                "expected `u32` but found `Vec`".into(),
-            )),
-        }
-    }
-}
-
-impl TryInto<u128> for CommandResponseValue {
-    type Error = Error;
-
-    fn try_into(self) -> Result<u128, Self::Error> {
-        match self {
-            CommandResponseValue::ValueU32(_) => Err(Error::InvalidResponse(
-                "expected `u128` but found `u32`".into(),
-            )),
-            CommandResponseValue::ValueU128(value) => Ok(value),
-            CommandResponseValue::Vector(_) => Err(Error::InvalidResponse(
-                "expected `u128` but found `Vec`".into(),
-            )),
-        }
-    }
-}
-
-impl TryInto<Vec<u8>> for CommandResponseValue {
-    type Error = Error;
-
-    fn try_into(self) -> Result<Vec<u8>, Self::Error> {
-        match self {
-            CommandResponseValue::ValueU32(_) => Err(Error::InvalidResponse(
-                "expected `Vec` but found `u32`".into(),
-            )),
-            CommandResponseValue::ValueU128(_) => Err(Error::InvalidResponse(
-                "expected `Vec` but found `u128`".into(),
-            )),
-            CommandResponseValue::Vector(value) => Ok(value),
-        }
-    }
-}
-
-/// A response from a target device following a command
-#[derive(Debug, Clone)]
-pub struct CommandResponse {
-    pub resp: u8,
-    pub return_op: u8,
-    pub return_length: u16,
-    pub value: CommandResponseValue,
-    pub error: u8,
-    pub status: u8,
-}
 
 /// An established connection with a target device
 #[derive(Debug)]
@@ -411,7 +337,8 @@ impl Connection {
     pub fn read_flash_response(&mut self) -> Result<Option<CommandResponse>, Error> {
         let mut response = Vec::new();
 
-        self.decoder.decode(&mut self.serial, &mut response)?;
+        let mut reader = embedded_io_adapters::std::FromStd::new(&mut self.serial);
+        self.decoder.decode(&mut reader, &mut response)?;
 
         if response.is_empty() {
             return Ok(None);
@@ -497,7 +424,7 @@ impl Connection {
         let mut binding = Box::new(&mut self.serial);
         let serial = binding.as_mut();
         serial.clear(serialport::ClearBuffer::Input)?;
-        let mut writer = BufWriter::new(serial);
+        let mut writer = embedded_io_adapters::std::FromStd::new(BufWriter::new(serial));
         let mut encoder = SlipEncoder::new(&mut writer)?;
         encoder.write_all(&data.to_le_bytes())?;
         encoder.finish()?;
@@ -512,7 +439,7 @@ impl Connection {
         let serial = binding.as_mut();
 
         serial.clear(serialport::ClearBuffer::Input)?;
-        let mut writer = BufWriter::new(serial);
+        let mut writer = embedded_io_adapters::std::FromStd::new(BufWriter::new(serial));
         let mut encoder = SlipEncoder::new(&mut writer)?;
         command.write(&mut encoder)?;
         encoder.finish()?;
@@ -579,7 +506,8 @@ impl Connection {
     pub(crate) fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
         let mut tmp = Vec::with_capacity(1024);
         loop {
-            self.decoder.decode(&mut self.serial, &mut tmp)?;
+            let mut reader = embedded_io_adapters::std::FromStd::new(&mut self.serial);
+            self.decoder.decode(&mut reader, &mut tmp)?;
             if tmp.len() >= len {
                 return Ok(Some(tmp));
             }
@@ -604,59 +532,5 @@ impl Connection {
 
     pub(crate) fn is_using_usb_serial_jtag(&self) -> bool {
         self.port_info.pid == USB_SERIAL_JTAG_PID
-    }
-}
-
-mod encoder {
-    use std::io::Write;
-
-    const END: u8 = 0xC0;
-    const ESC: u8 = 0xDB;
-    const ESC_END: u8 = 0xDC;
-    const ESC_ESC: u8 = 0xDD;
-
-    pub struct SlipEncoder<'a, W: Write> {
-        writer: &'a mut W,
-        len: usize,
-    }
-
-    impl<'a, W: Write> SlipEncoder<'a, W> {
-        /// Creates a new encoder context
-        pub fn new(writer: &'a mut W) -> std::io::Result<Self> {
-            let len = writer.write(&[END])?;
-            Ok(Self { writer, len })
-        }
-
-        pub fn finish(mut self) -> std::io::Result<usize> {
-            self.len += self.writer.write(&[END])?;
-            Ok(self.len)
-        }
-    }
-
-    impl<W: Write> Write for SlipEncoder<'_, W> {
-        /// Writes the given buffer replacing the END and ESC bytes
-        ///
-        /// See https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/serial-protocol.html#low-level-protocol
-        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            for value in buf.iter() {
-                match *value {
-                    END => {
-                        self.len += self.writer.write(&[ESC, ESC_END])?;
-                    }
-                    ESC => {
-                        self.len += self.writer.write(&[ESC, ESC_ESC])?;
-                    }
-                    _ => {
-                        self.len += self.writer.write(&[*value])?;
-                    }
-                }
-            }
-
-            Ok(buf.len())
-        }
-
-        fn flush(&mut self) -> std::io::Result<()> {
-            self.writer.flush()
-        }
     }
 }

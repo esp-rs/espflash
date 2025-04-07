@@ -1,16 +1,20 @@
-use std::{collections::HashMap, error::Error};
+use alloc::boxed::Box;
+use alloc::collections::BTreeMap;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use core::error::Error;
 
 use object::{File, Object, ObjectSection, ObjectSymbol};
 
 #[derive(Debug, Clone)]
 pub struct Metadata {
-    symbols: HashMap<String, Vec<u8>>,
+    symbols: BTreeMap<String, Vec<u8>>,
 }
 
 impl Metadata {
     fn empty() -> Self {
         Self {
-            symbols: HashMap::new(),
+            symbols: BTreeMap::new(),
         }
     }
 
@@ -60,7 +64,7 @@ impl Metadata {
     fn read_string<'f>(&'f self, name: &str) -> Option<&'f str> {
         self.symbols
             .get(name)
-            .and_then(|data| std::str::from_utf8(data).ok())
+            .and_then(|data| core::str::from_utf8(data).ok())
     }
 
     pub fn chip_name(&self) -> Option<&str> {

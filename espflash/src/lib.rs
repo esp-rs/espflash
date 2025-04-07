@@ -25,7 +25,7 @@
 //!
 //! [espflash]: https://crates.io/crates/espflash
 //! [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
-
+#![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_debug_implementations, rust_2018_idioms)]
 
@@ -34,11 +34,16 @@ pub use self::{error::Error, image_format::Segment};
 #[cfg(feature = "serialport")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
 pub mod connection;
+
+pub mod command;
 pub mod flasher;
 pub mod image_format;
+pub mod slip;
 pub mod targets;
 
 mod error;
+
+extern crate alloc;
 
 // Command-line interface
 #[cfg(feature = "cli")]

@@ -1,11 +1,17 @@
 //! Commands to work with a flasher stub running on a target device
 
-use std::{io::Write, mem::size_of, time::Duration};
+use core::{mem::size_of, time::Duration};
+
+use alloc::vec::Vec;
+use embedded_io::Write;
 
 use bytemuck::{bytes_of, Pod, Zeroable};
 use strum::Display;
 
-use crate::flasher::{SpiAttachParams, SpiSetParams};
+use crate::{
+    flasher::{SpiAttachParams, SpiSetParams},
+    Error,
+};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 const ERASE_REGION_TIMEOUT_PER_MB: Duration = Duration::from_secs(30);
@@ -81,7 +87,7 @@ impl CommandType {
     pub fn timeout_for_size(&self, size: u32) -> Duration {
         fn calc_timeout(timeout_per_mb: Duration, size: u32) -> Duration {
             let mb = size as f64 / 1_000_000.0;
-            std::cmp::max(
+            core::cmp::max(
                 FLASH_DEFLATE_END_TIMEOUT,
                 Duration::from_millis((timeout_per_mb.as_millis() as f64 * mb) as u64),
             )
@@ -238,7 +244,7 @@ impl Command<'_> {
     }
 
     /// Write a command
-    pub fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
+    pub fn write<W: Write>(&self, mut writer: W) -> Result<(), W::Error> {
         // Write the Direction and Command Indentifier
         writer.write_all(&[0, self.command_type() as u8])?;
         match *self {
@@ -456,7 +462,7 @@ impl Command<'_> {
 }
 
 /// Write a data array and its checksum to a writer
-fn write_basic<W: Write>(mut writer: W, data: &[u8], checksum: u32) -> std::io::Result<()> {
+fn write_basic<W: Write>(mut writer: W, data: &[u8], checksum: u32) -> Result<(), W::Error> {
     writer.write_all(&((data.len() as u16).to_le_bytes()))?;
     writer.write_all(&(checksum.to_le_bytes()))?;
     writer.write_all(data)?;
@@ -471,7 +477,7 @@ fn begin_command<W: Write>(
     block_size: u32,
     offset: u32,
     supports_encryption: bool,
-) -> std::io::Result<()> {
+) -> Result<(), W::Error> {
     #[derive(Zeroable, Pod, Copy, Clone, Debug)]
     #[repr(C)]
     struct BeginParams {
@@ -508,7 +514,7 @@ fn data_command<W: Write>(
     pad_to: usize,
     pad_byte: u8,
     sequence: u32,
-) -> std::io::Result<()> {
+) -> Result<(), W::Error> {
     #[derive(Zeroable, Pod, Copy, Clone, Debug)]
     #[repr(C)]
     struct BlockParams {
@@ -552,4 +558,70 @@ fn checksum(data: &[u8], mut checksum: u8) -> u8 {
     }
 
     checksum
+}
+
+#[derive(Debug, Clone)]
+pub enum CommandResponseValue {
+    ValueU32(u32),
+    ValueU128(u128),
+    Vector(Vec<u8>),
+}
+
+impl TryInto<u32> for CommandResponseValue {
+    type Error = Error;
+
+    fn try_into(self) -> Result<u32, Self::Error> {
+        match self {
+            CommandResponseValue::ValueU32(value) => Ok(value),
+            CommandResponseValue::ValueU128(_) => Err(Error::InvalidResponse(
+                "expected `u32` but found `u128`".into(),
+            )),
+            CommandResponseValue::Vector(_) => Err(Error::InvalidResponse(
+                "expected `u32` but found `Vec`".into(),
+            )),
+        }
+    }
+}
+
+impl TryInto<u128> for CommandResponseValue {
+    type Error = Error;
+
+    fn try_into(self) -> Result<u128, Self::Error> {
+        match self {
+            CommandResponseValue::ValueU32(_) => Err(Error::InvalidResponse(
+                "expected `u128` but found `u32`".into(),
+            )),
+            CommandResponseValue::ValueU128(value) => Ok(value),
+            CommandResponseValue::Vector(_) => Err(Error::InvalidResponse(
+                "expected `u128` but found `Vec`".into(),
+            )),
+        }
+    }
+}
+
+impl TryInto<Vec<u8>> for CommandResponseValue {
+    type Error = Error;
+
+    fn try_into(self) -> Result<Vec<u8>, Self::Error> {
+        match self {
+            CommandResponseValue::ValueU32(_) => Err(Error::InvalidResponse(
+                "expected `Vec` but found `u32`".into(),
+            )),
+            CommandResponseValue::ValueU128(_) => Err(Error::InvalidResponse(
+                "expected `Vec` but found `u128`".into(),
+            )),
+            CommandResponseValue::Vector(value) => Ok(value),
+        }
+    }
+}
+
+/// A response from a target device following a command
+#[derive(Debug, Clone)]
+pub struct CommandResponse {
+    pub resp: u8,
+    pub return_op: u8,
+    pub return_length: u16,
+    pub value: CommandResponseValue,
+    pub error: u8,
+    pub status: u8,
 }
