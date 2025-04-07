@@ -226,6 +226,8 @@ pub struct Esp32Params {
     pub chip_id: u16,
     pub flash_freq: FlashFrequency,
     pub default_bootloader: &'static [u8],
+    /// If the MMU page size is configurable, contains the supported page sizes.
+    pub mmu_page_sizes: Option<&'static [u32]>,
 }
 
 impl Esp32Params {
@@ -236,6 +238,7 @@ impl Esp32Params {
         chip_id: u16,
         flash_freq: FlashFrequency,
         bootloader: &'static [u8],
+        mmu_page_sizes: Option<&'static [u32]>,
     ) -> Self {
         Self {
             boot_addr,
@@ -249,6 +252,7 @@ impl Esp32Params {
             chip_id,
             flash_freq,
             default_bootloader: bootloader,
+            mmu_page_sizes,
         }
     }
 }

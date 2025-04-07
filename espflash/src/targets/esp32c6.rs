@@ -25,6 +25,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
     CHIP_ID,
     FlashFrequency::_40Mhz,
     include_bytes!("../../resources/bootloaders/esp32c6-bootloader.bin"),
+    Some(&[8 * 1024, 16 * 1024, 32 * 1024, 64 * 1024]),
 );
 
 /// ESP32-C6 Target

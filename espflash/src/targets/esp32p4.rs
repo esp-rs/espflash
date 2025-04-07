@@ -25,6 +25,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
     CHIP_ID,
     FlashFrequency::_40Mhz,
     include_bytes!("../../resources/bootloaders/esp32p4-bootloader.bin"),
+    None,
 );
 
 /// ESP32-P4 Target
