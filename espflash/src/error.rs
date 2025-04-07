@@ -13,7 +13,7 @@ use std::io;
 use miette::Diagnostic;
 
 #[cfg(feature = "serialport")]
-use slip_codec::SlipError;
+use crate::connection::SlipError;
 use strum::VariantNames;
 use thiserror::Error;
 
@@ -314,8 +314,15 @@ impl From<serialport::Error> for Error {
 }
 
 #[cfg(feature = "serialport")]
-impl From<SlipError> for Error {
-    fn from(err: SlipError) -> Self {
+impl From<SlipError<std::io::Error, std::io::Error>> for Error {
+    fn from(err: SlipError<std::io::Error, std::io::Error>) -> Self {
+        Self::Connection(err.into())
+    }
+}
+
+#[cfg(feature = "serialport")]
+impl From<SlipError<std::io::Error, Infallible>> for Error {
+    fn from(err: SlipError<std::io::Error, Infallible>) -> Self {
         Self::Connection(err.into())
     }
 }
@@ -412,12 +419,26 @@ impl From<serialport::Error> for ConnectionError {
 }
 
 #[cfg(feature = "serialport")]
-impl From<SlipError> for ConnectionError {
-    fn from(err: SlipError) -> Self {
+impl From<SlipError<std::io::Error, std::io::Error>> for ConnectionError {
+    fn from(err: SlipError<std::io::Error, std::io::Error>) -> Self {
         match err {
             SlipError::FramingError => Self::FramingError,
             SlipError::OversizedPacket => Self::OverSizedPacket,
             SlipError::ReadError(io) => Self::from(io),
+            SlipError::WriteError(io) => Self::from(io),
+            SlipError::EndOfStream => Self::FramingError,
+        }
+    }
+}
+
+#[cfg(feature = "serialport")]
+impl From<SlipError<std::io::Error, Infallible>> for ConnectionError {
+    fn from(err: SlipError<std::io::Error, Infallible>) -> Self {
+        match err {
+            SlipError::FramingError => Self::FramingError,
+            SlipError::OversizedPacket => Self::OverSizedPacket,
+            SlipError::ReadError(io) => Self::from(io),
+            SlipError::WriteError(_) => unreachable!(),
             SlipError::EndOfStream => Self::FramingError,
         }
     }
