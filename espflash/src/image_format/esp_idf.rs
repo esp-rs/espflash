@@ -4,6 +4,7 @@ use std::{borrow::Cow, ffi::c_char, io::Write, iter::once, mem::size_of};
 
 use bytemuck::{bytes_of, from_bytes, pod_read_unaligned, Pod, Zeroable};
 use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
+use log::warn;
 use object::{read::elf::ElfFile32 as ElfFile, Endianness, Object, ObjectSection};
 use sha2::{Digest, Sha256};
 
@@ -284,6 +285,12 @@ impl<'a> IdfBootloaderFormat<'a> {
             None
         };
 
+        let valid_page_sizes = params.mmu_page_sizes.as_deref().unwrap_or(&[IROM_ALIGN]);
+        let valid_page_sizes_string = valid_page_sizes
+            .iter()
+            .map(|size| format!("{:#x}", size))
+            .collect::<Vec<_>>()
+            .join(", ");
         let app_desc_mmu_page_size = if let Some(address) = app_desc_addr {
             let segment = &flash_segments[0];
 
@@ -298,22 +305,9 @@ impl<'a> IdfBootloaderFormat<'a> {
                 return Err(AppDescriptorError::InvalidMagicWord(app_descriptor.magic_word).into());
             }
 
-            let valid_page_sizes = params.mmu_page_sizes.as_deref().unwrap_or(&[IROM_ALIGN]);
-
             if app_descriptor.mmu_page_size != 0 {
                 // Read page size from the app descriptor
-                let page_size = 1 << app_descriptor.mmu_page_size;
-
-                if !valid_page_sizes.contains(&page_size) {
-                    return Err(
-                        AppDescriptorError::InvalidMmuPageSize(indicatif::HumanBytes(
-                            page_size as u64,
-                        ))
-                        .into(),
-                    );
-                }
-
-                Some(page_size)
+                Some(1 << app_descriptor.mmu_page_size)
             } else {
                 // Infer from the app descriptor alignment
 
@@ -330,6 +324,11 @@ impl<'a> IdfBootloaderFormat<'a> {
                 }
 
                 if page_size.is_none() {
+                    warn!(
+                        "The app descriptor is placed at {:#x} which is not aligned to any of the \
+                        supported page sizes: {}",
+                        address, valid_page_sizes_string
+                    );
                     return Err(AppDescriptorError::InvalidAlignment.into());
                 }
 
@@ -348,6 +347,14 @@ impl<'a> IdfBootloaderFormat<'a> {
             .mmu_page_size
             .or(app_desc_mmu_page_size)
             .unwrap_or(IROM_ALIGN);
+
+        if !valid_page_sizes.contains(&mmu_page_size) {
+            warn!(
+                "MMU page size {:#x} is not supported. Supported page sizes are: {}",
+                mmu_page_size, valid_page_sizes_string
+            );
+            return Err(AppDescriptorError::InvalidAlignment.into());
+        };
 
         for segment in flash_segments {
             loop {
