@@ -11,12 +11,8 @@ use log::debug;
 use serialport::SerialPort;
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
-use super::{
-    command::{Command, CommandType},
-    Connection,
-    Port,
-    USB_SERIAL_JTAG_PID,
-};
+use super::{Connection, Port, USB_SERIAL_JTAG_PID};
+use crate::command::{Command, CommandType};
 use crate::{flasher::FLASH_WRITE_SIZE, Error};
 
 /// Default time to wait before releasing the boot pin after a reset

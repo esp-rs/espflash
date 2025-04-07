@@ -12,8 +12,7 @@ use std::io;
 #[cfg(feature = "std")]
 use miette::Diagnostic;
 
-#[cfg(feature = "serialport")]
-use crate::connection::SlipError;
+use crate::slip::decoder::SlipError;
 use strum::VariantNames;
 use thiserror::Error;
 

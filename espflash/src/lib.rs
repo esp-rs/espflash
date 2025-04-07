@@ -38,6 +38,7 @@ pub mod connection;
 pub mod command;
 pub mod flasher;
 pub mod image_format;
+pub mod slip;
 pub mod targets;
 
 mod error;
