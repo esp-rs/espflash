@@ -2,12 +2,16 @@
 
 use core::{mem::size_of, time::Duration};
 
+use alloc::vec::Vec;
 use embedded_io::Write;
 
 use bytemuck::{bytes_of, Pod, Zeroable};
 use strum::Display;
 
-use crate::flasher::{SpiAttachParams, SpiSetParams};
+use crate::{
+    flasher::{SpiAttachParams, SpiSetParams},
+    Error,
+};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 const ERASE_REGION_TIMEOUT_PER_MB: Duration = Duration::from_secs(30);
@@ -554,4 +558,70 @@ fn checksum(data: &[u8], mut checksum: u8) -> u8 {
     }
 
     checksum
+}
+
+#[derive(Debug, Clone)]
+pub enum CommandResponseValue {
+    ValueU32(u32),
+    ValueU128(u128),
+    Vector(Vec<u8>),
+}
+
+impl TryInto<u32> for CommandResponseValue {
+    type Error = Error;
+
+    fn try_into(self) -> Result<u32, Self::Error> {
+        match self {
+            CommandResponseValue::ValueU32(value) => Ok(value),
+            CommandResponseValue::ValueU128(_) => Err(Error::InvalidResponse(
+                "expected `u32` but found `u128`".into(),
+            )),
+            CommandResponseValue::Vector(_) => Err(Error::InvalidResponse(
+                "expected `u32` but found `Vec`".into(),
+            )),
+        }
+    }
+}
+
+impl TryInto<u128> for CommandResponseValue {
+    type Error = Error;
+
+    fn try_into(self) -> Result<u128, Self::Error> {
+        match self {
+            CommandResponseValue::ValueU32(_) => Err(Error::InvalidResponse(
+                "expected `u128` but found `u32`".into(),
+            )),
+            CommandResponseValue::ValueU128(value) => Ok(value),
+            CommandResponseValue::Vector(_) => Err(Error::InvalidResponse(
+                "expected `u128` but found `Vec`".into(),
+            )),
+        }
+    }
+}
+
+impl TryInto<Vec<u8>> for CommandResponseValue {
+    type Error = Error;
+
+    fn try_into(self) -> Result<Vec<u8>, Self::Error> {
+        match self {
+            CommandResponseValue::ValueU32(_) => Err(Error::InvalidResponse(
+                "expected `Vec` but found `u32`".into(),
+            )),
+            CommandResponseValue::ValueU128(_) => Err(Error::InvalidResponse(
+                "expected `Vec` but found `u128`".into(),
+            )),
+            CommandResponseValue::Vector(value) => Ok(value),
+        }
+    }
+}
+
+/// A response from a target device following a command
+#[derive(Debug, Clone)]
+pub struct CommandResponse {
+    pub resp: u8,
+    pub return_op: u8,
+    pub return_length: u16,
+    pub value: CommandResponseValue,
+    pub error: u8,
+    pub status: u8,
 }
