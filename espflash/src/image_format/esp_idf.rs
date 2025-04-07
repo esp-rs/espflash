@@ -225,9 +225,11 @@ impl<'a> IdfBootloaderFormat<'a> {
         let mut checksum = ESP_CHECKSUM_MAGIC;
         let mut segment_count = 0;
 
+        let mmu_page_size = IROM_ALIGN;
+
         for segment in flash_segments {
             loop {
-                let pad_len = segment_padding(data.len(), &segment);
+                let pad_len = segment_padding(data.len(), &segment, mmu_page_size);
                 if pad_len > 0 {
                     if pad_len > SEG_HEADER_LEN {
                         if let Some(ram_segment) = ram_segments.first_mut() {
@@ -259,7 +261,7 @@ impl<'a> IdfBootloaderFormat<'a> {
                 }
             }
 
-            checksum = save_flash_segment(&mut data, segment, checksum)?;
+            checksum = save_flash_segment(&mut data, segment, checksum, mmu_page_size)?;
             segment_count += 1;
         }
 
@@ -420,16 +422,16 @@ fn default_partition_table(params: &Esp32Params, flash_size: Option<u32>) -> Par
 ///
 /// (this is because the segment's vaddr may not be IROM_ALIGNed, more likely is
 /// aligned IROM_ALIGN+0x18 to account for the binary file header)
-fn segment_padding(offset: usize, segment: &Segment<'_>) -> u32 {
-    let align_past = (segment.addr - SEG_HEADER_LEN) % IROM_ALIGN;
-    let pad_len = ((IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past) % IROM_ALIGN;
+fn segment_padding(offset: usize, segment: &Segment<'_>, align_to: u32) -> u32 {
+    let align_past = (segment.addr - SEG_HEADER_LEN) % align_to;
+    let pad_len = ((align_to - ((offset as u32) % align_to)) + align_past) % align_to;
 
-    if pad_len % IROM_ALIGN == 0 {
+    if pad_len % align_to == 0 {
         0
     } else if pad_len > SEG_HEADER_LEN {
         pad_len - SEG_HEADER_LEN
     } else {
-        pad_len + IROM_ALIGN - SEG_HEADER_LEN
+        pad_len + align_to - SEG_HEADER_LEN
     }
 }
 
@@ -462,17 +464,18 @@ fn save_flash_segment(
     data: &mut Vec<u8>,
     mut segment: Segment<'_>,
     checksum: u8,
+    mmu_page_size: u32,
 ) -> Result<u8, Error> {
     let end_pos = (data.len() + segment.data().len()) as u32 + SEG_HEADER_LEN;
-    let segment_reminder = end_pos % IROM_ALIGN;
+    let segment_remainder = end_pos % mmu_page_size;
 
-    if segment_reminder < 0x24 {
+    if segment_remainder < 0x24 {
         // Work around a bug in ESP-IDF 2nd stage bootloader, that it didn't map the
         // last MMU page, if an IROM/DROM segment was < 0x24 bytes over the page
         // boundary.
         static PADDING: [u8; 0x24] = [0; 0x24];
 
-        segment += &PADDING[0..(0x24 - segment_reminder as usize)];
+        segment += &PADDING[0..(0x24 - segment_remainder as usize)];
     }
 
     let checksum = save_segment(data, &segment, checksum)?;
