@@ -442,7 +442,6 @@ impl<'a> IdfBootloaderFormat<'a> {
         }
 
         let flash_segment = Segment {
-            name: Cow::Borrowed(""),
             addr: target_app_partition.offset(),
             data: Cow::Owned(data),
         };
@@ -475,19 +474,16 @@ impl<'a> IdfBootloaderFormat<'a> {
         'a: 'b,
     {
         let bootloader_segment = Segment {
-            name: Cow::Borrowed(""),
             addr: self.params.boot_addr,
             data: Cow::Borrowed(&self.bootloader),
         };
 
         let partition_table_segment = Segment {
-            name: Cow::Borrowed(""),
             addr: self.partition_table_offset,
             data: Cow::Owned(self.partition_table.to_bin().unwrap()),
         };
 
         let app_segment = Segment {
-            name: Cow::Borrowed(""),
             addr: self.flash_segment.addr,
             data: Cow::Borrowed(&self.flash_segment.data),
         };
@@ -578,7 +574,6 @@ fn merge_adjacent_segments(mut segments: Vec<Segment<'_>>) -> Vec<Segment<'_>> {
     for segment in segments {
         match merged.last_mut() {
             Some(last) if last.addr + last.size() == segment.addr => {
-                last.name = format!("{},{}", last.name, segment.name).into();
                 *last += segment.data();
             }
             _ => {

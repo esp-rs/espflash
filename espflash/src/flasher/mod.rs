@@ -763,7 +763,6 @@ impl Flasher {
             .write_segment(
                 &mut self.connection,
                 Segment {
-                    name: Cow::Borrowed(""),
                     addr: text_addr,
                     data: Cow::Borrowed(&text),
                 },
@@ -778,7 +777,6 @@ impl Flasher {
             .write_segment(
                 &mut self.connection,
                 Segment {
-                    name: Cow::Borrowed(""),
                     addr: data_addr,
                     data: Cow::Borrowed(&data),
                 },
@@ -1085,7 +1083,6 @@ impl Flasher {
         progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let segment = Segment {
-            name: Cow::Borrowed(""),
             addr,
             data: Cow::from(data),
         };
