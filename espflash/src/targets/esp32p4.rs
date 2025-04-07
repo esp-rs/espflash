@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use std::ops::Range;
 
 #[cfg(feature = "serialport")]
-use crate::connection::Connection;
+use crate::{connection::Connection, targets::EfuseField};
 use crate::{
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
-    targets::{Chip, EfuseField, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
+    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
     Error,
 };
 
@@ -147,16 +147,6 @@ impl Target for Esp32p4 {
 
     fn supported_build_targets(&self) -> &[&str] {
         &["riscv32imafc-esp-espidf", "riscv32imafc-unknown-none-elf"]
-    }
-
-    #[cfg(feature = "serialport")]
-    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let fields = self.common_fields();
-        self.read_mac_address_from_words(
-            connection,
-            fields["MAC_FACTORY_0"],
-            fields["MAC_FACTORY_1"],
-        )
     }
 }
 

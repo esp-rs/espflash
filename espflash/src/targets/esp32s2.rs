@@ -5,11 +5,11 @@ use std::ops::Range;
 #[cfg(feature = "serialport")]
 use super::flash_target::MAX_RAM_BLOCK_SIZE;
 #[cfg(feature = "serialport")]
-use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE};
+use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE, targets::EfuseField};
 use crate::{
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
-    targets::{Chip, EfuseField, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
+    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
     Error,
 };
 
@@ -258,16 +258,6 @@ impl Target for Esp32s2 {
 
     fn supported_build_targets(&self) -> &[&str] {
         &["xtensa-esp32s2-none-elf", "xtensa-esp32s2-espidf"]
-    }
-
-    #[cfg(feature = "serialport")]
-    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let fields = self.common_fields();
-        self.read_mac_address_from_words(
-            connection,
-            fields["MAC_FACTORY_0"],
-            fields["MAC_FACTORY_1"],
-        )
     }
 }
 

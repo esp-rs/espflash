@@ -1,15 +1,13 @@
-#[cfg(feature = "serialport")]
-use std::collections::HashMap;
-use std::ops::Range;
+use std::{collections::HashMap, ops::Range};
 
 use log::debug;
 
 #[cfg(feature = "serialport")]
-use crate::connection::Connection;
+use crate::{connection::Connection, targets::EfuseField};
 use crate::{
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
-    targets::{Chip, EfuseField, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
+    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
     Error,
 };
 
@@ -170,17 +168,6 @@ impl Target for Esp32c2 {
         );
 
         IdfBootloaderFormat::new(elf_data, Chip::Esp32c2, flash_data, params)
-    }
-
-    #[cfg(feature = "serialport")]
-    /// What is the MAC address?
-    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let fields = self.common_fields();
-        self.read_mac_address_from_words(
-            connection,
-            fields["MAC_FACTORY_0"],
-            fields["MAC_FACTORY_1"],
-        )
     }
 
     fn spi_registers(&self) -> SpiRegisters {
