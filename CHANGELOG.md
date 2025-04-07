@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `espflash` can detect the chip from ESP-HAL metadata to prevent flashing firmware built for a different device. Reqires `esp-hal` 1.0.0-beta.0 (presumably, yet to be released) (#816)
 - `espflash` no longer allows flashing a too-big partition table (#830)
 - Allow specifying a partition label for `write-bin`, add `--partition-table`. (#828)
-- `--mmu-page-size` parameter for `flash` and `save-image` (#?)
+- `--mmu-page-size` parameter for `flash` and `save-image` (#835)
 
 ### Changed
 
@@ -49,8 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `read-flash` which didn't work with some lengths (#804)
 - espflash can now flash an ESP32-S2 in download mode over USB (#813)
 - Fixed a case where esplash transformed the firmware elf in a way that made it unbootable (#831)
-- The app descriptor is now correctly placed in the front of the bianry (#?)
-- espflash now extracts the MMU page size from the app descriptor (#?)
+- The app descriptor is now correctly placed in the front of the bianry (#835)
+- espflash now extracts the MMU page size from the app descriptor (#835)
 
 ### Removed
 
