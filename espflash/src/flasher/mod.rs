@@ -24,6 +24,8 @@ use log::{debug, info, warn};
 use md5::{Digest, Md5};
 #[cfg(feature = "serialport")]
 use object::{read::elf::ElfFile32 as ElfFile, Endianness};
+
+#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
 use serialport::UsbPortInfo;
@@ -233,57 +235,46 @@ impl fmt::Display for SecurityInfo {
 ///
 /// Note that not all frequencies are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(
-    Debug,
-    Default,
-    Clone,
-    Copy,
-    Hash,
-    PartialEq,
-    Eq,
-    Display,
-    VariantNames,
-    Serialize,
-    Deserialize,
-    PartialOrd,
-    Ord,
+    Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Display, VariantNames, PartialOrd, Ord,
 )]
 #[non_exhaustive]
 #[repr(u8)]
 pub enum FlashFrequency {
     /// 12 MHz
-    #[serde(rename = "12MHz")]
+    #[cfg_attr(feature = "std", serde(rename = "12MHz"))]
     _12Mhz,
     /// 15 MHz
-    #[serde(rename = "15MHz")]
+    #[cfg_attr(feature = "std", serde(rename = "15MHz"))]
     _15Mhz,
     /// 16 MHz
-    #[serde(rename = "16MHz")]
+    #[cfg_attr(feature = "std", serde(rename = "16MHz"))]
     _16Mhz,
     /// 20 MHz
-    #[serde(rename = "20MHz")]
+    #[cfg_attr(feature = "std", serde(rename = "20MHz"))]
     _20Mhz,
     /// 24 MHz
-    #[serde(rename = "24MHz")]
+    #[cfg_attr(feature = "std", serde(rename = "24MHz"))]
     _24Mhz,
     /// 26 MHz
-    #[serde(rename = "26MHz")]
+    #[cfg_attr(feature = "std", serde(rename = "26MHz"))]
     _26Mhz,
     /// 30 MHz
-    #[serde(rename = "30MHz")]
+    #[cfg_attr(feature = "std", serde(rename = "30MHz"))]
     _30Mhz,
     /// 40 MHz
-    #[serde(rename = "40MHz")]
+    #[cfg_attr(feature = "std", serde(rename = "40MHz"))]
     #[default]
     _40Mhz,
     /// 48 MHz
-    #[serde(rename = "48MHz")]
+    #[cfg_attr(feature = "std", serde(rename = "48MHz"))]
     _48Mhz,
     /// 60 MHz
-    #[serde(rename = "60MHz")]
+    #[cfg_attr(feature = "std", serde(rename = "60MHz"))]
     _60Mhz,
     /// 80 MHz
-    #[serde(rename = "80MHz")]
+    #[cfg_attr(feature = "std", serde(rename = "80MHz"))]
     _80Mhz,
 }
 
@@ -304,10 +295,11 @@ impl FlashFrequency {
 
 /// Supported flash modes
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Copy, Clone, Debug, Default, VariantNames, Serialize, Deserialize)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default, VariantNames)]
 #[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
-#[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "std", serde(rename_all = "lowercase"))]
 pub enum FlashMode {
     /// Quad I/O (4 pins used for address & data)
     Qio,
@@ -324,57 +316,46 @@ pub enum FlashMode {
 ///
 /// Note that not all sizes are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    Display,
-    VariantNames,
-    EnumIter,
-    Serialize,
-    Deserialize,
-)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Display, VariantNames, EnumIter)]
 #[non_exhaustive]
 #[repr(u8)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 #[doc(alias("esp_image_flash_size_t"))]
 pub enum FlashSize {
     /// 256 KB
-    #[serde(rename = "256KB")]
+    #[cfg_attr(feature = "std", serde(rename = "256KB"))]
     _256Kb,
     /// 512 KB
-    #[serde(rename = "512KB")]
+    #[cfg_attr(feature = "std", serde(rename = "512KB"))]
     _512Kb,
     /// 1 MB
-    #[serde(rename = "1MB")]
+    #[cfg_attr(feature = "std", serde(rename = "1MB"))]
     _1Mb,
     /// 2 MB
-    #[serde(rename = "2MB")]
+    #[cfg_attr(feature = "std", serde(rename = "2MB"))]
     _2Mb,
     /// 4 MB
     #[default]
-    #[serde(rename = "4MB")]
+    #[cfg_attr(feature = "std", serde(rename = "4MB"))]
     _4Mb,
     /// 8 MB
-    #[serde(rename = "8MB")]
+    #[cfg_attr(feature = "std", serde(rename = "8MB"))]
     _8Mb,
     /// 16 MB
-    #[serde(rename = "16MB")]
+    #[cfg_attr(feature = "std", serde(rename = "16MB"))]
     _16Mb,
     /// 32 MB
-    #[serde(rename = "32MB")]
+    #[cfg_attr(feature = "std", serde(rename = "32MB"))]
     _32Mb,
     /// 64 MB
-    #[serde(rename = "64MB")]
+    #[cfg_attr(feature = "std", serde(rename = "64MB"))]
     _64Mb,
     /// 128 MB
-    #[serde(rename = "128MB")]
+    #[cfg_attr(feature = "std", serde(rename = "128MB"))]
     _128Mb,
     /// 256 MB
-    #[serde(rename = "256MB")]
+    #[cfg_attr(feature = "std", serde(rename = "256MB"))]
     _256Mb,
 }
 
@@ -456,12 +437,13 @@ impl FromStr for FlashSize {
 }
 
 /// Flash settings to use when flashing a device
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, Default)]
 #[non_exhaustive]
 pub struct FlashSettings {
     pub mode: Option<FlashMode>,
     pub size: Option<FlashSize>,
-    #[serde(rename = "frequency")]
+    #[cfg_attr(feature = "std", serde(rename = "frequency"))]
     pub freq: Option<FlashFrequency>,
 }
 

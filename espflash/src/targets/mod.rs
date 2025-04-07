@@ -8,6 +8,7 @@ use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::format;
 
+#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
@@ -45,9 +46,8 @@ pub(crate) mod flash_target;
 ///
 /// Note that not all frequencies are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(
-    Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Display, VariantNames, Serialize, Deserialize,
-)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize,))]
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Display, VariantNames)]
 #[non_exhaustive]
 #[repr(u32)]
 pub enum XtalFrequency {

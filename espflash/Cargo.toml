@@ -46,7 +46,7 @@ md-5            = { version = "0.10.6", default-features = false}
 miette          = { version = "7.4.0", optional = true}
 object          = { version = "0.36.7", default-features = false, features = ['read'] }
 regex           = { version = "1.11.1", optional = true }
-serde           = { version = "1.0.217", features = ["derive"], default-features = false }
+serde           = { version = "1.0.219", features = ["derive"], optional = true }
 serialport      = { version = "4.7.0", default-features = false, optional = true }
 sha2            = { version = "0.10.8", default-features = false}
 slip-codec      = { version = "0.4.0", optional = true }
@@ -85,4 +85,4 @@ cli = [
 # Enables connecting to a device via serial port
 serialport = ["dep:regex", "dep:serialport", "dep:slip-codec", "dep:toml", "std"]
 
-std = ["dep:miette", "dep:flate2", "object/default", "serde/std", "thiserror/std", "strum/std", "esp-idf-part/std", "md-5/std", "sha2/std", "base64/std", "embedded-io/std", "embedded-io-adapters/std"]
+std = ["dep:miette", "dep:flate2", "object/default", "dep:serde", "thiserror/std", "strum/std", "esp-idf-part/std", "md-5/std", "sha2/std", "base64/std", "embedded-io/std", "embedded-io-adapters/std"]
