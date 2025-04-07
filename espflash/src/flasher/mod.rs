@@ -476,6 +476,7 @@ pub struct FlashData {
     pub target_app_partition: Option<String>,
     pub flash_settings: FlashSettings,
     pub min_chip_rev: u16,
+    pub mmu_page_size: Option<u32>,
 }
 
 impl FlashData {
@@ -486,6 +487,7 @@ impl FlashData {
         target_app_partition: Option<String>,
         flash_settings: FlashSettings,
         min_chip_rev: u16,
+        mmu_page_size: Option<u32>,
     ) -> Result<Self, Error> {
         // If the '--bootloader' option is provided, load the binary file at the
         // specified path.
@@ -517,6 +519,7 @@ impl FlashData {
             target_app_partition,
             flash_settings,
             min_chip_rev,
+            mmu_page_size,
         })
     }
 }
@@ -760,6 +763,7 @@ impl Flasher {
             .write_segment(
                 &mut self.connection,
                 Segment {
+                    name: Cow::Borrowed(""),
                     addr: text_addr,
                     data: Cow::Borrowed(&text),
                 },
@@ -774,6 +778,7 @@ impl Flasher {
             .write_segment(
                 &mut self.connection,
                 Segment {
+                    name: Cow::Borrowed(""),
                     addr: data_addr,
                     data: Cow::Borrowed(&data),
                 },
@@ -1080,6 +1085,7 @@ impl Flasher {
         progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
         let segment = Segment {
+            name: Cow::Borrowed(""),
             addr,
             data: Cow::from(data),
         };

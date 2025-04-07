@@ -25,6 +25,7 @@ mod metadata;
 /// A segment of code from the source ELF
 #[derive(Default, Clone, Eq)]
 pub struct Segment<'a> {
+    pub name: Cow<'a, str>,
     /// Base address of the code segment
     pub addr: u32,
     /// Segment data
@@ -32,10 +33,11 @@ pub struct Segment<'a> {
 }
 
 impl<'a> Segment<'a> {
-    pub fn new(addr: u32, data: &'a [u8]) -> Self {
+    pub fn new(name: &'a str, addr: u32, data: &'a [u8]) -> Self {
         // Do not pad the data here, as it might result in overlapping segments
         // in the ELF file. The padding should be done after merging adjacent segments.
         Segment {
+            name: Cow::Borrowed(name),
             addr,
             data: Cow::Borrowed(data),
         }
@@ -56,6 +58,7 @@ impl<'a> Segment<'a> {
                 }
             };
             let new = Segment {
+                name: self.name.clone(),
                 addr: self.addr,
                 data: head,
             };
@@ -96,6 +99,7 @@ impl<'a> Segment<'a> {
         'a: 'b,
     {
         Segment {
+            name: self.name.clone(),
             addr: self.addr,
             data: Cow::Borrowed(self.data.as_ref()),
         }
@@ -176,7 +180,11 @@ fn segments<'a>(elf: &'a ElfFile<'a>) -> Box<dyn Iterator<Item = Segment<'a>> + 
                     && section.address() > 0
             })
             .flat_map(move |section| match section.data() {
-                Ok(data) => Some(Segment::new(section.address() as u32, data)),
+                Ok(data) => Some(Segment::new(
+                    section.name().unwrap_or_default(),
+                    section.address() as u32,
+                    data,
+                )),
                 _ => None,
             }),
     )

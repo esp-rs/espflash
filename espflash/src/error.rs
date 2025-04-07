@@ -4,6 +4,7 @@
 use std::fmt::{Display, Formatter};
 use std::{array::TryFromSliceError, io};
 
+use indicatif::HumanBytes;
 use miette::Diagnostic;
 #[cfg(feature = "serialport")]
 use slip_codec::SlipError;
@@ -183,6 +184,10 @@ pub enum Error {
     )]
     InvalidElf(#[from] object::Error),
 
+    #[error("Supplied ELF image contains an invalid application descriptor")]
+    #[diagnostic(code(espflash::invalid_app_descriptor))]
+    InvalidAppDescriptor(#[from] AppDescriptorError),
+
     #[error("The bootloader returned an error")]
     #[cfg(feature = "serialport")]
     #[diagnostic(transparent)]
@@ -257,6 +262,26 @@ impl From<SlipError> for Error {
     fn from(err: SlipError) -> Self {
         Self::Connection(err.into())
     }
+}
+
+/// App descriptor errors
+#[derive(Debug, Diagnostic, Error)]
+#[non_exhaustive]
+pub enum AppDescriptorError {
+    #[error("Invalid app descriptor magic word: {0:#x}")]
+    #[diagnostic(code(espflash::invalid_app_descriptor_magic_word))]
+    InvalidMagicWord(u32),
+
+    #[error("The app description segment is not aligned to any valid MMU page size.")]
+    #[diagnostic(
+        code(espflash::invalid_app_descriptor_alignment),
+        help("Try specifying the MMU page size manually.")
+    )]
+    InvalidAlignment,
+
+    #[error("Invalid MMU page size: (0)")]
+    #[diagnostic(code(espflash::invalid_app_descriptor_mmu_page_size))]
+    InvalidMmuPageSize(HumanBytes),
 }
 
 /// Connection-related errors
