@@ -249,6 +249,9 @@ pub struct ImageArgs {
     /// Minimum chip revision supported by image, in format: major.minor
     #[arg(long, default_value = "0.0", value_parser = parse_chip_rev)]
     pub min_chip_rev: u16,
+    /// MMU page size.
+    #[arg(long, value_name = "MMU_PAGE_SIZE", value_parser = parse_u32)]
+    pub mmu_page_size: Option<u32>,
 }
 
 #[derive(Debug, Args)]
@@ -1027,6 +1030,7 @@ pub fn make_flash_data(
         image_args.target_app_partition,
         flash_settings,
         image_args.min_chip_rev,
+        image_args.mmu_page_size,
     )
 }
 

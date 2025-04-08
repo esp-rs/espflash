@@ -30,6 +30,7 @@ const PARAMS: Esp32Params = Esp32Params::new(
     CHIP_ID,
     FlashFrequency::_40Mhz,
     include_bytes!("../../resources/bootloaders/esp32c3-bootloader.bin"),
+    None,
 );
 
 /// ESP32-C3 Target

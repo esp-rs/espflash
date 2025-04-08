@@ -1,14 +1,16 @@
 //! ESP-IDF application binary image format
 
-use std::{borrow::Cow, io::Write, iter::once, mem::size_of};
+use std::{borrow::Cow, ffi::c_char, io::Write, iter::once, mem::size_of};
 
-use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
+use bytemuck::{bytes_of, from_bytes, pod_read_unaligned, Pod, Zeroable};
 use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
-use object::{read::elf::ElfFile32 as ElfFile, Endianness};
+use log::warn;
+use object::{read::elf::ElfFile32 as ElfFile, Endianness, Object, ObjectSection};
 use sha2::{Digest, Sha256};
 
 use super::{ram_segments, rom_segments, Segment};
 use crate::{
+    error::AppDescriptorError,
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize},
     targets::{Chip, Esp32Params},
     Error,
@@ -102,6 +104,46 @@ impl ImageHeader {
 struct SegmentHeader {
     addr: u32,
     length: u32,
+}
+
+/// Application descriptor used by the ESP-IDF bootloader.
+///
+/// [Documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description)
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+#[repr(C, packed)]
+#[doc(alias = "esp_app_desc_t")]
+struct AppDescriptor {
+    /// Magic word ESP_APP_DESC_MAGIC_WORD
+    magic_word: u32,
+    /// Secure version
+    secure_version: u32,
+    reserv1: [u32; 2],
+    /// Application version
+    version: [c_char; 32],
+    /// Project name
+    project_name: [c_char; 32],
+    /// Compile time
+    time: [c_char; 16],
+    /// Compile date
+    date: [c_char; 16],
+    /// Version IDF
+    idf_ver: [c_char; 32],
+    /// sha256 of elf file
+    app_elf_sha256: [u8; 32],
+    /// Minimal eFuse block revision supported by image,
+    /// in format: major * 100 + minor
+    min_efuse_blk_rev_full: u16,
+    /// Maximal eFuse block revision supported by image,
+    /// in format: major * 100 + minor
+    max_efuse_blk_rev_full: u16,
+    /// MMU page size in log base 2 format
+    mmu_page_size: u8,
+    reserv3: [u8; 3],
+    reserv2: [u32; 18],
+}
+
+impl AppDescriptor {
+    const ESP_APP_DESC_MAGIC_WORD: u32 = 0xABCD5432;
 }
 
 /// Image format for ESP32 family chips using the second-stage bootloader from
@@ -217,7 +259,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // alignment by padding segments might result in overlapping segments. We
         // need to merge adjacent segments first to avoid the possibility of them
         // overlapping, and then do the padding.
-        let flash_segments: Vec<_> =
+        let mut flash_segments: Vec<_> =
             pad_align_segments(merge_adjacent_segments(rom_segments(chip, &elf).collect()));
         let mut ram_segments: Vec<_> =
             pad_align_segments(merge_adjacent_segments(ram_segments(chip, &elf).collect()));
@@ -225,9 +267,100 @@ impl<'a> IdfBootloaderFormat<'a> {
         let mut checksum = ESP_CHECKSUM_MAGIC;
         let mut segment_count = 0;
 
+        // Find and bubble the app descriptor segment to the first position. We do this
+        // after merging/padding the segments, so it should be okay to reorder them now.
+        let app_desc_addr = if let Some(appdesc) = elf.section_by_name(".flash.appdesc") {
+            let address = appdesc.address() as u32;
+            let Some(segment_position) = flash_segments
+                .iter_mut()
+                .position(|s| s.addr <= address && s.addr + s.size() > address)
+            else {
+                unreachable!("appdesc segment not found");
+            };
+
+            // We need to place the segment to the first position
+            flash_segments[0..=segment_position].rotate_right(1);
+            Some(address)
+        } else {
+            None
+        };
+
+        let valid_page_sizes = params.mmu_page_sizes.unwrap_or(&[IROM_ALIGN]);
+        let valid_page_sizes_string = valid_page_sizes
+            .iter()
+            .map(|size| format!("{:#x}", size))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let app_desc_mmu_page_size = if let Some(address) = app_desc_addr {
+            let segment = &flash_segments[0];
+
+            let offset = (address - segment.addr) as usize;
+            let app_descriptor_size = size_of::<AppDescriptor>();
+
+            let segment_data = segment.data();
+            let app_descriptor_bytes = &segment_data[offset..][..app_descriptor_size];
+            let app_descriptor: AppDescriptor = pod_read_unaligned(app_descriptor_bytes);
+
+            if app_descriptor.magic_word != AppDescriptor::ESP_APP_DESC_MAGIC_WORD {
+                return Err(
+                    AppDescriptorError::MagicWordMismatch(app_descriptor.magic_word).into(),
+                );
+            }
+
+            if app_descriptor.mmu_page_size != 0 {
+                // Read page size from the app descriptor
+                Some(1 << app_descriptor.mmu_page_size)
+            } else {
+                // Infer from the app descriptor alignment
+
+                // Subtract image + extended header (24 bytes) and segment header (8 bytes)
+                let address = address - 32;
+
+                // Page sizes are defined in ascenting order
+                let mut page_size = None;
+                for size in valid_page_sizes.iter().rev().copied() {
+                    if address % size == 0 {
+                        page_size = Some(size);
+                        break;
+                    }
+                }
+
+                if page_size.is_none() {
+                    warn!(
+                        "The app descriptor is placed at {:#x} which is not aligned to any of the \
+                        supported page sizes: {}",
+                        address, valid_page_sizes_string
+                    );
+                    return Err(AppDescriptorError::IncorrectDescriptorAlignment.into());
+                }
+
+                page_size
+            }
+        } else {
+            None
+        };
+
+        // Precedence is:
+        // - user input (unimplemented)
+        // - app descriptor
+        // - value based on app descriptor alignment
+        // - default value
+        let mmu_page_size = flash_data
+            .mmu_page_size
+            .or(app_desc_mmu_page_size)
+            .unwrap_or(IROM_ALIGN);
+
+        if !valid_page_sizes.contains(&mmu_page_size) {
+            warn!(
+                "MMU page size {:#x} is not supported. Supported page sizes are: {}",
+                mmu_page_size, valid_page_sizes_string
+            );
+            return Err(AppDescriptorError::IncorrectDescriptorAlignment.into());
+        };
+
         for segment in flash_segments {
             loop {
-                let pad_len = segment_padding(data.len(), &segment);
+                let pad_len = segment_padding(data.len(), &segment, mmu_page_size);
                 if pad_len > 0 {
                     if pad_len > SEG_HEADER_LEN {
                         if let Some(ram_segment) = ram_segments.first_mut() {
@@ -259,7 +392,7 @@ impl<'a> IdfBootloaderFormat<'a> {
                 }
             }
 
-            checksum = save_flash_segment(&mut data, segment, checksum)?;
+            checksum = save_flash_segment(&mut data, segment, checksum, mmu_page_size)?;
             segment_count += 1;
         }
 
@@ -420,16 +553,16 @@ fn default_partition_table(params: &Esp32Params, flash_size: Option<u32>) -> Par
 ///
 /// (this is because the segment's vaddr may not be IROM_ALIGNed, more likely is
 /// aligned IROM_ALIGN+0x18 to account for the binary file header)
-fn segment_padding(offset: usize, segment: &Segment<'_>) -> u32 {
-    let align_past = (segment.addr - SEG_HEADER_LEN) % IROM_ALIGN;
-    let pad_len = ((IROM_ALIGN - ((offset as u32) % IROM_ALIGN)) + align_past) % IROM_ALIGN;
+fn segment_padding(offset: usize, segment: &Segment<'_>, align_to: u32) -> u32 {
+    let align_past = (segment.addr - SEG_HEADER_LEN) % align_to;
+    let pad_len = ((align_to - ((offset as u32) % align_to)) + align_past) % align_to;
 
-    if pad_len % IROM_ALIGN == 0 {
+    if pad_len % align_to == 0 {
         0
     } else if pad_len > SEG_HEADER_LEN {
         pad_len - SEG_HEADER_LEN
     } else {
-        pad_len + IROM_ALIGN - SEG_HEADER_LEN
+        pad_len + align_to - SEG_HEADER_LEN
     }
 }
 
@@ -462,17 +595,18 @@ fn save_flash_segment(
     data: &mut Vec<u8>,
     mut segment: Segment<'_>,
     checksum: u8,
+    mmu_page_size: u32,
 ) -> Result<u8, Error> {
     let end_pos = (data.len() + segment.data().len()) as u32 + SEG_HEADER_LEN;
-    let segment_reminder = end_pos % IROM_ALIGN;
+    let segment_remainder = end_pos % mmu_page_size;
 
-    if segment_reminder < 0x24 {
+    if segment_remainder < 0x24 {
         // Work around a bug in ESP-IDF 2nd stage bootloader, that it didn't map the
         // last MMU page, if an IROM/DROM segment was < 0x24 bytes over the page
         // boundary.
         static PADDING: [u8; 0x24] = [0; 0x24];
 
-        segment += &PADDING[0..(0x24 - segment_reminder as usize)];
+        segment += &PADDING[0..(0x24 - segment_remainder as usize)];
     }
 
     let checksum = save_segment(data, &segment, checksum)?;

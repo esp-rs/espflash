@@ -120,6 +120,7 @@ impl Target for Esp32c2 {
             CHIP_ID,
             FlashFrequency::_30Mhz,
             bootloader,
+            Some(&[16 * 1024, 32 * 1024, 64 * 1024]),
         );
 
         IdfBootloaderFormat::new(elf_data, Chip::Esp32c2, flash_data, params)

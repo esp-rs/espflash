@@ -182,6 +182,7 @@ impl Target for Esp32 {
             CHIP_ID,
             FlashFrequency::_40Mhz,
             bootloader,
+            None,
         );
 
         IdfBootloaderFormat::new(elf_data, Chip::Esp32, flash_data, params)
