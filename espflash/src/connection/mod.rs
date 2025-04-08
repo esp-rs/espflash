@@ -453,7 +453,7 @@ impl Connection {
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#verifying-uploaded-data
 
                 let status_len =
-                    if response.len() == 10 || response.len() == 26 || self.secure_download_mode {
+                    if response.len() == 10 || response.len() == 26 {
                         2
                     } else {
                         4
@@ -487,8 +487,8 @@ impl Connection {
                     return_op: response[1],
                     return_length: u16::from_le_bytes(response[2..][..2].try_into().unwrap()),
                     value,
-                    error: response[response.len() - status_len],
-                    status: response[response.len() - status_len + 1],
+                    error: response[response.len() - status_len + 1],
+                    status: response[response.len() - status_len],
                 };
 
                 Ok(Some(header))
@@ -531,7 +531,7 @@ impl Connection {
         for _ in 0..100 {
             match self.read_response().for_command(ty)? {
                 Some(response) if response.return_op == ty as u8 => {
-                    return if response.error != 0 {
+                    return if response.status != 0 {
                         let _error = self.flush();
                         Err(Error::RomError(RomError::new(
                             command.command_type(),
