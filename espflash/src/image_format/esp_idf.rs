@@ -572,14 +572,25 @@ fn merge_adjacent_segments(mut segments: Vec<Segment<'_>>) -> Vec<Segment<'_>> {
 
     let mut merged: Vec<Segment<'_>> = Vec::with_capacity(segments.len());
     for segment in segments {
-        match merged.last_mut() {
-            Some(last) if last.addr + last.size() == segment.addr => {
+        if let Some(last) = merged.last_mut() {
+            let last_end = last.addr + last.size();
+            if last_end == segment.addr {
                 *last += segment.data();
+                continue;
             }
-            _ => {
-                merged.push(segment);
+
+            // There is some space between the segments. We can merge them if they would
+            // either be contiguous, or overlap, if the first segment was 4-byte
+            // aligned.
+            let max_padding = (4 - last_end % 4) % 4;
+            if last_end + max_padding >= segment.addr {
+                *last += &[0u8; 4][..(segment.addr - last_end) as usize];
+                *last += segment.data();
+                continue;
             }
         }
+
+        merged.push(segment)
     }
 
     merged
@@ -680,5 +691,19 @@ mod tests {
         assert_eq!(encode_hex(&[255u8]), "ff");
 
         assert_eq!(encode_hex(&[222u8, 202, 251, 173]), "decafbad");
+    }
+
+    #[test]
+    fn merge_adjacent_segments_pads() {
+        let segments = vec![
+            Segment::new(0x1000, &[0u8; 0x100]),
+            Segment::new(0x1100, &[0u8; 0xFF]),
+            Segment::new(0x1200, &[0u8; 0x100]),
+        ];
+
+        let merged = merge_adjacent_segments(segments);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].addr, 0x1000);
+        assert_eq!(merged[0].size(), 0x300);
     }
 }
