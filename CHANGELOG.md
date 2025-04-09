@@ -234,7 +234,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make the default flashing frequency target specific (#389)
 - Add note about permissions on Linux (#391)
 - Add a diagnostic to tell the user about the partition table format (#397)
-- Add `board-info` command support in Secure Download Mode (#835)
+- Add `board-info` command support in Secure Download Mode (#838)
 
 ### Fixed
 
