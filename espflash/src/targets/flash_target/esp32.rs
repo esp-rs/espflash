@@ -62,17 +62,11 @@ impl FlashTarget for Esp32Target {
                     spi_params: self.spi_attach_params,
                 }
             } else {
-                if connection.secure_download_mode {
-                    Command::SpiAttach {
-                        spi_params: SpiAttachParams::default(),
-                    }
-                } else {
-                    Command::SpiAttach {
-                        spi_params: self.spi_attach_params,
-                    }
+                Command::SpiAttach {
+                    spi_params: self.spi_attach_params,
                 }
             };
-
+            
             connection.command(command)
         })?;
 
