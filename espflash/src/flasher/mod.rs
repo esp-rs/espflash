@@ -674,7 +674,7 @@ impl Flasher {
         // Establish a connection to the device using the default baud rate of 115,200
         // and timeout of 3 seconds.
         let mut connection = Connection::new(serial, port_info, after_operation, before_operation);
-        let sdm = connection.begin()?;
+        connection.begin()?;
         connection.set_timeout(DEFAULT_TIMEOUT)?;
 
         let detected_chip = if before_operation != ResetBeforeOperation::NoResetNoSync {
@@ -695,6 +695,8 @@ impl Flasher {
         } else {
             return Err(Error::ChipNotProvided);
         };
+
+        let sdm = connection.secure_download_mode;
 
         let mut flasher = Flasher {
             connection,

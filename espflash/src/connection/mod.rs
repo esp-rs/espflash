@@ -145,7 +145,7 @@ impl Connection {
     }
 
     /// Initialize a connection with a device
-    pub fn begin(&mut self) -> Result<bool, Error> {
+    pub fn begin(&mut self) -> Result<(), Error> {
         let port_name = self.serial.name().unwrap_or_default();
         let reset_sequence = construct_reset_strategy_sequence(
             &port_name,
@@ -156,14 +156,7 @@ impl Connection {
         for (_, reset_strategy) in zip(0..MAX_CONNECT_ATTEMPTS, reset_sequence.iter().cycle()) {
             match self.connect_attempt(reset_strategy) {
                 Ok(_) => {
-                    match self.read_reg(crate::flasher::stubs::CHIP_DETECT_MAGIC_REG_ADDR) {
-                        Ok(_) => return Ok(false),
-                        Err(_) => {
-                            log::warn!("Secure Download Mode is enabled on this chip");
-                            self.secure_download_mode = true;
-                            return Ok(true);
-                        }
-                    };
+                    return Ok(());
                 }
                 Err(e) => {
                     debug!("Failed to reset, error {:#?}, retrying", e);
