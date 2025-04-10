@@ -7,7 +7,12 @@ use std::{
 use cargo_metadata::{Message, MetadataCommand};
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
-    cli::{self, config::Config, monitor::monitor, *},
+    cli::{
+        self,
+        config::Config,
+        monitor::{check_monitor_args, monitor},
+        *,
+    },
     flasher::FlashSize,
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
@@ -313,6 +318,11 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(build_ctx.artifact_path.clone()).into_diagnostic()?;
 
+    let mut monitor_args = args.flash_args.monitor_args;
+    monitor_args.elf = Some(build_ctx.artifact_path.clone());
+
+    check_monitor_args(&args.flash_args.monitor, &monitor_args)?;
+
     print_board_info(&mut flasher)?;
     ensure_chip_compatibility(chip, Some(elf_data.as_slice()))?;
 
@@ -348,7 +358,6 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     if args.flash_args.monitor {
         let pid = flasher.usb_pid();
-        let mut monitor_args = args.flash_args.monitor_args;
 
         // The 26MHz ESP32-C2's need to be treated as a special case.
         if chip == Chip::Esp32c2
