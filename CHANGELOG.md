@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `espflash` no longer allows flashing a too-big partition table (#830)
 - Allow specifying a partition label for `write-bin`, add `--partition-table`. (#828)
 - `--mmu-page-size` parameter for `flash` and `save-image` (#835)
+- Run some arguments checks for monitoring flags. (#842)
 
 ### Changed
 
