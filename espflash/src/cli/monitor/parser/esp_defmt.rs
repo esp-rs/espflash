@@ -231,7 +231,7 @@ impl InputParser for EspDefmt {
                 if let Ok(frame) = decoder.decode() {
                     self.defmt_data.print(frame, out);
                 } else {
-                    log::warn!("Failed to decode defmt frame");
+                    warn!("Failed to decode defmt frame");
                 }
             }
             FrameKind::Raw(bytes) => out.write_all(bytes).unwrap(),

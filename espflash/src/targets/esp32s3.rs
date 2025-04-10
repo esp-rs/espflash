@@ -1,7 +1,9 @@
+#[cfg(feature = "serialport")]
+use std::collections::HashMap;
 use std::ops::Range;
 
 #[cfg(feature = "serialport")]
-use crate::connection::Connection;
+use crate::{connection::Connection, targets::EfuseField};
 use crate::{
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
@@ -35,13 +37,15 @@ impl Esp32s3 {
     #[cfg(feature = "serialport")]
     /// Return the major BLK version based on eFuses
     fn blk_version_major(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok(self.read_efuse(connection, 96)? & 0x3)
+        let fields = self.common_fields();
+        self.read_field(connection, fields["BLK_VERSION_MAJOR"])
     }
 
     #[cfg(feature = "serialport")]
     /// Return the minor BLK version based on eFuses
     fn blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok((self.read_efuse(connection, 20)? >> 24) & 0x7)
+        let fields = self.common_fields();
+        self.read_field(connection, fields["BLK_VERSION_MINOR"])
     }
 
     /// Check if the magic value contains the specified value
@@ -53,6 +57,75 @@ impl Esp32s3 {
 impl ReadEFuse for Esp32s3 {
     fn efuse_reg(&self) -> u32 {
         0x6000_7000
+    }
+
+    #[cfg(feature = "serialport")]
+    fn common_fields(&self) -> HashMap<&'static str, EfuseField> {
+        let mut fields = HashMap::new();
+
+        // MAC address fields
+        fields.insert(
+            "MAC_FACTORY_0",
+            EfuseField {
+                word_offset: 1,
+                bit_offset: 0,
+                bit_count: 32,
+            },
+        );
+        fields.insert(
+            "MAC_FACTORY_1",
+            EfuseField {
+                word_offset: 2,
+                bit_offset: 0,
+                bit_count: 16,
+            },
+        );
+
+        // Chip version fields
+        fields.insert(
+            "MAJOR_VERSION",
+            EfuseField {
+                word_offset: 22,
+                bit_offset: 24,
+                bit_count: 2,
+            },
+        );
+        fields.insert(
+            "MINOR_VERSION_HI",
+            EfuseField {
+                word_offset: 22,
+                bit_offset: 23,
+                bit_count: 1,
+            },
+        );
+        fields.insert(
+            "MINOR_VERSION_LO",
+            EfuseField {
+                word_offset: 20,
+                bit_offset: 18,
+                bit_count: 3,
+            },
+        );
+
+        // Block version fields
+        fields.insert(
+            "BLK_VERSION_MAJOR",
+            EfuseField {
+                word_offset: 96,
+                bit_offset: 0,
+                bit_count: 2,
+            },
+        );
+        fields.insert(
+            "BLK_VERSION_MINOR",
+            EfuseField {
+                word_offset: 20,
+                bit_offset: 24,
+                bit_count: 3,
+            },
+        );
+
+        fields
     }
 }
 
@@ -68,7 +141,8 @@ impl Target for Esp32s3 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let major = (self.read_efuse(connection, 22)? >> 24) & 0x3;
+        let fields = self.common_fields();
+        let major = self.read_field(connection, fields["MAJOR_VERSION"])?;
 
         // Workaround: The major version field was allocated to other purposes when
         // block version is v1.1. Luckily only chip v0.0 have this kind of block version
@@ -85,8 +159,9 @@ impl Target for Esp32s3 {
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let hi = (self.read_efuse(connection, 22)? >> 23) & 0x1;
-        let lo = (self.read_efuse(connection, 20)? >> 18) & 0x7;
+        let fields = self.common_fields();
+        let hi = self.read_field(connection, fields["MINOR_VERSION_HI"])?;
+        let lo = self.read_field(connection, fields["MINOR_VERSION_LO"])?;
 
         Ok((hi << 3) + lo)
     }

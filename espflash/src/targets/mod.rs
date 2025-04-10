@@ -299,16 +299,50 @@ impl SpiRegisters {
     }
 }
 
+/// Defines an eFuse field with its block, word offset, bit position and size
+#[derive(Debug, Clone, Copy)]
+pub struct EfuseField {
+    /// Word offset within the block
+    pub word_offset: u32,
+    /// Bit position within the word
+    pub bit_offset: u32,
+    /// Number of bits in the field
+    pub bit_count: u32,
+}
+
 /// Enable the reading of eFuses for a target
 pub trait ReadEFuse {
     /// Returns the base address of the eFuse register
     fn efuse_reg(&self) -> u32;
 
     #[cfg(feature = "serialport")]
+    /// Return fields common to most/all chips
+    fn common_fields(&self) -> HashMap<&'static str, EfuseField>;
+
+    #[cfg(feature = "serialport")]
     /// Given an active connection, read the nth word of the eFuse region
     fn read_efuse(&self, connection: &mut Connection, n: u32) -> Result<u32, Error> {
         let reg = self.efuse_reg() + (n * 0x4);
         connection.read_reg(reg)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Read an eFuse field defined by a structured EfuseField
+    fn read_field(&self, connection: &mut Connection, field: EfuseField) -> Result<u32, Error> {
+        let EfuseField {
+            word_offset,
+            bit_offset,
+            bit_count,
+        } = field;
+
+        let value = self.read_efuse(connection, word_offset)?;
+        let mask = if bit_count == 32 {
+            u32::MAX
+        } else {
+            (1 << bit_count) - 1
+        };
+
+        Ok((value >> bit_offset) & mask)
     }
 }
 
@@ -367,14 +401,17 @@ pub trait Target: ReadEFuse {
     #[cfg(feature = "serialport")]
     /// What is the MAC address?
     fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let word5 = self.read_efuse(connection, 17)?;
-        let word6 = self.read_efuse(connection, 18)?;
+        let fields = self.common_fields();
 
-        let bytes = ((word6 as u64) << 32) | word5 as u64;
+        let word1 = self.read_field(connection, fields["MAC_FACTORY_0"])?;
+        let word2 = self.read_field(connection, fields["MAC_FACTORY_1"])?;
+
+        let bytes = ((word2 as u64) << 32) | word1 as u64;
         let bytes = bytes.to_be_bytes();
-        let bytes = &bytes[2..];
 
-        Ok(bytes_to_mac_addr(bytes))
+        // Skip the first two bytes, as the MAC address is typically stored in
+        // the last 6 bytes:
+        Ok(bytes_to_mac_addr(&bytes[2..8]))
     }
 
     #[cfg(feature = "serialport")]

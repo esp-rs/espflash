@@ -1,7 +1,9 @@
+#[cfg(feature = "serialport")]
+use std::collections::HashMap;
 use std::ops::Range;
 
 #[cfg(feature = "serialport")]
-use crate::connection::Connection;
+use crate::{connection::Connection, targets::EfuseField};
 use crate::{
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
@@ -42,6 +44,49 @@ impl ReadEFuse for Esp32p4 {
     fn efuse_reg(&self) -> u32 {
         0x5012_D000
     }
+
+    #[cfg(feature = "serialport")]
+    fn common_fields(&self) -> HashMap<&'static str, EfuseField> {
+        let mut fields = HashMap::new();
+
+        // MAC address fields - based on ESP32-P4 documentation
+        fields.insert(
+            "MAC_FACTORY_0",
+            EfuseField {
+                word_offset: 1,
+                bit_offset: 0,
+                bit_count: 32,
+            },
+        );
+        fields.insert(
+            "MAC_FACTORY_1",
+            EfuseField {
+                word_offset: 2,
+                bit_offset: 0,
+                bit_count: 16,
+            },
+        );
+
+        // Chip version fields
+        fields.insert(
+            "MAJOR_VERSION",
+            EfuseField {
+                word_offset: 19,
+                bit_offset: 4,
+                bit_count: 2,
+            },
+        );
+        fields.insert(
+            "MINOR_VERSION",
+            EfuseField {
+                word_offset: 19,
+                bit_offset: 0,
+                bit_count: 4,
+            },
+        );
+
+        fields
+    }
 }
 
 impl Target for Esp32p4 {
@@ -56,12 +101,14 @@ impl Target for Esp32p4 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok((self.read_efuse(connection, 19)? >> 4) & 0x03)
+        let fields = self.common_fields();
+        self.read_field(connection, fields["MAJOR_VERSION"])
     }
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok(self.read_efuse(connection, 19)? & 0x0F)
+        let fields = self.common_fields();
+        self.read_field(connection, fields["MINOR_VERSION"])
     }
 
     #[cfg(feature = "serialport")]
