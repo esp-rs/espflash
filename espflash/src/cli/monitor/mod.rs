@@ -259,3 +259,34 @@ fn handle_key_event(key_event: KeyEvent) -> Option<Vec<u8>> {
 
     key_str.map(|slice| slice.into())
 }
+
+pub fn check_monitor_args(monitor: &bool, monitor_args: &MonitorConfigArgs) -> Result<()> {
+    // Check if any monitor args are provided but monitor flag isn't set
+    if !monitor
+        && (monitor_args.elf.is_some()
+            || monitor_args.log_format.is_some()
+            || monitor_args.output_format.is_some()
+            || monitor_args.processors.is_some()
+            || monitor_args.non_interactive
+            || monitor_args.no_reset
+            || monitor_args.monitor_baud != 115_200)
+    {
+        warn!("Monitor options were provided, but `--monitor/-M` flag isn't set. These options will be ignored.");
+    }
+
+    // Check if log-format is used with serial but output-format is specified
+    if let Some(LogFormat::Serial) = monitor_args.log_format {
+        if monitor_args.output_format.is_some() {
+            warn!("Output format specified but log format is serial. The output format option will be ignored.");
+        }
+    }
+
+    // Check if log-format is defmt but no ELF file is provided
+    if let Some(LogFormat::Defmt) = monitor_args.log_format {
+        if monitor_args.elf.is_none() {
+            warn!("Log format `defmt` requires an ELF file. Please provide one with the `--elf` option.");
+        }
+    }
+
+    Ok(())
+}

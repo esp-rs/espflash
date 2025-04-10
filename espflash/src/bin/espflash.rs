@@ -2,7 +2,12 @@ use std::{fs, path::PathBuf};
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
-    cli::{self, config::Config, monitor::monitor, *},
+    cli::{
+        self,
+        config::Config,
+        monitor::{check_monitor_args, monitor},
+        *,
+    },
     flasher::FlashSize,
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
@@ -203,6 +208,10 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
 }
 
 fn flash(args: FlashArgs, config: &Config) -> Result<()> {
+    let mut monitor_args = args.flash_args.monitor_args;
+    monitor_args.elf = Some(args.image.clone());
+    check_monitor_args(&args.flash_args.monitor, &monitor_args)?;
+
     let mut flasher = connect(
         &args.connect_args,
         config,
@@ -255,7 +264,6 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     if args.flash_args.monitor {
         let pid = flasher.usb_pid();
-        let mut monitor_args = args.flash_args.monitor_args;
 
         // The 26MHz ESP32-C2's need to be treated as a special case.
         if chip == Chip::Esp32c2

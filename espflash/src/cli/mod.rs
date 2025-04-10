@@ -29,7 +29,7 @@ use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo};
 
 use self::{
     config::Config,
-    monitor::{monitor, LogFormat},
+    monitor::{check_monitor_args, monitor, LogFormat},
 };
 use crate::{
     connection::reset::{ResetAfterOperation, ResetBeforeOperation},
@@ -1040,6 +1040,9 @@ pub fn make_flash_data(
 
 /// Write a binary to the flash memory of a target device
 pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
+    // Check monitor arguments
+    check_monitor_args(&args.monitor, &args.monitor_args)?;
+
     // Load the file to be flashed
     let mut f = File::open(&args.file).into_diagnostic()?;
 
