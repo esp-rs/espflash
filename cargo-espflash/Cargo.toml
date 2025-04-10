@@ -29,9 +29,3 @@ miette         = { version = "7.4.0", features = ["fancy"] }
 serde          = { version = "1.0.217", features = ["derive"] }
 thiserror      = "2.0.10"
 toml           = "0.8.19"
-
-[target.'cfg(unix)'.dependencies]
-cargo = { version = "0.86.0", features = ["vendored-openssl"] }
-
-[target.'cfg(windows)'.dependencies]
-cargo = "0.86.0"
