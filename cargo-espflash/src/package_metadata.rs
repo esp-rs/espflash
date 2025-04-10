@@ -1,9 +1,6 @@
 use std::path::PathBuf;
 
-use cargo::{
-    core::{Package, Workspace},
-    util::GlobalContext,
-};
+use cargo_metadata::{MetadataCommand, camino::Utf8PathBuf};
 use miette::{IntoDiagnostic, Result};
 use serde::Deserialize;
 
@@ -16,7 +13,7 @@ pub struct PackageMetadata {
 }
 
 impl PackageMetadata {
-    pub fn load(package_name: &Option<String>) -> Result<PackageMetadata> {
+    pub fn load(package_name: &Option<String>) -> Result<Self> {
         // There MUST be a cargo manifest in the executing directory, regardless of
         // whether or not we are in a workspace.
         let manifest_path = PathBuf::from("Cargo.toml");
@@ -25,41 +22,31 @@ impl PackageMetadata {
         }
 
         let manifest_path = manifest_path.canonicalize().into_diagnostic()?;
-        let config = GlobalContext::default().map_err(|_| Error::InvalidWorkspace)?;
+        let manifest_path = Utf8PathBuf::from_path_buf(manifest_path).unwrap();
 
-        let workspace =
-            Workspace::new(&manifest_path, &config).map_err(|_| Error::InvalidWorkspace)?;
+        let metadata = MetadataCommand::new()
+            .no_deps()
+            .manifest_path(&manifest_path)
+            .exec()
+            .into_diagnostic()?;
 
-        let package = Self::load_package(&workspace, package_name)?;
-        let metadata = Self::load_metadata(&workspace, &package)?;
-
-        Ok(metadata)
-    }
-
-    fn load_package(workspace: &Workspace, package_name: &Option<String>) -> Result<Package> {
-        // If we are currently in a package (ie. *not* in a workspace) then we can just
-        // use this package; otherwise we must try to find a package with the correct
-        // name within the current workspace.
-        let maybe_package = if let Ok(package) = workspace.current() {
-            Some(package)
+        let maybe_package = if let [package] = metadata.workspace_default_packages()[..] {
+            Some(package.to_owned())
         } else {
-            workspace
-                .members()
-                .find(|pkg| Some(pkg.name().to_string()) == *package_name)
+            metadata
+                .packages
+                .iter()
+                .find(|package| Some(package.name.clone()) == *package_name)
+                .cloned()
         };
 
-        match maybe_package {
-            Some(package) => Ok(package.to_owned()),
-            None => Err(Error::NoPackage.into()),
-        }
-    }
+        let package = maybe_package.ok_or(Error::NoPackage).into_diagnostic()?;
 
-    fn load_metadata(workspace: &Workspace, package: &Package) -> Result<PackageMetadata> {
-        let espflash_meta = PackageMetadata {
-            workspace_root: workspace.root_manifest().parent().unwrap().to_path_buf(),
-            package_root: package.root().to_path_buf(),
+        let package_metadata = Self {
+            workspace_root: metadata.workspace_root.clone().into(),
+            package_root: package.manifest_path.parent().unwrap().into(),
         };
 
-        Ok(espflash_meta)
+        Ok(package_metadata)
     }
 }
