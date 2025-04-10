@@ -696,8 +696,6 @@ impl Flasher {
             return Err(Error::ChipNotProvided);
         };
 
-        let sdm = connection.secure_download_mode;
-
         let mut flasher = Flasher {
             connection,
             chip: detected_chip,
@@ -712,7 +710,7 @@ impl Flasher {
             return Ok(flasher);
         }
 
-        if !sdm {
+        if !flasher.connection.secure_download_mode {
             // Load flash stub if enabled.
             if use_stub {
                 info!("Using flash stub");
@@ -1113,6 +1111,13 @@ impl Flasher {
         segments: &[Segment<'_>],
         mut progress: Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error> {
+        if self.connection.secure_download_mode {
+            return Err(Error::UnsupportedFeature {
+                chip: self.chip,
+                feature: "writing binaries in Secure Download Mode currently".into(),
+            });
+        }
+
         let mut target = self
             .chip
             .flash_target(self.spi_params, self.use_stub, false, false);
@@ -1120,14 +1125,7 @@ impl Flasher {
         target.begin(&mut self.connection).flashing()?;
 
         for segment in segments {
-            if self.connection.secure_download_mode {
-                return Err(Error::UnsupportedFeature {
-                    chip: self.chip,
-                    feature: "writing binaries in Secure Download Mode currently".into(),
-                });
-            } else {
-                target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;
-            }
+            target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;
         }
 
         target.finish(&mut self.connection, true).flashing()?;
