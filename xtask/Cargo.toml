@@ -5,6 +5,9 @@ edition = "2024"
 publish = false
 
 [dependencies]
+chrono     = "0.4.40"
 clap       = { version = "4.5.36", features = ["derive"] }
 env_logger = "0.11.8"
 log        = "0.4.27"
+serde      = { version = "1.0.217", features = ["derive"] }
+serde_yaml = "0.9.34"
