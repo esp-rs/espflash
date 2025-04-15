@@ -175,7 +175,7 @@ impl fmt::Display for SecurityInfo {
             ]
             .iter()
             .enumerate()
-            .filter(|(_, &key)| self.security_flag_status(key))
+            .filter(|(_, key)| self.security_flag_status(key))
             .map(|(i, _)| format!("Secure Boot Key{} is Revoked", i))
             .collect();
 
