@@ -3,7 +3,7 @@
 use std::{borrow::Cow, ffi::c_char, io::Write, iter::once, mem::size_of};
 
 use bytemuck::{Pod, Zeroable, bytes_of, from_bytes, pod_read_unaligned};
-use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
+use esp_idf_part::{AppType, DataType, Flags, Partition, PartitionTable, SubType, Type};
 use log::warn;
 use object::{Endianness, Object, ObjectSection, read::elf::ElfFile32 as ElfFile};
 use sha2::{Digest, Sha256};
@@ -523,7 +523,7 @@ fn default_partition_table(params: &Esp32Params, flash_size: Option<u32>) -> Par
             SubType::Data(DataType::Nvs),
             params.nvs_addr,
             params.nvs_size,
-            false,
+            Flags::empty(),
         ),
         Partition::new(
             String::from("phy_init"),
@@ -531,7 +531,7 @@ fn default_partition_table(params: &Esp32Params, flash_size: Option<u32>) -> Par
             SubType::Data(DataType::Phy),
             params.phy_init_data_addr,
             params.phy_init_data_size,
-            false,
+            Flags::empty(),
         ),
         Partition::new(
             String::from("factory"),
@@ -542,7 +542,7 @@ fn default_partition_table(params: &Esp32Params, flash_size: Option<u32>) -> Par
                 flash_size.map_or(params.app_size, |size| size - params.app_addr),
                 MAX_PARTITION_SIZE,
             ),
-            false,
+            Flags::empty(),
         ),
     ])
 }
