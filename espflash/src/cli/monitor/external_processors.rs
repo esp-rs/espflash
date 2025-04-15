@@ -21,7 +21,7 @@
 //!
 //! Example processor which turns some letters into uppercase
 //! ```rust,no_run
-//! use std::io::{stdin, stdout, Read, Write};
+//! use std::io::{Read, Write, stdin, stdout};
 //!
 //! fn main() {
 //!     let args: Vec<String> = std::env::args().collect();

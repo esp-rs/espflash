@@ -2,18 +2,18 @@
 
 use std::{borrow::Cow, ffi::c_char, io::Write, iter::once, mem::size_of};
 
-use bytemuck::{bytes_of, from_bytes, pod_read_unaligned, Pod, Zeroable};
+use bytemuck::{Pod, Zeroable, bytes_of, from_bytes, pod_read_unaligned};
 use esp_idf_part::{AppType, DataType, Partition, PartitionTable, SubType, Type};
 use log::warn;
-use object::{read::elf::ElfFile32 as ElfFile, Endianness, Object, ObjectSection};
+use object::{Endianness, Object, ObjectSection, read::elf::ElfFile32 as ElfFile};
 use sha2::{Digest, Sha256};
 
-use super::{ram_segments, rom_segments, Segment};
+use super::{Segment, ram_segments, rom_segments};
 use crate::{
+    Error,
     error::AppDescriptorError,
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize},
     targets::{Chip, Esp32Params},
-    Error,
 };
 
 const ESP_CHECKSUM_MAGIC: u8 = 0xEF;

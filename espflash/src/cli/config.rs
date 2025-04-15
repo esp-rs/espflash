@@ -19,7 +19,7 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};
 use serialport::UsbPortInfo;
 
-use crate::{flasher::FlashSettings, Error};
+use crate::{Error, flasher::FlashSettings};
 
 /// A configured, known serial connection
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]

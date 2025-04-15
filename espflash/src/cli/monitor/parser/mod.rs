@@ -1,8 +1,8 @@
 use std::{borrow::Cow, io::Write, sync::LazyLock};
 
 use crossterm::{
-    style::{Color, Print, PrintStyledContent, Stylize},
     QueueableCommand,
+    style::{Color, Print, PrintStyledContent, Stylize},
 };
 use regex::Regex;
 

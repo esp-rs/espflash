@@ -1,26 +1,26 @@
 use std::io::Write;
 
 use flate2::{
-    write::{ZlibDecoder, ZlibEncoder},
     Compression,
+    write::{ZlibDecoder, ZlibEncoder},
 };
 use log::info;
 use md5::{Digest, Md5};
 
+use crate::{
+    Error,
+    flasher::{FLASH_SECTOR_SIZE, SpiAttachParams},
+    image_format::Segment,
+    targets::Chip,
+};
 #[cfg(feature = "serialport")]
 use crate::{
     connection::{
-        command::{Command, CommandType},
         Connection,
+        command::{Command, CommandType},
     },
     flasher::ProgressCallbacks,
     targets::FlashTarget,
-};
-use crate::{
-    flasher::{SpiAttachParams, FLASH_SECTOR_SIZE},
-    image_format::Segment,
-    targets::Chip,
-    Error,
 };
 
 /// Applications running from an ESP32's (or variant's) flash

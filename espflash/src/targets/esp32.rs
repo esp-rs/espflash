@@ -1,13 +1,13 @@
 use std::ops::Range;
 
-#[cfg(feature = "serialport")]
-use crate::{connection::Connection, targets::bytes_to_mac_addr};
 use crate::{
+    Error,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
-    Error,
 };
+#[cfg(feature = "serialport")]
+use crate::{connection::Connection, targets::bytes_to_mac_addr};
 
 pub(crate) const CHIP_ID: u16 = 0;
 
@@ -171,7 +171,7 @@ impl Target for Esp32 {
                 return Err(Error::UnsupportedFeature {
                     chip: Chip::Esp32,
                     feature: "the selected crystal frequency".into(),
-                })
+                });
             }
         };
 

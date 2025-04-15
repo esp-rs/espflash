@@ -11,12 +11,12 @@
 //! in our monitor the output is displayed immediately upon reading.
 
 use std::{
-    io::{stdout, ErrorKind, Read, Write},
+    io::{ErrorKind, Read, Write, stdout},
     time::Duration,
 };
 
 use crossterm::{
-    event::{poll, read, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
+    event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, poll, read},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 use external_processors::ExternalProcessors;
@@ -28,10 +28,10 @@ use strum::{Display, EnumIter, EnumString, VariantNames};
 
 use crate::{
     cli::{
-        monitor::parser::{InputParser, ResolvingPrinter},
         MonitorConfigArgs,
+        monitor::parser::{InputParser, ResolvingPrinter},
     },
-    connection::{reset::reset_after_flash, Port},
+    connection::{Port, reset::reset_after_flash},
     image_format::Metadata,
 };
 
@@ -271,20 +271,26 @@ pub fn check_monitor_args(monitor: &bool, monitor_args: &MonitorConfigArgs) -> R
             || monitor_args.no_reset
             || monitor_args.monitor_baud != 115_200)
     {
-        warn!("Monitor options were provided, but `--monitor/-M` flag isn't set. These options will be ignored.");
+        warn!(
+            "Monitor options were provided, but `--monitor/-M` flag isn't set. These options will be ignored."
+        );
     }
 
     // Check if log-format is used with serial but output-format is specified
     if let Some(LogFormat::Serial) = monitor_args.log_format {
         if monitor_args.output_format.is_some() {
-            warn!("Output format specified but log format is serial. The output format option will be ignored.");
+            warn!(
+                "Output format specified but log format is serial. The output format option will be ignored."
+            );
         }
     }
 
     // Check if log-format is defmt but no ELF file is provided
     if let Some(LogFormat::Defmt) = monitor_args.log_format {
         if monitor_args.elf.is_none() {
-            warn!("Log format `defmt` requires an ELF file. Please provide one with the `--elf` option.");
+            warn!(
+                "Log format `defmt` requires an ELF file. Please provide one with the `--elf` option."
+            );
         }
     }
 

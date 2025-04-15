@@ -1,11 +1,11 @@
 use std::error::Error;
 
 use addr2line::{
-    gimli::{self, Dwarf, EndianSlice, LittleEndian, SectionId},
     Context,
     LookupResult,
+    gimli::{self, Dwarf, EndianSlice, LittleEndian, SectionId},
 };
-use object::{read::File, Object, ObjectSection, ObjectSegment, ObjectSymbol};
+use object::{Object, ObjectSection, ObjectSegment, ObjectSymbol, read::File};
 
 // Wrapper around addr2line that allows to look up function names and
 // locations from a given address.

@@ -1,12 +1,13 @@
 use std::{
     fs,
     path::PathBuf,
-    process::{exit, Command, ExitStatus, Stdio},
+    process::{Command, ExitStatus, Stdio, exit},
 };
 
 use cargo_metadata::{Message, MetadataCommand};
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
+    Error as EspflashError,
     cli::{
         self,
         config::Config,
@@ -17,9 +18,8 @@ use espflash::{
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
-    Error as EspflashError,
 };
-use log::{debug, info, LevelFilter};
+use log::{LevelFilter, debug, info};
 use miette::{IntoDiagnostic, Result, WrapErr};
 
 use crate::{
