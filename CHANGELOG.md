@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--non-interactive` may now react to key events (user input, Ctrl-C, Ctrl-R) if possible (#819)
 - Removed `get_` prefix from any functions which previously had it (#824)
 - Take elf data as bytes rather than `ElfFile` struct when creating an image format (#825)
+- Updated to Rust 2024 edition (#843)
 
 ### Fixed
 

@@ -2,7 +2,7 @@
 
 use std::{io::Write, mem::size_of, time::Duration};
 
-use bytemuck::{bytes_of, Pod, Zeroable};
+use bytemuck::{Pod, Zeroable, bytes_of};
 use strum::Display;
 
 use crate::flasher::{SpiAttachParams, SpiSetParams};

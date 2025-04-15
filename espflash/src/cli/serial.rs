@@ -2,14 +2,14 @@
 use std::fs;
 
 use crossterm::style::Stylize;
-use dialoguer::{theme::ColorfulTheme, Confirm, Select};
+use dialoguer::{Confirm, Select, theme::ColorfulTheme};
 use log::{error, info};
 use miette::{IntoDiagnostic, Result};
-use serialport::{available_ports, SerialPortInfo, SerialPortType};
+use serialport::{SerialPortInfo, SerialPortType, available_ports};
 
 use crate::{
-    cli::{config::UsbDevice, Config, ConnectArgs},
     Error,
+    cli::{Config, ConnectArgs, config::UsbDevice},
 };
 
 /// Return the information of a serial port taking into account the different

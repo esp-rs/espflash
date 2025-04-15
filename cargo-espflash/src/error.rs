@@ -27,8 +27,10 @@ pub enum Error {
     #[error("No executable artifact found")]
     #[diagnostic(
         code(cargo_espflash::no_artifact),
-        help("If you're trying to run an example you need to specify it using the `--example` argument.\n\
-              If you're in a Cargo workspace, specify the binary package with `--package`.")
+        help(
+            "If you're trying to run an example you need to specify it using the `--example` argument.\n\
+              If you're in a Cargo workspace, specify the binary package with `--package`."
+        )
     )]
     NoArtifact,
 
@@ -46,8 +48,10 @@ pub enum Error {
     #[error("No package could be located in the current workspace")]
     #[diagnostic(
         code(cargo_espflash::no_package),
-        help("Ensure that you are executing from a valid package, and that the specified package name \
-              exists in the current workspace.")
+        help(
+            "Ensure that you are executing from a valid package, and that the specified package name \
+              exists in the current workspace."
+        )
     )]
     NoPackage,
 
@@ -145,7 +149,6 @@ impl Diagnostic for NoTargetError {
                 chip.into_target().supported_build_targets().join(", ")
             ),
             None => "Specify the target in `.cargo/config.toml`".into(),
-        }
-        ))
+        }))
     }
 }

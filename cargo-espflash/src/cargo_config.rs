@@ -89,9 +89,5 @@ fn config_path(path: &Path) -> Option<PathBuf> {
     }
 
     let toml = path.join(".cargo/config.toml");
-    if toml.exists() {
-        Some(toml)
-    } else {
-        None
-    }
+    if toml.exists() { Some(toml) } else { None }
 }

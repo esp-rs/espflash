@@ -2,14 +2,14 @@ use std::ops::Range;
 
 #[cfg(feature = "serialport")]
 use super::flash_target::MAX_RAM_BLOCK_SIZE;
-#[cfg(feature = "serialport")]
-use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE};
 use crate::{
+    Error,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
-    Error,
 };
+#[cfg(feature = "serialport")]
+use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE};
 
 pub(crate) const CHIP_ID: u16 = 2;
 

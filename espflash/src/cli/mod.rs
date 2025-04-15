@@ -20,21 +20,22 @@ use std::{
 
 use clap::{Args, ValueEnum};
 use clap_complete::Shell;
-use comfy_table::{modifiers, presets::UTF8_FULL, Attribute, Cell, Color, Table};
+use comfy_table::{Attribute, Cell, Color, Table, modifiers, presets::UTF8_FULL};
 use esp_idf_part::{DataType, Partition, PartitionTable};
-use indicatif::{style::ProgressStyle, HumanBytes, HumanCount, ProgressBar};
+use indicatif::{HumanBytes, HumanCount, ProgressBar, style::ProgressStyle};
 use log::{debug, info, warn};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo};
 
 use self::{
     config::Config,
-    monitor::{check_monitor_args, monitor, LogFormat},
+    monitor::{LogFormat, check_monitor_args, monitor},
 };
 use crate::{
     connection::reset::{ResetAfterOperation, ResetBeforeOperation},
     error::{Error, MissingPartition, MissingPartitionTable},
     flasher::{
+        FLASH_SECTOR_SIZE,
         FlashData,
         FlashFrequency,
         FlashMode,
@@ -42,7 +43,6 @@ use crate::{
         FlashSize,
         Flasher,
         ProgressCallbacks,
-        FLASH_SECTOR_SIZE,
     },
     image_format::Metadata,
     targets::{Chip, XtalFrequency},

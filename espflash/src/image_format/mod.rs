@@ -9,11 +9,11 @@ use std::{
 };
 
 use object::{
-    elf::SHT_PROGBITS,
-    read::elf::{ElfFile32 as ElfFile, SectionHeader},
     Endianness,
     Object as _,
     ObjectSection as _,
+    elf::SHT_PROGBITS,
+    read::elf::{ElfFile32 as ElfFile, SectionHeader},
 };
 
 pub use self::{esp_idf::IdfBootloaderFormat, metadata::Metadata};

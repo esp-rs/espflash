@@ -64,7 +64,7 @@ pub mod update {
     use std::time::Duration;
 
     use log::info;
-    use update_informer::{registry::Crates, Check};
+    use update_informer::{Check, registry::Crates};
 
     pub fn check_for_update(name: &str, version: &str) {
         // By setting the interval to 0 seconds we invalidate the cache with each

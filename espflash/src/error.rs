@@ -43,11 +43,15 @@ pub enum Error {
     #[error("Chip provided with `-c/--chip` ({0}) does not match the detected chip ({1})")]
     #[diagnostic(
         code(espflash::chip_mismatch),
-        help("Ensure that the correct chip is selected, or remove the `-c/--chip` option to autodetect the chip")
+        help(
+            "Ensure that the correct chip is selected, or remove the `-c/--chip` option to autodetect the chip"
+        )
     )]
     ChipMismatch(String, String),
 
-    #[error("Chip not argument provided, this is required when using the `--before no-reset-no-sync` option")]
+    #[error(
+        "Chip not argument provided, this is required when using the `--before no-reset-no-sync` option"
+    )]
     #[diagnostic(
         code(espflash::chip_not_provided),
         help("Ensure that you provide the `-c/--chip` option with the proper chip")
@@ -62,10 +66,14 @@ pub enum Error {
     #[diagnostic(code(espflash::read_flash::digest_mismatch))]
     DigestMismatch(Vec<u8>, Vec<u8>),
 
-    #[error("Supplied ELF image can not be run from RAM, as it includes segments mapped to ROM addresses")]
+    #[error(
+        "Supplied ELF image can not be run from RAM, as it includes segments mapped to ROM addresses"
+    )]
     #[diagnostic(
         code(espflash::not_ram_loadable),
-        help("Either build the binary to be all in RAM, or remove the `--ram` option to load the image to flash")
+        help(
+            "Either build the binary to be all in RAM, or remove the `--ram` option to load the image to flash"
+        )
     )]
     ElfNotRamLoadable,
 
@@ -75,7 +83,9 @@ pub enum Error {
     #[diagnostic(
         code(espflash::image_too_big),
         help("Reduce the size of the binary or increase the size of the app partition."),
-        url("https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#built-in-partition-tables")
+        url(
+            "https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#built-in-partition-tables"
+        )
     )]
     ElfTooBig(u32, u32),
 
@@ -116,7 +126,9 @@ pub enum Error {
     #[error("No serial ports could be detected")]
     #[diagnostic(
         code(espflash::no_serial),
-        help("Make sure you have connected a device to the host system. If the device is connected but not listed, try using the `--list-all-ports` flag.")
+        help(
+            "Make sure you have connected a device to the host system. If the device is connected but not listed, try using the `--list-all-ports` flag."
+        )
     )]
     NoSerial,
 
@@ -164,7 +176,9 @@ pub enum Error {
         found_minor: u16,
     },
 
-    #[error("Failed to parse chip revision: {chip_rev}. Chip revision must be in the format `major.minor`")]
+    #[error(
+        "Failed to parse chip revision: {chip_rev}. Chip revision must be in the format `major.minor`"
+    )]
     #[diagnostic(code(espflash::cli::parse_chip_rev_error))]
     ParseChipRevError { chip_rev: String },
 
@@ -286,7 +300,9 @@ pub enum ConnectionError {
     #[error("Failed to connect to the device")]
     #[diagnostic(
         code(espflash::connection_failed),
-        help("Ensure that the device is connected and the reset and boot pins are not being held down")
+        help(
+            "Ensure that the device is connected and the reset and boot pins are not being held down"
+        )
     )]
     ConnectionFailed,
 
@@ -300,7 +316,9 @@ pub enum ConnectionError {
     #[error("Received packet has invalid SLIP framing")]
     #[diagnostic(
         code(espflash::slip_framing),
-        help("Try hard-resetting the device and try again, if the error persists your ROM may be corrupted")
+        help(
+            "Try hard-resetting the device and try again, if the error persists your ROM may be corrupted"
+        )
     )]
     FramingError,
 
@@ -317,11 +335,15 @@ pub enum ConnectionError {
     #[error("Received packet to large for buffer")]
     #[diagnostic(
         code(espflash::oversized_packet),
-        help("Try hard-resetting the device and try again, if the error persists your ROM may be corrupted")
+        help(
+            "Try hard-resetting the device and try again, if the error persists your ROM may be corrupted"
+        )
     )]
     OverSizedPacket,
 
-    #[error("Failed to read the available bytes on the serial port. Available bytes: {0}, Read bytes: {1}")]
+    #[error(
+        "Failed to read the available bytes on the serial port. Available bytes: {0}, Read bytes: {1}"
+    )]
     #[diagnostic(code(espflash::read_missmatch))]
     ReadMissmatch(u32, u32),
 

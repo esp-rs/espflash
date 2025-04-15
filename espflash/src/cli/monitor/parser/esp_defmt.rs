@@ -1,13 +1,13 @@
 use std::io::Write;
 
-use crossterm::{style::Print, QueueableCommand};
+use crossterm::{QueueableCommand, style::Print};
 use defmt_decoder::{
-    log::format::{Formatter, FormatterConfig, FormatterFormat},
     Frame,
     Table,
+    log::format::{Formatter, FormatterConfig, FormatterFormat},
 };
 use log::warn;
-use miette::{bail, ensure, Context, Diagnostic, Result};
+use miette::{Context, Diagnostic, Result, bail, ensure};
 use thiserror::Error;
 
 use crate::cli::monitor::parser::InputParser;
@@ -144,7 +144,9 @@ impl DefmtData {
             .map_err(|_e| DefmtError::LocationDataParseFailed)?;
 
         let locs = if !table.is_empty() && locs.is_empty() {
-            warn!("Insufficient DWARF info; compile your program with `debug = 2` to enable location info.");
+            warn!(
+                "Insufficient DWARF info; compile your program with `debug = 2` to enable location info."
+            );
             None
         } else if table.indices().all(|idx| locs.contains_key(&(idx as u64))) {
             Some(locs)

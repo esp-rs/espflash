@@ -22,15 +22,15 @@ use self::{
     command::{Command, CommandType},
     encoder::SlipEncoder,
     reset::{
-        construct_reset_strategy_sequence,
-        hard_reset,
-        reset_after_flash,
-        soft_reset,
         ClassicReset,
         ResetAfterOperation,
         ResetBeforeOperation,
         ResetStrategy,
         UsbJtagSerialReset,
+        construct_reset_strategy_sequence,
+        hard_reset,
+        reset_after_flash,
+        soft_reset,
     },
 };
 use crate::{
@@ -267,7 +267,7 @@ impl Connection {
                         return Err(Error::RomError(RomError::new(
                             CommandType::Sync,
                             RomErrorKind::InvalidMessage,
-                        )))
+                        )));
                     }
                 }
             }
@@ -345,7 +345,7 @@ impl Connection {
                         return Err(Error::UnsupportedFeature {
                             chip,
                             feature: "watchdog reset".into(),
-                        })
+                        });
                     }
                 }
 

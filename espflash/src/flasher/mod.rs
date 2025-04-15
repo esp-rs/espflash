@@ -14,7 +14,7 @@ use log::{debug, info, warn};
 #[cfg(feature = "serialport")]
 use md5::{Digest, Md5};
 #[cfg(feature = "serialport")]
-use object::{read::elf::ElfFile32 as ElfFile, Endianness};
+use object::{Endianness, read::elf::ElfFile32 as ElfFile};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
 use serialport::UsbPortInfo;
@@ -24,26 +24,26 @@ use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
 pub(crate) use self::stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
 #[cfg(feature = "serialport")]
 pub use crate::targets::flash_target::ProgressCallbacks;
+use crate::{
+    Error,
+    targets::{Chip, XtalFrequency},
+};
 #[cfg(feature = "serialport")]
 use crate::{
     connection::{
-        command::{Command, CommandType},
-        reset::{ResetAfterOperation, ResetBeforeOperation},
         Connection,
         Port,
+        command::{Command, CommandType},
+        reset::{ResetAfterOperation, ResetBeforeOperation},
     },
     error::{ConnectionError, ResultExt as _},
     flasher::stubs::{
-        FlashStub,
         CHIP_DETECT_MAGIC_REG_ADDR,
         DEFAULT_TIMEOUT,
         EXPECTED_STUB_HANDSHAKE,
+        FlashStub,
     },
-    image_format::{ram_segments, rom_segments, Segment},
-};
-use crate::{
-    targets::{Chip, XtalFrequency},
-    Error,
+    image_format::{Segment, ram_segments, rom_segments},
 };
 
 #[cfg(feature = "serialport")]
@@ -175,7 +175,7 @@ impl fmt::Display for SecurityInfo {
             ]
             .iter()
             .enumerate()
-            .filter(|(_, &key)| self.security_flag_status(key))
+            .filter(|(_, key)| self.security_flag_status(key))
             .map(|(i, _)| format!("Secure Boot Key{} is Revoked", i))
             .collect();
 
@@ -864,8 +864,7 @@ impl Flasher {
             Err(_) => {
                 warn!(
                     "Could not detect flash size (FlashID=0x{:02X}, SizeID=0x{:02X}), defaulting to 4MB",
-                    flash_id,
-                    size_id
+                    flash_id, size_id
                 );
                 FlashSize::default()
             }

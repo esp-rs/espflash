@@ -3,10 +3,10 @@ use std::ops::Range;
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
 use crate::{
+    Error,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
-    Error,
 };
 
 pub(crate) const CHIP_ID: u16 = 13;

@@ -2,6 +2,7 @@ use std::{fs, path::PathBuf};
 
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
+    Error,
     cli::{
         self,
         config::Config,
@@ -12,9 +13,8 @@ use espflash::{
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
-    Error,
 };
-use log::{debug, info, LevelFilter};
+use log::{LevelFilter, debug, info};
 use miette::{IntoDiagnostic, Result, WrapErr};
 
 #[derive(Debug, Parser)]

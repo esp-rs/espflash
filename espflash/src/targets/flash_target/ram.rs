@@ -1,13 +1,13 @@
+use crate::{Error, image_format::Segment};
 #[cfg(feature = "serialport")]
 use crate::{
     connection::{
-        command::{Command, CommandType},
         Connection,
+        command::{Command, CommandType},
     },
     flasher::ProgressCallbacks,
     targets::FlashTarget,
 };
-use crate::{image_format::Segment, Error};
 
 pub const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 
