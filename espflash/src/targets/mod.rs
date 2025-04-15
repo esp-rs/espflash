@@ -33,6 +33,7 @@ use crate::{
     targets::flash_target::{FlashTarget, MAX_RAM_BLOCK_SIZE},
 };
 
+mod efuse;
 mod esp32;
 mod esp32c2;
 mod esp32c3;
