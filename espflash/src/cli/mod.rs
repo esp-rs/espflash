@@ -979,13 +979,20 @@ fn pretty_print(table: PartitionTable) {
         ]);
 
     for p in table.partitions() {
+        let flags = p
+            .flags()
+            .iter_names()
+            .map(|(name, _)| name.to_lowercase())
+            .collect::<Vec<_>>()
+            .join(":");
+
         pretty.add_row(vec![
             Cell::new(p.name()).fg(Color::Green),
             Cell::new(p.ty().to_string()).fg(Color::Cyan),
             Cell::new(p.subtype().to_string()).fg(Color::Magenta),
             Cell::new(format!("{:#x}", p.offset())).fg(Color::Red),
             Cell::new(format!("{:#x} ({}KiB)", p.size(), p.size() / 1024)).fg(Color::Yellow),
-            Cell::new(p.encrypted()).fg(Color::DarkCyan),
+            Cell::new(flags).fg(Color::DarkCyan),
         ]);
     }
 
