@@ -10,13 +10,6 @@ use thiserror::Error;
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 pub enum Error {
-    #[error("The current workspace is invalid, and could not be loaded")]
-    #[diagnostic(
-        code(cargo_espflash::invalid_workspace),
-        help("Ensure that a valid `Cargo.toml` file is in the executing directory")
-    )]
-    InvalidWorkspace,
-
     #[error("Multiple build artifacts found")]
     #[diagnostic(
         code(cargo_espflash::multiple_artifacts),
