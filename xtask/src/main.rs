@@ -175,15 +175,11 @@ fn process_efuse_definitions(efuse_fields: &mut EfuseFields) -> Result<()> {
 
     // The ESP32-S2 seems to be missing a reserved byte at the end of BLOCK0
     // (Or, something else weird is going on).
-    for (chip, yaml) in efuse_fields {
-        if chip != "esp32s2" {
-            continue;
-        }
-
+    efuse_fields.entry("esp32s2".into()).and_modify(|yaml| {
         yaml.fields
             .entry("RESERVED_0_162".into())
             .and_modify(|field| field.len = 30);
-    }
+    });
 
     Ok(())
 }
