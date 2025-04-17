@@ -659,6 +659,9 @@ pub struct Flasher {
 
 #[cfg(feature = "serialport")]
 impl Flasher {
+    /// The serial port's baud rate should be 115_200 to connect. After
+    /// connecting, Flasher will change the baud rate to the `speed`
+    /// parameter.
     #[allow(clippy::too_many_arguments)]
     pub fn connect(
         serial: Port,
