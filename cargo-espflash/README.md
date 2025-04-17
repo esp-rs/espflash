@@ -39,15 +39,8 @@ Alternatively, you can use [cargo-binstall] to download pre-compiled artifacts f
 cargo binstall cargo-espflash
 ```
 
-By default, in Unix systems, we use the [`vendored-openssl` Cargo feature] which may require additional tools such as `perl` and `make`. To disable this feature, use:
-
-```
-OPENSSL_NO_VENDOR=1 cargo install cargo-espflash
-```
-
 [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
 [releases]: https://github.com/esp-rs/espflash/releases
-[`vendored-openssl` Cargo feature]: https://github.com/rust-lang/cargo#compiling-from-source
 
 ## Usage
 
