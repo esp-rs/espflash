@@ -1,3 +1,5 @@
+#![allow(clippy::empty_docs)]
+
 pub(crate) mod esp32;
 pub(crate) mod esp32c2;
 pub(crate) mod esp32c3;

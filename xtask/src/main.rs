@@ -83,23 +83,23 @@ struct EfuseAttrs {
 
 impl PartialOrd for EfuseAttrs {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match self.block.partial_cmp(&other.block) {
-            Some(Ordering::Equal) => {}
-            ord => return ord,
-        }
-
-        match self.word.partial_cmp(&other.word) {
-            Some(Ordering::Equal) => {}
-            ord => return ord,
-        }
-
-        self.start.partial_cmp(&other.start)
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for EfuseAttrs {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+        match self.block.cmp(&other.block) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+
+        match self.word.cmp(&other.word) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+
+        self.start.cmp(&other.start)
     }
 }
 
@@ -117,7 +117,7 @@ fn generate_efuse_fields(workspace: &Path, args: GenerateEfuseFieldsArgs) -> Res
     generate_efuse_definitions(&espflash_path, efuse_fields)?;
 
     Command::new("cargo")
-        .args(&["+nightly", "fmt"])
+        .args(["+nightly", "fmt"])
         .current_dir(workspace)
         .output()?;
 
@@ -135,10 +135,7 @@ fn parse_efuse_fields(efuse_yaml_path: &Path) -> Result<EfuseFields> {
 
     for result in fs::read_dir(efuse_yaml_path)? {
         let path = result?.path();
-        if !path
-            .extension()
-            .is_some_and(|ext| ext == OsStr::new("yaml"))
-        {
+        if path.extension().is_none_or(|ext| ext != OsStr::new("yaml")) {
             continue;
         }
 
@@ -160,7 +157,7 @@ fn process_efuse_definitions(efuse_fields: &mut EfuseFields) -> Result<()> {
     // This is all a special case for the MAC field, which is larger than a single
     // word (i.e. 32-bits) in size. To handle this, we just split it up into two
     // separate fields, and update the fields' attributes accordingly.
-    for (_chip, yaml) in &mut *efuse_fields {
+    for yaml in (*efuse_fields).values_mut() {
         let mac_attrs = yaml.fields.get("MAC").unwrap();
 
         let mut mac0_attrs = mac_attrs.clone();
