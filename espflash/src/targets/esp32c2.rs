@@ -2,14 +2,22 @@ use std::{collections::HashMap, ops::Range};
 
 use log::debug;
 
+use super::{
+    Chip,
+    Esp32Params,
+    ReadEFuse,
+    SpiRegisters,
+    Target,
+    XtalFrequency,
+    efuse::esp32c2 as efuse,
+};
+#[cfg(feature = "serialport")]
+use crate::connection::Connection;
 use crate::{
     Error,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
-    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
-#[cfg(feature = "serialport")]
-use crate::{connection::Connection, targets::bytes_to_mac_addr};
 
 pub(crate) const CHIP_ID: u16 = 12;
 
@@ -23,9 +31,8 @@ const FLASH_RANGES: &[Range<u32>] = &[
     0x3c00_0000..0x3c40_0000, // DROM
 ];
 
-// UART0_BASE_REG + 0x14
 #[cfg(feature = "serialport")]
-const UART_CLKDIV_REG: u32 = 0x6000_0014;
+const UART_CLKDIV_REG: u32 = 0x6000_0014; // UART0_BASE_REG + 0x14
 #[cfg(feature = "serialport")]
 const UART_CLKDIV_MASK: u32 = 0xfffff;
 
@@ -46,9 +53,21 @@ impl ReadEFuse for Esp32c2 {
     fn efuse_reg(&self) -> u32 {
         0x6000_8800
     }
+
+    fn block0_offset(&self) -> u32 {
+        0x35
+    }
+
+    fn block_size(&self, block: usize) -> u32 {
+        efuse::BLOCK_SIZES[block]
+    }
 }
 
 impl Target for Esp32c2 {
+    fn chip(&self) -> Chip {
+        Chip::Esp32c2
+    }
+
     fn addr_is_flash(&self, addr: u32) -> bool {
         FLASH_RANGES.iter().any(|range| range.contains(&addr))
     }
@@ -60,12 +79,12 @@ impl Target for Esp32c2 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok((self.read_efuse(connection, 17)? >> 20) & 0x3)
+        self.read_efuse(connection, efuse::WAFER_VERSION_MAJOR)
     }
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok((self.read_efuse(connection, 17)? >> 16) & 0xf)
+        self.read_efuse(connection, efuse::WAFER_VERSION_MINOR)
     }
 
     #[cfg(feature = "serialport")]
@@ -124,19 +143,6 @@ impl Target for Esp32c2 {
         );
 
         IdfBootloaderFormat::new(elf_data, Chip::Esp32c2, flash_data, params)
-    }
-
-    #[cfg(feature = "serialport")]
-    /// What is the MAC address?
-    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let word5 = self.read_efuse(connection, 16)?;
-        let word6 = self.read_efuse(connection, 17)?;
-
-        let bytes = ((word6 as u64) << 32) | word5 as u64;
-        let bytes = bytes.to_be_bytes();
-        let bytes = &bytes[2..];
-
-        Ok(bytes_to_mac_addr(bytes))
     }
 
     fn spi_registers(&self) -> SpiRegisters {

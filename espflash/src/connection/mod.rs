@@ -557,9 +557,9 @@ impl Connection {
     }
 
     /// Read a register command with a timeout
-    pub fn read_reg(&mut self, reg: u32) -> Result<u32, Error> {
+    pub fn read_reg(&mut self, addr: u32) -> Result<u32, Error> {
         let resp = self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
-            connection.command(Command::ReadReg { address: reg })
+            connection.command(Command::ReadReg { address: addr })
         })?;
 
         resp.try_into()
