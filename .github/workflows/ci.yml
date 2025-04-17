@@ -115,6 +115,16 @@ jobs:
 
       - run: cargo check -p espflash --lib
 
+  xtask:
+    name: Check xtask
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: cargo check -p xtask
+
   # --------------------------------------------------------------------------
   # Test
 
