@@ -79,27 +79,23 @@ impl Target for Esp32 {
 
     #[cfg(feature = "serialport")]
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
-        let word3 = self.read_efuse_raw(connection, 0, 3)?;
-        let word4 = self.read_efuse_raw(connection, 0, 4)?;
-        let word6 = self.read_efuse_raw(connection, 0, 6)?;
-
         let mut features = vec!["WiFi"];
 
-        let chip_ver_dis_bt = word3 & 0x2;
-        if chip_ver_dis_bt == 0 {
+        let disable_bt = self.read_efuse(connection, efuse::DISABLE_BT)?;
+        if disable_bt == 0 {
             features.push("BT");
         }
 
-        let chip_ver_dis_app_cpu = word3 & 0x1;
-        if chip_ver_dis_app_cpu == 0 {
+        let disable_app_cpu = self.read_efuse(connection, efuse::DISABLE_APP_CPU)?;
+        if disable_app_cpu == 0 {
             features.push("Dual Core");
         } else {
             features.push("Single Core");
         }
 
-        let chip_cpu_freq_rated = word3 & (1 << 13);
+        let chip_cpu_freq_rated = self.read_efuse(connection, efuse::CHIP_CPU_FREQ_RATED)?;
         if chip_cpu_freq_rated != 0 {
-            let chip_cpu_freq_low = word3 & (1 << 12);
+            let chip_cpu_freq_low = self.read_efuse(connection, efuse::CHIP_CPU_FREQ_LOW)?;
             if chip_cpu_freq_low != 0 {
                 features.push("160MHz");
             } else {
@@ -115,17 +111,17 @@ impl Target for Esp32 {
             features.push("Embedded PSRAM");
         }
 
-        let adc_vref = (word4 >> 8) & 0x1;
+        let adc_vref = self.read_efuse(connection, efuse::ADC_VREF)?;
         if adc_vref != 0 {
             features.push("VRef calibration in efuse");
         }
 
-        let blk3_part_res = (word3 >> 14) & 0x1;
-        if blk3_part_res != 0 {
+        let blk3_part_reserve = self.read_efuse(connection, efuse::BLK3_PART_RESERVE)?;
+        if blk3_part_reserve != 0 {
             features.push("BLK3 partially reserved");
         }
 
-        let coding_scheme = word6 & 0x3;
+        let coding_scheme = self.read_efuse(connection, efuse::CODING_SCHEME)?;
         features.push(match coding_scheme {
             0 => "Coding Scheme None",
             1 => "Coding Scheme 3/4",
@@ -159,10 +155,7 @@ impl Target for Esp32 {
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let word5 = self.read_efuse_raw(connection, 0, 5)?;
-        let minor = (word5 >> 24) & 0x3;
-
-        Ok(minor)
+        self.read_efuse(connection, efuse::WAFER_VERSION_MINOR)
     }
 
     #[cfg(feature = "serialport")]
