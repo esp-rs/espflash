@@ -11,23 +11,27 @@ use strum::{Display, EnumIter, EnumString, VariantNames};
 
 #[cfg(feature = "serialport")]
 pub use self::flash_target::{Esp32Target, RamTarget};
-#[cfg(feature = "serialport")]
+use self::{
+    esp32::Esp32,
+    esp32c2::Esp32c2,
+    esp32c3::Esp32c3,
+    esp32c6::Esp32c6,
+    esp32h2::Esp32h2,
+    esp32p4::Esp32p4,
+    esp32s2::Esp32s2,
+    esp32s3::Esp32s3,
+};
 use crate::{
     Error,
-    connection::Connection,
-    flasher::{FLASH_WRITE_SIZE, SpiAttachParams},
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
+};
+#[cfg(feature = "serialport")]
+use crate::{
+    connection::Connection,
+    flasher::{FLASH_WRITE_SIZE, SpiAttachParams},
     targets::{
         efuse::EfuseField,
-        esp32::Esp32,
-        esp32c2::Esp32c2,
-        esp32c3::Esp32c3,
-        esp32c6::Esp32c6,
-        esp32h2::Esp32h2,
-        esp32p4::Esp32p4,
-        esp32s2::Esp32s2,
-        esp32s3::Esp32s3,
         flash_target::{FlashTarget, MAX_RAM_BLOCK_SIZE},
     },
 };

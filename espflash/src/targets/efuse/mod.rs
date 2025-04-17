@@ -7,6 +7,7 @@ pub(crate) mod esp32p4;
 pub(crate) mod esp32s2;
 pub(crate) mod esp32s3;
 
+#[allow(unused)]
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct EfuseField {
     pub(crate) block: u32,
