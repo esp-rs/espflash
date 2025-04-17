@@ -8,7 +8,7 @@
 use super::EfuseField;
 
 /// Total size in bytes of each block
-pub(crate) const BLOCK_SIZES: &[u32] = &[23, 24, 32, 32, 32, 32, 32, 32, 32, 32, 32];
+pub(crate) const BLOCK_SIZES: &[u32] = &[24, 24, 32, 32, 32, 32, 32, 32, 32, 32, 32];
 
 /// Disable programming of individual eFuses
 pub(crate) const WR_DIS: EfuseField = EfuseField::new(0, 0, 0, 32);
@@ -145,7 +145,7 @@ pub(crate) const DISABLE_WAFER_VERSION_MAJOR: EfuseField = EfuseField::new(0, 5,
 /// Disables check of blk version major
 pub(crate) const DISABLE_BLK_VERSION_MAJOR: EfuseField = EfuseField::new(0, 5, 161, 1);
 /// reserved
-pub(crate) const RESERVED_0_162: EfuseField = EfuseField::new(0, 5, 162, 22);
+pub(crate) const RESERVED_0_162: EfuseField = EfuseField::new(0, 5, 162, 30);
 /// MAC address
 pub(crate) const MAC0: EfuseField = EfuseField::new(1, 0, 0, 32);
 /// MAC address

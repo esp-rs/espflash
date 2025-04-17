@@ -160,8 +160,7 @@ fn process_efuse_definitions(efuse_fields: &mut EfuseFields) -> Result<()> {
     // This is all a special case for the MAC field, which is larger than a single
     // word (i.e. 32-bits) in size. To handle this, we just split it up into two
     // separate fields, and update the fields' attributes accordingly.
-
-    for (_chip, yaml) in efuse_fields {
+    for (_chip, yaml) in &mut *efuse_fields {
         let mac_attrs = yaml.fields.get("MAC").unwrap();
 
         let mut mac0_attrs = mac_attrs.clone();
@@ -175,6 +174,18 @@ fn process_efuse_definitions(efuse_fields: &mut EfuseFields) -> Result<()> {
         yaml.fields.remove("MAC").unwrap();
         yaml.fields.insert("MAC0".into(), mac0_attrs);
         yaml.fields.insert("MAC1".into(), mac1_attrs);
+    }
+
+    // The ESP32-S2 seems to be missing a reserved byte at the end of BLOCK0
+    // (Or, something else weird is going on).
+    for (chip, yaml) in efuse_fields {
+        if chip != "esp32s2" {
+            continue;
+        }
+
+        yaml.fields
+            .entry("RESERVED_0_162".into())
+            .and_modify(|field| field.len = 30);
     }
 
     Ok(())
