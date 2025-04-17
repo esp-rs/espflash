@@ -50,8 +50,10 @@ runs:
           gcc-aarch64-linux-gnu \
           gcc-arm-linux-gnueabihf \
           git \
+          libc-dev \
           "libc6:${{ inputs.arch }}" \
           "libgcc-s1:${{ inputs.arch }}" \
+          linux-libc-dev \
           musl-tools \
           pkg-config
 
