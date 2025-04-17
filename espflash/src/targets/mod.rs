@@ -314,14 +314,6 @@ pub trait ReadEFuse {
     /// Given an active connection, read the specified field of the eFuse region
     #[cfg(feature = "serialport")]
     fn read_efuse(&self, connection: &mut Connection, field: EfuseField) -> Result<u32, Error> {
-        let block0_addr = self.efuse_reg() + self.block0_offset();
-        let block_offset = if field.block == 0 {
-            0
-        } else {
-            self.block_size(field.block as usize - 1)
-        };
-
-        let addr = block0_addr + block_offset + (field.word * 0x4);
         let mask = if field.bit_count == 32 {
             u32::MAX
         } else {
@@ -330,10 +322,31 @@ pub trait ReadEFuse {
 
         let shift = field.bit_start % 32;
 
-        let value = connection.read_reg(addr)?;
+        let value = self.read_efuse_raw(connection, field.block, field.word)?;
         let value = (value >> shift) & mask;
 
         Ok(value)
+    }
+
+    /// Read the raw word in the specified eFuse block, without performing any
+    /// bit-shifting or masking of the read value
+    #[cfg(feature = "serialport")]
+    fn read_efuse_raw(
+        &self,
+        connection: &mut Connection,
+        block: u32,
+        word: u32,
+    ) -> Result<u32, Error> {
+        let block0_addr = self.efuse_reg() + self.block0_offset();
+        let block_offset = if block == 0 {
+            0
+        } else {
+            self.block_size(block as usize - 1)
+        };
+
+        let addr = block0_addr + block_offset + (word * 0x4);
+
+        connection.read_reg(addr)
     }
 }
 

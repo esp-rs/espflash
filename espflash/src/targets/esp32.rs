@@ -1,13 +1,21 @@
 use std::ops::Range;
 
+use super::{
+    Chip,
+    Esp32Params,
+    ReadEFuse,
+    SpiRegisters,
+    Target,
+    XtalFrequency,
+    efuse::esp32 as efuse,
+};
+#[cfg(feature = "serialport")]
+use crate::connection::Connection;
 use crate::{
     Error,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
-    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
-#[cfg(feature = "serialport")]
-use crate::{connection::Connection, targets::bytes_to_mac_addr};
 
 pub(crate) const CHIP_ID: u16 = 0;
 
@@ -18,9 +26,8 @@ const FLASH_RANGES: &[Range<u32>] = &[
     0x3f40_0000..0x3f80_0000, // DROM
 ];
 
-// UART0_BASE_REG + 0x14
 #[cfg(feature = "serialport")]
-const UART_CLKDIV_REG: u32 = 0x3ff4_0014;
+const UART_CLKDIV_REG: u32 = 0x3ff4_0014; // UART0_BASE_REG + 0x14
 #[cfg(feature = "serialport")]
 const UART_CLKDIV_MASK: u32 = 0xfffff;
 #[cfg(feature = "serialport")]
@@ -35,10 +42,10 @@ impl Esp32 {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
     }
 
-    #[cfg(feature = "serialport")]
     /// Return the package version based on the eFuses
+    #[cfg(feature = "serialport")]
     fn package_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let word3 = self.read_efuse(connection, 3)?;
+        let word3 = self.read_efuse_raw(connection, 0, 3)?;
 
         let pkg_version = (word3 >> 9) & 0x7;
         let pkg_version = pkg_version + (((word3 >> 2) & 0x1) << 3);
@@ -49,20 +56,32 @@ impl Esp32 {
 
 impl ReadEFuse for Esp32 {
     fn efuse_reg(&self) -> u32 {
-        0x3ff5_a000
+        0x3FF5_A000
+    }
+
+    fn block0_offset(&self) -> u32 {
+        0x0
+    }
+
+    fn block_size(&self, block: usize) -> u32 {
+        efuse::BLOCK_SIZES[block]
     }
 }
 
 impl Target for Esp32 {
+    fn chip(&self) -> Chip {
+        Chip::Esp32
+    }
+
     fn addr_is_flash(&self, addr: u32) -> bool {
         FLASH_RANGES.iter().any(|range| range.contains(&addr))
     }
 
     #[cfg(feature = "serialport")]
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
-        let word3 = self.read_efuse(connection, 3)?;
-        let word4 = self.read_efuse(connection, 4)?;
-        let word6 = self.read_efuse(connection, 6)?;
+        let word3 = self.read_efuse_raw(connection, 0, 3)?;
+        let word4 = self.read_efuse_raw(connection, 0, 4)?;
+        let word6 = self.read_efuse_raw(connection, 0, 6)?;
 
         let mut features = vec!["WiFi"];
 
@@ -121,8 +140,11 @@ impl Target for Esp32 {
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let apb_ctl_date = connection.read_reg(0x3FF6_607C)?;
 
-        let rev_bit0 = (self.read_efuse(connection, 3)? >> 15) & 0x1;
-        let rev_bit1 = (self.read_efuse(connection, 5)? >> 20) & 0x1;
+        let word3 = self.read_efuse_raw(connection, 0, 3)?;
+        let word5 = self.read_efuse_raw(connection, 0, 5)?;
+
+        let rev_bit0 = (word3 >> 15) & 0x1;
+        let rev_bit1 = (word5 >> 20) & 0x1;
         let rev_bit2 = (apb_ctl_date >> 31) & 0x1;
 
         let combine_value = (rev_bit2 << 2) | (rev_bit1 << 1) | rev_bit0;
@@ -137,7 +159,10 @@ impl Target for Esp32 {
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok((self.read_efuse(connection, 5)? >> 24) & 0x3)
+        let word5 = self.read_efuse_raw(connection, 0, 5)?;
+        let minor = (word5 >> 24) & 0x3;
+
+        Ok(minor)
     }
 
     #[cfg(feature = "serialport")]
@@ -186,18 +211,6 @@ impl Target for Esp32 {
         );
 
         IdfBootloaderFormat::new(elf_data, Chip::Esp32, flash_data, params)
-    }
-
-    #[cfg(feature = "serialport")]
-    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let word1 = self.read_efuse(connection, 1)?;
-        let word2 = self.read_efuse(connection, 2)?;
-
-        let words = ((word2 as u64) << 32) | word1 as u64;
-        let bytes = words.to_be_bytes();
-        let bytes = &bytes[2..8];
-
-        Ok(bytes_to_mac_addr(bytes))
     }
 
     fn spi_registers(&self) -> SpiRegisters {
