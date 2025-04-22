@@ -1,6 +1,6 @@
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-04-15 12:51
+//! Generated: 2025-04-22 11:33
 //! Version:   897499b0349a608b895d467abbcf006b
 
 #![allow(unused)]
@@ -63,7 +63,7 @@ pub(crate) const SYSTEM_DATA2: EfuseField = EfuseField::new(1, 2, 64, 24);
 /// MAC address
 pub(crate) const MAC0: EfuseField = EfuseField::new(2, 0, 0, 32);
 /// MAC address
-pub(crate) const MAC1: EfuseField = EfuseField::new(2, 1, 0, 16);
+pub(crate) const MAC1: EfuseField = EfuseField::new(2, 1, 32, 16);
 /// WAFER_VERSION_MINOR
 pub(crate) const WAFER_VERSION_MINOR: EfuseField = EfuseField::new(2, 1, 48, 4);
 /// WAFER_VERSION_MAJOR
