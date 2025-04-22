@@ -342,11 +342,11 @@ pub trait ReadEFuse {
         word: u32,
     ) -> Result<u32, Error> {
         let block0_addr = self.efuse_reg() + self.block0_offset();
-        let block_offset = if block == 0 {
-            0
-        } else {
-            self.block_size(block as usize - 1)
-        };
+
+        let mut block_offset = 0;
+        for b in 0..block {
+            block_offset += self.block_size(b as usize);
+        }
 
         let addr = block0_addr + block_offset + (word * 0x4);
 

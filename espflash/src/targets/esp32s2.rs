@@ -48,7 +48,6 @@ impl Esp32s2 {
     /// Return the block2 version based on eFuses
     #[cfg(feature = "serialport")]
     fn block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        // NOTE: Perplexingly, this does not seem to work correctly?
         self.read_efuse(connection, efuse::BLK_VERSION_MINOR)
     }
 
