@@ -2,11 +2,19 @@ use std::ops::Range;
 
 #[cfg(feature = "serialport")]
 use super::flash_target::MAX_RAM_BLOCK_SIZE;
+use super::{
+    Chip,
+    Esp32Params,
+    ReadEFuse,
+    SpiRegisters,
+    Target,
+    XtalFrequency,
+    efuse::esp32s2 as efuse,
+};
 use crate::{
     Error,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
-    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 #[cfg(feature = "serialport")]
 use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE};
@@ -40,28 +48,19 @@ impl Esp32s2 {
     /// Return the block2 version based on eFuses
     #[cfg(feature = "serialport")]
     fn block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let blk2_word4 = self.read_efuse(connection, 27)?;
-        let block2_version = (blk2_word4 >> 4) & 0x7;
-
-        Ok(block2_version)
+        self.read_efuse(connection, efuse::BLK_VERSION_MINOR)
     }
 
     /// Return the flash version based on eFuses
     #[cfg(feature = "serialport")]
     fn flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let blk1_word3 = self.read_efuse(connection, 20)?;
-        let flash_version = (blk1_word3 >> 21) & 0xf;
-
-        Ok(flash_version)
+        self.read_efuse(connection, efuse::FLASH_VERSION)
     }
 
     /// Return the PSRAM version based on eFuses
     #[cfg(feature = "serialport")]
     fn psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let blk1_word3 = self.read_efuse(connection, 20)?;
-        let psram_version = (blk1_word3 >> 28) & 0xf;
-
-        Ok(psram_version)
+        self.read_efuse(connection, efuse::PSRAM_VERSION)
     }
 
     /// Check if the magic value contains the specified value
@@ -72,11 +71,23 @@ impl Esp32s2 {
 
 impl ReadEFuse for Esp32s2 {
     fn efuse_reg(&self) -> u32 {
-        0x3f41_a000
+        0x3F41_A000
+    }
+
+    fn block0_offset(&self) -> u32 {
+        0x2C
+    }
+
+    fn block_size(&self, block: usize) -> u32 {
+        efuse::BLOCK_SIZES[block]
     }
 }
 
 impl Target for Esp32s2 {
+    fn chip(&self) -> Chip {
+        Chip::Esp32s2
+    }
+
     fn addr_is_flash(&self, addr: u32) -> bool {
         FLASH_RANGES.iter().any(|range| range.contains(&addr))
     }
@@ -114,13 +125,13 @@ impl Target for Esp32s2 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok((self.read_efuse(connection, 20)? >> 18) & 0x3)
+        self.read_efuse(connection, efuse::WAFER_VERSION_MAJOR)
     }
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let hi = (self.read_efuse(connection, 20)? >> 20) & 0x1;
-        let lo = (self.read_efuse(connection, 21)? >> 4) & 0x7;
+        let hi = self.read_efuse(connection, efuse::WAFER_VERSION_MINOR_HI)?;
+        let lo = self.read_efuse(connection, efuse::WAFER_VERSION_MINOR_LO)?;
 
         Ok((hi << 3) + lo)
     }

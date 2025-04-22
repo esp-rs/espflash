@@ -1,12 +1,20 @@
 use std::ops::Range;
 
+use super::{
+    Chip,
+    Esp32Params,
+    ReadEFuse,
+    SpiRegisters,
+    Target,
+    XtalFrequency,
+    efuse::esp32c6 as efuse,
+};
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
 use crate::{
     Error,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
-    targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
 pub(crate) const CHIP_ID: u16 = 13;
@@ -42,9 +50,21 @@ impl ReadEFuse for Esp32c6 {
     fn efuse_reg(&self) -> u32 {
         0x600B_0800
     }
+
+    fn block0_offset(&self) -> u32 {
+        0x2C
+    }
+
+    fn block_size(&self, block: usize) -> u32 {
+        efuse::BLOCK_SIZES[block]
+    }
 }
 
 impl Target for Esp32c6 {
+    fn chip(&self) -> Chip {
+        Chip::Esp32c6
+    }
+
     fn addr_is_flash(&self, addr: u32) -> bool {
         FLASH_RANGES.iter().any(|range| range.contains(&addr))
     }
@@ -56,15 +76,12 @@ impl Target for Esp32c6 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        Ok((self.read_efuse(connection, 22)? >> 24) & 0x3)
+        self.read_efuse(connection, efuse::WAFER_VERSION_MAJOR)
     }
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let hi = (self.read_efuse(connection, 22)? >> 23) & 0x1;
-        let lo = (self.read_efuse(connection, 20)? >> 18) & 0x7;
-
-        Ok((hi << 3) + lo)
+        self.read_efuse(connection, efuse::WAFER_VERSION_MINOR)
     }
 
     #[cfg(feature = "serialport")]

@@ -11,28 +11,32 @@ use strum::{Display, EnumIter, EnumString, VariantNames};
 
 #[cfg(feature = "serialport")]
 pub use self::flash_target::{Esp32Target, RamTarget};
+use self::{
+    esp32::Esp32,
+    esp32c2::Esp32c2,
+    esp32c3::Esp32c3,
+    esp32c6::Esp32c6,
+    esp32h2::Esp32h2,
+    esp32p4::Esp32p4,
+    esp32s2::Esp32s2,
+    esp32s3::Esp32s3,
+};
 use crate::{
     Error,
     flasher::{FlashData, FlashFrequency},
     image_format::IdfBootloaderFormat,
-    targets::{
-        esp32::Esp32,
-        esp32c2::Esp32c2,
-        esp32c3::Esp32c3,
-        esp32c6::Esp32c6,
-        esp32h2::Esp32h2,
-        esp32p4::Esp32p4,
-        esp32s2::Esp32s2,
-        esp32s3::Esp32s3,
-    },
 };
 #[cfg(feature = "serialport")]
 use crate::{
     connection::Connection,
     flasher::{FLASH_WRITE_SIZE, SpiAttachParams},
-    targets::flash_target::{FlashTarget, MAX_RAM_BLOCK_SIZE},
+    targets::{
+        efuse::EfuseField,
+        flash_target::{FlashTarget, MAX_RAM_BLOCK_SIZE},
+    },
 };
 
+mod efuse;
 mod esp32;
 mod esp32c2;
 mod esp32c3;
@@ -304,16 +308,57 @@ pub trait ReadEFuse {
     /// Returns the base address of the eFuse register
     fn efuse_reg(&self) -> u32;
 
+    /// Returns the offset of BLOCK0 relative to the eFuse base register address
+    fn block0_offset(&self) -> u32;
+
+    /// Returns the size of the specified block for the implementing target
+    /// device
+    fn block_size(&self, block: usize) -> u32;
+
+    /// Given an active connection, read the specified field of the eFuse region
     #[cfg(feature = "serialport")]
-    /// Given an active connection, read the nth word of the eFuse region
-    fn read_efuse(&self, connection: &mut Connection, n: u32) -> Result<u32, Error> {
-        let reg = self.efuse_reg() + (n * 0x4);
-        connection.read_reg(reg)
+    fn read_efuse(&self, connection: &mut Connection, field: EfuseField) -> Result<u32, Error> {
+        let mask = if field.bit_count == 32 {
+            u32::MAX
+        } else {
+            (1u32 << field.bit_count) - 1
+        };
+
+        let shift = field.bit_start % 32;
+
+        let value = self.read_efuse_raw(connection, field.block, field.word)?;
+        let value = (value >> shift) & mask;
+
+        Ok(value)
+    }
+
+    /// Read the raw word in the specified eFuse block, without performing any
+    /// bit-shifting or masking of the read value
+    #[cfg(feature = "serialport")]
+    fn read_efuse_raw(
+        &self,
+        connection: &mut Connection,
+        block: u32,
+        word: u32,
+    ) -> Result<u32, Error> {
+        let block0_addr = self.efuse_reg() + self.block0_offset();
+
+        let mut block_offset = 0;
+        for b in 0..block {
+            block_offset += self.block_size(b as usize);
+        }
+
+        let addr = block0_addr + block_offset + (word * 0x4);
+
+        connection.read_reg(addr)
     }
 }
 
 /// Operations for interacting with supported target devices
 pub trait Target: ReadEFuse {
+    /// The associated [Chip] for the implementing target
+    fn chip(&self) -> Chip;
+
     /// Is the provided address `addr` in flash?
     fn addr_is_flash(&self, addr: u32) -> bool;
 
@@ -367,14 +412,31 @@ pub trait Target: ReadEFuse {
     #[cfg(feature = "serialport")]
     /// What is the MAC address?
     fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let word5 = self.read_efuse(connection, 17)?;
-        let word6 = self.read_efuse(connection, 18)?;
+        let (mac0_field, mac1_field) = match self.chip() {
+            Chip::Esp32 => (self::efuse::esp32::MAC0, self::efuse::esp32::MAC1),
+            Chip::Esp32c2 => (self::efuse::esp32c2::MAC0, self::efuse::esp32c2::MAC1),
+            Chip::Esp32c3 => (self::efuse::esp32c3::MAC0, self::efuse::esp32c3::MAC1),
+            Chip::Esp32c6 => (self::efuse::esp32c6::MAC0, self::efuse::esp32c6::MAC1),
+            Chip::Esp32h2 => (self::efuse::esp32h2::MAC0, self::efuse::esp32h2::MAC1),
+            Chip::Esp32p4 => (self::efuse::esp32p4::MAC0, self::efuse::esp32p4::MAC1),
+            Chip::Esp32s2 => (self::efuse::esp32s2::MAC0, self::efuse::esp32s2::MAC1),
+            Chip::Esp32s3 => (self::efuse::esp32s3::MAC0, self::efuse::esp32s3::MAC1),
+        };
 
-        let bytes = ((word6 as u64) << 32) | word5 as u64;
+        let mac0 = self.read_efuse(connection, mac0_field)?;
+        let mac1 = self.read_efuse(connection, mac1_field)?;
+
+        let bytes = ((mac1 as u64) << 32) | mac0 as u64;
         let bytes = bytes.to_be_bytes();
         let bytes = &bytes[2..];
 
-        Ok(bytes_to_mac_addr(bytes))
+        let mac_addr = bytes
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join(":");
+
+        Ok(mac_addr)
     }
 
     #[cfg(feature = "serialport")]
@@ -448,13 +510,4 @@ pub(crate) trait UsbOtg {
             .read_reg(self.uartdev_buf_no())
             .map(|value| value == self.uartdev_buf_no_usb_otg())
     }
-}
-
-#[cfg(feature = "serialport")]
-fn bytes_to_mac_addr(bytes: &[u8]) -> String {
-    bytes
-        .iter()
-        .map(|b| format!("{:02x}", b))
-        .collect::<Vec<_>>()
-        .join(":")
 }

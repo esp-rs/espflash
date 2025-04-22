@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members  = ["cargo-espflash", "espflash"]
+members  = ["cargo-espflash", "espflash", "xtask"]
 
 [profile.release]
 lto   = "thin"
