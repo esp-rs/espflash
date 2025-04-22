@@ -1,6 +1,6 @@
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-04-15 12:51
+//! Generated: 2025-04-22 11:33
 //! Version:   df46b69f0ed3913114ba53d3a0b2b843
 
 #![allow(unused)]
@@ -159,7 +159,7 @@ pub(crate) const RPT4_RESERVED4_0: EfuseField = EfuseField::new(0, 5, 184, 8);
 /// MAC address
 pub(crate) const MAC0: EfuseField = EfuseField::new(1, 0, 0, 32);
 /// MAC address
-pub(crate) const MAC1: EfuseField = EfuseField::new(1, 1, 0, 16);
+pub(crate) const MAC1: EfuseField = EfuseField::new(1, 1, 32, 16);
 /// Stores the extended bits of MAC address
 pub(crate) const MAC_EXT: EfuseField = EfuseField::new(1, 1, 48, 16);
 /// Stores the active hp dbias

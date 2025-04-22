@@ -1,6 +1,6 @@
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-04-15 12:51
+//! Generated: 2025-04-22 11:33
 //! Version:   73787d3f5ae45b80abca925a7562120b
 
 #![allow(unused)]
@@ -192,7 +192,7 @@ pub(crate) const RESERVE_0_182: EfuseField = EfuseField::new(0, 5, 182, 10);
 /// MAC address
 pub(crate) const MAC0: EfuseField = EfuseField::new(1, 0, 0, 32);
 /// MAC address
-pub(crate) const MAC1: EfuseField = EfuseField::new(1, 1, 0, 16);
+pub(crate) const MAC1: EfuseField = EfuseField::new(1, 1, 32, 16);
 /// Stores the extended bits of MAC address
 pub(crate) const RESERVED_1_16: EfuseField = EfuseField::new(1, 1, 48, 16);
 /// Minor chip version

@@ -1,6 +1,6 @@
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-04-15 12:51
+//! Generated: 2025-04-22 11:33
 //! Version:   888a61f6f500d9c7ee0aa32016b0bee7
 
 #![allow(unused)]
@@ -149,7 +149,7 @@ pub(crate) const RESERVED_0_162: EfuseField = EfuseField::new(0, 5, 162, 30);
 /// MAC address
 pub(crate) const MAC0: EfuseField = EfuseField::new(1, 0, 0, 32);
 /// MAC address
-pub(crate) const MAC1: EfuseField = EfuseField::new(1, 1, 0, 16);
+pub(crate) const MAC1: EfuseField = EfuseField::new(1, 1, 32, 16);
 /// SPI_PAD_configure CLK
 pub(crate) const SPI_PAD_CONFIG_CLK: EfuseField = EfuseField::new(1, 1, 48, 6);
 /// SPI_PAD_configure Q(D1)
