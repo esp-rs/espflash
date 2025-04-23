@@ -11,3 +11,5 @@ env_logger = "0.11.8"
 log        = "0.4.27"
 serde      = { version = "1.0.217", features = ["derive"] }
 serde_yaml = "0.9.34"
+libc       = "0.2.152"
+winapi     = { version = "0.3.9", features = ["processthreadsapi", "handleapi"] }

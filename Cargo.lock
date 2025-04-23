@@ -3433,9 +3433,11 @@ dependencies = [
  "chrono",
  "clap",
  "env_logger",
+ "libc",
  "log",
  "serde",
  "serde_yaml",
+ "winapi",
 ]
 
 [[package]]
