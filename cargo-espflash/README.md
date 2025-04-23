@@ -20,6 +20,7 @@ Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**, and **ES
 - [Configuration File](#configuration-file)
   - [Configuration Precedence](#configuration-precedence)
 - [Logging Format](#logging-format)
+- [Development Kit Support Policy](#development-kit-support-policy)
 - [License](#license)
   - [Contribution](#contribution)
 
@@ -172,6 +173,14 @@ You can have a local and/or a global configuration file:
 [`defmt`]: https://defmt.ferrous-systems.com/
 [`defmt` section]: https://github.com/esp-rs/esp-hal/tree/main/esp-println#defmt
 [`defmt` project]: https://docs.esp-rs.org/no_std-training/03_7_defmt.html
+
+## Development Kit Support Policy
+
+While in an ideal world we would aim to provide full support for all available development kits, this is unfortunately not achievable in practice. Instead, we aim to ensure full compatibility with all [official Espressif development kits].
+
+We do not expect issues with third-party kits, however occasion issues do crop up. When this happens, if users expect fixes to be made then they are expected to debug the issue themselves so that a fix can be formulated; we cannot always reproduce these problems ourselves, and it's not reasonable to expect us to purchase every development kit users may experience issues with.
+
+[official Espressif development kits]: https://www.espressif.com/en/products/devkits
 
 ## License
 
