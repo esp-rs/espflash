@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Take elf data as bytes rather than `ElfFile` struct when creating an image format (#825)
 - Updated to Rust 2024 edition (#843)
 - Complete rework of reading eFuse field values (#847)
+- Updated bootloaders with `release/v5.4` ones from IDF (#857)
 
 ### Fixed
 
