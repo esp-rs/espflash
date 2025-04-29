@@ -1,0 +1,1 @@
+The listed bootloaders were built with [esp-idf/release/v5.4](https://github.com/espressif/esp-idf/tree/release/v5.4) at commit `3ad3632`, using the default settings.
