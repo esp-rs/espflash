@@ -1,0 +1,1 @@
+The listed bootloaders were built with [esp-idf/release/v5.4](https://github.com/espressif/esp-idf/tree/release/v5.4) at commit `3ad3632`, using default settings. For now, esp-hal uses  MMU page size as 0x10000 (64k) therefore he flash size has to be changed to 64MB.
