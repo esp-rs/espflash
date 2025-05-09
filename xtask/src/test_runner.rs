@@ -75,11 +75,20 @@ impl TestRunner {
 
         let child_id = child.id();
         let timer_handle = thread::spawn(move || {
-            thread::sleep(timeout);
-            // If the process has already completed, do nothing
-            if process_completed_clone.load(Ordering::SeqCst) {
-                return;
+            // Use a shorter sleep interval to check the completion flag more frequently
+            let check_interval = Duration::from_millis(100);
+            let mut elapsed = Duration::from_secs(0);
+
+            while elapsed < timeout {
+                thread::sleep(check_interval);
+                elapsed += check_interval;
+
+                // Check if the process has already completed
+                if process_completed_clone.load(Ordering::SeqCst) {
+                    return;
+                }
             }
+
             // If we reach this point, the command didn't complete within the timeout
             log::warn!("Command timed out after {timeout:?}, killing process {child_id}");
             Self::terminate_process(child_id, &mut None);
@@ -100,7 +109,7 @@ impl TestRunner {
         };
 
         // If we get here, the command completed before the timeout
-        // Wait for the timer thread to complete
+        // Wait for the timer thread to complete (should be very quick now)
         let _ = timer_handle.join();
 
         let exit_code = status.code().unwrap_or(1);
