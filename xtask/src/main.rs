@@ -1,17 +1,13 @@
-use std::{
-    cmp::Ordering,
-    collections::{BTreeMap, HashMap},
-    ffi::OsStr,
-    fs::{self, OpenOptions},
-    io::{BufWriter, Write},
-    path::{Path, PathBuf},
-    process::Command,
-    time::Duration,
-};
+use std::path::PathBuf;
 
-use clap::{Args, Parser};
+use clap::Parser;
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+// Import modules
+mod efuse_generator;
+mod test_runner;
+
+// Type definition for results
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 // ----------------------------------------------------------------------------
 // Command-line Interface
@@ -19,31 +15,10 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 #[derive(Debug, Parser)]
 enum Cli {
     /// Generate eFuse field definitions
-    GenerateEfuseFields(GenerateEfuseFieldsArgs),
+    GenerateEfuseFields(efuse_generator::GenerateEfuseFieldsArgs),
 
     /// Run espflash tests (replacing bash scripts)
-    RunTests(RunTestsArgs),
-}
-
-#[derive(Debug, Args)]
-struct GenerateEfuseFieldsArgs {
-    /// Local path to the `esptool` repository
-    esptool_path: PathBuf,
-}
-
-#[derive(Debug, Args)]
-struct RunTestsArgs {
-    /// Which test to run (or "all" to run all tests)
-    #[clap(default_value = "all")]
-    test: String,
-
-    /// Chip target to test with (e.g., "esp32", "esp32c3")
-    #[clap(short, long)]
-    chip: Option<String>,
-
-    /// Timeout for test commands in seconds
-    #[clap(short, long, default_value = "60")]
-    timeout: u64,
+    RunTests(test_runner::RunTestsArgs),
 }
 
 // ----------------------------------------------------------------------------
@@ -60,8 +35,8 @@ fn main() -> Result<()> {
     let workspace = workspace.parent().unwrap().canonicalize()?;
 
     match Cli::parse() {
-        Cli::GenerateEfuseFields(args) => generate_efuse_fields(&workspace, args),
-        Cli::RunTests(args) => run_tests(&workspace, args),
+        Cli::GenerateEfuseFields(args) => efuse_generator::generate_efuse_fields(&workspace, args),
+        Cli::RunTests(args) => test_runner::run_tests(&workspace, args),
     }
 }
 
