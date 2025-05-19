@@ -3,6 +3,7 @@
 pub(crate) mod esp32;
 pub(crate) mod esp32c2;
 pub(crate) mod esp32c3;
+pub(crate) mod esp32c5;
 pub(crate) mod esp32c6;
 pub(crate) mod esp32h2;
 pub(crate) mod esp32p4;

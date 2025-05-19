@@ -128,7 +128,8 @@ fn parse_efuse_fields(efuse_yaml_path: &Path) -> Result<EfuseFields> {
     // TODO: We can probably handle this better, e.g. by defining a `Chip` enum
     //       which can be iterated over, but for now this is good enough.
     const CHIPS: &[&str] = &[
-        "esp32", "esp32c2", "esp32c3", "esp32c6", "esp32h2", "esp32p4", "esp32s2", "esp32s3",
+        "esp32", "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32h2", "esp32p4", "esp32s2",
+        "esp32s3",
     ];
 
     let mut efuse_fields = EfuseFields::new();
