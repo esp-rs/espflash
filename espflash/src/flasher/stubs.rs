@@ -32,6 +32,7 @@ pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
 const STUB_32: &str = include_str!("../../resources/stubs/esp32.toml");
 const STUB_32C2: &str = include_str!("../../resources/stubs/esp32c2.toml");
 const STUB_32C3: &str = include_str!("../../resources/stubs/esp32c3.toml");
+const STUB_32C5: &str = include_str!("../../resources/stubs/esp32c5.toml");
 const STUB_32C6: &str = include_str!("../../resources/stubs/esp32c6.toml");
 const STUB_32H2: &str = include_str!("../../resources/stubs/esp32h2.toml");
 const STUB_32P4: &str = include_str!("../../resources/stubs/esp32p4.toml");
