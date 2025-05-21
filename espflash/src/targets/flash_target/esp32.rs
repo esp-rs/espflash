@@ -135,6 +135,83 @@ impl FlashTarget for Esp32Target {
         Ok(())
     }
 
+    fn write_segment_sdm(
+        &mut self,
+        connection: &mut Connection,
+        segment: Segment<'_>,
+        progress: &mut Option<&mut dyn ProgressCallbacks>,
+    ) -> Result<(), Error> {
+        let addr = segment.addr;
+
+        let target = self.chip.into_target();
+        let flash_write_size = target.flash_write_size(connection)?;
+        let block_count = segment.data.len().div_ceil(flash_write_size);
+
+        connection.with_timeout(
+            CommandType::FlashBegin.timeout_for_size(segment.data.len() as u32),
+            |connection| {
+                connection.command(Command::FlashBegin {
+                    size: segment.data.len() as u32,
+                    blocks: block_count as u32,
+                    block_size: flash_write_size as u32,
+                    offset: addr,
+                    supports_encryption: false,
+                })?;
+                Ok(())
+            },
+        )?;
+
+        if let Some(cb) = progress.as_mut() {
+            cb.init(addr, block_count)
+        }
+
+        let mut remaining_data = &segment.data[..];
+
+        for i in 0.. {
+            if remaining_data.is_empty() {
+                break;
+            }
+
+            let block_size = std::cmp::min(flash_write_size, remaining_data.len());
+            let block = &remaining_data[..block_size];
+
+            let padding_needed = flash_write_size.saturating_sub(block.len());
+
+            let block_vec = if padding_needed > 0 {
+                let mut owned = block.to_vec();
+                owned.extend(std::iter::repeat(0xFF).take(padding_needed));
+                owned
+            } else {
+                block.to_vec()
+            };
+
+            connection.with_timeout(
+                CommandType::FlashData.timeout_for_size(remaining_data.len() as u32),
+                |connection| {
+                    connection.command(Command::FlashData {
+                        data: &block_vec,
+                        pad_to: 0,
+                        pad_byte: 0,
+                        sequence: i,
+                    })?;
+                    Ok(())
+                },
+            )?;
+
+            remaining_data = &remaining_data[block_size..];
+
+            if let Some(cb) = progress.as_mut() {
+                cb.update(i as usize + 1)
+            }
+        }
+
+        if let Some(cb) = progress.as_mut() {
+            cb.finish()
+        }
+
+        Ok(())
+    }
+
     fn write_segment(
         &mut self,
         connection: &mut Connection,
