@@ -46,6 +46,7 @@ impl FlashStub {
             Chip::Esp32 => STUB_32,
             Chip::Esp32c2 => STUB_32C2,
             Chip::Esp32c3 => STUB_32C3,
+            Chip::Esp32c5 => STUB_32C5,
             Chip::Esp32c6 => STUB_32C6,
             Chip::Esp32h2 => STUB_32H2,
             Chip::Esp32p4 => STUB_32P4,
