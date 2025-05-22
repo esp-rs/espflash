@@ -102,7 +102,7 @@ impl Target for Esp32c5 {
         let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
         let est_xtal = (connection.baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
         let norm_xtal = if est_xtal > 45 {
-            XtalFrequency::_48MHz
+            XtalFrequency::_48Mhz
         } else {
             XtalFrequency::_40Mhz
         };
@@ -117,7 +117,7 @@ impl Target for Esp32c5 {
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
     ) -> Result<IdfBootloaderFormat<'a>, Error> {
-        if xtal_freq != XtalFrequency::_40Mhz {
+        if !matches!(xtal_freq, XtalFrequency::_40Mhz | XtalFrequency::_48Mhz) {
             return Err(Error::UnsupportedFeature {
                 chip: Chip::Esp32c5,
                 feature: "the selected crystal frequency".into(),

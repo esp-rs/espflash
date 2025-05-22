@@ -73,13 +73,13 @@ pub enum XtalFrequency {
     _40Mhz,
     /// 48MHz
     #[strum(serialize = "48 MHz")]
-    _48MHz,
+    _48Mhz,
 }
 
 impl XtalFrequency {
     pub fn default(chip: Chip) -> Self {
         match chip {
-            Chip::Esp32c5 => Self::_48MHz,
+            Chip::Esp32c5 => Self::_48Mhz,
             Chip::Esp32h2 => Self::_32Mhz,
             _ => Self::_40Mhz,
         }
