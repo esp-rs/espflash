@@ -680,6 +680,8 @@ impl Flasher {
         connection.begin()?;
         connection.set_timeout(DEFAULT_TIMEOUT)?;
 
+        detect_sdm(&mut connection);
+
         let detected_chip = if before_operation != ResetBeforeOperation::NoResetNoSync {
             // Detect which chip we are connected to.
             let detected_chip = detect_chip(&mut connection, use_stub)?;
@@ -1407,5 +1409,13 @@ fn detect_chip(connection: &mut Connection, use_stub: bool) -> Result<Chip, Erro
 
             Ok(chip)
         }
+    }
+}
+
+#[cfg(feature = "serialport")]
+fn detect_sdm(connection: &mut Connection) {
+    if connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR).is_err() {
+        log::warn!("Secure Download Mode is enabled on this chip");
+        connection.secure_download_mode = true;
     }
 }

@@ -28,13 +28,6 @@ pub trait FlashTarget {
         progress: &mut Option<&mut dyn ProgressCallbacks>,
     ) -> Result<(), Error>;
 
-    fn write_segment_sdm(
-        &mut self,
-        connection: &mut Connection,
-        segment: Segment<'_>,
-        progress: &mut Option<&mut dyn ProgressCallbacks>,
-    ) -> Result<(), Error>;
-
     /// Complete the flashing operation
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error>;
 }
