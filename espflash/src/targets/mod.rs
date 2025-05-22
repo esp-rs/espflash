@@ -15,6 +15,7 @@ use self::{
     esp32::Esp32,
     esp32c2::Esp32c2,
     esp32c3::Esp32c3,
+    esp32c5::Esp32c5,
     esp32c6::Esp32c6,
     esp32h2::Esp32h2,
     esp32p4::Esp32p4,
@@ -40,6 +41,7 @@ mod efuse;
 mod esp32;
 mod esp32c2;
 mod esp32c3;
+mod esp32c5;
 mod esp32c6;
 mod esp32h2;
 mod esp32p4;
@@ -59,29 +61,27 @@ pub(crate) mod flash_target;
 #[non_exhaustive]
 #[repr(u32)]
 pub enum XtalFrequency {
-    #[strum(serialize = "26 MHz")]
     /// 26 MHz
+    #[strum(serialize = "26 MHz")]
     _26Mhz,
-    #[strum(serialize = "32 MHz")]
     /// 32 MHz
+    #[strum(serialize = "32 MHz")]
     _32Mhz,
-    #[strum(serialize = "40 MHz")]
     /// 40 MHz
     #[default]
+    #[strum(serialize = "40 MHz")]
     _40Mhz,
+    /// 48MHz
+    #[strum(serialize = "48 MHz")]
+    _48Mhz,
 }
 
 impl XtalFrequency {
     pub fn default(chip: Chip) -> Self {
         match chip {
-            Chip::Esp32 => Self::_40Mhz,
-            Chip::Esp32c2 => Self::_40Mhz,
-            Chip::Esp32c3 => Self::_40Mhz,
-            Chip::Esp32c6 => Self::_40Mhz,
+            Chip::Esp32c5 => Self::_48Mhz,
             Chip::Esp32h2 => Self::_32Mhz,
-            Chip::Esp32p4 => Self::_40Mhz,
-            Chip::Esp32s2 => Self::_40Mhz,
-            Chip::Esp32s3 => Self::_40Mhz,
+            _ => Self::_40Mhz,
         }
     }
 }
@@ -98,6 +98,8 @@ pub enum Chip {
     Esp32c2,
     /// ESP32-C3, ESP8685
     Esp32c3,
+    /// ESP32-C5
+    Esp32c5,
     /// ESP32-C6
     Esp32c6,
     /// ESP32-H2
@@ -118,6 +120,8 @@ impl Chip {
             Ok(Chip::Esp32c2)
         } else if Esp32c3::has_magic_value(magic) {
             Ok(Chip::Esp32c3)
+        } else if Esp32c5::has_magic_value(magic) {
+            Ok(Chip::Esp32c5)
         } else if Esp32c6::has_magic_value(magic) {
             Ok(Chip::Esp32c6)
         } else if Esp32h2::has_magic_value(magic) {
@@ -140,6 +144,7 @@ impl Chip {
             Chip::Esp32 => Box::new(Esp32),
             Chip::Esp32c2 => Box::new(Esp32c2),
             Chip::Esp32c3 => Box::new(Esp32c3),
+            Chip::Esp32c5 => Box::new(Esp32c5),
             Chip::Esp32c6 => Box::new(Esp32c6),
             Chip::Esp32h2 => Box::new(Esp32h2),
             Chip::Esp32p4 => Box::new(Esp32p4),
@@ -204,6 +209,7 @@ impl TryFrom<u16> for Chip {
             esp32::CHIP_ID => Ok(Chip::Esp32),
             esp32c2::CHIP_ID => Ok(Chip::Esp32c2),
             esp32c3::CHIP_ID => Ok(Chip::Esp32c3),
+            esp32c5::CHIP_ID => Ok(Chip::Esp32c5),
             esp32c6::CHIP_ID => Ok(Chip::Esp32c6),
             esp32h2::CHIP_ID => Ok(Chip::Esp32h2),
             esp32p4::CHIP_ID => Ok(Chip::Esp32p4),
@@ -416,6 +422,7 @@ pub trait Target: ReadEFuse {
             Chip::Esp32 => (self::efuse::esp32::MAC0, self::efuse::esp32::MAC1),
             Chip::Esp32c2 => (self::efuse::esp32c2::MAC0, self::efuse::esp32c2::MAC1),
             Chip::Esp32c3 => (self::efuse::esp32c3::MAC0, self::efuse::esp32c3::MAC1),
+            Chip::Esp32c5 => (self::efuse::esp32c5::MAC0, self::efuse::esp32c5::MAC1),
             Chip::Esp32c6 => (self::efuse::esp32c6::MAC0, self::efuse::esp32c6::MAC1),
             Chip::Esp32h2 => (self::efuse::esp32h2::MAC0, self::efuse::esp32h2::MAC1),
             Chip::Esp32p4 => (self::efuse::esp32p4::MAC0, self::efuse::esp32p4::MAC1),

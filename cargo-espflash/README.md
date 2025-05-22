@@ -7,7 +7,7 @@
 
 Cross-compiler and Cargo extension for flashing Espressif devices.
 
-Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**, and **ESP32-S2/S3**.
+Supports the **ESP32**, **ESP32-C2/C3/C5/C6**, **ESP32-H2**, **ESP32-P4**, and **ESP32-S2/S3**.
 
 <!-- omit in toc -->
 ## Table of Contents
