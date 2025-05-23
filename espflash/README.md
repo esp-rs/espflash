@@ -136,7 +136,10 @@ We disable the `default-features` to opt-out the `cli` feature, which is enabled
 
 ## Configuration Files
 
-There are configuration files allowing you to define various parameters for your application:
+There are two configuration files allowing you to define various parameters for your application:
+
+- `espflash.toml`: Project configuration
+- `espflash_ports.toml`: Port configuration
 
 ### `espflash_ports.toml`
 

@@ -17,7 +17,10 @@ Supports the **ESP32**, **ESP32-C2/C3/C5/C6**, **ESP32-H2**, **ESP32-P4**, and *
   - [Permissions on Linux](#permissions-on-linux)
   - [Windows Subsystem for Linux](#windows-subsystem-for-linux)
 - [Bootloader and Partition Table](#bootloader-and-partition-table)
-- [Configuration File](#configuration-file)
+- [Configuration Files](#configuration-files)
+  - [`espflash_ports.toml`](#espflash_portstoml)
+  - [`espflash.toml`](#espflashtoml)
+  - [Configuration Files Location](#configuration-files-location)
   - [Configuration Precedence](#configuration-precedence)
 - [Logging Format](#logging-format)
 - [Development Kit Support Policy](#development-kit-support-policy)
@@ -111,49 +114,59 @@ If the `--bootloader` and/or `--partition-table` options are provided then these
 
 [esp-idf-sys]: https://github.com/esp-rs/esp-idf-sys
 
-## Configuration File
+## Configuration Files
 
-The configuration file allows you to define various parameters for your application:
+There are two configuration files allowing you to define various parameters for your application:
 
-- Serial port:
-  - By name:
-    ```toml
-    [connection]
-    serial = "/dev/ttyUSB0"
-    ```
-  - By USB VID/PID values:
-    ```toml
-    [[usb_device]]
-    vid = "303a"
-    pid = "1001"
-    ```
+- `espflash.toml`: Project configuration
+- `espflash_ports.toml`: Port configuration
+
+### `espflash_ports.toml`
+
+This file allows you to define the serial port connection parameters:
+- By name:
+  ```toml
+  [connection]
+  serial = "/dev/ttyUSB0"
+  ```
+- By USB VID/PID values:
+  ```toml
+  [[usb_device]]
+  vid = "303a"
+  pid = "1001"
+  ```
+
+### `espflash.toml`
+
+This file allows you to define different flash parameters:
 - Baudrate:
-  ```toml
-  baudrate = 460800
-  ```
+```toml
+baudrate = 460800
+```
 - Bootloader:
-  ```toml
-  bootloader = "path/to/custom/bootloader.bin"
-  ```
+```toml
+bootloader = "path/to/custom/bootloader.bin"
+```
 - Partition table
-  ```toml
-  partition_table = "path/to/custom/partition-table.bin"
-  ```
+```toml
+partition_table = "path/to/custom/partition-table.bin"
+```
 - Flash settings
-  ```toml
-  [flash]
-  mode = "qio"
-  size = "8MB"
-  frequency = "80MHz"
-  ```
+```toml
+[flash]
+mode = "qio"
+size = "8MB"
+frequency = "80MHz"
+```
 
-You can have a local and/or a global configuration file:
+### Configuration Files Location
+You can have a local and/or a global configuration file(s):
 
 - For local configurations, store the file under the current working directory or in the parent directory (to support Cargo workspaces) with the name `espflash.toml`
 - Global file location differs based on your operating system:
-  - Linux: `$HOME/.config/espflash/espflash.toml`
-  - macOS: `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml`
-  - Windows: `%APPDATA%\esp\espflash\espflash.toml`
+  - Linux: `$HOME/.config/espflash/espflash.toml` or `$HOME/.config/espflash/espflash_ports.toml`
+  - macOS: `$HOME/Library/Application Support/rs.esp.espflash/espflash.toml` or `$HOME/Library/Application Support/rs.esp.espflash/espflash_ports.toml`
+  - Windows: `%APPDATA%\esp\espflash\espflash.toml` or `%APPDATA%\esp\espflash\espflash_ports.toml`
 
 ### Configuration Precedence
 
