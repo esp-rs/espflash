@@ -97,9 +97,6 @@ pub struct ProjectConfig {
     /// Flash settings
     #[serde(default)]
     pub flash: FlashSettings,
-    // /// Path of the file to save the configuration to
-    // #[serde(skip)]
-    // save_path: PathBuf,
 }
 
 /// Deserialized contents of a serial port configuration file
@@ -141,7 +138,6 @@ impl Config {
             }
         }
 
-        // project_config.save_path = project_config_file;
         debug!("Config: {:#?}", &project_config);
 
         let mut port_config = if let Ok(data) = read_to_string(&port_config_file) {
@@ -184,38 +180,28 @@ impl Config {
         Ok(())
     }
 
-    // TODO: Can we simplify this 2 methods
     fn project_config_path() -> Result<PathBuf, Error> {
-        let local_config = std::env::current_dir()?.join("espflash.toml");
-        if local_config.exists() {
-            return Ok(local_config);
-        }
-        if let Some(parent_folder) = std::env::current_dir()?.parent() {
-            let workspace_config = parent_folder.join("espflash.toml");
-            if workspace_config.exists() {
-                return Ok(workspace_config);
-            }
-        }
-
-        let project_dirs = ProjectDirs::from("rs", "esp", "espflash").unwrap();
-        let global_config = project_dirs.config_dir().join("espflash.toml");
-        Ok(global_config)
+        Self::find_config_path("espflash.toml")
     }
 
     fn port_config_path() -> Result<PathBuf, Error> {
-        let local_config = std::env::current_dir()?.join("espflash_ports.toml");
+        Self::find_config_path("espflash_ports.toml")
+    }
+
+    fn find_config_path(filename: &str) -> Result<PathBuf, Error> {
+        let local_config = std::env::current_dir()?.join(filename);
         if local_config.exists() {
             return Ok(local_config);
         }
         if let Some(parent_folder) = std::env::current_dir()?.parent() {
-            let workspace_config = parent_folder.join("espflash_ports.toml");
+            let workspace_config = parent_folder.join(filename);
             if workspace_config.exists() {
                 return Ok(workspace_config);
             }
         }
 
         let project_dirs = ProjectDirs::from("rs", "esp", "espflash").unwrap();
-        let global_config = project_dirs.config_dir().join("espflash_ports.toml");
+        let global_config = project_dirs.config_dir().join(filename);
         Ok(global_config)
     }
 }
