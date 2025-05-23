@@ -382,7 +382,6 @@ pub fn parse_u32(input: &str) -> Result<u32, ParseIntError> {
 pub fn connect(
     args: &ConnectArgs,
     config: &Config,
-    ports_config: &PortConfig,
     no_verify: bool,
     no_skip: bool,
 ) -> Result<Flasher> {
@@ -395,7 +394,7 @@ pub fn connect(
         );
     }
 
-    let port_info = serial::serial_port_info(args, ports_config)?;
+    let port_info = serial::serial_port_info(args, &config)?;
 
     // Attempt to open the serial port and set its initial baud rate.
     info!("Serial port: '{}'", port_info.port_name);
@@ -427,7 +426,7 @@ pub fn connect(
     Ok(Flasher::connect(
         *Box::new(serial_port),
         port_info,
-        args.baud.or(config.baudrate),
+        args.baud.or(config.project_config.baudrate),
         !args.no_stub,
         !no_verify,
         !no_skip,
@@ -438,8 +437,8 @@ pub fn connect(
 }
 
 /// Connect to a target device and print information about its chip
-pub fn board_info(args: &ConnectArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
-    let mut flasher = connect(args, config, ports_config, true, true)?;
+pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
+    let mut flasher = connect(args, config, true, true)?;
     print_board_info(&mut flasher)?;
 
     let chip = flasher.chip();
@@ -456,12 +455,8 @@ pub fn board_info(args: &ConnectArgs, config: &Config, ports_config: &PortConfig
 }
 
 /// Connect to a target device and calculate the checksum of the given region
-pub fn checksum_md5(
-    args: &ChecksumMd5Args,
-    config: &Config,
-    ports_config: &PortConfig,
-) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config, ports_config, true, true)?;
+pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
+    let mut flasher = connect(&args.connect_args, config, true, true)?;
 
     let checksum = flasher.checksum_md5(args.address, args.size)?;
     println!("0x{:x}", checksum);
@@ -609,8 +604,8 @@ pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
 }
 
 /// Open a serial monitor
-pub fn serial_monitor(args: MonitorArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config, ports_config, true, true)?;
+pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
+    let mut flasher = connect(&args.connect_args, config, true, true)?;
     let pid = flasher.usb_pid();
 
     let elf = if let Some(elf_path) = args.monitor_args.elf.clone() {
@@ -759,12 +754,12 @@ impl ProgressCallbacks for EspflashProgress {
     }
 }
 
-pub fn erase_flash(args: EraseFlashArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
+pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(Error::StubRequired.into());
     }
 
-    let mut flasher = connect(&args.connect_args, config, ports_config, true, true)?;
+    let mut flasher = connect(&args.connect_args, config, true, true)?;
     info!("Erasing Flash...");
 
     let chip = flasher.chip();
@@ -779,11 +774,7 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config, ports_config: &PortCon
     Ok(())
 }
 
-pub fn erase_region(
-    args: EraseRegionArgs,
-    config: &Config,
-    ports_config: &PortConfig,
-) -> Result<()> {
+pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(Error::StubRequired).into_diagnostic();
     }
@@ -796,7 +787,7 @@ pub fn erase_region(
         .into_diagnostic();
     }
 
-    let mut flasher = connect(&args.connect_args, config, ports_config, true, true)?;
+    let mut flasher = connect(&args.connect_args, config, true, true)?;
     let chip = flasher.chip();
 
     info!(
@@ -897,8 +888,8 @@ fn erase_partition(flasher: &mut Flasher, part: &Partition) -> Result<()> {
 }
 
 /// Read flash content and write it to a file
-pub fn read_flash(args: ReadFlashArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config, ports_config, false, false)?;
+pub fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
+    let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
 
     if args.connect_args.no_stub {
@@ -1032,17 +1023,17 @@ pub fn make_flash_data(
     let bootloader = image_args
         .bootloader
         .as_deref()
-        .or(config.bootloader.as_deref())
+        .or(config.project_config.bootloader.as_deref())
         .or(default_bootloader);
     let partition_table = image_args
         .partition_table
         .as_deref()
-        .or(config.partition_table.as_deref())
+        .or(config.project_config.partition_table.as_deref())
         .or(default_partition_table);
 
     let partition_table_offset = image_args
         .partition_table_offset
-        .or(config.partition_table_offset);
+        .or(config.project_config.partition_table_offset);
 
     if let Some(path) = &bootloader {
         println!("Bootloader:        {}", path.display());
@@ -1052,9 +1043,13 @@ pub fn make_flash_data(
     }
 
     let flash_settings = FlashSettings::new(
-        flash_config_args.flash_mode.or(config.flash.mode),
+        flash_config_args
+            .flash_mode
+            .or(config.project_config.flash.mode),
         flash_config_args.flash_size,
-        flash_config_args.flash_freq.or(config.flash.freq),
+        flash_config_args
+            .flash_freq
+            .or(config.project_config.flash.freq),
     );
 
     FlashData::new(
@@ -1069,7 +1064,7 @@ pub fn make_flash_data(
 }
 
 /// Write a binary to the flash memory of a target device
-pub fn write_bin(args: WriteBinArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
+pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     // Check monitor arguments
     check_monitor_args(&args.monitor, &args.monitor_args)?;
 
@@ -1093,7 +1088,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config, ports_config: &PortConfig)
             let Some(partition_table) = args
                 .partition_table
                 .as_deref()
-                .or(config.partition_table.as_deref())
+                .or(config.project_config.partition_table.as_deref())
             else {
                 miette::bail!("A partition table is required to resolve partition label");
             };
@@ -1128,7 +1123,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config, ports_config: &PortConfig)
         }
     };
 
-    let mut flasher = connect(&args.connect_args, config, ports_config, false, false)?;
+    let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
 
     let chip = flasher.chip();
@@ -1155,18 +1150,18 @@ pub fn write_bin(args: WriteBinArgs, config: &Config, ports_config: &PortConfig)
     Ok(())
 }
 
-pub fn reset(args: ConnectArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
+pub fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
     let mut args = args.clone();
     args.no_stub = true;
-    let mut flasher = connect(&args, config, ports_config, true, true)?;
+    let mut flasher = connect(&args, config, true, true)?;
     info!("Resetting target device");
     flasher.connection().reset()?;
 
     Ok(())
 }
 
-pub fn hold_in_reset(args: ConnectArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
-    connect(&args, config, ports_config, true, true)?;
+pub fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
+    connect(&args, config, true, true)?;
     info!("Holding target device in reset");
 
     Ok(())

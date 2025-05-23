@@ -75,6 +75,13 @@ impl UsbDevice {
 /// Deserialized contents of a configuration file
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Config {
+    pub project_config: ProjectConfig,
+    pub port_config: PortConfig,
+}
+
+/// Deserialized contents of a configuration file
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
+pub struct ProjectConfig {
     /// Baudrate
     #[serde(default)]
     pub baudrate: Option<u32>,
@@ -90,72 +97,9 @@ pub struct Config {
     /// Flash settings
     #[serde(default)]
     pub flash: FlashSettings,
-    /// Path of the file to save the configuration to
-    #[serde(skip)]
-    save_path: PathBuf,
-}
-
-impl Config {
-    /// Load configuration from the configuration file
-    pub fn load() -> Result<Self> {
-        let file = Self::config_path()?;
-
-        let mut config = if let Ok(data) = read_to_string(&file) {
-            toml::from_str(&data).into_diagnostic()?
-        } else {
-            Self::default()
-        };
-
-        if let Some(table) = &config.partition_table {
-            match table.extension() {
-                Some(ext) if ext == "bin" || ext == "csv" => {}
-                _ => return Err(Error::InvalidPartitionTablePath.into()),
-            }
-        }
-
-        if let Some(bootloader) = &config.bootloader {
-            if bootloader.extension() != Some(OsStr::new("bin")) {
-                return Err(Error::InvalidBootloaderPath.into());
-            }
-        }
-
-        config.save_path = file;
-        debug!("Config: {:#?}", &config);
-        Ok(config)
-    }
-
-    /// Save configuration to the configuration file
-    pub fn save_with<F: Fn(&mut Self)>(&self, modify_fn: F) -> Result<()> {
-        let mut copy = self.clone();
-        modify_fn(&mut copy);
-
-        let serialized = toml::to_string(&copy)
-            .into_diagnostic()
-            .wrap_err("Failed to serialize config")?;
-        create_dir_all(self.save_path.parent().unwrap())
-            .into_diagnostic()
-            .wrap_err("Failed to create config directory")?;
-        write(&self.save_path, serialized)
-            .into_diagnostic()
-            .wrap_err_with(|| format!("Failed to write config to {}", self.save_path.display()))
-    }
-
-    fn config_path() -> Result<PathBuf, Error> {
-        let local_config = std::env::current_dir()?.join("espflash.toml");
-        if local_config.exists() {
-            return Ok(local_config);
-        }
-        if let Some(parent_folder) = std::env::current_dir()?.parent() {
-            let workspace_config = parent_folder.join("espflash.toml");
-            if workspace_config.exists() {
-                return Ok(workspace_config);
-            }
-        }
-
-        let project_dirs = ProjectDirs::from("rs", "esp", "espflash").unwrap();
-        let global_config = project_dirs.config_dir().join("espflash.toml");
-        Ok(global_config)
-    }
+    // /// Path of the file to save the configuration to
+    // #[serde(skip)]
+    // save_path: PathBuf,
 }
 
 /// Deserialized contents of a serial port configuration file
@@ -172,9 +116,93 @@ pub struct PortConfig {
     save_path: PathBuf,
 }
 
-impl PortConfig {
-    /// Gets the path to the configuration file.
-    pub fn get_config_path() -> Result<PathBuf, Error> {
+impl Config {
+    /// Load configuration from the configuration files
+    pub fn load() -> Result<Self> {
+        let project_config_file = Self::project_config_path()?;
+        let port_config_file = Self::port_config_path()?;
+
+        let project_config = if let Ok(data) = read_to_string(&project_config_file) {
+            toml::from_str(&data).into_diagnostic()?
+        } else {
+            ProjectConfig::default()
+        };
+
+        if let Some(table) = &project_config.partition_table {
+            match table.extension() {
+                Some(ext) if ext == "bin" || ext == "csv" => {}
+                _ => return Err(Error::InvalidPartitionTablePath.into()),
+            }
+        }
+
+        if let Some(bootloader) = &project_config.bootloader {
+            if bootloader.extension() != Some(OsStr::new("bin")) {
+                return Err(Error::InvalidBootloaderPath.into());
+            }
+        }
+
+        // project_config.save_path = project_config_file;
+        debug!("Config: {:#?}", &project_config);
+
+        let mut port_config = if let Ok(data) = read_to_string(&port_config_file) {
+            toml::from_str(&data).into_diagnostic()?
+        } else {
+            PortConfig::default()
+        };
+        port_config.save_path = port_config_file;
+        debug!("Port Config: {:#?}", &port_config);
+
+        Ok(Config {
+            project_config,
+            port_config,
+        })
+    }
+
+    /// Save port configuration to the configuration file
+    pub fn save_with<F: Fn(&mut Self)>(&self, modify_fn: F) -> Result<()> {
+        let mut copy = self.clone();
+        modify_fn(&mut copy);
+
+        // Save port configuration
+        let port_serialized = toml::to_string(&copy.port_config)
+            .into_diagnostic()
+            .wrap_err("Failed to serialize port config")?;
+        if let Some(parent) = copy.port_config.save_path.parent() {
+            create_dir_all(parent)
+                .into_diagnostic()
+                .wrap_err("Failed to create port config directory")?;
+        }
+        write(&copy.port_config.save_path, port_serialized)
+            .into_diagnostic()
+            .wrap_err_with(|| {
+                format!(
+                    "Failed to write port config to {}",
+                    copy.port_config.save_path.display()
+                )
+            })?;
+
+        Ok(())
+    }
+
+    // TODO: Can we simplify this 2 methods
+    fn project_config_path() -> Result<PathBuf, Error> {
+        let local_config = std::env::current_dir()?.join("espflash.toml");
+        if local_config.exists() {
+            return Ok(local_config);
+        }
+        if let Some(parent_folder) = std::env::current_dir()?.parent() {
+            let workspace_config = parent_folder.join("espflash.toml");
+            if workspace_config.exists() {
+                return Ok(workspace_config);
+            }
+        }
+
+        let project_dirs = ProjectDirs::from("rs", "esp", "espflash").unwrap();
+        let global_config = project_dirs.config_dir().join("espflash.toml");
+        Ok(global_config)
+    }
+
+    fn port_config_path() -> Result<PathBuf, Error> {
         let local_config = std::env::current_dir()?.join("espflash_ports.toml");
         if local_config.exists() {
             return Ok(local_config);
@@ -189,37 +217,6 @@ impl PortConfig {
         let project_dirs = ProjectDirs::from("rs", "esp", "espflash").unwrap();
         let global_config = project_dirs.config_dir().join("espflash_ports.toml");
         Ok(global_config)
-    }
-
-    /// Load configuration from the configuration file
-    pub fn load() -> Result<Self> {
-        let file = Self::get_config_path()?;
-
-        let mut config = if let Ok(data) = read_to_string(&file) {
-            toml::from_str(&data).into_diagnostic()?
-        } else {
-            Self::default()
-        };
-
-        config.save_path = file;
-        debug!("Config: {:#?}", &config);
-        Ok(config)
-    }
-
-    /// Save configuration to the configuration file
-    pub fn save_with<F: Fn(&mut Self)>(&self, modify_fn: F) -> Result<()> {
-        let mut copy = self.clone();
-        modify_fn(&mut copy);
-
-        let serialized = toml::to_string(&copy)
-            .into_diagnostic()
-            .wrap_err("Failed to serialize config")?;
-        create_dir_all(self.save_path.parent().unwrap())
-            .into_diagnostic()
-            .wrap_err("Failed to create config directory")?;
-        write(&self.save_path, serialized)
-            .into_diagnostic()
-            .wrap_err_with(|| format!("Failed to write config to {}", self.save_path.display()))
     }
 }
 

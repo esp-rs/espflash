@@ -11,16 +11,13 @@ use crate::{
     Error,
     cli::{
         ConnectArgs,
-        config::{PortConfig, UsbDevice},
+        config::{Config, PortConfig, UsbDevice},
     },
 };
 
 /// Return the information of a serial port taking into account the different
 /// ways of choosing a port.
-pub fn serial_port_info(
-    matches: &ConnectArgs,
-    config: &PortConfig,
-) -> Result<SerialPortInfo, Error> {
+pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<SerialPortInfo, Error> {
     // A serial port should be specified either as a command-line argument or in a
     // configuration file. In the case that both have been provided the command-line
     // argument takes precedence.
@@ -39,12 +36,12 @@ pub fn serial_port_info(
     if let Some(serial) = &matches.port {
         let ports = detect_usb_serial_ports(true).unwrap_or_default();
         find_serial_port(&ports, serial)
-    } else if let Some(serial) = &config.connection.serial {
+    } else if let Some(serial) = &config.port_config.connection.serial {
         let ports = detect_usb_serial_ports(true).unwrap_or_default();
         find_serial_port(&ports, serial)
     } else {
         let ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
-        let (port, matches) = select_serial_port(ports, config, matches.confirm_port)?;
+        let (port, matches) = select_serial_port(ports, &config.port_config, matches.confirm_port)?;
         match &port.port_type {
             SerialPortType::UsbPort(usb_info) if !matches => {
                 let remember = Confirm::with_theme(&ColorfulTheme::default())
@@ -56,7 +53,7 @@ pub fn serial_port_info(
                     // Allow this operation to fail without terminating the
                     // application, but inform the user if something goes wrong.
                     if let Err(e) = config.save_with(|config| {
-                        config.usb_device.push(UsbDevice {
+                        config.port_config.usb_device.push(UsbDevice {
                             vid: usb_info.vid,
                             pid: usb_info.pid,
                         })
