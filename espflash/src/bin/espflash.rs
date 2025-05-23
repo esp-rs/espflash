@@ -173,7 +173,7 @@ fn main() -> Result<()> {
         Commands::EraseRegion(args) => erase_region(args, &config),
         Commands::Flash(args) => flash(args, &config),
         Commands::HoldInReset(args) => hold_in_reset(args, &config),
-        Commands::ListPorts(args) => list_ports(&args, &config),
+        Commands::ListPorts(args) => list_ports(&args, &config.port_config),
         Commands::Monitor(args) => serial_monitor(args, &config),
         Commands::PartitionTable(args) => partition_table(args),
         Commands::ReadFlash(args) => read_flash(args, &config),
@@ -224,7 +224,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     // override the detected (or default) value with this.
     if let Some(flash_size) = args.flash_config_args.flash_size {
         flasher.set_flash_size(flash_size);
-    } else if let Some(flash_size) = config.flash.size {
+    } else if let Some(flash_size) = config.project_config.flash.size {
         flasher.set_flash_size(flash_size);
     }
 
@@ -241,7 +241,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let mut flash_config = args.flash_config_args;
     flash_config.flash_size = flash_config
         .flash_size // Use CLI argument if provided
-        .or(config.flash.size) // If no CLI argument, try the config file
+        .or(config.project_config.flash.size) // If no CLI argument, try the config file
         .or_else(|| flasher.flash_detect().ok().flatten()) // Try detecting flash size next
         .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
@@ -296,7 +296,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     let mut flash_config = args.flash_config_args;
     flash_config.flash_size = flash_config
         .flash_size // Use CLI argument if provided
-        .or(config.flash.size) // If no CLI argument, try the config file
+        .or(config.project_config.flash.size) // If no CLI argument, try the config file
         .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
     let flash_data = make_flash_data(

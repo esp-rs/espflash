@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--mmu-page-size` parameter for `flash` and `save-image` (#835)
 - Run some arguments checks for monitoring flags. (#842)
 - Add support for the ESP32-C5 (#863)
+- Add support for serial port configuration files. (#777)
 
 ### Changed
 
