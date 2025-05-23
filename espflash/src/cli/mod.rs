@@ -394,7 +394,7 @@ pub fn connect(
         );
     }
 
-    let port_info = serial::serial_port_info(args, &config)?;
+    let port_info = serial::serial_port_info(args, config)?;
 
     // Attempt to open the serial port and set its initial baud rate.
     info!("Serial port: '{}'", port_info.port_name);
