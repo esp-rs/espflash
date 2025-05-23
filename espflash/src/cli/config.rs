@@ -159,25 +159,21 @@ impl Config {
         let mut copy = self.clone();
         modify_fn(&mut copy);
 
-        // Save port configuration
-        let port_serialized = toml::to_string(&copy.port_config)
+        let serialized = toml::to_string(&copy.port_config)
             .into_diagnostic()
-            .wrap_err("Failed to serialize port config")?;
-        if let Some(parent) = copy.port_config.save_path.parent() {
-            create_dir_all(parent)
-                .into_diagnostic()
-                .wrap_err("Failed to create port config directory")?;
-        }
-        write(&copy.port_config.save_path, port_serialized)
+            .wrap_err("Failed to serialize config")?;
+
+        create_dir_all(self.port_config.save_path.parent().unwrap())
+            .into_diagnostic()
+            .wrap_err("Failed to create config directory")?;
+        write(&self.port_config.save_path, serialized)
             .into_diagnostic()
             .wrap_err_with(|| {
                 format!(
-                    "Failed to write port config to {}",
-                    copy.port_config.save_path.display()
+                    "Failed to write config to {}",
+                    self.port_config.save_path.display()
                 )
-            })?;
-
-        Ok(())
+            })
     }
 
     fn project_config_path() -> Result<PathBuf, Error> {
