@@ -72,14 +72,16 @@ impl UsbDevice {
     }
 }
 
-/// Deserialized contents of a configuration file
+/// Configuration for the project and the port
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Config {
+    /// Project configuration
     pub project_config: ProjectConfig,
+    /// Port configuration
     pub port_config: PortConfig,
 }
 
-/// Deserialized contents of a configuration file
+/// Project configuration
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct ProjectConfig {
     /// Baudrate
@@ -99,7 +101,7 @@ pub struct ProjectConfig {
     pub flash: FlashSettings,
 }
 
-/// Deserialized contents of a serial port configuration file
+/// Serial port configuration
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct PortConfig {
     /// Preferred serial port connection information
