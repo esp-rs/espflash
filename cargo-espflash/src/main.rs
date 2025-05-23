@@ -262,7 +262,7 @@ struct BuildContext {
     pub partition_table_path: Option<PathBuf>,
 }
 
-pub fn erase_parts(args: ErasePartsArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
+pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(EspflashError::StubRequired).into_diagnostic();
     }
@@ -272,7 +272,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config, ports_config: &PortCon
         .as_deref()
         .or(config.partition_table.as_deref());
 
-    let mut flasher = connect(&args.connect_args, config, ports_config, false, false)?;
+    let mut flasher = connect(&args.connect_args, config, false, false)?;
     let chip = flasher.chip();
     let partition_table = match partition_table {
         Some(path) => Some(parse_partition_table(path)?),
@@ -289,7 +289,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config, ports_config: &PortCon
     Ok(())
 }
 
-fn flash(args: FlashArgs, config: &Config, ports_config: &PortConfig) -> Result<()> {
+fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let metadata = PackageMetadata::load(&args.build_args.package)?;
     let cargo_config = CargoConfig::load(&metadata.workspace_root, &metadata.package_root);
 
