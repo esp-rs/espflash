@@ -440,12 +440,15 @@ pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(args, config, true, true)?;
     print_board_info(&mut flasher)?;
 
-    if flasher.chip() != Chip::Esp32 {
+    let chip = flasher.chip();
+    if chip != Chip::Esp32 {
         let security_info = flasher.security_info()?;
         println!("{security_info}");
     } else {
         println!("Security features: None");
     }
+
+    flasher.connection().reset_after(!args.no_stub, chip)?;
 
     Ok(())
 }
@@ -456,6 +459,11 @@ pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
 
     let checksum = flasher.checksum_md5(args.address, args.size)?;
     println!("0x{:x}", checksum);
+
+    let chip = flasher.chip();
+    flasher
+        .connection()
+        .reset_after(!args.connect_args.no_stub, chip)?;
 
     Ok(())
 }
@@ -900,6 +908,11 @@ pub fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
             args.file,
         )?;
     }
+
+    let chip = flasher.chip();
+    flasher
+        .connection()
+        .reset_after(!args.connect_args.no_stub, chip)?;
 
     Ok(())
 }
