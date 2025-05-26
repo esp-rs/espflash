@@ -141,6 +141,8 @@ There are two configuration files allowing you to define various parameters for 
 - `espflash.toml`: Project configuration
 - `espflash_ports.toml`: Port configuration
 
+The reason to split configuration into two different files is to allow Git ignoring the Serial Port configuration, which is specific to the user (see [#727](https://github.com/esp-rs/espflash/issues/727)).
+
 ### `espflash_ports.toml`
 
 This file allows you to define the serial port connection parameters:
