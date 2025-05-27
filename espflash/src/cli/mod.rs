@@ -645,6 +645,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
 }
 
 /// Convert the provided firmware image from ELF to binary
+#[allow(clippy::too_many_arguments)]
 pub fn save_elf_as_image(
     format: ImageFormatKind,
     elf_data: &[u8],
