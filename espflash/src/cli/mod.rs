@@ -45,7 +45,7 @@ use crate::{
         Flasher,
         ProgressCallbacks,
     },
-    image_format::Metadata,
+    image_format::{ImageFormatKind, Metadata},
     targets::{Chip, XtalFrequency},
 };
 
@@ -646,6 +646,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
 
 /// Convert the provided firmware image from ELF to binary
 pub fn save_elf_as_image(
+    format: ImageFormatKind,
     elf_data: &[u8],
     chip: Chip,
     image_path: PathBuf,
@@ -656,9 +657,9 @@ pub fn save_elf_as_image(
 ) -> Result<()> {
     // To get a chip revision, the connection is needed
     // For simplicity, the revision None is used
-    let image = chip
-        .into_target()
-        .flash_image(elf_data, flash_data.clone(), None, xtal_freq)?;
+    let image =
+        chip.into_target()
+            .flash_image(format, elf_data, flash_data.clone(), None, xtal_freq)?;
 
     if merge {
         display_image_size(image.app_size(), image.part_size());
@@ -693,8 +694,7 @@ pub fn save_elf_as_image(
     } else {
         display_image_size(image.app_size(), image.part_size());
 
-        let parts = image.ota_segments().collect::<Vec<_>>();
-        match parts.as_slice() {
+        match image.ota_segments().as_slice() {
             [single] => fs::write(&image_path, &single.data).into_diagnostic()?,
             parts => {
                 for part in parts {
@@ -815,6 +815,7 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
 /// Write an ELF image to a target device's flash
 pub fn flash_elf_image(
     flasher: &mut Flasher,
+    format: ImageFormatKind,
     elf_data: &[u8],
     flash_data: FlashData,
     xtal_freq: XtalFrequency,
@@ -822,6 +823,7 @@ pub fn flash_elf_image(
     // Load the ELF data, optionally using the provider bootloader/partition
     // table/image format, to the device's flash memory.
     flasher.load_elf_to_flash(
+        format,
         elf_data,
         flash_data,
         Some(&mut EspflashProgress::default()),

@@ -15,7 +15,7 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
-    image_format::check_idf_bootloader,
+    image_format::{ImageFormatKind, check_idf_bootloader},
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
@@ -198,6 +198,9 @@ struct FlashArgs {
     connect_args: ConnectArgs,
     #[clap(flatten)]
     flash_args: cli::FlashArgs,
+    /// Application image format to use
+    #[clap(long)]
+    format: ImageFormatKind,
 }
 
 #[derive(Debug, Args)]
@@ -207,6 +210,9 @@ struct SaveImageArgs {
     build_args: BuildArgs,
     #[clap(flatten)]
     save_image_args: cli::SaveImageArgs,
+    /// Application image format to use
+    #[clap(long)]
+    format: ImageFormatKind,
 }
 
 fn main() -> Result<()> {
@@ -359,7 +365,13 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             )?;
         }
 
-        flash_elf_image(&mut flasher, &elf_data, flash_data, target_xtal_freq)?;
+        flash_elf_image(
+            &mut flasher,
+            args.format,
+            &elf_data,
+            flash_data,
+            target_xtal_freq,
+        )?;
     }
 
     if args.flash_args.monitor {
@@ -599,6 +611,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .unwrap_or(XtalFrequency::default(args.save_image_args.chip));
 
     save_elf_as_image(
+        args.format,
         &elf_data,
         args.save_image_args.chip,
         args.save_image_args.file,

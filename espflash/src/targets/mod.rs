@@ -25,7 +25,7 @@ use self::{
 use crate::{
     Error,
     flasher::{FlashData, FlashFrequency},
-    image_format::IdfBootloaderFormat,
+    image_format::{ImageFormat, ImageFormatKind},
 };
 #[cfg(feature = "serialport")]
 use crate::{
@@ -434,11 +434,12 @@ pub trait Target: ReadEFuse {
     /// Build an image from the provided data for flashing
     fn flash_image<'a>(
         &self,
+        format: ImageFormatKind,
         elf_data: &'a [u8],
         flash_data: FlashData,
         chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
-    ) -> Result<IdfBootloaderFormat<'a>, Error>;
+    ) -> Result<ImageFormat<'a>, Error>;
 
     #[cfg(feature = "serialport")]
     /// What is the MAC address?

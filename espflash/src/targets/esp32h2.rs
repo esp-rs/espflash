@@ -14,7 +14,7 @@ use crate::connection::Connection;
 use crate::{
     Error,
     flasher::{FlashData, FlashFrequency},
-    image_format::IdfBootloaderFormat,
+    image_format::{self, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
 };
 
 pub(crate) const CHIP_ID: u16 = 16;
@@ -25,16 +25,6 @@ const FLASH_RANGES: &[Range<u32>] = &[
     0x4200_0000..0x4280_0000, // IROM
     0x4280_0000..0x4300_0000, // DROM
 ];
-
-const PARAMS: Esp32Params = Esp32Params::new(
-    0x0,
-    0x1_0000,
-    0x3f_0000,
-    CHIP_ID,
-    FlashFrequency::_24Mhz,
-    include_bytes!("../../resources/bootloaders/esp32h2-bootloader.bin"),
-    Some(&[8 * 1024, 16 * 1024, 32 * 1024, 64 * 1024]),
-);
 
 /// ESP32-H2 Target
 pub struct Esp32h2;
@@ -100,19 +90,32 @@ impl Target for Esp32h2 {
 
     fn flash_image<'a>(
         &self,
+        format: ImageFormatKind,
         elf_data: &'a [u8],
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
-    ) -> Result<IdfBootloaderFormat<'a>, Error> {
-        if xtal_freq != XtalFrequency::_32Mhz {
-            return Err(Error::UnsupportedFeature {
-                chip: Chip::Esp32h2,
-                feature: "the selected crystal frequency".into(),
-            });
-        }
+    ) -> Result<ImageFormat<'a>, Error> {
+        let bootloader: &'static [u8] = match format {
+            ImageFormatKind::EspIdf => image_format::esp_idf::bootloader(Chip::Esp32h2, xtal_freq)?,
+        };
 
-        IdfBootloaderFormat::new(elf_data, Chip::Esp32h2, flash_data, PARAMS)
+        let params = Esp32Params::new(
+            0x0,
+            0x1_0000,
+            0x3f_0000,
+            CHIP_ID,
+            FlashFrequency::_24Mhz,
+            bootloader,
+            Some(&[8 * 1024, 16 * 1024, 32 * 1024, 64 * 1024]),
+        );
+
+        match format {
+            ImageFormatKind::EspIdf => {
+                let idf = IdfBootloaderFormat::new(elf_data, Chip::Esp32h2, flash_data, params)?;
+                Ok(idf.into())
+            }
+        }
     }
 
     fn spi_registers(&self) -> SpiRegisters {

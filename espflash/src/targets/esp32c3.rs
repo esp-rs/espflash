@@ -14,7 +14,7 @@ use crate::connection::Connection;
 use crate::{
     Error,
     flasher::{FlashData, FlashFrequency},
-    image_format::IdfBootloaderFormat,
+    image_format::{self, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
 };
 
 pub(crate) const CHIP_ID: u16 = 5;
@@ -30,16 +30,6 @@ const FLASH_RANGES: &[Range<u32>] = &[
     0x4200_0000..0x4280_0000, // IROM
     0x3c00_0000..0x3c80_0000, // DROM
 ];
-
-const PARAMS: Esp32Params = Esp32Params::new(
-    0x0,
-    0x1_0000,
-    0x3f_0000,
-    CHIP_ID,
-    FlashFrequency::_40Mhz,
-    include_bytes!("../../resources/bootloaders/esp32c3-bootloader.bin"),
-    None,
-);
 
 /// ESP32-C3 Target
 pub struct Esp32c3;
@@ -100,19 +90,32 @@ impl Target for Esp32c3 {
 
     fn flash_image<'a>(
         &self,
+        format: ImageFormatKind,
         elf_data: &'a [u8],
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
-    ) -> Result<IdfBootloaderFormat<'a>, Error> {
-        if xtal_freq != XtalFrequency::_40Mhz {
-            return Err(Error::UnsupportedFeature {
-                chip: Chip::Esp32c3,
-                feature: "the selected crystal frequency".into(),
-            });
-        }
+    ) -> Result<ImageFormat<'a>, Error> {
+        let bootloader: &'static [u8] = match format {
+            ImageFormatKind::EspIdf => image_format::esp_idf::bootloader(Chip::Esp32c3, xtal_freq)?,
+        };
 
-        IdfBootloaderFormat::new(elf_data, Chip::Esp32c3, flash_data, PARAMS)
+        let params = Esp32Params::new(
+            0x0,
+            0x1_0000,
+            0x3f_0000,
+            CHIP_ID,
+            FlashFrequency::_40Mhz,
+            bootloader,
+            None,
+        );
+
+        match format {
+            ImageFormatKind::EspIdf => {
+                let idf = IdfBootloaderFormat::new(elf_data, Chip::Esp32c3, flash_data, params)?;
+                Ok(idf.into())
+            }
+        }
     }
 
     fn spi_registers(&self) -> SpiRegisters {

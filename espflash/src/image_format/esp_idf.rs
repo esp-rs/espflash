@@ -21,7 +21,7 @@ use crate::{
     Error,
     error::AppDescriptorError,
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize},
-    targets::{Chip, Esp32Params},
+    targets::{Chip, Esp32Params, XtalFrequency},
 };
 
 const ESP_CHECKSUM_MAGIC: u8 = 0xEF;
@@ -32,6 +32,79 @@ const WP_PIN_DISABLED: u8 = 0xEE;
 
 /// Max partition size is 16 MB
 const MAX_PARTITION_SIZE: u32 = 16 * 1000 * 1024;
+
+const BOOTLOADER_ESP32_26MHZ: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32_26-bootloader.bin");
+const BOOTLOADER_ESP32_40MHZ: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32-bootloader.bin");
+
+const BOOTLOADER_ESP32C2_26MHZ: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32c2_26-bootloader.bin");
+const BOOTLOADER_ESP32C2_40MHZ: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32c2-bootloader.bin");
+
+const BOOTLOADER_ESP32C3: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32c3-bootloader.bin");
+const BOOTLOADER_ESP32C5: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32c5-bootloader.bin");
+const BOOTLOADER_ESP32C6: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32c6-bootloader.bin");
+const BOOTLOADER_ESP32H2: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32h2-bootloader.bin");
+const BOOTLOADER_ESP32P4: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32p4-bootloader.bin");
+const BOOTLOADER_ESP32S2: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin");
+const BOOTLOADER_ESP32S3: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin");
+
+pub(crate) fn bootloader(chip: Chip, xtal_freq: XtalFrequency) -> Result<&'static [u8], Error> {
+    let error = Error::UnsupportedFeature {
+        chip,
+        feature: "the selected crystal frequency".into(),
+    };
+
+    match chip {
+        Chip::Esp32 => match xtal_freq {
+            XtalFrequency::_26Mhz => Ok(BOOTLOADER_ESP32_26MHZ),
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32_40MHZ),
+            _ => Err(error),
+        },
+        Chip::Esp32c2 => match xtal_freq {
+            XtalFrequency::_26Mhz => Ok(BOOTLOADER_ESP32C2_26MHZ),
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32C2_40MHZ),
+            _ => Err(error),
+        },
+        Chip::Esp32c3 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32C3),
+            _ => Err(error),
+        },
+        Chip::Esp32c5 => match xtal_freq {
+            XtalFrequency::_40Mhz | XtalFrequency::_48Mhz => Ok(BOOTLOADER_ESP32C5),
+            _ => Err(error),
+        },
+        Chip::Esp32c6 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32C6),
+            _ => Err(error),
+        },
+        Chip::Esp32h2 => match xtal_freq {
+            XtalFrequency::_32Mhz => Ok(BOOTLOADER_ESP32H2),
+            _ => Err(error),
+        },
+        Chip::Esp32p4 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32P4),
+            _ => Err(error),
+        },
+        Chip::Esp32s2 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32S2),
+            _ => Err(error),
+        },
+        Chip::Esp32s3 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32S3),
+            _ => Err(error),
+        },
+    }
+}
 
 /// Firmware header used by the ESP-IDF bootloader.
 ///
@@ -479,13 +552,13 @@ impl<'a> IdfBootloaderFormat<'a> {
     }
 
     /// Returns an iterator over the [RomSegment].
-    pub fn flash_segments<'b>(&'b self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
+    pub fn flash_segments<'b>(self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
     where
         'a: 'b,
     {
         let bootloader_segment = Segment {
             addr: self.params.boot_addr,
-            data: Cow::Borrowed(&self.bootloader),
+            data: self.bootloader,
         };
 
         let partition_table_segment = Segment {
@@ -495,7 +568,7 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         let app_segment = Segment {
             addr: self.flash_segment.addr,
-            data: Cow::Borrowed(&self.flash_segment.data),
+            data: self.flash_segment.data,
         };
 
         Box::new(
@@ -506,11 +579,11 @@ impl<'a> IdfBootloaderFormat<'a> {
     }
 
     /// Returns an iterator over the OTA segment.
-    pub fn ota_segments<'b>(&'b self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
+    pub fn ota_segments<'b>(self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
     where
         'a: 'b,
     {
-        Box::new(once(self.flash_segment.borrow()))
+        Box::new(once(self.flash_segment))
     }
 
     /// Get the size of the application binary.

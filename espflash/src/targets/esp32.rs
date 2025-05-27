@@ -14,7 +14,7 @@ use crate::connection::Connection;
 use crate::{
     Error,
     flasher::{FlashData, FlashFrequency},
-    image_format::IdfBootloaderFormat,
+    image_format::{self, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
 };
 
 pub(crate) const CHIP_ID: u16 = 0;
@@ -173,24 +173,14 @@ impl Target for Esp32 {
 
     fn flash_image<'a>(
         &self,
+        format: ImageFormatKind,
         elf_data: &'a [u8],
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
-    ) -> Result<IdfBootloaderFormat<'a>, Error> {
-        let bootloader: &'static [u8] = match xtal_freq {
-            XtalFrequency::_40Mhz => {
-                include_bytes!("../../resources/bootloaders/esp32-bootloader.bin")
-            }
-            XtalFrequency::_26Mhz => {
-                include_bytes!("../../resources/bootloaders/esp32_26-bootloader.bin")
-            }
-            _ => {
-                return Err(Error::UnsupportedFeature {
-                    chip: Chip::Esp32,
-                    feature: "the selected crystal frequency".into(),
-                });
-            }
+    ) -> Result<ImageFormat<'a>, Error> {
+        let bootloader: &'static [u8] = match format {
+            ImageFormatKind::EspIdf => image_format::esp_idf::bootloader(Chip::Esp32, xtal_freq)?,
         };
 
         let params = Esp32Params::new(
@@ -203,7 +193,12 @@ impl Target for Esp32 {
             None,
         );
 
-        IdfBootloaderFormat::new(elf_data, Chip::Esp32, flash_data, params)
+        match format {
+            ImageFormatKind::EspIdf => {
+                let idf = IdfBootloaderFormat::new(elf_data, Chip::Esp32, flash_data, params)?;
+                Ok(idf.into())
+            }
+        }
     }
 
     fn spi_registers(&self) -> SpiRegisters {

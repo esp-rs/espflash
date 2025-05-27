@@ -26,6 +26,7 @@ pub(crate) use self::stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
 pub use crate::targets::flash_target::ProgressCallbacks;
 use crate::{
     Error,
+    image_format::ImageFormatKind,
     targets::{Chip, XtalFrequency},
 };
 #[cfg(feature = "serialport")]
@@ -1074,6 +1075,7 @@ impl Flasher {
     /// Load an ELF image to flash and execute it
     pub fn load_elf_to_flash(
         &mut self,
+        format: ImageFormatKind,
         elf_data: &[u8],
         flash_data: FlashData,
         mut progress: Option<&mut dyn ProgressCallbacks>,
@@ -1090,10 +1092,13 @@ impl Flasher {
                 .chip_revision(&mut self.connection)?,
         );
 
-        let image =
-            self.chip
-                .into_target()
-                .flash_image(elf_data, flash_data, chip_revision, xtal_freq)?;
+        let image = self.chip.into_target().flash_image(
+            format,
+            elf_data,
+            flash_data,
+            chip_revision,
+            xtal_freq,
+        )?;
 
         // When the `cli` feature is enabled, display the image size information.
         #[cfg(feature = "cli")]
