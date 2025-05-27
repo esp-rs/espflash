@@ -1102,7 +1102,15 @@ impl Flasher {
 
         // When the `cli` feature is enabled, display the image size information.
         #[cfg(feature = "cli")]
-        crate::cli::display_image_size(image.app_size(), image.part_size());
+        {
+            let metadata = image.metadata();
+            if metadata.contains_key("app_size") && metadata.contains_key("part_size") {
+                let app_size = metadata["app_size"].parse::<u32>().unwrap();
+                let part_size = metadata["part_size"].parse::<u32>().unwrap();
+
+                crate::cli::display_image_size(app_size, Some(part_size));
+            }
+        }
 
         for segment in image.flash_segments() {
             target

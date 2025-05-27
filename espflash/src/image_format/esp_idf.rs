@@ -1,6 +1,6 @@
 //! ESP-IDF application binary image format
 
-use std::{borrow::Cow, ffi::c_char, io::Write, iter::once, mem::size_of};
+use std::{borrow::Cow, collections::HashMap, ffi::c_char, io::Write, iter::once, mem::size_of};
 
 use bytemuck::{Pod, Zeroable, bytes_of, from_bytes, pod_read_unaligned};
 use esp_idf_part::{AppType, DataType, Flags, Partition, PartitionTable, SubType, Type};
@@ -586,14 +586,12 @@ impl<'a> IdfBootloaderFormat<'a> {
         Box::new(once(self.flash_segment))
     }
 
-    /// Get the size of the application binary.
-    pub fn app_size(&self) -> u32 {
-        self.app_size
-    }
-
-    /// Get the size of the partition.
-    pub fn part_size(&self) -> Option<u32> {
-        Some(self.part_size)
+    /// Returns a map of metadata about the application image.
+    pub fn metadata(&self) -> HashMap<&str, String> {
+        HashMap::from([
+            ("app_size", self.app_size.to_string()),
+            ("part_size", self.part_size.to_string()),
+        ])
     }
 }
 

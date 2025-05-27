@@ -661,9 +661,15 @@ pub fn save_elf_as_image(
         chip.into_target()
             .flash_image(format, elf_data, flash_data.clone(), None, xtal_freq)?;
 
-    if merge {
-        display_image_size(image.app_size(), image.part_size());
+    let metadata = image.metadata();
+    if metadata.contains_key("app_size") && metadata.contains_key("part_size") {
+        let app_size = metadata["app_size"].parse::<u32>().unwrap();
+        let part_size = metadata["part_size"].parse::<u32>().unwrap();
 
+        display_image_size(app_size, Some(part_size));
+    }
+
+    if merge {
         let mut file = fs::OpenOptions::new()
             .write(true)
             .truncate(true)
@@ -692,8 +698,6 @@ pub fn save_elf_as_image(
             file.write_all(&padding_bytes).into_diagnostic()?;
         }
     } else {
-        display_image_size(image.app_size(), image.part_size());
-
         match image.ota_segments().as_slice() {
             [single] => fs::write(&image_path, &single.data).into_diagnostic()?,
             parts => {

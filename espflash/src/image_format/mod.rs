@@ -3,6 +3,7 @@
 use std::{
     borrow::Cow,
     cmp::Ordering,
+    collections::HashMap,
     fmt::{Debug, Formatter},
     mem::take,
     ops::AddAssign,
@@ -57,6 +58,13 @@ impl<'a> ImageFormat<'a> {
     pub fn ota_segments(self) -> Vec<Segment<'a>> {
         match self {
             ImageFormat::EspIdf(idf) => idf.ota_segments().collect(),
+        }
+    }
+
+    /// Returns metadata about the application image
+    pub fn metadata(&self) -> HashMap<&str, String> {
+        match self {
+            ImageFormat::EspIdf(idf) => idf.metadata(),
         }
     }
 }
