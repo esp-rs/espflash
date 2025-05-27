@@ -21,6 +21,7 @@ use std::{
 use clap::{Args, ValueEnum};
 use clap_complete::Shell;
 use comfy_table::{Attribute, Cell, Color, Table, modifiers, presets::UTF8_FULL};
+use config::PortConfig;
 use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{HumanBytes, HumanCount, ProgressBar, style::ProgressStyle};
 use log::{debug, info, warn};
@@ -425,7 +426,7 @@ pub fn connect(
     Ok(Flasher::connect(
         *Box::new(serial_port),
         port_info,
-        args.baud.or(config.baudrate),
+        args.baud.or(config.project_config.baudrate),
         !args.no_stub,
         !no_verify,
         !no_skip,
@@ -468,7 +469,7 @@ pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
     Ok(())
 }
 
-pub fn list_ports(args: &ListPortsArgs, config: &Config) -> Result<()> {
+pub fn list_ports(args: &ListPortsArgs, config: &PortConfig) -> Result<()> {
     let mut ports: Vec<SerialPortInfo> = serial::detect_usb_serial_ports(true)?
         .into_iter()
         .filter(|p| args.list_all_ports || serial::known_ports_filter(p, config))
@@ -1022,17 +1023,17 @@ pub fn make_flash_data(
     let bootloader = image_args
         .bootloader
         .as_deref()
-        .or(config.bootloader.as_deref())
+        .or(config.project_config.bootloader.as_deref())
         .or(default_bootloader);
     let partition_table = image_args
         .partition_table
         .as_deref()
-        .or(config.partition_table.as_deref())
+        .or(config.project_config.partition_table.as_deref())
         .or(default_partition_table);
 
     let partition_table_offset = image_args
         .partition_table_offset
-        .or(config.partition_table_offset);
+        .or(config.project_config.partition_table_offset);
 
     if let Some(path) = &bootloader {
         println!("Bootloader:        {}", path.display());
@@ -1042,9 +1043,13 @@ pub fn make_flash_data(
     }
 
     let flash_settings = FlashSettings::new(
-        flash_config_args.flash_mode.or(config.flash.mode),
+        flash_config_args
+            .flash_mode
+            .or(config.project_config.flash.mode),
         flash_config_args.flash_size,
-        flash_config_args.flash_freq.or(config.flash.freq),
+        flash_config_args
+            .flash_freq
+            .or(config.project_config.flash.freq),
     );
 
     FlashData::new(
@@ -1083,7 +1088,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
             let Some(partition_table) = args
                 .partition_table
                 .as_deref()
-                .or(config.partition_table.as_deref())
+                .or(config.project_config.partition_table.as_deref())
             else {
                 miette::bail!("A partition table is required to resolve partition label");
             };
@@ -1148,9 +1153,9 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
 pub fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
     let mut args = args.clone();
     args.no_stub = true;
-    let mut flash = connect(&args, config, true, true)?;
+    let mut flasher = connect(&args, config, true, true)?;
     info!("Resetting target device");
-    flash.connection().reset()?;
+    flasher.connection().reset()?;
 
     Ok(())
 }
