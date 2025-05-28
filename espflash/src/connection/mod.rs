@@ -37,7 +37,7 @@ use crate::{
     target::Chip,
 };
 
-pub(crate) mod reset;
+pub mod reset;
 
 pub use reset::{ResetAfterOperation, ResetBeforeOperation};
 
