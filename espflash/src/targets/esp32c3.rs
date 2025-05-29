@@ -1,20 +1,12 @@
 use std::ops::Range;
 
-use super::{
-    Chip,
-    Esp32Params,
-    ReadEFuse,
-    SpiRegisters,
-    Target,
-    XtalFrequency,
-    efuse::esp32c3 as efuse,
-};
+use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32c3 as efuse};
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
 use crate::{
     Error,
     flasher::{FlashData, FlashFrequency},
-    image_format::{self, IdfBootloaderFormat, ImageFormat, ImageFormatKind},
+    image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatKind},
 };
 
 pub(crate) const CHIP_ID: u16 = 5;
@@ -96,23 +88,21 @@ impl Target for Esp32c3 {
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
     ) -> Result<ImageFormat<'a>, Error> {
-        let bootloader: &'static [u8] = match format {
-            ImageFormatKind::EspIdf => image_format::esp_idf::bootloader(Chip::Esp32c3, xtal_freq)?,
-        };
-
-        let params = Esp32Params::new(
-            0x0,
-            0x1_0000,
-            0x3f_0000,
-            CHIP_ID,
-            FlashFrequency::_40Mhz,
-            bootloader,
-            None,
-        );
+        // let bootloader: &'static [u8] = match format {
+        //     ImageFormatKind::EspIdf =>
+        // image_format::esp_idf::bootloader(Chip::Esp32c3, xtal_freq)?, };
 
         match format {
             ImageFormatKind::EspIdf => {
-                let idf = IdfBootloaderFormat::new(elf_data, Chip::Esp32c3, flash_data, params)?;
+                let idf = IdfBootloaderFormat::new(
+                    elf_data,
+                    Chip::Esp32c3,
+                    flash_data,
+                    xtal_freq,
+                    0x1_0000,
+                    0x3f_0000,
+                    FlashFrequency::_40Mhz,
+                )?;
                 Ok(idf.into())
             }
         }

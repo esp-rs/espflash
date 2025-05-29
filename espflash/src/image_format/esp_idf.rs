@@ -21,7 +21,7 @@ use crate::{
     Error,
     error::AppDescriptorError,
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize},
-    targets::{Chip, Esp32Params, XtalFrequency},
+    targets::{Chip, XtalFrequency},
 };
 
 const ESP_CHECKSUM_MAGIC: u8 = 0xEF;
@@ -231,12 +231,12 @@ impl AppDescriptor {
 /// ESP-IDF
 #[derive(Debug)]
 pub struct IdfBootloaderFormat<'a> {
-    params: Esp32Params,
+    boot_addr: u32,
     bootloader: Cow<'a, [u8]>,
     partition_table: PartitionTable,
     flash_segment: Segment<'a>,
     app_size: u32,
-    part_size: u32,
+    partition_table_size: u32,
     partition_table_offset: u32,
 }
 
@@ -246,12 +246,19 @@ impl<'a> IdfBootloaderFormat<'a> {
         elf_data: &'a [u8],
         chip: Chip,
         flash_data: FlashData,
-        params: Esp32Params,
+        xtal_freq: XtalFrequency,
+        app_addr: u32,
+        app_size: u32,
+        flash_freq: FlashFrequency,
     ) -> Result<Self, Error> {
         let elf = ElfFile::parse(elf_data)?;
 
         let partition_table = flash_data.partition_table.unwrap_or_else(|| {
-            default_partition_table(&params, flash_data.flash_settings.size.map(|v| v.size()))
+            default_partition_table(
+                app_addr,
+                app_size,
+                flash_data.flash_settings.size.map(|v| v.size()),
+            )
         });
 
         if partition_table
@@ -269,7 +276,8 @@ impl<'a> IdfBootloaderFormat<'a> {
         let mut bootloader = if let Some(bytes) = flash_data.bootloader {
             Cow::Owned(bytes)
         } else {
-            Cow::Borrowed(params.default_bootloader)
+            let default_bootloader = bootloader(chip, xtal_freq)?;
+            Cow::Borrowed(default_bootloader)
         };
 
         // fetch the generated header from the bootloader
@@ -296,7 +304,7 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         header.write_flash_config(
             flash_data.flash_settings.size.unwrap_or_default(),
-            flash_data.flash_settings.freq.unwrap_or(params.flash_freq),
+            flash_data.flash_settings.freq.unwrap_or(flash_freq),
             chip,
         )?;
 
@@ -331,7 +339,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // just update the entry point
         header.entry = elf.elf_header().e_entry.get(Endianness::Little);
         header.wp_pin = WP_PIN_DISABLED;
-        header.chip_id = params.chip_id;
+        header.chip_id = chip.id();
         header.min_chip_rev_full = flash_data.min_chip_rev;
         header.append_digest = 1;
 
@@ -367,7 +375,7 @@ impl<'a> IdfBootloaderFormat<'a> {
             None
         };
 
-        let valid_page_sizes = params.mmu_page_sizes.unwrap_or(&[IROM_ALIGN]);
+        let valid_page_sizes = chip.valid_mmu_page_sizes().unwrap_or(&[IROM_ALIGN]);
         let valid_page_sizes_string = valid_page_sizes
             .iter()
             .map(|size| format!("{:#x}", size))
@@ -515,12 +523,12 @@ impl<'a> IdfBootloaderFormat<'a> {
         };
 
         let app_size = data.len() as u32;
-        let part_size = target_app_partition.size();
+        let partition_table_size = target_app_partition.size();
 
         // The size of the application must not exceed the size of the target app
         // partition.
-        if app_size as f32 / part_size as f32 > 1.0 {
-            return Err(Error::ElfTooBig(app_size, part_size));
+        if app_size as f32 / partition_table_size as f32 > 1.0 {
+            return Err(Error::ElfTooBig(app_size, partition_table_size));
         }
 
         let flash_segment = Segment {
@@ -540,13 +548,15 @@ impl<'a> IdfBootloaderFormat<'a> {
             first_partition.offset() - 0x1000
         });
 
+        let boot_addr = chip.boot_address();
+
         Ok(Self {
-            params,
+            boot_addr,
             bootloader,
             partition_table,
             flash_segment,
             app_size,
-            part_size,
+            partition_table_size,
             partition_table_offset,
         })
     }
@@ -557,7 +567,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         'a: 'b,
     {
         let bootloader_segment = Segment {
-            addr: self.params.boot_addr,
+            addr: self.boot_addr,
             data: self.bootloader,
         };
 
@@ -590,7 +600,7 @@ impl<'a> IdfBootloaderFormat<'a> {
     pub fn metadata(&self) -> HashMap<&str, String> {
         HashMap::from([
             ("app_size", self.app_size.to_string()),
-            ("part_size", self.part_size.to_string()),
+            ("part_size", self.partition_table_size.to_string()),
         ])
     }
 }
@@ -599,31 +609,39 @@ impl<'a> IdfBootloaderFormat<'a> {
 ///
 /// `flash_size` is used to scale app partition when present, otherwise the
 /// paramameter defaults are used.
-fn default_partition_table(params: &Esp32Params, flash_size: Option<u32>) -> PartitionTable {
+fn default_partition_table(
+    app_addr: u32,
+    app_size: u32,
+    flash_size: Option<u32>,
+) -> PartitionTable {
+    const NVS_ADDR: u32 = 0x9000;
+    const NVS_SIZE: u32 = 0x6000;
+    const PHY_INIT_DATA_ADDR: u32 = 0xf000;
+    const PHY_INIT_DATA_SIZE: u32 = 0x1000;
     PartitionTable::new(vec![
         Partition::new(
             String::from("nvs"),
             Type::Data,
             SubType::Data(DataType::Nvs),
-            params.nvs_addr,
-            params.nvs_size,
+            NVS_ADDR,
+            NVS_SIZE,
             Flags::empty(),
         ),
         Partition::new(
             String::from("phy_init"),
             Type::Data,
             SubType::Data(DataType::Phy),
-            params.phy_init_data_addr,
-            params.phy_init_data_size,
+            PHY_INIT_DATA_ADDR,
+            PHY_INIT_DATA_SIZE,
             Flags::empty(),
         ),
         Partition::new(
             String::from("factory"),
             Type::App,
             SubType::App(AppType::Factory),
-            params.app_addr,
+            app_addr,
             core::cmp::min(
-                flash_size.map_or(params.app_size, |size| size - params.app_addr),
+                flash_size.map_or(app_size, |size| size - app_addr),
                 MAX_PARTITION_SIZE,
             ),
             Flags::empty(),
