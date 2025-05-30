@@ -162,12 +162,11 @@ fn process_efuse_definitions(efuse_fields: &mut EfuseFields) -> Result<()> {
         let mac_attrs = yaml.fields.get("MAC").unwrap();
 
         let mut mac0_attrs = mac_attrs.clone();
-        mac0_attrs.start = 0;
         mac0_attrs.len = 32;
 
         let mut mac1_attrs = mac_attrs.clone();
-        mac1_attrs.word += 1;
-        mac1_attrs.start = 32;
+        mac1_attrs.start = mac0_attrs.start + 32;
+        mac1_attrs.word = mac1_attrs.start / 32;
         mac1_attrs.len = 16;
 
         yaml.fields.remove("MAC").unwrap();
