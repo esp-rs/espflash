@@ -1,6 +1,6 @@
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-04-22 11:33
+//! Generated: 2025-05-30 12:24
 //! Version:   73787d3f5ae45b80abca925a7562120b
 
 #![allow(unused)]
@@ -36,7 +36,7 @@ pub(crate) const SPI_DOWNLOAD_MSPI_DIS: EfuseField = EfuseField::new(0, 1, 45, 1
 /// enabled
 pub(crate) const DIS_TWAI: EfuseField = EfuseField::new(0, 1, 46, 1);
 /// Represents whether the selection between usb_to_jtag and pad_to_jtag through
-/// strapping gpio15 when both EFUSE_DIS_PAD_JTAG and EFUSE_DIS_USB_JTAG are
+/// strapping gpio34 when both EFUSE_DIS_PAD_JTAG and EFUSE_DIS_USB_JTAG are
 /// equal to 0 is enabled or disabled. 1: enabled. 0: disabled
 pub(crate) const JTAG_SEL_ENABLE: EfuseField = EfuseField::new(0, 1, 47, 1);
 /// Represents whether JTAG is disabled in soft way. Odd number: disabled. Even

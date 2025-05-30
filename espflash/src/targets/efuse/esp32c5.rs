@@ -1,7 +1,7 @@
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-05-19 11:59
-//! Version:   287a0ed4951aba84b9571a5f31000275
+//! Generated: 2025-05-30 12:24
+//! Version:   31c7fe3f5f4e0a55b178a57126c0aca7
 
 #![allow(unused)]
 
@@ -14,40 +14,49 @@ pub(crate) const BLOCK_SIZES: &[u32] = &[24, 24, 32, 32, 32, 32, 32, 32, 32, 32,
 pub(crate) const WR_DIS: EfuseField = EfuseField::new(0, 0, 0, 32);
 /// Disable reading from BlOCK4-10
 pub(crate) const RD_DIS: EfuseField = EfuseField::new(0, 1, 32, 7);
-/// Reserved; it was created by set_missed_fields_in_regs func
-pub(crate) const RESERVE_0_39: EfuseField = EfuseField::new(0, 1, 39, 1);
-/// Represents whether icache is disabled or enabled.\\ 1: disabled\\ 0:
-/// enabled\\
+/// Represents the anti-rollback secure version of the 2nd stage bootloader used
+/// by the ROM bootloader (the high part of the field)
+pub(crate) const BOOTLOADER_ANTI_ROLLBACK_SECURE_VERSION_HI: EfuseField =
+    EfuseField::new(0, 1, 39, 1);
+/// Represents whether cache is disabled. 1: Disabled 0: Enabled
 pub(crate) const DIS_ICACHE: EfuseField = EfuseField::new(0, 1, 40, 1);
-/// Represents whether the function of usb switch to jtag is disabled or
-/// enabled.\\ 1: disabled\\ 0: enabled\\
+/// Represents whether the USB-to-JTAG function in USB Serial/JTAG is disabled.
+/// Note that \hyperref[fielddesc:EFUSEDISUSBJTAG]{EFUSE\_DIS\_USB\_JTAG} is
+/// available only when
+/// \hyperref[fielddesc:EFUSEDISUSBSERIALJTAG]{EFUSE\_DIS\_USB\_SERIAL\_JTAG} is
+/// configured to 0. For more information; please refer to Chapter
+/// \ref{mod:bootctrl} \textit{\nameref{mod:bootctrl}}.1: Disabled0: Enabled
 pub(crate) const DIS_USB_JTAG: EfuseField = EfuseField::new(0, 1, 41, 1);
-/// Reserved; it was created by set_missed_fields_in_regs func
-pub(crate) const RESERVE_0_42: EfuseField = EfuseField::new(0, 1, 42, 1);
-/// Represents whether USB-Serial-JTAG is disabled or enabled.\\ 1: disabled\\
-/// 0: enabled\\
+/// Represents whether the ani-rollback check for the 2nd stage bootloader is
+/// enabled.1: Enabled0: Disabled
+pub(crate) const BOOTLOADER_ANTI_ROLLBACK_EN: EfuseField = EfuseField::new(0, 1, 42, 1);
+/// Represents whether USB Serial/JTAG is disabled.1: Disabled0: Enabled
 pub(crate) const DIS_USB_SERIAL_JTAG: EfuseField = EfuseField::new(0, 1, 43, 1);
-/// Represents whether the function that forces chip into download mode is
-/// disabled or enabled.\\ 1: disabled\\ 0: enabled\\
+/// Represents whether the function that forces chip into Download mode is
+/// disabled. 1: Disabled0: Enabled
 pub(crate) const DIS_FORCE_DOWNLOAD: EfuseField = EfuseField::new(0, 1, 44, 1);
-/// Represents whether SPI0 controller during boot_mode_download is disabled or
-/// enabled.\\ 1: disabled\\ 0: enabled\\
+/// Represents whether SPI0 controller during boot\_mode\_download is
+/// disabled.0: Enabled1: Disabled
 pub(crate) const SPI_DOWNLOAD_MSPI_DIS: EfuseField = EfuseField::new(0, 1, 45, 1);
-/// Represents whether TWAI function is disabled or enabled.\\ 1: disabled\\ 0:
-/// enabled\\
+/// Represents whether TWAI$^®$ function is disabled.1: Disabled0: Enabled
 pub(crate) const DIS_TWAI: EfuseField = EfuseField::new(0, 1, 46, 1);
-/// Represents whether the selection between usb_to_jtag and pad_to_jtag through
-/// strapping gpio15 when both EFUSE_DIS_PAD_JTAG and EFUSE_DIS_USB_JTAG are
-/// equal to 0 is enabled or disabled.\\ 1: enabled\\ 0: disabled\\
+/// Represents whether the selection of a JTAG signal source through the
+/// strapping pin value is enabled when all of
+/// \hyperref[fielddesc:EFUSEDISPADJTAG]{EFUSE\_DIS\_PAD\_JTAG};
+/// \hyperref[fielddesc:EFUSEDISUSBJTAG]{EFUSE\_DIS\_USB\_JTAG} and
+/// \hyperref[fielddesc:EFUSEDISUSBSERIALJTAG]{EFUSE\_DIS\_USB\_SERIAL\_JTAG}
+/// are configured to 0. For more information; please refer to Chapter
+/// \ref{mod:bootctrl} \textit{\nameref{mod:bootctrl}}.1: Enabled0: Disabled
 pub(crate) const JTAG_SEL_ENABLE: EfuseField = EfuseField::new(0, 1, 47, 1);
-/// Represents whether JTAG is disabled in soft way.\\ Odd number: disabled\\
-/// Even number: enabled\\
+/// Represents whether PAD JTAG is disabled in the soft way. It can be restarted
+/// via HMAC. Odd count of bits with a value of 1: DisabledEven count of bits
+/// with a value of 1: Enabled
 pub(crate) const SOFT_DIS_JTAG: EfuseField = EfuseField::new(0, 1, 48, 3);
-/// Represents whether JTAG is disabled in the hard way(permanently).\\ 1:
-/// disabled\\ 0: enabled\\
+/// Represents whether PAD JTAG is disabled in the hard way (permanently).1:
+/// Disabled0: Enabled
 pub(crate) const DIS_PAD_JTAG: EfuseField = EfuseField::new(0, 1, 51, 1);
-/// Represents whether flash encrypt function is disabled or enabled(except in
-/// SPI boot mode).\\ 1: disabled\\ 0: enabled\\
+/// Represents whether flash encryption is disabled (except in SPI boot mode).1:
+/// Disabled0: Enabled
 pub(crate) const DIS_DOWNLOAD_MANUAL_ENCRYPT: EfuseField = EfuseField::new(0, 1, 52, 1);
 /// Represents the single-end input threshold vrefh; 1.76 V to 2 V with step of
 /// 80 mV
@@ -55,132 +64,170 @@ pub(crate) const USB_DREFH: EfuseField = EfuseField::new(0, 1, 53, 2);
 /// Represents the single-end input threshold vrefl; 1.76 V to 2 V with step of
 /// 80 mV
 pub(crate) const USB_DREFL: EfuseField = EfuseField::new(0, 1, 55, 2);
-/// Represents whether the D+ and D- pins is exchanged.\\ 1: exchanged\\ 0: not
-/// exchanged\\
+/// Represents whether the D+ and D- pins is exchanged.1: Exchanged0: Not
+/// exchanged
 pub(crate) const USB_EXCHG_PINS: EfuseField = EfuseField::new(0, 1, 57, 1);
-/// Represents whether vdd spi pin is functioned as gpio.\\ 1: functioned\\ 0:
-/// not functioned\\
+/// Represents whether VDD SPI pin is functioned as GPIO.1: Functioned0: Not
+/// functioned
 pub(crate) const VDD_SPI_AS_GPIO: EfuseField = EfuseField::new(0, 1, 58, 1);
-/// Reserved; it was created by set_missed_fields_in_regs func
-pub(crate) const RESERVE_0_59: EfuseField = EfuseField::new(0, 1, 59, 5);
-/// Represents whether the deploy mode of key manager is disable or not. \\ 1:
-/// disabled \\ 0: enabled.\\
+/// Represents RTC watchdog timeout threshold.0: The originally configured STG0
+/// threshold × 21: The originally configured STG0 threshold × 42: The
+/// originally configured STG0 threshold × 83: The originally configured STG0
+/// threshold × 16
+pub(crate) const WDT_DELAY_SEL: EfuseField = EfuseField::new(0, 1, 59, 2);
+/// Represents the anti-rollback secure version of the 2nd stage bootloader used
+/// by the ROM bootloader (the low part of the field)
+pub(crate) const BOOTLOADER_ANTI_ROLLBACK_SECURE_VERSION_LO: EfuseField =
+    EfuseField::new(0, 1, 61, 3);
+/// Represents whether the new key deployment of key manager is disabled. Bit0:
+/// Represents whether the new ECDSA key deployment is disabled0: Enabled1:
+/// DisabledBit1: Represents whether the new XTS-AES (flash and PSRAM) key
+/// deployment is disabled0: Enabled1: DisabledBit2: Represents whether the new
+/// HMAC key deployment is disabled0: Enabled1: DisabledBit3: Represents whether
+/// the new DS key deployment is disabled0: Enabled1: Disabled
 pub(crate) const KM_DISABLE_DEPLOY_MODE: EfuseField = EfuseField::new(0, 2, 64, 4);
-/// Set the bits to control key manager random number switch cycle. 0: control
-/// by register. 1: 8 km clk cycles. 2: 16 km cycles. 3: 32 km cycles
+/// Represents the cycle at which the Key Manager switches random numbers.0:
+/// Controlled by the
+/// \hyperref[fielddesc:KEYMNGRNDSWITCHCYCLE]{KEYMNG\_RND\_SWITCH\_CYCLE}
+/// register. For more information; please refer to Chapter \ref{mod:keymng}
+/// \textit{\nameref{mod:keymng}}1: 8 Key Manager clock cycles2: 16 Key Manager
+/// clock cycles3: 32 Key Manager clock cycles
 pub(crate) const KM_RND_SWITCH_CYCLE: EfuseField = EfuseField::new(0, 2, 68, 2);
-/// Set each bit to control whether corresponding key can only be deployed once.
-/// 1 is true; 0 is false. bit 0: ecsda; bit 1: xts; bit2: hmac; bit3: ds
+/// Represents whether the corresponding key can be deployed only once.Bit0:
+/// Represents whether the ECDSA key can be deployed only once0: The key can be
+/// deployed multiple times1: The key can be deployed only onceBit1: Represents
+/// whether the XTS-AES (flash and PSRAM) key can be deployed only once0: The
+/// key can be deployed multiple times1: The key can be deployed only onceBit2:
+/// Represents whether the HMAC key can be deployed only once0: The key can be
+/// deployed multiple times1: The key can be deployed only onceBit3: Represents
+/// whether the DS key can be deployed only once0: The key can be deployed
+/// multiple times1: The key can be deployed only once
 pub(crate) const KM_DEPLOY_ONLY_ONCE: EfuseField = EfuseField::new(0, 2, 70, 4);
-/// Set each bit to control whether corresponding key must come from key
-/// manager. 1 is true; 0 is false. bit 0: ecsda; bit 1: xts; bit2: hmac; bit3:
-/// ds
+/// Represents whether the corresponding key must come from Key Manager. Bit0:
+/// Represents whether the ECDSA key must come from Key Manager.0: The key does
+/// not need to come from Key Manager1: The key must come from Key ManagerBit1:
+/// Represents whether the XTS-AES (flash and PSRAM) key must come from Key
+/// Manager.0: The key does not need to come from Key Manager1: The key must
+/// come from Key ManagerBit2: Represents whether the HMAC key must come from
+/// Key Manager.0: The key does not need to come from Key Manager1: The key must
+/// come from Key ManagerBit3: Represents whether the DS key must come from Key
+/// Manager.0: The key does not need to come from Key Manager1: The key must
+/// come from Key Manager
 pub(crate) const FORCE_USE_KEY_MANAGER_KEY: EfuseField = EfuseField::new(0, 2, 74, 4);
-/// Set this bit to disable software written init key; and force use
-/// efuse_init_key
+/// Represents whether to disable the use of the initialization key written by
+/// software and instead force use efuse\_init\_key.0: Enable1: Disable
 pub(crate) const FORCE_DISABLE_SW_INIT_KEY: EfuseField = EfuseField::new(0, 2, 78, 1);
-/// Reserved; it was created by set_missed_fields_in_regs func
-pub(crate) const RESERVE_0_79: EfuseField = EfuseField::new(0, 2, 79, 1);
-/// Represents the threshold level of the RTC watchdog STG0 timeout.\\ 0:
-/// Original threshold configuration value of STG0 *2 \\1: Original threshold
-/// configuration value of STG0 *4 \\2: Original threshold configuration value
-/// of STG0 *8 \\3: Original threshold configuration value of STG0 *16 \\
-pub(crate) const WDT_DELAY_SEL: EfuseField = EfuseField::new(0, 2, 80, 2);
+/// Represents whether the ani-rollback SECURE_VERSION will be updated from the
+/// ROM bootloader.1: Enable0: Disable
+pub(crate) const BOOTLOADER_ANTI_ROLLBACK_UPDATE_IN_ROM: EfuseField = EfuseField::new(0, 2, 79, 1);
 /// Enables flash encryption when 1 or 3 bits are set and disables otherwise
-pub(crate) const SPI_BOOT_CRYPT_CNT: EfuseField = EfuseField::new(0, 2, 82, 3);
+pub(crate) const SPI_BOOT_CRYPT_CNT: EfuseField = EfuseField::new(0, 2, 80, 3);
 /// Revoke 1st secure boot key
-pub(crate) const SECURE_BOOT_KEY_REVOKE0: EfuseField = EfuseField::new(0, 2, 85, 1);
+pub(crate) const SECURE_BOOT_KEY_REVOKE0: EfuseField = EfuseField::new(0, 2, 83, 1);
 /// Revoke 2nd secure boot key
-pub(crate) const SECURE_BOOT_KEY_REVOKE1: EfuseField = EfuseField::new(0, 2, 86, 1);
+pub(crate) const SECURE_BOOT_KEY_REVOKE1: EfuseField = EfuseField::new(0, 2, 84, 1);
 /// Revoke 3rd secure boot key
-pub(crate) const SECURE_BOOT_KEY_REVOKE2: EfuseField = EfuseField::new(0, 2, 87, 1);
-/// Represents the purpose of Key0
-pub(crate) const KEY_PURPOSE_0: EfuseField = EfuseField::new(0, 2, 88, 4);
-/// Represents the purpose of Key1
-pub(crate) const KEY_PURPOSE_1: EfuseField = EfuseField::new(0, 2, 92, 4);
-/// Represents the purpose of Key2
-pub(crate) const KEY_PURPOSE_2: EfuseField = EfuseField::new(0, 3, 96, 4);
-/// Represents the purpose of Key3
-pub(crate) const KEY_PURPOSE_3: EfuseField = EfuseField::new(0, 3, 100, 4);
-/// Represents the purpose of Key4
-pub(crate) const KEY_PURPOSE_4: EfuseField = EfuseField::new(0, 3, 104, 4);
-/// Represents the purpose of Key5
-pub(crate) const KEY_PURPOSE_5: EfuseField = EfuseField::new(0, 3, 108, 4);
-/// Represents the spa secure level by configuring the clock random divide mode
-pub(crate) const SEC_DPA_LEVEL: EfuseField = EfuseField::new(0, 3, 112, 2);
-/// Reserved; it was created by set_missed_fields_in_regs func
-pub(crate) const RESERVE_0_114: EfuseField = EfuseField::new(0, 3, 114, 2);
-/// Represents whether secure boot is enabled or disabled.\\ 1: enabled\\ 0:
-/// disabled\\
-pub(crate) const SECURE_BOOT_EN: EfuseField = EfuseField::new(0, 3, 116, 1);
-/// Represents whether revoking aggressive secure boot is enabled or disabled.\\
-/// 1: enabled.\\ 0: disabled\\
-pub(crate) const SECURE_BOOT_AGGRESSIVE_REVOKE: EfuseField = EfuseField::new(0, 3, 117, 1);
-/// Reserved; it was created by set_missed_fields_in_regs func
-pub(crate) const RESERVE_0_118: EfuseField = EfuseField::new(0, 3, 118, 5);
-/// Set this bitto configure flash encryption use xts-128 key. else use xts-256
+pub(crate) const SECURE_BOOT_KEY_REVOKE2: EfuseField = EfuseField::new(0, 2, 85, 1);
+/// Represents the purpose of Key0. See Table \ref{tab:efuse-key-purpose}
+pub(crate) const KEY_PURPOSE_0: EfuseField = EfuseField::new(0, 2, 86, 5);
+/// Represents the purpose of Key1. See Table \ref{tab:efuse-key-purpose}
+pub(crate) const KEY_PURPOSE_1: EfuseField = EfuseField::new(0, 2, 91, 5);
+/// Represents the purpose of Key2. See Table \ref{tab:efuse-key-purpose}
+pub(crate) const KEY_PURPOSE_2: EfuseField = EfuseField::new(0, 3, 96, 5);
+/// Represents the purpose of Key3. See Table \ref{tab:efuse-key-purpose}
+pub(crate) const KEY_PURPOSE_3: EfuseField = EfuseField::new(0, 3, 101, 5);
+/// Represents the purpose of Key4. See Table \ref{tab:efuse-key-purpose}
+pub(crate) const KEY_PURPOSE_4: EfuseField = EfuseField::new(0, 3, 106, 5);
+/// Represents the purpose of Key5. See Table \ref{tab:efuse-key-purpose}
+pub(crate) const KEY_PURPOSE_5: EfuseField = EfuseField::new(0, 3, 111, 5);
+/// Represents the security level of anti-DPA attack. The level is adjusted by
+/// configuring the clock random frequency division mode.0: Security level is
+/// SEC\_DPA\_OFF1: Security level is SEC\_DPA\_LOW2: Security level is
+/// SEC\_DPA\_MIDDLE3: Security level is SEC\_DPA\_HIGHFor more information;
+/// please refer to Chapter \ref{mod:sysreg} \textit{\nameref{mod:sysreg}} >
+/// Section \ref{sec:sysreg-anti-dpa-attack-security-control}
+/// \textit{\nameref{sec:sysreg-anti-dpa-attack-security-control}}.
+pub(crate) const SEC_DPA_LEVEL: EfuseField = EfuseField::new(0, 3, 116, 2);
+/// Represents the starting flash sector (flash sector size is 0x1000) of the
+/// recovery bootloader used by the ROM bootloader If the primary bootloader
+/// fails. 0 and 0xFFF - this feature is disabled. (The high part of the field)
+pub(crate) const RECOVERY_BOOTLOADER_FLASH_SECTOR_HI: EfuseField = EfuseField::new(0, 3, 118, 3);
+/// Represents whether Secure Boot is enabled.1: Enabled0: Disabled
+pub(crate) const SECURE_BOOT_EN: EfuseField = EfuseField::new(0, 3, 121, 1);
+/// Represents whether aggressive revocation of Secure Boot is enabled.1:
+/// Enabled0: Disabled
+pub(crate) const SECURE_BOOT_AGGRESSIVE_REVOKE: EfuseField = EfuseField::new(0, 3, 122, 1);
+/// Represents which key flash encryption uses.0: XTS-AES-256 key1: XTS-AES-128
 /// key
 pub(crate) const KM_XTS_KEY_LENGTH_256: EfuseField = EfuseField::new(0, 3, 123, 1);
-/// Represents the flash waiting time after power-up; in unit of ms. When the
-/// value less than 15; the waiting time is the programmed value. Otherwise; the
-/// waiting time is 2 times the programmed value
+/// Represents the flash waiting time after power-up. Measurement unit: ms. When
+/// the value is less than 15; the waiting time is the programmed value.
+/// Otherwise; the waiting time is a fixed value; i.e. 30 ms
 pub(crate) const FLASH_TPUW: EfuseField = EfuseField::new(0, 3, 124, 4);
-/// Represents whether Download mode is disabled or enabled.\\ 1: disabled\\ 0:
-/// enabled\\
+/// Represents whether Download mode is disable or enable. 1. Disable 0: Enable
 pub(crate) const DIS_DOWNLOAD_MODE: EfuseField = EfuseField::new(0, 4, 128, 1);
-/// Represents whether direct boot mode is disabled or enabled.\\ 1: disabled\\
-/// 0: enabled\\
+/// Represents whether direct boot mode is disabled or enabled. 1. Disable 0:
+/// Enable
 pub(crate) const DIS_DIRECT_BOOT: EfuseField = EfuseField::new(0, 4, 129, 1);
-/// Represents whether print from USB-Serial-JTAG is disabled or enabled.\\ 1:
-/// disabled\\ 0: enabled\\
+/// Represents whether print from USB-Serial-JTAG is disabled or enabled. 1.
+/// Disable 0: Enable
 pub(crate) const DIS_USB_SERIAL_JTAG_ROM_PRINT: EfuseField = EfuseField::new(0, 4, 130, 1);
-/// Represetns whether to lock the efuse xts key.\\ 1. Lock\\ 0: Unlock\\
+/// Represents whether the keys in the Key Manager are locked after
+/// deployment.0: Not locked1: Locked
 pub(crate) const LOCK_KM_KEY: EfuseField = EfuseField::new(0, 4, 131, 1);
 /// Represents whether the USB-Serial-JTAG download function is disabled or
-/// enabled.\\ 1: Disable\\ 0: Enable\\
+/// enabled. 1: Disable 0: Enable
 pub(crate) const DIS_USB_SERIAL_JTAG_DOWNLOAD_MODE: EfuseField = EfuseField::new(0, 4, 132, 1);
-/// Represents whether security download is enabled or disabled.\\ 1: enabled\\
-/// 0: disabled\\
+/// Represents whether security download is enabled. Only downloading into flash
+/// is supported. Reading/writing RAM or registers is not supported (i.e. stub
+/// download is not supported).1: Enabled0: Disabled
 pub(crate) const ENABLE_SECURITY_DOWNLOAD: EfuseField = EfuseField::new(0, 4, 133, 1);
 /// Set the default UARTboot message output mode
 pub(crate) const UART_PRINT_CONTROL: EfuseField = EfuseField::new(0, 4, 134, 2);
 /// Represents whether ROM code is forced to send a resume command during SPI
-/// boot.\\ 1: forced\\ 0:not forced\\
+/// boot.1: Forced. 0: Not forced.
 pub(crate) const FORCE_SEND_RESUME: EfuseField = EfuseField::new(0, 4, 136, 1);
-/// Represents the version used by ESP-IDF anti-rollback feature
-pub(crate) const SECURE_VERSION: EfuseField = EfuseField::new(0, 4, 137, 16);
-/// Represents whether FAST VERIFY ON WAKE is disabled or enabled when Secure
-/// Boot is enabled.\\ 1: disabled\\ 0: enabled\\
+/// Represents the app secure version used by ESP-IDF anti-rollback feature
+pub(crate) const SECURE_VERSION: EfuseField = EfuseField::new(0, 4, 137, 9);
+/// Reserved; it was created by set_missed_fields_in_regs func
+pub(crate) const RESERVE_0_146: EfuseField = EfuseField::new(0, 4, 146, 7);
+/// Represents whether FAST VERIFY ON WAKE is disabled when Secure Boot is
+/// enabled.1: Disabled0: Enabled
 pub(crate) const SECURE_BOOT_DISABLE_FAST_WAKE: EfuseField = EfuseField::new(0, 4, 153, 1);
-/// Represents whether the hysteresis function of corresponding PAD is
-/// enabled.\\ 1: enabled\\ 0:disabled\\
+/// Represents whether the hysteresis function of PAD0 – PAD27 is enabled.1:
+/// Enabled0: Disabled
 pub(crate) const HYS_EN_PAD: EfuseField = EfuseField::new(0, 4, 154, 1);
-/// Represents the pseudo round level of xts-aes anti-dpa attack.\\ 3: High.\\
-/// 2: Moderate 1. Low\\ 0: Disabled\\
+/// Represents the pseudo round level of XTS-AES anti-DPA attack.0: Disabled1:
+/// Low2: Moderate3: High
 pub(crate) const XTS_DPA_PSEUDO_LEVEL: EfuseField = EfuseField::new(0, 4, 155, 2);
-/// Represents whether xts-aes anti-dpa attack clock is enabled.\\ 1. Enable.\\
-/// 0: Disable.\\
+/// Represents whether XTS-AES anti-DPA attack clock is enabled.0: Disable1:
+/// Enabled
 pub(crate) const XTS_DPA_CLK_ENABLE: EfuseField = EfuseField::new(0, 4, 157, 1);
 /// Reserved; it was created by set_missed_fields_in_regs func
-pub(crate) const RESERVE_0_158: EfuseField = EfuseField::new(0, 4, 158, 2);
-/// Set the bits to control validation of HUK generate mode.\\ Odd of 1 is
-/// invalid.\\ Even of 1 is valid.\\
+pub(crate) const RESERVE_0_158: EfuseField = EfuseField::new(0, 4, 158, 1);
+/// Represents if the chip supports Secure Boot using SHA-384
+pub(crate) const SECURE_BOOT_SHA384_EN: EfuseField = EfuseField::new(0, 4, 159, 1);
+/// Represents whether the HUK generate mode is valid.Odd count of bits with a
+/// value of 1: InvalidEven count of bits with a value of 1: Valid
 pub(crate) const HUK_GEN_STATE: EfuseField = EfuseField::new(0, 5, 160, 9);
 /// Represents whether XTAL frequency is 48MHz or not. If not; 40MHz XTAL will
 /// be used. If this field contains Odd number bit 1: Enable 48MHz XTAL\ Even
 /// number bit 1: Enable 40MHz XTAL
 pub(crate) const XTAL_48M_SEL: EfuseField = EfuseField::new(0, 5, 169, 3);
-/// Specify the XTAL frequency selection is decided by eFuse or
-/// strapping-PAD-state. 1: eFuse\\ 0: strapping-PAD-state
+/// Represents what determines the XTAL frequency in \textbf{Joint Download
+/// Boot} mode.  For more information; please refer to Chapter
+/// \ref{mod:bootctrl} \textit{\nameref{mod:bootctrl}}.0: Strapping PAD state1:
+/// \hyperref[fielddesc:EFUSEXTAL48MSEL]{EFUSE\_XTAL\_48M\_SEL} in eFuse
 pub(crate) const XTAL_48M_SEL_MODE: EfuseField = EfuseField::new(0, 5, 172, 1);
-/// Represents whether to disable P192 curve in ECDSA.\\ 1: Disabled.\\ 0: Not
-/// disable
-pub(crate) const ECDSA_DISABLE_P192: EfuseField = EfuseField::new(0, 5, 173, 1);
-/// Represents whether to force ecc to use const-time calculation mode. \\ 1:
-/// Enable. \\ 0: Disable
-pub(crate) const ECC_FORCE_CONST_TIME: EfuseField = EfuseField::new(0, 5, 174, 1);
+/// Represents whether to force ECC to use constant-time mode for point
+/// multiplication calculation. 0: Not force1: Force
+pub(crate) const ECC_FORCE_CONST_TIME: EfuseField = EfuseField::new(0, 5, 173, 1);
+/// Represents the starting flash sector (flash sector size is 0x1000) of the
+/// recovery bootloader used by the ROM bootloader If the primary bootloader
+/// fails. 0 and 0xFFF - this feature is disabled. (The low part of the field)
+pub(crate) const RECOVERY_BOOTLOADER_FLASH_SECTOR_LO: EfuseField = EfuseField::new(0, 5, 174, 9);
 /// Reserved; it was created by set_missed_fields_in_regs func
-pub(crate) const RESERVE_0_175: EfuseField = EfuseField::new(0, 5, 175, 17);
+pub(crate) const RESERVE_0_183: EfuseField = EfuseField::new(0, 5, 183, 9);
 /// MAC address
 pub(crate) const MAC0: EfuseField = EfuseField::new(1, 0, 0, 32);
 /// MAC address
@@ -231,9 +278,13 @@ pub(crate) const DSLP_LP_DBG: EfuseField = EfuseField::new(1, 3, 120, 4);
 pub(crate) const DSLP_LP_DBIAS: EfuseField = EfuseField::new(1, 3, 124, 5);
 /// DBIAS gap between LP and HP
 pub(crate) const LP_HP_DBIAS_VOL_GAP: EfuseField = EfuseField::new(1, 4, 129, 5);
+/// REF PADC Calibration Curr
+pub(crate) const REF_CURR_CODE: EfuseField = EfuseField::new(1, 4, 134, 4);
+/// RES PADC Calibration Tune
+pub(crate) const RES_TUNE_CODE: EfuseField = EfuseField::new(1, 4, 138, 5);
 /// reserved
-pub(crate) const RESERVED_1_134: EfuseField = EfuseField::new(1, 4, 134, 26);
-/// Represents the second 32-bit of zeroth part of system data
+pub(crate) const RESERVED_1_143: EfuseField = EfuseField::new(1, 4, 143, 17);
+/// Represents the third 32-bit of zeroth part of system data
 pub(crate) const SYS_DATA_PART0_2: EfuseField = EfuseField::new(1, 5, 160, 32);
 /// Optional unique 128-bit ID
 pub(crate) const OPTIONAL_UNIQUE_ID: EfuseField = EfuseField::new(2, 0, 0, 128);
