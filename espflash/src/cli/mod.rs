@@ -626,7 +626,7 @@ pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
 /// Open a serial monitor
 pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
-    let pid = flasher.usb_pid();
+    let pid = flasher.connection().usb_pid();
 
     let elf = if let Some(elf_path) = args.monitor_args.elf.clone() {
         let path = fs::canonicalize(elf_path).into_diagnostic()?;
@@ -1119,17 +1119,14 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     )?;
 
     if args.monitor {
-        let pid = flasher.usb_pid();
+        let pid = flasher.connection().usb_pid();
         let mut monitor_args = args.monitor_args;
-
         if chip == Chip::Esp32c2
             && target_xtal_freq == XtalFrequency::_26Mhz
             && monitor_args.monitor_baud == 115_200
         {
-            // 115_200 * 26 MHz / 40 MHz = 74_880
             monitor_args.monitor_baud = 74_880;
         }
-
         monitor(flasher.into_serial(), None, pid, monitor_args)?;
     }
 

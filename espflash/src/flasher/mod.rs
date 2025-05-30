@@ -1355,6 +1355,11 @@ impl Flasher {
 
         Ok(())
     }
+
+    /// Take the serial port out of the flasher, consuming self
+    pub fn into_serial(self) -> Port {
+        self.connection.into_serial()
+    }
 }
 
 #[cfg(feature = "serialport")]
