@@ -34,7 +34,10 @@ use self::{
     monitor::{LogFormat, check_monitor_args, monitor},
 };
 use crate::{
-    connection::reset::{ResetAfterOperation, ResetBeforeOperation},
+    connection::{
+        Connection,
+        reset::{ResetAfterOperation, ResetBeforeOperation},
+    },
     error::{Error, MissingPartition, MissingPartitionTable},
     flasher::{
         FLASH_SECTOR_SIZE,
@@ -435,16 +438,21 @@ pub fn connect(
         _ => unreachable!(),
     };
 
-    Ok(Flasher::connect(
+    let connection = Connection::new(
         *Box::new(serial_port),
         port_info,
-        args.baud.or(config.project_config.baudrate),
+        args.after,
+        args.before,
+        args.baud
+            .or(config.project_config.baudrate)
+            .unwrap_or(115_200),
+    );
+    Ok(Flasher::connect(
+        connection,
         !args.no_stub,
         !no_verify,
         !no_skip,
         args.chip,
-        args.after,
-        args.before,
     )?)
 }
 

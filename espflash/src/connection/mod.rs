@@ -134,6 +134,7 @@ pub struct Connection {
     after_operation: ResetAfterOperation,
     before_operation: ResetBeforeOperation,
     pub(crate) secure_download_mode: bool,
+    pub(crate) speed: u32,
 }
 
 impl Connection {
@@ -143,6 +144,7 @@ impl Connection {
         port_info: UsbPortInfo,
         after_operation: ResetAfterOperation,
         before_operation: ResetBeforeOperation,
+        speed: u32,
     ) -> Self {
         Connection {
             serial,
@@ -151,6 +153,7 @@ impl Connection {
             after_operation,
             before_operation,
             secure_download_mode: false,
+            speed,
         }
     }
 
@@ -390,7 +393,7 @@ impl Connection {
     /// Set baud rate for the serial port.
     pub fn set_baud(&mut self, speed: u32) -> Result<(), Error> {
         self.serial.set_baud_rate(speed)?;
-
+        self.speed = speed;
         Ok(())
     }
 
@@ -617,6 +620,13 @@ impl Connection {
 
     pub(crate) fn is_using_usb_serial_jtag(&self) -> bool {
         self.port_info.pid == USB_SERIAL_JTAG_PID
+    }
+
+    pub fn after_operation(&self) -> ResetAfterOperation {
+        self.after_operation
+    }
+    pub fn before_operation(&self) -> ResetBeforeOperation {
+        self.before_operation
     }
 }
 

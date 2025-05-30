@@ -15,8 +15,6 @@ use md5::{Digest, Md5};
 #[cfg(feature = "serialport")]
 use object::{Endianness, read::elf::ElfFile32 as ElfFile};
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "serialport")]
-use serialport::UsbPortInfo;
 use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
@@ -33,7 +31,7 @@ use crate::{
         Connection,
         Port,
         command::{Command, CommandType},
-        reset::{ResetAfterOperation, ResetBeforeOperation},
+        reset::ResetBeforeOperation,
     },
     error::{ConnectionError, ResultExt as _},
     flasher::stubs::{
@@ -645,27 +643,22 @@ impl Flasher {
     /// The serial port's baud rate should be 115_200 to connect. After
     /// connecting, Flasher will change the baud rate to the `speed`
     /// parameter.
-    #[allow(clippy::too_many_arguments)]
     pub fn connect(
-        serial: Port,
-        port_info: UsbPortInfo,
-        speed: Option<u32>,
+        mut connection: Connection,
         use_stub: bool,
         verify: bool,
         skip: bool,
         chip: Option<Chip>,
-        after_operation: ResetAfterOperation,
-        before_operation: ResetBeforeOperation,
     ) -> Result<Self, Error> {
-        // Establish a connection to the device using the default baud rate of 115,200
-        // and timeout of 3 seconds.
-        let mut connection = Connection::new(serial, port_info, after_operation, before_operation);
+        // The connection should already be established with the device using the
+        // default baud rate of 115,200 and timeout of 3 seconds.
         connection.begin()?;
         connection.set_timeout(DEFAULT_TIMEOUT)?;
 
         detect_sdm(&mut connection);
 
-        let detected_chip = if before_operation != ResetBeforeOperation::NoResetNoSync {
+        let detected_chip = if connection.before_operation() != ResetBeforeOperation::NoResetNoSync
+        {
             // Detect which chip we are connected to.
             let detected_chip = detect_chip(&mut connection, use_stub)?;
             if let Some(chip) = chip {
@@ -676,9 +669,10 @@ impl Flasher {
                     ));
                 }
             }
-
             detected_chip
-        } else if before_operation == ResetBeforeOperation::NoResetNoSync && chip.is_some() {
+        } else if connection.before_operation() == ResetBeforeOperation::NoResetNoSync
+            && chip.is_some()
+        {
             chip.unwrap()
         } else {
             return Err(Error::ChipNotProvided);
@@ -694,7 +688,7 @@ impl Flasher {
             skip,
         };
 
-        if before_operation == ResetBeforeOperation::NoResetNoSync {
+        if flasher.connection.before_operation() == ResetBeforeOperation::NoResetNoSync {
             return Ok(flasher);
         }
 
@@ -713,11 +707,9 @@ impl Flasher {
 
         // Now that we have established a connection and detected the chip and flash
         // size, we can set the baud rate of the connection to the configured value.
-        if let Some(baud) = speed {
-            if baud > 115_200 {
-                warn!("Setting baud rate higher than 115,200 can cause issues");
-                flasher.change_baud(baud)?;
-            }
+        if flasher.connection.speed() > 115_200 {
+            warn!("Setting baud rate higher than 115,200 can cause issues");
+            flasher.change_baud(flasher.connection.speed())?;
         }
 
         Ok(flasher)
