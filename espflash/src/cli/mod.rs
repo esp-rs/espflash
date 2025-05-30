@@ -253,6 +253,9 @@ pub struct ImageArgs {
     /// MMU page size.
     #[arg(long, value_name = "MMU_PAGE_SIZE", value_parser = parse_u32)]
     pub mmu_page_size: Option<u32>,
+    /// Flag to check the app descriptor in bootloader
+    #[arg(long, default_value = "true", value_parser = clap::value_parser!(bool))]
+    pub check_app_descriptor: Option<bool>,
 }
 
 #[derive(Debug, Args)]
