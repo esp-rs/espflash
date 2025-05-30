@@ -654,7 +654,12 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         monitor_args.monitor_baud = 74_880;
     }
 
-    monitor(flasher.into_serial(), elf.as_deref(), pid, monitor_args)
+    monitor(
+        flasher.into_connection().into_serial(),
+        elf.as_deref(),
+        pid,
+        monitor_args,
+    )
 }
 
 /// Convert the provided firmware image from ELF to binary
@@ -1127,7 +1132,12 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
         {
             monitor_args.monitor_baud = 74_880;
         }
-        monitor(flasher.into_serial(), None, pid, monitor_args)?;
+        monitor(
+            flasher.into_connection().into_serial(),
+            None,
+            pid,
+            monitor_args,
+        )?;
     }
 
     Ok(())

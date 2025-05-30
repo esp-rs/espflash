@@ -29,7 +29,6 @@ use crate::{
 use crate::{
     connection::{
         Connection,
-        Port,
         command::{Command, CommandType},
         reset::ResetBeforeOperation,
     },
@@ -1133,7 +1132,7 @@ impl Flasher {
         debug!("Change baud to: {}", speed);
 
         let prior_baud = match self.use_stub {
-            true => self.connection.baud()?,
+            true => self.connection.speed(),
             false => 0,
         };
 
@@ -1163,17 +1162,6 @@ impl Flasher {
         Ok(())
     }
 
-    /// Convert the [Flasher] into a [Port] instance.
-    pub fn into_serial(self) -> Port {
-        self.connection.into_serial()
-    }
-
-    /// Get the USB VID of the connected device.
-    pub fn usb_pid(&self) -> u16 {
-        self.connection.usb_pid()
-    }
-
-    /// Erase a region of flash specified by offset and size.
     pub fn erase_region(&mut self, offset: u32, size: u32) -> Result<(), Error> {
         debug!("Erasing region of 0x{:x}B at 0x{:08x}", size, offset);
 
@@ -1356,9 +1344,9 @@ impl Flasher {
         Ok(())
     }
 
-    /// Take the serial port out of the flasher, consuming self
-    pub fn into_serial(self) -> Port {
-        self.connection.into_serial()
+    /// Consume self and return the underlying connection.
+    pub fn into_connection(self) -> Connection {
+        self.connection
     }
 }
 

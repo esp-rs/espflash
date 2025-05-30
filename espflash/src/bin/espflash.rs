@@ -322,7 +322,12 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
         monitor_args.elf = Some(args.image);
 
-        monitor(flasher.into_serial(), Some(&elf_data), pid, monitor_args)
+        monitor(
+            flasher.into_connection().into_serial(),
+            Some(&elf_data),
+            pid,
+            monitor_args,
+        )
     } else {
         Ok(())
     }

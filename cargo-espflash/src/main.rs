@@ -410,7 +410,12 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
         monitor_args.elf = Some(build_ctx.artifact_path);
 
-        monitor(flasher.into_serial(), Some(&elf_data), pid, monitor_args)
+        monitor(
+            flasher.into_connection().into_serial(),
+            Some(&elf_data),
+            pid,
+            monitor_args,
+        )
     } else {
         Ok(())
     }
