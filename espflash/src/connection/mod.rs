@@ -35,6 +35,7 @@ use self::{
 };
 use crate::{
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
+    flasher::stubs::CHIP_DETECT_MAGIC_REG_ADDR,
     targets::Chip,
 };
 
@@ -627,6 +628,26 @@ impl Connection {
     }
     pub fn before_operation(&self) -> ResetBeforeOperation {
         self.before_operation
+    }
+
+    /// Detect which chip is connected to this connection
+    pub fn detect_chip(
+        &mut self,
+        use_stub: bool,
+    ) -> Result<crate::targets::Chip, crate::error::Error> {
+        // Try to read the magic value from the chip
+        let magic = if use_stub {
+            self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
+                connection.command(Command::ReadReg {
+                    address: CHIP_DETECT_MAGIC_REG_ADDR,
+                })
+            })?
+            .try_into()?
+        } else {
+            self.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?
+        };
+        debug!("Read chip magic value: 0x{:08x}", magic);
+        Chip::from_magic(magic)
     }
 }
 

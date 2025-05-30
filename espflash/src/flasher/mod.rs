@@ -660,7 +660,7 @@ impl Flasher {
         let detected_chip = if connection.before_operation() != ResetBeforeOperation::NoResetNoSync
         {
             // Detect which chip we are connected to.
-            let detected_chip = detect_chip(&mut connection, use_stub)?;
+            let detected_chip = connection.detect_chip(use_stub)?;
             if let Some(chip) = chip {
                 if chip != detected_chip {
                     return Err(Error::ChipMismatch(
@@ -782,7 +782,7 @@ impl Flasher {
         }?;
 
         // Re-detect chip to check stub is up
-        let chip = detect_chip(&mut self.connection, self.use_stub)?;
+        let chip = self.connection.detect_chip(self.use_stub)?;
         debug!("Re-detected chip: {:?}", chip);
 
         Ok(())
@@ -1373,24 +1373,6 @@ fn security_info(connection: &mut Connection, use_stub: bool) -> Result<Security
             ))
         }
     })
-}
-
-#[cfg(feature = "serialport")]
-fn detect_chip(connection: &mut Connection, use_stub: bool) -> Result<Chip, Error> {
-    match security_info(connection, use_stub) {
-        Ok(info) if info.chip_id.is_some() => {
-            let chip_id = info.chip_id.unwrap() as u16;
-            let chip = Chip::try_from(chip_id)?;
-
-            Ok(chip)
-        }
-        _ => {
-            let magic = connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?;
-            let chip = Chip::from_magic(magic)?;
-
-            Ok(chip)
-        }
-    }
 }
 
 #[cfg(feature = "serialport")]
