@@ -1,6 +1,6 @@
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-04-15 12:51
+//! Generated: 2025-05-30 12:24
 //! Version:   369d2d860d34e777c0f7d545a7dfc3c4
 
 #![allow(unused)]
@@ -21,9 +21,9 @@ pub(crate) const UART_DOWNLOAD_DIS: EfuseField = EfuseField::new(0, 0, 27, 1);
 /// reserved
 pub(crate) const RESERVED_0_28: EfuseField = EfuseField::new(0, 0, 28, 4);
 /// MAC address
-pub(crate) const MAC0: EfuseField = EfuseField::new(0, 1, 0, 32);
+pub(crate) const MAC0: EfuseField = EfuseField::new(0, 1, 32, 32);
 /// MAC address
-pub(crate) const MAC1: EfuseField = EfuseField::new(0, 2, 32, 16);
+pub(crate) const MAC1: EfuseField = EfuseField::new(0, 2, 64, 16);
 /// CRC8 for MAC address
 pub(crate) const MAC_CRC: EfuseField = EfuseField::new(0, 2, 80, 8);
 /// Reserved; it was created by set_missed_fields_in_regs func

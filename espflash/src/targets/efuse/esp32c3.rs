@@ -1,6 +1,6 @@
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-04-22 11:33
+//! Generated: 2025-05-30 12:24
 //! Version:   4622cf9245401eca0eb1df8122449a6d
 
 #![allow(unused)]
