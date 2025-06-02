@@ -100,6 +100,7 @@ enum Commands {
 }
 
 /// Erase named partitions based on provided partition table
+/// ESP-IDF ONLY
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct ErasePartsArgs {
@@ -261,7 +262,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
         let flash_data = make_flash_data(args.flash_args.image, &flash_config, config, None, None)?;
-
+        // ESP-IDF ONLY
         if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
             erase_partitions(
                 &mut flasher,

@@ -141,9 +141,11 @@ pub struct FlashConfigArgs {
 #[group(skip)]
 pub struct FlashArgs {
     /// Erase partitions by label
+    /// ESP_IDF ONLY
     #[arg(long, value_name = "LABELS", value_delimiter = ',')]
     pub erase_parts: Option<Vec<String>>,
     /// Erase specified data partitions
+    /// ESP_IDF ONLY
     #[arg(long, value_name = "PARTS", value_enum, value_delimiter = ',')]
     pub erase_data_parts: Option<Vec<DataType>>,
     /// Open a serial monitor after flashing
@@ -165,7 +167,8 @@ pub struct FlashArgs {
     pub image: ImageArgs,
 }
 
-/// Operations for partitions tables
+/// Operations for ESP-IDF partition tables
+/// ESP-IDF ONLY
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct PartitionTableArgs {
@@ -241,9 +244,13 @@ pub struct ImageArgs {
     #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Path to a CSV file containing partition table
+    ///
+    /// This only applies when using ESP-IDF image format
     #[arg(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Partition table offset
+    ///
+    /// This only applies when using ESP-IDF image format
     #[arg(long, value_name = "OFFSET", value_parser = parse_u32)]
     pub partition_table_offset: Option<u32>,
     /// Label of target app partition
@@ -340,6 +347,7 @@ pub struct WriteBinArgs {
     pub target: WriteTarget,
     /// Path to a CSV file containing partition table, needed to resolve the
     /// partition label.
+    /// ESP_IDF ONLY
     #[arg(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// File containing the binary data to write
@@ -662,6 +670,7 @@ pub fn save_elf_as_image(
         chip.into_target()
             .flash_image(format, elf_data, flash_data.clone(), None, xtal_freq)?;
 
+    // ESP_IDF ONLY
     let metadata = image.metadata();
     if metadata.contains_key("app_size") && metadata.contains_key("part_size") {
         let app_size = metadata["app_size"].parse::<u32>().unwrap();
@@ -840,6 +849,7 @@ pub fn flash_elf_image(
 }
 
 /// Erase one or more partitions by label or [DataType]
+/// ESP-IDF ONLY
 pub fn erase_partitions(
     flasher: &mut Flasher,
     partition_table: Option<PartitionTable>,

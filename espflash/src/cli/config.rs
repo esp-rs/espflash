@@ -91,9 +91,11 @@ pub struct ProjectConfig {
     #[serde(default)]
     pub bootloader: Option<PathBuf>,
     /// Partition table path
+    /// ESP-IDF ONLY
     #[serde(default)]
     pub partition_table: Option<PathBuf>,
     /// Partition table offset
+    /// ESP-IDF ONLY
     #[serde(default)]
     pub partition_table_offset: Option<u32>,
     /// Flash settings
