@@ -9,7 +9,7 @@ use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     Error as EspflashError,
     cli::{
-        self,
+        self, FormatArgs,
         config::Config,
         monitor::{check_monitor_args, monitor},
         *,
@@ -21,7 +21,7 @@ use espflash::{
     update::check_for_update,
 };
 use log::{LevelFilter, debug, info};
-use miette::{IntoDiagnostic, Result, WrapErr};
+use miette::{IntoDiagnostic, Result, WrapErr, bail};
 
 use crate::{
     cargo_config::CargoConfig,
@@ -200,8 +200,11 @@ struct FlashArgs {
     #[clap(flatten)]
     flash_args: cli::FlashArgs,
     /// Application image format to use
-    #[clap(long)]
+    #[clap(long, default_value = "esp-idf")]
     format: ImageFormatKind,
+    /// ESP-IDF format arguments
+    #[clap(flatten)]
+    esp_idf_format_args: cli::EspIdfFormatArgs,
 }
 
 #[derive(Debug, Args)]
@@ -212,8 +215,11 @@ struct SaveImageArgs {
     #[clap(flatten)]
     save_image_args: cli::SaveImageArgs,
     /// Application image format to use
-    #[clap(long)]
+    #[clap(long, default_value = "esp-idf")]
     format: ImageFormatKind,
+    /// ESP-IDF format arguments
+    #[clap(flatten)]
+    esp_idf_format_args: cli::EspIdfFormatArgs,
 }
 
 fn main() -> Result<()> {
@@ -280,7 +286,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     let chip = flasher.chip();
     let partition_table = match partition_table {
-        Some(path) => Some(parse_partition_table(path)?),
+        Some(path) => Some(parse_partition_table(path.to_str().unwrap())?),
         None => None,
     };
 
@@ -349,26 +355,56 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
+        let format_args = match args.format {
+            ImageFormatKind::EspIdf => {
+                let mut esp_idf_format_args = args.esp_idf_format_args;
+
+                // Use bootloader from build context if not provided
+                if esp_idf_format_args.bootloader.is_none() {
+                    if let Some(bootloader_path) = build_ctx.bootloader_path {
+                        esp_idf_format_args.bootloader =
+                            Some(fs::read(bootloader_path).into_diagnostic()?);
+                    }
+                }
+
+                // Use partition table from build context if not provided
+                if esp_idf_format_args.partition_table.is_none() {
+                    if let Some(partition_table_path) = build_ctx.partition_table_path {
+                        esp_idf_format_args.partition_table = Some(parse_partition_table(
+                            partition_table_path.to_str().unwrap(),
+                        )?);
+                    }
+                }
+
+                if esp_idf_format_args.erase_parts.is_some()
+                    || esp_idf_format_args.erase_data_parts.is_some()
+                {
+                    erase_partitions(
+                        &mut flasher,
+                        esp_idf_format_args.partition_table.clone(),
+                        esp_idf_format_args.erase_parts.clone(),
+                        esp_idf_format_args.erase_data_parts.clone(),
+                    )?;
+                }
+
+                FormatArgs::EspIdf(esp_idf_format_args)
+            }
+            _ => {
+                bail!("Unsupported format: {:?}", args.format);
+            }
+        };
+
+        // TODO: Atm, build_ctx bootloader and part are used over config, thats wrong!
         let flash_data = make_flash_data(
             args.flash_args.image,
             &flash_config,
             config,
-            build_ctx.bootloader_path.as_deref(),
-            build_ctx.partition_table_path.as_deref(),
+            format_args.clone(),
         )?;
-
-        if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
-            erase_partitions(
-                &mut flasher,
-                flash_data.partition_table.clone(),
-                args.flash_args.erase_parts,
-                args.flash_args.erase_data_parts,
-            )?;
-        }
 
         flash_elf_image(
             &mut flasher,
-            args.format,
+            format_args,
             &elf_data,
             flash_data,
             target_xtal_freq,
@@ -598,12 +634,39 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .or(config.project_config.flash.size) // If no CLI argument, try the config file
         .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
+    let format_args = match args.format {
+        ImageFormatKind::EspIdf => {
+            let mut esp_idf_format_args = args.esp_idf_format_args;
+
+            // Use bootloader from build context if not provided
+            if esp_idf_format_args.bootloader.is_none() {
+                if let Some(bootloader_path) = build_ctx.bootloader_path {
+                    esp_idf_format_args.bootloader =
+                        Some(fs::read(bootloader_path).into_diagnostic()?);
+                }
+            }
+
+            // Use partition table from build context if not provided
+            if esp_idf_format_args.partition_table.is_none() {
+                if let Some(partition_table_path) = build_ctx.partition_table_path {
+                    esp_idf_format_args.partition_table = Some(parse_partition_table(
+                        partition_table_path.to_str().unwrap(),
+                    )?);
+                }
+            }
+
+            FormatArgs::EspIdf(esp_idf_format_args)
+        }
+        _ => {
+            bail!("Unsupported format: {:?}", args.format);
+        }
+    };
+
     let flash_data = make_flash_data(
         args.save_image_args.image,
         &flash_config,
         config,
-        build_ctx.bootloader_path.as_deref(),
-        build_ctx.partition_table_path.as_deref(),
+        format_args.clone(),
     )?;
 
     let xtal_freq = args
@@ -612,7 +675,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .unwrap_or(XtalFrequency::default(args.save_image_args.chip));
 
     save_elf_as_image(
-        args.format,
+        format_args,
         &elf_data,
         args.save_image_args.chip,
         args.save_image_args.file,

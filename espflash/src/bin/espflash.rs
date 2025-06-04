@@ -16,7 +16,7 @@ use espflash::{
     update::check_for_update,
 };
 use log::{LevelFilter, debug, info};
-use miette::{IntoDiagnostic, Result, WrapErr};
+use miette::{IntoDiagnostic, Result, WrapErr, bail};
 
 #[derive(Debug, Parser)]
 #[command(about, max_term_width = 100, propagate_version = true, version)]
@@ -130,8 +130,11 @@ struct FlashArgs {
     /// ELF image to flash
     image: PathBuf,
     /// Application image format to use
-    #[clap(long)]
+    #[clap(long, default_value = "esp-idf")]
     format: ImageFormatKind,
+    // TODO: We need to be able to pass the esp_idf format args
+    #[clap(flatten)]
+    esp_idf_format_args: cli::EspIdfFormatArgs,
 }
 
 #[derive(Debug, Args)]
@@ -148,13 +151,16 @@ struct SaveImageArgs {
     /// Application image format to use
     #[clap(long)]
     format: ImageFormatKind,
+    // ESP-IDF arguments
+    #[clap(flatten)]
+    esp_idf_format_args: cli::EspIdfFormatArgs,
 }
 
 fn main() -> Result<()> {
     miette::set_panic_hook();
     initialize_logger(LevelFilter::Info);
 
-    // Attempt to parse any provided comand-line arguments, or print the help
+    // Attempt to parse any provided command-line arguments, or print the help
     // message and terminate if the invocation is not correct.
     let cli = Cli::parse();
     let args = cli.subcommand;
@@ -199,7 +205,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     let chip = flasher.chip();
     let partition_table = match args.partition_table {
-        Some(path) => Some(parse_partition_table(&path)?),
+        Some(path) => Some(parse_partition_table(path.to_str().unwrap())?),
         None => None,
     };
 
@@ -261,20 +267,34 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
-        let flash_data = make_flash_data(args.flash_args.image, &flash_config, config, None, None)?;
-        // ESP-IDF ONLY
-        if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
-            erase_partitions(
-                &mut flasher,
-                flash_data.partition_table.clone(),
-                args.flash_args.erase_parts,
-                args.flash_args.erase_data_parts,
-            )?;
-        }
+        let format_args = match args.format {
+            ImageFormatKind::EspIdf => {
+                if args.esp_idf_format_args.erase_parts.is_some()
+                    || args.esp_idf_format_args.erase_data_parts.is_some()
+                {
+                    erase_partitions(
+                        &mut flasher,
+                        args.esp_idf_format_args.partition_table.clone(),
+                        args.esp_idf_format_args.erase_parts.clone(),
+                        args.esp_idf_format_args.erase_data_parts.clone(),
+                    )?;
+                }
+                FormatArgs::EspIdf(args.esp_idf_format_args)
+            }
+            _ => {
+                bail!("Incorrect format and args");
+            }
+        };
+        let flash_data = make_flash_data(
+            args.flash_args.image,
+            &flash_config,
+            config,
+            format_args.clone(),
+        )?;
 
         flash_elf_image(
             &mut flasher,
-            args.format,
+            format_args,
             &elf_data,
             flash_data,
             target_xtal_freq,
@@ -318,12 +338,17 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .or(config.project_config.flash.size) // If no CLI argument, try the config file
         .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
+    let format_args = match args.format {
+        ImageFormatKind::EspIdf => FormatArgs::EspIdf(args.esp_idf_format_args),
+        _ => {
+            bail!("Incorrect format and args");
+        }
+    };
     let flash_data = make_flash_data(
         args.save_image_args.image,
         &flash_config,
         config,
-        None,
-        None,
+        format_args.clone(),
     )?;
 
     let xtal_freq = args
@@ -332,7 +357,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .unwrap_or(XtalFrequency::default(args.save_image_args.chip));
 
     save_elf_as_image(
-        args.format,
+        format_args,
         &elf_data,
         args.save_image_args.chip,
         args.save_image_args.file,

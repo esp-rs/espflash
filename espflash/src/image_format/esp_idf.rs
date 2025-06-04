@@ -19,6 +19,7 @@ use sha2::{Digest, Sha256};
 use super::{Segment, ram_segments, rom_segments};
 use crate::{
     Error,
+    cli::EspIdfFormatArgs,
     error::AppDescriptorError,
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize},
     targets::{Chip, XtalFrequency},
@@ -232,8 +233,8 @@ impl AppDescriptor {
 #[derive(Debug)]
 pub struct IdfBootloaderFormat<'a> {
     boot_addr: u32,
-    bootloader: Cow<'a, [u8]>,
-    partition_table: PartitionTable,
+    pub bootloader: Cow<'a, [u8]>,
+    pub partition_table: PartitionTable,
     flash_segment: Segment<'a>,
     app_size: u32,
     partition_table_size: u32,
@@ -246,6 +247,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         elf_data: &'a [u8],
         chip: Chip,
         flash_data: FlashData,
+        esp_idf_args: EspIdfFormatArgs,
         xtal_freq: XtalFrequency,
         app_addr: u32,
         app_size: u32,
@@ -253,7 +255,7 @@ impl<'a> IdfBootloaderFormat<'a> {
     ) -> Result<Self, Error> {
         let elf = ElfFile::parse(elf_data)?;
 
-        let partition_table = flash_data.partition_table.unwrap_or_else(|| {
+        let partition_table = esp_idf_args.partition_table.unwrap_or_else(|| {
             default_partition_table(
                 app_addr,
                 app_size,
@@ -273,7 +275,7 @@ impl<'a> IdfBootloaderFormat<'a> {
             ));
         }
 
-        let mut bootloader = if let Some(bytes) = flash_data.bootloader {
+        let mut bootloader = if let Some(bytes) = esp_idf_args.bootloader {
             Cow::Owned(bytes)
         } else {
             let default_bootloader = bootloader(chip, xtal_freq)?;
@@ -505,12 +507,13 @@ impl<'a> IdfBootloaderFormat<'a> {
         let hash = hasher.finalize();
         data.write_all(&hash)?;
 
-        let target_app_partition: &Partition =
+        let target_app_partition: Partition =
         // Use the target app partition if provided
-        if let Some(target_partition) = flash_data.target_app_partition {
+        if let Some(target_partition) = esp_idf_args.target_app_partition {
             partition_table
                 .find(&target_partition)
                 .ok_or(Error::AppPartitionNotFound)?
+                .clone()
         } else {
             // The default partition table contains the "factory" partition, and if a user
             // provides a partition table via command-line then the validation step confirms
@@ -520,6 +523,7 @@ impl<'a> IdfBootloaderFormat<'a> {
                 .find("factory")
                 .or_else(|| partition_table.find_by_type(Type::App))
                 .ok_or(Error::AppPartitionNotFound)?
+                .clone()
         };
 
         let app_size = data.len() as u32;
@@ -539,7 +543,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // If the user did not specify a partition offset, we need to assume that the
         // partition offset is (first partition offset) - 0x1000, since this is
         // the most common case.
-        let partition_table_offset = flash_data.partition_table_offset.unwrap_or_else(|| {
+        let partition_table_offset = esp_idf_args.partition_table_offset.unwrap_or_else(|| {
             let partitions = partition_table.partitions();
             let first_partition = partitions
                 .iter()
@@ -608,7 +612,7 @@ impl<'a> IdfBootloaderFormat<'a> {
 /// Generates a default partition table.
 ///
 /// `flash_size` is used to scale app partition when present, otherwise the
-/// paramameter defaults are used.
+/// parameter defaults are used.
 fn default_partition_table(
     app_addr: u32,
     app_size: u32,

@@ -6,9 +6,8 @@
 
 #[cfg(feature = "serialport")]
 use std::{borrow::Cow, io::Write, path::PathBuf, thread::sleep, time::Duration};
-use std::{collections::HashMap, fmt, fs, path::Path, str::FromStr};
+use std::{collections::HashMap, fmt, fs, str::FromStr};
 
-use esp_idf_part::PartitionTable;
 #[cfg(feature = "serialport")]
 use log::{debug, info, warn};
 #[cfg(feature = "serialport")]
@@ -26,7 +25,7 @@ pub(crate) use self::stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
 pub use crate::targets::flash_target::ProgressCallbacks;
 use crate::{
     Error,
-    image_format::ImageFormatKind,
+    cli::FormatArgs,
     targets::{Chip, XtalFrequency},
 };
 #[cfg(feature = "serialport")]
@@ -477,64 +476,27 @@ impl FlashSettings {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct FlashData {
-    // Should also probably be removed
-    pub bootloader: Option<Vec<u8>>,
-    // // ESP-IDF ONLY
-    pub partition_table: Option<PartitionTable>,
-    // // ESP-IDF ONLY
-    pub partition_table_offset: Option<u32>,
-    // // ESP-IDF ONLY
-    pub target_app_partition: Option<String>,
-    /// Flash settings.
     pub flash_settings: FlashSettings,
     /// Minimum chip revision.
     pub min_chip_rev: u16,
     /// MMU page size.
     pub mmu_page_size: Option<u32>,
+    pub format_args: FormatArgs,
 }
 
 impl FlashData {
     /// Creates a new [`FlashData`] object.
     pub fn new(
-        bootloader: Option<&Path>,
-        partition_table: Option<&Path>,
-        partition_table_offset: Option<u32>,
-        target_app_partition: Option<String>,
         flash_settings: FlashSettings,
         min_chip_rev: u16,
         mmu_page_size: Option<u32>,
+        format_args: FormatArgs,
     ) -> Result<Self, Error> {
-        // If the '--bootloader' option is provided, load the binary file at the
-        // specified path.
-        let bootloader = if let Some(path) = bootloader {
-            let data = fs::canonicalize(path)
-                .and_then(fs::read)
-                .map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
-
-            Some(data)
-        } else {
-            None
-        };
-
-        // If the '-T' option is provided, load the partition table from
-        // the CSV or binary file at the specified path.
-        let partition_table = if let Some(path) = partition_table {
-            let data =
-                fs::read(path).map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
-
-            Some(PartitionTable::try_from(data)?)
-        } else {
-            None
-        };
-
         Ok(FlashData {
-            bootloader,
-            partition_table,
-            partition_table_offset,
-            target_app_partition,
             flash_settings,
             min_chip_rev,
             mmu_page_size,
+            format_args,
         })
     }
 }
@@ -1075,7 +1037,7 @@ impl Flasher {
     /// Load an ELF image to flash and execute it
     pub fn load_elf_to_flash(
         &mut self,
-        format: ImageFormatKind,
+        format_args: FormatArgs,
         elf_data: &[u8],
         flash_data: FlashData,
         mut progress: Option<&mut dyn ProgressCallbacks>,
@@ -1093,7 +1055,7 @@ impl Flasher {
         );
 
         let image = self.chip.into_target().flash_image(
-            format,
+            format_args,
             elf_data,
             flash_data,
             chip_revision,
