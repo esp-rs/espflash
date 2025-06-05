@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for the ESP32-C5 (#863)
 - `--after` options now work with `espflash board-info`, `espflash read-flash` and `espflash checksum-md5` (#867)
 - Add support for serial port configuration files. (#777)
+- Add support for secure padding for save-image (#876)
 
 ### Changed
 
