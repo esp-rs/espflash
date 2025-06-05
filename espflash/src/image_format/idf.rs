@@ -514,6 +514,18 @@ impl<'a> IdfBootloaderFormat<'a> {
             segment_count += 1;
         }
 
+        if flash_data.secure_pad_v2 {
+            let current_size = data.len();
+            let padding_size = (65536 - ((current_size + 56) % 65536)) % 65536;
+            let padding_bytes = vec![0; padding_size];
+            let segment = Segment {
+                addr: 0,
+                data: Cow::Owned(padding_bytes),
+            };
+            checksum = save_segment(&mut data, &segment, checksum)?;
+            segment_count += 1;
+        }
+
         let padding = 15 - (data.len() % 16);
         let padding = &[0u8; 16][0..padding];
         data.write_all(padding)?;
