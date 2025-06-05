@@ -481,6 +481,7 @@ pub struct FlashData {
 }
 
 impl FlashData {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         bootloader: Option<&Path>,
         partition_table: Option<&Path>,
