@@ -477,9 +477,11 @@ pub struct FlashData {
     pub flash_settings: FlashSettings,
     pub min_chip_rev: u16,
     pub mmu_page_size: Option<u32>,
+    pub secure_pad_v2: bool,
 }
 
 impl FlashData {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         bootloader: Option<&Path>,
         partition_table: Option<&Path>,
@@ -488,6 +490,7 @@ impl FlashData {
         flash_settings: FlashSettings,
         min_chip_rev: u16,
         mmu_page_size: Option<u32>,
+        secure_pad_v2: bool,
     ) -> Result<Self, Error> {
         // If the '--bootloader' option is provided, load the binary file at the
         // specified path.
@@ -520,6 +523,7 @@ impl FlashData {
             flash_settings,
             min_chip_rev,
             mmu_page_size,
+            secure_pad_v2,
         })
     }
 }

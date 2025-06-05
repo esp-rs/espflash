@@ -253,6 +253,9 @@ pub struct ImageArgs {
     /// MMU page size.
     #[arg(long, value_name = "MMU_PAGE_SIZE", value_parser = parse_u32)]
     pub mmu_page_size: Option<u32>,
+    /// Whether to apply padding for secure boot v2
+    #[arg(long)]
+    pub secure_pad_v2: bool,
 }
 
 #[derive(Debug, Args)]
@@ -1060,6 +1063,7 @@ pub fn make_flash_data(
         flash_settings,
         image_args.min_chip_rev,
         image_args.mmu_page_size,
+        image_args.secure_pad_v2,
     )
 }
 
