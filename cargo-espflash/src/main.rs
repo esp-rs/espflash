@@ -9,7 +9,7 @@ use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     Error as EspflashError,
     cli::{
-        self, FormatArgs,
+        self,
         config::Config,
         monitor::{check_monitor_args, monitor},
         *,
@@ -21,7 +21,7 @@ use espflash::{
     update::check_for_update,
 };
 use log::{LevelFilter, debug, info};
-use miette::{IntoDiagnostic, Result, WrapErr, bail};
+use miette::{IntoDiagnostic, Result, WrapErr};
 
 use crate::{
     cargo_config::CargoConfig,
@@ -355,44 +355,13 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
-        let format_args = match args.format {
-            ImageFormatKind::EspIdf => {
-                let mut esp_idf_format_args = args.esp_idf_format_args;
-
-                // Use bootloader from build context if not provided
-                if esp_idf_format_args.bootloader.is_none() {
-                    if let Some(bootloader_path) = build_ctx.bootloader_path {
-                        esp_idf_format_args.bootloader =
-                            Some(fs::read(bootloader_path).into_diagnostic()?);
-                    }
-                }
-
-                // Use partition table from build context if not provided
-                if esp_idf_format_args.partition_table.is_none() {
-                    if let Some(partition_table_path) = build_ctx.partition_table_path {
-                        esp_idf_format_args.partition_table = Some(parse_partition_table(
-                            partition_table_path.to_str().unwrap(),
-                        )?);
-                    }
-                }
-
-                if esp_idf_format_args.erase_parts.is_some()
-                    || esp_idf_format_args.erase_data_parts.is_some()
-                {
-                    erase_partitions(
-                        &mut flasher,
-                        esp_idf_format_args.partition_table.clone(),
-                        esp_idf_format_args.erase_parts.clone(),
-                        esp_idf_format_args.erase_data_parts.clone(),
-                    )?;
-                }
-
-                FormatArgs::EspIdf(esp_idf_format_args)
-            }
-            _ => {
-                bail!("Unsupported format: {:?}", args.format);
-            }
-        };
+        let format_args = cli::create_format_args(
+            args.format,
+            args.esp_idf_format_args,
+            Some(&mut flasher),
+            build_ctx.bootloader_path.as_deref(),
+            build_ctx.partition_table_path.as_deref(),
+        )?;
 
         // TODO: Atm, build_ctx bootloader and part are used over config, thats wrong!
         let flash_data = make_flash_data(
@@ -620,7 +589,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     let cargo_config = CargoConfig::load(&metadata.workspace_root, &metadata.package_root);
 
     let build_ctx = build(&args.build_args, &cargo_config, args.save_image_args.chip)?;
-    let elf_data = fs::read(build_ctx.artifact_path).into_diagnostic()?;
+    let elf_data = fs::read(&build_ctx.artifact_path).into_diagnostic()?;
 
     // Since we have no `Flasher` instance and as such cannot print the board
     // information, we will print whatever information we _do_ have.
@@ -634,33 +603,13 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .or(config.project_config.flash.size) // If no CLI argument, try the config file
         .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
-    let format_args = match args.format {
-        ImageFormatKind::EspIdf => {
-            let mut esp_idf_format_args = args.esp_idf_format_args;
-
-            // Use bootloader from build context if not provided
-            if esp_idf_format_args.bootloader.is_none() {
-                if let Some(bootloader_path) = build_ctx.bootloader_path {
-                    esp_idf_format_args.bootloader =
-                        Some(fs::read(bootloader_path).into_diagnostic()?);
-                }
-            }
-
-            // Use partition table from build context if not provided
-            if esp_idf_format_args.partition_table.is_none() {
-                if let Some(partition_table_path) = build_ctx.partition_table_path {
-                    esp_idf_format_args.partition_table = Some(parse_partition_table(
-                        partition_table_path.to_str().unwrap(),
-                    )?);
-                }
-            }
-
-            FormatArgs::EspIdf(esp_idf_format_args)
-        }
-        _ => {
-            bail!("Unsupported format: {:?}", args.format);
-        }
-    };
+    let format_args = cli::create_format_args(
+        args.format,
+        args.esp_idf_format_args,
+        None,
+        build_ctx.bootloader_path.as_deref(),
+        build_ctx.partition_table_path.as_deref(),
+    )?;
 
     let flash_data = make_flash_data(
         args.save_image_args.image,

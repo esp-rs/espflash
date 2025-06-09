@@ -16,7 +16,7 @@ use espflash::{
     update::check_for_update,
 };
 use log::{LevelFilter, debug, info};
-use miette::{IntoDiagnostic, Result, WrapErr, bail};
+use miette::{IntoDiagnostic, Result, WrapErr};
 
 #[derive(Debug, Parser)]
 #[command(about, max_term_width = 100, propagate_version = true, version)]
@@ -267,24 +267,14 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
-        let format_args = match args.format {
-            ImageFormatKind::EspIdf => {
-                if args.esp_idf_format_args.erase_parts.is_some()
-                    || args.esp_idf_format_args.erase_data_parts.is_some()
-                {
-                    erase_partitions(
-                        &mut flasher,
-                        args.esp_idf_format_args.partition_table.clone(),
-                        args.esp_idf_format_args.erase_parts.clone(),
-                        args.esp_idf_format_args.erase_data_parts.clone(),
-                    )?;
-                }
-                FormatArgs::EspIdf(args.esp_idf_format_args)
-            }
-            _ => {
-                bail!("Incorrect format and args");
-            }
-        };
+        let format_args = cli::create_format_args(
+            args.format,
+            args.esp_idf_format_args,
+            Some(&mut flasher),
+            None,
+            None,
+        )?;
+
         let flash_data = make_flash_data(
             args.flash_args.image,
             &flash_config,
@@ -338,12 +328,9 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .or(config.project_config.flash.size) // If no CLI argument, try the config file
         .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
-    let format_args = match args.format {
-        ImageFormatKind::EspIdf => FormatArgs::EspIdf(args.esp_idf_format_args),
-        _ => {
-            bail!("Incorrect format and args");
-        }
-    };
+    let format_args =
+        cli::create_format_args(args.format, args.esp_idf_format_args, None, None, None)?;
+
     let flash_data = make_flash_data(
         args.save_image_args.image,
         &flash_config,
