@@ -1,6 +1,15 @@
 //! ESP-IDF application binary image format
 
-use std::{borrow::Cow, collections::HashMap, ffi::c_char, io::Write, iter::once, mem::size_of};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    ffi::c_char,
+    fs,
+    io::Write,
+    iter::once,
+    mem::size_of,
+    path::Path,
+};
 
 use bytemuck::{Pod, Zeroable, bytes_of, from_bytes, pod_read_unaligned};
 use esp_idf_part::{AppType, DataType, Flags, Partition, PartitionTable, SubType, Type};
@@ -19,9 +28,9 @@ use sha2::{Digest, Sha256};
 use super::{Segment, ram_segments, rom_segments};
 use crate::{
     Error,
-    cli::EspIdfFormatArgs,
     error::AppDescriptorError,
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize},
+    image_format::ImageFormatArgs,
     targets::{Chip, XtalFrequency},
 };
 
@@ -247,7 +256,6 @@ impl<'a> IdfBootloaderFormat<'a> {
         elf_data: &'a [u8],
         chip: Chip,
         flash_data: FlashData,
-        esp_idf_args: EspIdfFormatArgs,
         xtal_freq: XtalFrequency,
         app_addr: u32,
         app_size: u32,
@@ -255,13 +263,17 @@ impl<'a> IdfBootloaderFormat<'a> {
     ) -> Result<Self, Error> {
         let elf = ElfFile::parse(elf_data)?;
 
-        let partition_table = esp_idf_args.partition_table.unwrap_or_else(|| {
+        let ImageFormatArgs::EspIdf(esp_idf_args) = flash_data.format_args;
+
+        let partition_table = if let Some(partition_table_path) = esp_idf_args.partition_table {
+            parse_partition_table(partition_table_path.to_str().unwrap())?
+        } else {
             default_partition_table(
                 app_addr,
                 app_size,
                 flash_data.flash_settings.size.map(|v| v.size()),
             )
-        });
+        };
 
         if partition_table
             .partitions()
@@ -275,8 +287,9 @@ impl<'a> IdfBootloaderFormat<'a> {
             ));
         }
 
-        let mut bootloader = if let Some(bytes) = esp_idf_args.bootloader {
-            Cow::Owned(bytes)
+        let mut bootloader = if let Some(bootloader_path) = esp_idf_args.bootloader {
+            let bootloader = fs::read(bootloader_path)?;
+            Cow::Owned(bootloader)
         } else {
             let default_bootloader = bootloader(chip, xtal_freq)?;
             Cow::Borrowed(default_bootloader)
@@ -509,9 +522,9 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         let target_app_partition: Partition =
         // Use the target app partition if provided
-        if let Some(target_partition) = esp_idf_args.target_app_partition {
+        if let Some(ref target_partition) = esp_idf_args.target_app_partition {
             partition_table
-                .find(&target_partition)
+                .find(target_partition.as_str())
                 .ok_or(Error::AppPartitionNotFound)?
                 .clone()
         } else {
@@ -755,6 +768,14 @@ fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
     }
 
     checksum
+}
+
+/// Parse a [PartitionTable] from the provided path
+pub fn parse_partition_table(path: &str) -> Result<PartitionTable, Error> {
+    let path = Path::new(path);
+    let data = fs::read(path).map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
+
+    Ok(PartitionTable::try_from(data)?)
 }
 
 fn encode_hex<T>(data: T) -> String

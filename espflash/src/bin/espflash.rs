@@ -10,7 +10,7 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
-    image_format::{ImageFormatKind, check_idf_bootloader},
+    image_format::{ImageFormatKind, check_idf_bootloader, esp_idf::parse_partition_table},
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
@@ -267,28 +267,17 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
-        let format_args = cli::create_format_args(
-            args.format,
-            args.esp_idf_format_args,
-            Some(&mut flasher),
-            None,
-            None,
-        )?;
-
         let flash_data = make_flash_data(
             args.flash_args.image,
             &flash_config,
             config,
-            format_args.clone(),
+            args.format,
+            Some(args.esp_idf_format_args),
+            None,
+            None,
         )?;
 
-        flash_elf_image(
-            &mut flasher,
-            format_args,
-            &elf_data,
-            flash_data,
-            target_xtal_freq,
-        )?;
+        flash_elf_image(&mut flasher, &elf_data, flash_data, target_xtal_freq)?;
     }
 
     if args.flash_args.monitor {
@@ -328,14 +317,14 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .or(config.project_config.flash.size) // If no CLI argument, try the config file
         .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
-    let format_args =
-        cli::create_format_args(args.format, args.esp_idf_format_args, None, None, None)?;
-
     let flash_data = make_flash_data(
         args.save_image_args.image,
         &flash_config,
         config,
-        format_args.clone(),
+        args.format,
+        Some(args.esp_idf_format_args),
+        None,
+        None,
     )?;
 
     let xtal_freq = args
@@ -344,7 +333,6 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .unwrap_or(XtalFrequency::default(args.save_image_args.chip));
 
     save_elf_as_image(
-        format_args,
         &elf_data,
         args.save_image_args.chip,
         args.save_image_args.file,

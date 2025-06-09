@@ -24,7 +24,6 @@ use self::{
 };
 use crate::{
     Error,
-    cli::FormatArgs,
     flasher::{FlashData, FlashFrequency},
     image_format::ImageFormat,
 };
@@ -410,7 +409,6 @@ pub trait Target: ReadEFuse {
     /// Build an image from the provided data for flashing
     fn flash_image<'a>(
         &self,
-        format_args: FormatArgs,
         elf_data: &'a [u8],
         flash_data: FlashData,
         chip_revision: Option<(u32, u32)>,

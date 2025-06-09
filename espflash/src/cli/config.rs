@@ -19,7 +19,7 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};
 use serialport::UsbPortInfo;
 
-use crate::{Error, flasher::FlashSettings};
+use crate::{Error, cli, flasher::FlashSettings, image_format::ImageFormatKind};
 
 /// A configured, known serial connection
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
@@ -87,17 +87,12 @@ pub struct ProjectConfig {
     /// Baudrate
     #[serde(default)]
     pub baudrate: Option<u32>,
-    /// Bootloader path
+    // Image format
     #[serde(default)]
-    pub bootloader: Option<PathBuf>,
-    /// Partition table path
-    /// ESP-IDF ONLY
+    pub format: ImageFormatKind,
+    // ESP-IDF format arguments
     #[serde(default)]
-    pub partition_table: Option<PathBuf>,
-    /// Partition table offset
-    /// ESP-IDF ONLY
-    #[serde(default)]
-    pub partition_table_offset: Option<u32>,
+    pub esp_idf_format_args: cli::EspIdfFormatArgs,
     /// Flash settings
     #[serde(default)]
     pub flash: FlashSettings,
@@ -129,14 +124,14 @@ impl Config {
             ProjectConfig::default()
         };
 
-        if let Some(table) = &project_config.partition_table {
+        if let Some(table) = &project_config.esp_idf_format_args.partition_table {
             match table.extension() {
                 Some(ext) if ext == "bin" || ext == "csv" => {}
                 _ => return Err(Error::InvalidPartitionTablePath.into()),
             }
         }
 
-        if let Some(bootloader) = &project_config.bootloader {
+        if let Some(bootloader) = &project_config.esp_idf_format_args.bootloader {
             if bootloader.extension() != Some(OsStr::new("bin")) {
                 return Err(Error::InvalidBootloaderPath.into());
             }

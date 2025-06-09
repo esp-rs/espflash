@@ -1,5 +1,7 @@
 //! Binary application image formats
 
+#[cfg(not(feature = "cli"))]
+use std::path::PathBuf;
 use std::{
     borrow::Cow,
     cmp::Ordering,
@@ -16,17 +18,20 @@ use object::{
     elf::SHT_PROGBITS,
     read::elf::{ElfFile32 as ElfFile, SectionHeader},
 };
+use serde::{Deserialize, Serialize};
 
 pub use self::{esp_idf::IdfBootloaderFormat, metadata::Metadata};
+#[cfg(feature = "cli")]
+use crate::cli::EspIdfFormatArgs;
 use crate::targets::Chip;
 
-pub(crate) mod esp_idf;
+pub mod esp_idf;
 mod metadata;
 pub use esp_idf::check_idf_bootloader;
 
 /// Supported binary application image formats
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum ImageFormatKind {
     /// ESP-IDF application image format
@@ -34,6 +39,26 @@ pub enum ImageFormatKind {
     /// See: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html>
     #[default]
     EspIdf,
+}
+
+#[cfg(not(feature = "cli"))]
+#[derive(Debug, Clone, Default)]
+pub struct EspIdfFormatArgs {
+    /// Path to a binary ESP-IDF bootloader file
+    pub bootloader: Option<PathBuf>,
+    /// Path to a CSV file containing partition table
+    pub partition_table: Option<PathBuf>,
+    /// Partition table offset
+    pub partition_table_offset: Option<u32>,
+    /// Label of target app partition
+    pub target_app_partition: Option<String>,
+    /// Erase partitions by label
+    pub erase_parts: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ImageFormatArgs {
+    EspIdf(EspIdfFormatArgs),
 }
 
 /// Binary application image format data
