@@ -107,15 +107,7 @@ impl Target for Esp32c2 {
     ) -> Result<ImageFormat<'a>, Error> {
         match &flash_data.format_args {
             ImageFormatArgs::EspIdf(_) => {
-                let idf = IdfBootloaderFormat::new(
-                    elf_data,
-                    Chip::Esp32c2,
-                    flash_data,
-                    xtal_freq,
-                    0x1_0000,
-                    0x1f_0000,
-                    FlashFrequency::_30Mhz,
-                )?;
+                let idf = IdfBootloaderFormat::new(elf_data, Chip::Esp32c2, flash_data, xtal_freq)?;
                 Ok(idf.into())
             }
         }

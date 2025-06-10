@@ -5,7 +5,7 @@ use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32c6
 use crate::connection::Connection;
 use crate::{
     Error,
-    flasher::{FlashData, FlashFrequency},
+    flasher::FlashData,
     image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatArgs},
 };
 
@@ -81,15 +81,7 @@ impl Target for Esp32c6 {
     ) -> Result<ImageFormat<'a>, Error> {
         match &flash_data.format_args {
             ImageFormatArgs::EspIdf(_) => {
-                let idf = IdfBootloaderFormat::new(
-                    elf_data,
-                    Chip::Esp32c6,
-                    flash_data,
-                    xtal_freq,
-                    0x1_0000,
-                    0x3f_0000,
-                    FlashFrequency::_40Mhz,
-                )?;
+                let idf = IdfBootloaderFormat::new(elf_data, Chip::Esp32c6, flash_data, xtal_freq)?;
                 Ok(idf.into())
             }
         }

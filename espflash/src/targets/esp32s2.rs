@@ -5,7 +5,7 @@ use super::flash_target::MAX_RAM_BLOCK_SIZE;
 use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32s2 as efuse};
 use crate::{
     Error,
-    flasher::{FlashData, FlashFrequency},
+    flasher::FlashData,
     image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatArgs},
 };
 #[cfg(feature = "serialport")]
@@ -144,15 +144,7 @@ impl Target for Esp32s2 {
     ) -> Result<ImageFormat<'a>, Error> {
         match &flash_data.format_args {
             ImageFormatArgs::EspIdf(_) => {
-                let idf = IdfBootloaderFormat::new(
-                    elf_data,
-                    Chip::Esp32s2,
-                    flash_data,
-                    xtal_freq,
-                    0x1_0000,
-                    0x10_0000,
-                    FlashFrequency::_40Mhz,
-                )?;
+                let idf = IdfBootloaderFormat::new(elf_data, Chip::Esp32s2, flash_data, xtal_freq)?;
                 Ok(idf.into())
             }
         }

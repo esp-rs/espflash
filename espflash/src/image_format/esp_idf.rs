@@ -257,9 +257,6 @@ impl<'a> IdfBootloaderFormat<'a> {
         chip: Chip,
         flash_data: FlashData,
         xtal_freq: XtalFrequency,
-        app_addr: u32,
-        app_size: u32,
-        flash_freq: FlashFrequency,
     ) -> Result<Self, Error> {
         let elf = ElfFile::parse(elf_data)?;
 
@@ -268,11 +265,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         let partition_table = if let Some(partition_table_path) = esp_idf_args.partition_table {
             parse_partition_table(partition_table_path.to_str().unwrap())?
         } else {
-            default_partition_table(
-                app_addr,
-                app_size,
-                flash_data.flash_settings.size.map(|v| v.size()),
-            )
+            default_partition_table(chip, flash_data.flash_settings.size.map(|v| v.size()))
         };
 
         if partition_table
@@ -319,7 +312,10 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         header.write_flash_config(
             flash_data.flash_settings.size.unwrap_or_default(),
-            flash_data.flash_settings.freq.unwrap_or(flash_freq),
+            flash_data
+                .flash_settings
+                .freq
+                .unwrap_or(chip.default_flash_frequency()),
             chip,
         )?;
 
@@ -626,15 +622,24 @@ impl<'a> IdfBootloaderFormat<'a> {
 ///
 /// `flash_size` is used to scale app partition when present, otherwise the
 /// parameter defaults are used.
-fn default_partition_table(
-    app_addr: u32,
-    app_size: u32,
-    flash_size: Option<u32>,
-) -> PartitionTable {
+fn default_partition_table(chip: Chip, flash_size: Option<u32>) -> PartitionTable {
     const NVS_ADDR: u32 = 0x9000;
     const NVS_SIZE: u32 = 0x6000;
     const PHY_INIT_DATA_ADDR: u32 = 0xf000;
     const PHY_INIT_DATA_SIZE: u32 = 0x1000;
+
+    let (app_addr, app_size) = match chip {
+        Chip::Esp32 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32c2 => (0x1_0000, 0x1f_0000),
+        Chip::Esp32c3 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32c5 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32c6 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32h2 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32p4 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32s2 => (0x1_0000, 0x10_0000),
+        Chip::Esp32s3 => (0x1_0000, 0x10_0000),
+    };
+
     PartitionTable::new(vec![
         Partition::new(
             String::from("nvs"),

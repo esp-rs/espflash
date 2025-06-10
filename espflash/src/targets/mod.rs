@@ -217,6 +217,20 @@ impl Chip {
         }
     }
 
+    pub fn default_flash_frequency(&self) -> FlashFrequency {
+        match self {
+            Chip::Esp32
+            | Chip::Esp32c3
+            | Chip::Esp32c5
+            | Chip::Esp32c6
+            | Chip::Esp32p4
+            | Chip::Esp32s2
+            | Chip::Esp32s3 => FlashFrequency::_40Mhz,
+            Chip::Esp32c2 => FlashFrequency::_30Mhz,
+            Chip::Esp32h2 => FlashFrequency::_24Mhz,
+        }
+    }
+
     #[cfg(feature = "serialport")]
     pub fn flash_target(
         &self,
