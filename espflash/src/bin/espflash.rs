@@ -3,6 +3,7 @@ use std::{fs, path::PathBuf};
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     Error,
+    bt::check_bootloader,
     cli::{
         self,
         config::Config,
@@ -16,7 +17,6 @@ use espflash::{
 };
 use log::{LevelFilter, debug, info};
 use miette::{IntoDiagnostic, Result, WrapErr};
-use object::{File, Object, ObjectSymbol};
 
 #[derive(Debug, Parser)]
 #[command(about, max_term_width = 100, propagate_version = true, version)]
@@ -236,14 +236,9 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(&args.image).into_diagnostic()?;
 
+    // Check if the ELF contains the app descriptor, if required.
     if args.flash_args.image.check_app_descriptor.unwrap_or(true) {
-        let object = File::parse(elf_data.as_slice()).into_diagnostic()?;
-        let section = object.section_by_name(".rodata_desc").is_some();
-        let symbol = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"));
-
-        if !section || !symbol {
-            return Err(Error::AppDescriptorNotPresent).into_diagnostic();
-        }
+        check_bootloader(&elf_data)?;
     }
 
     print_board_info(&mut flasher)?;

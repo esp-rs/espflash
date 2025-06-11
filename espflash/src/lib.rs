@@ -76,3 +76,23 @@ pub mod update {
         }
     }
 }
+
+pub mod bt {
+    use miette::{IntoDiagnostic, Result};
+    use object::{File, Object, ObjectSymbol};
+
+    use crate::Error;
+
+    // Check if the provided ELF contains the app descriptor.
+    pub fn check_bootloader(elf_data: &Vec<u8>) -> Result<()> {
+        let object = File::parse(elf_data.as_slice()).into_diagnostic()?;
+        let section = object.section_by_name(".rodata_desc").is_some();
+        let symbol = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"));
+
+        if !section || !symbol {
+            return Err(Error::AppDescriptorNotPresent).into_diagnostic();
+        }
+
+        Ok(())
+    }
+}
