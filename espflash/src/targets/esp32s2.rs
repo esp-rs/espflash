@@ -3,11 +3,7 @@ use std::ops::Range;
 #[cfg(feature = "serialport")]
 use super::flash_target::MAX_RAM_BLOCK_SIZE;
 use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32s2 as efuse};
-use crate::{
-    Error,
-    flasher::FlashData,
-    image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatArgs},
-};
+use crate::Error;
 #[cfg(feature = "serialport")]
 use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE};
 
@@ -133,21 +129,6 @@ impl Target for Esp32s2 {
         } else {
             FLASH_WRITE_SIZE
         })
-    }
-
-    fn flash_image<'a>(
-        &self,
-        elf_data: &'a [u8],
-        flash_data: FlashData,
-        _chip_revision: Option<(u32, u32)>,
-        xtal_freq: XtalFrequency,
-    ) -> Result<ImageFormat<'a>, Error> {
-        match &flash_data.format_args {
-            ImageFormatArgs::EspIdf(_) => {
-                let idf = IdfBootloaderFormat::new(elf_data, Chip::Esp32s2, flash_data, xtal_freq)?;
-                Ok(idf.into())
-            }
-        }
     }
 
     #[cfg(feature = "serialport")]

@@ -30,7 +30,6 @@ use crate::{
     Error,
     error::AppDescriptorError,
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize},
-    image_format::ImageFormatArgs,
     targets::{Chip, XtalFrequency},
 };
 
@@ -254,18 +253,21 @@ impl<'a> IdfBootloaderFormat<'a> {
     /// Create a new [`IdfBootloaderFormat`].
     pub fn new(
         elf_data: &'a [u8],
-        chip: Chip,
-        flash_data: FlashData,
-        xtal_freq: XtalFrequency,
+        flash_data: &FlashData,
+        partition_table_path: Option<&Path>,
+        bootloader_path: Option<&Path>,
+        partition_table_offset: Option<u32>,
+        target_app_partition: Option<&str>,
     ) -> Result<Self, Error> {
         let elf = ElfFile::parse(elf_data)?;
 
-        let ImageFormatArgs::EspIdf(esp_idf_args) = flash_data.format_args;
-
-        let partition_table = if let Some(partition_table_path) = esp_idf_args.partition_table {
+        let partition_table = if let Some(partition_table_path) = partition_table_path {
             parse_partition_table(partition_table_path.to_str().unwrap())?
         } else {
-            default_partition_table(chip, flash_data.flash_settings.size.map(|v| v.size()))
+            default_partition_table(
+                flash_data.chip,
+                flash_data.flash_settings.size.map(|v| v.size()),
+            )
         };
 
         if partition_table
@@ -280,11 +282,11 @@ impl<'a> IdfBootloaderFormat<'a> {
             ));
         }
 
-        let mut bootloader = if let Some(bootloader_path) = esp_idf_args.bootloader {
+        let mut bootloader = if let Some(bootloader_path) = bootloader_path {
             let bootloader = fs::read(bootloader_path)?;
             Cow::Owned(bootloader)
         } else {
-            let default_bootloader = bootloader(chip, xtal_freq)?;
+            let default_bootloader = bootloader(flash_data.chip, flash_data.xtal_freq)?;
             Cow::Borrowed(default_bootloader)
         };
 
@@ -315,8 +317,8 @@ impl<'a> IdfBootloaderFormat<'a> {
             flash_data
                 .flash_settings
                 .freq
-                .unwrap_or(chip.default_flash_frequency()),
-            chip,
+                .unwrap_or(flash_data.chip.default_flash_frequency()),
+            flash_data.chip,
         )?;
 
         bootloader.to_mut().splice(
@@ -350,7 +352,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // just update the entry point
         header.entry = elf.elf_header().e_entry.get(Endianness::Little);
         header.wp_pin = WP_PIN_DISABLED;
-        header.chip_id = chip.id();
+        header.chip_id = flash_data.chip.id();
         header.min_chip_rev_full = flash_data.min_chip_rev;
         header.append_digest = 1;
 
@@ -360,10 +362,12 @@ impl<'a> IdfBootloaderFormat<'a> {
         // alignment by padding segments might result in overlapping segments. We
         // need to merge adjacent segments first to avoid the possibility of them
         // overlapping, and then do the padding.
-        let mut flash_segments: Vec<_> =
-            pad_align_segments(merge_adjacent_segments(rom_segments(chip, &elf).collect()));
-        let mut ram_segments: Vec<_> =
-            pad_align_segments(merge_adjacent_segments(ram_segments(chip, &elf).collect()));
+        let mut flash_segments: Vec<_> = pad_align_segments(merge_adjacent_segments(
+            rom_segments(flash_data.chip, &elf).collect(),
+        ));
+        let mut ram_segments: Vec<_> = pad_align_segments(merge_adjacent_segments(
+            ram_segments(flash_data.chip, &elf).collect(),
+        ));
 
         let mut checksum = ESP_CHECKSUM_MAGIC;
         let mut segment_count = 0;
@@ -386,7 +390,10 @@ impl<'a> IdfBootloaderFormat<'a> {
             None
         };
 
-        let valid_page_sizes = chip.valid_mmu_page_sizes().unwrap_or(&[IROM_ALIGN]);
+        let valid_page_sizes = flash_data
+            .chip
+            .valid_mmu_page_sizes()
+            .unwrap_or(&[IROM_ALIGN]);
         let valid_page_sizes_string = valid_page_sizes
             .iter()
             .map(|size| format!("{:#x}", size))
@@ -518,9 +525,9 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         let target_app_partition: Partition =
         // Use the target app partition if provided
-        if let Some(ref target_partition) = esp_idf_args.target_app_partition {
+        if let Some(target_partition) = target_app_partition {
             partition_table
-                .find(target_partition.as_str())
+                .find(target_partition)
                 .ok_or(Error::AppPartitionNotFound)?
                 .clone()
         } else {
@@ -552,7 +559,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // If the user did not specify a partition offset, we need to assume that the
         // partition offset is (first partition offset) - 0x1000, since this is
         // the most common case.
-        let partition_table_offset = esp_idf_args.partition_table_offset.unwrap_or_else(|| {
+        let partition_table_offset = partition_table_offset.unwrap_or_else(|| {
             let partitions = partition_table.partitions();
             let first_partition = partitions
                 .iter()
@@ -561,7 +568,7 @@ impl<'a> IdfBootloaderFormat<'a> {
             first_partition.offset() - 0x1000
         });
 
-        let boot_addr = chip.boot_address();
+        let boot_addr = flash_data.chip.boot_address();
 
         Ok(Self {
             boot_addr,

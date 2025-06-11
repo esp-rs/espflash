@@ -3,11 +3,7 @@ use std::{collections::HashMap, ops::Range};
 use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32h2 as efuse};
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
-use crate::{
-    Error,
-    flasher::{FlashData, FlashFrequency},
-    image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatArgs},
-};
+use crate::{Error, flasher::FlashFrequency};
 
 pub(crate) const CHIP_ID: u16 = 16;
 
@@ -78,21 +74,6 @@ impl Target for Esp32h2 {
         let encodings = [(_12Mhz, 0x2), (_16Mhz, 0x1), (_24Mhz, 0x0), (_48Mhz, 0xF)];
 
         HashMap::from(encodings)
-    }
-
-    fn flash_image<'a>(
-        &self,
-        elf_data: &'a [u8],
-        flash_data: FlashData,
-        _chip_revision: Option<(u32, u32)>,
-        xtal_freq: XtalFrequency,
-    ) -> Result<ImageFormat<'a>, Error> {
-        match &flash_data.format_args {
-            ImageFormatArgs::EspIdf(_) => {
-                let idf = IdfBootloaderFormat::new(elf_data, Chip::Esp32h2, flash_data, xtal_freq)?;
-                Ok(idf.into())
-            }
-        }
     }
 
     fn spi_registers(&self) -> SpiRegisters {

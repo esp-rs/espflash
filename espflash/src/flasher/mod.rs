@@ -25,7 +25,6 @@ pub(crate) use self::stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
 pub use crate::targets::flash_target::ProgressCallbacks;
 use crate::{
     Error,
-    image_format::ImageFormatArgs,
     targets::{Chip, XtalFrequency},
 };
 #[cfg(feature = "serialport")]
@@ -43,7 +42,7 @@ use crate::{
         EXPECTED_STUB_HANDSHAKE,
         FlashStub,
     },
-    image_format::{Segment, ram_segments, rom_segments},
+    image_format::{ImageFormat, Segment, ram_segments, rom_segments},
 };
 
 #[cfg(feature = "serialport")]
@@ -481,7 +480,8 @@ pub struct FlashData {
     pub min_chip_rev: u16,
     /// MMU page size.
     pub mmu_page_size: Option<u32>,
-    pub format_args: ImageFormatArgs,
+    pub chip: Chip,
+    pub xtal_freq: XtalFrequency,
 }
 
 impl FlashData {
@@ -490,14 +490,16 @@ impl FlashData {
         flash_settings: FlashSettings,
         min_chip_rev: u16,
         mmu_page_size: Option<u32>,
-        format_args: ImageFormatArgs,
-    ) -> Result<Self, Error> {
-        Ok(FlashData {
+        chip: Chip,
+        xtal_freq: XtalFrequency,
+    ) -> Self {
+        FlashData {
             flash_settings,
             min_chip_rev,
             mmu_page_size,
-            format_args,
-        })
+            chip,
+            xtal_freq,
+        }
     }
 }
 
@@ -1035,33 +1037,20 @@ impl Flasher {
     }
 
     /// Load an ELF image to flash and execute it
-    pub fn load_elf_to_flash(
+    pub fn load_elf_to_flash<'a>(
         &mut self,
-        elf_data: &[u8],
-        flash_data: FlashData,
         mut progress: Option<&mut dyn ProgressCallbacks>,
-        xtal_freq: XtalFrequency,
+        image_format: ImageFormat<'a>,
     ) -> Result<(), Error> {
         let mut target =
             self.chip
                 .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
         target.begin(&mut self.connection).flashing()?;
 
-        let chip_revision = Some(
-            self.chip
-                .into_target()
-                .chip_revision(&mut self.connection)?,
-        );
-
-        let image =
-            self.chip
-                .into_target()
-                .flash_image(elf_data, flash_data, chip_revision, xtal_freq)?;
-
         // When the `cli` feature is enabled, display the image size information.
         #[cfg(feature = "cli")]
         {
-            let metadata = image.metadata();
+            let metadata = image_format.metadata();
             if metadata.contains_key("app_size") && metadata.contains_key("part_size") {
                 let app_size = metadata["app_size"].parse::<u32>().unwrap();
                 let part_size = metadata["part_size"].parse::<u32>().unwrap();
@@ -1070,7 +1059,7 @@ impl Flasher {
             }
         }
 
-        for segment in image.flash_segments() {
+        for segment in image_format.flash_segments() {
             target
                 .write_segment(&mut self.connection, segment, &mut progress)
                 .flashing()?;

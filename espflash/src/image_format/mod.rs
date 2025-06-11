@@ -21,8 +21,6 @@ use object::{
 use serde::{Deserialize, Serialize};
 
 pub use self::{esp_idf::IdfBootloaderFormat, metadata::Metadata};
-#[cfg(feature = "cli")]
-use crate::cli::EspIdfFormatArgs;
 use crate::targets::Chip;
 
 pub mod esp_idf;
@@ -39,26 +37,6 @@ pub enum ImageFormatKind {
     /// See: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html>
     #[default]
     EspIdf,
-}
-
-#[cfg(not(feature = "cli"))]
-#[derive(Debug, Clone, Default)]
-pub struct EspIdfFormatArgs {
-    /// Path to a binary ESP-IDF bootloader file
-    pub bootloader: Option<PathBuf>,
-    /// Path to a CSV file containing partition table
-    pub partition_table: Option<PathBuf>,
-    /// Partition table offset
-    pub partition_table_offset: Option<u32>,
-    /// Label of target app partition
-    pub target_app_partition: Option<String>,
-    /// Erase partitions by label
-    pub erase_parts: Option<Vec<String>>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ImageFormatArgs {
-    EspIdf(EspIdfFormatArgs),
 }
 
 /// Binary application image format data

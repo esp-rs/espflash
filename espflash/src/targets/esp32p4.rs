@@ -1,13 +1,9 @@
 use std::ops::Range;
 
 use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32p4 as efuse};
+use crate::Error;
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
-use crate::{
-    Error,
-    flasher::FlashData,
-    image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatArgs},
-};
 
 pub(crate) const CHIP_ID: u16 = 18;
 
@@ -70,21 +66,6 @@ impl Target for Esp32p4 {
     fn crystal_freq(&self, _connection: &mut Connection) -> Result<XtalFrequency, Error> {
         // The ESP32-P4's XTAL has a fixed frequency of 40MHz.
         Ok(XtalFrequency::_40Mhz)
-    }
-
-    fn flash_image<'a>(
-        &self,
-        elf_data: &'a [u8],
-        flash_data: FlashData,
-        _chip_revision: Option<(u32, u32)>,
-        xtal_freq: XtalFrequency,
-    ) -> Result<ImageFormat<'a>, Error> {
-        match &flash_data.format_args {
-            ImageFormatArgs::EspIdf(_) => {
-                let idf = IdfBootloaderFormat::new(elf_data, Chip::Esp32p4, flash_data, xtal_freq)?;
-                Ok(idf.into())
-            }
-        }
     }
 
     fn spi_registers(&self) -> SpiRegisters {

@@ -132,7 +132,7 @@ struct FlashArgs {
     /// Application image format to use
     #[clap(long, default_value = "esp-idf")]
     format: ImageFormatKind,
-    // TODO: We need to be able to pass the esp_idf format args
+    /// ESP-IDF arguments
     #[clap(flatten)]
     esp_idf_format_args: cli::EspIdfFormatArgs,
 }
@@ -149,7 +149,7 @@ struct SaveImageArgs {
     #[clap(flatten)]
     save_image_args: cli::SaveImageArgs,
     /// Application image format to use
-    #[clap(long)]
+    #[clap(long, default_value = "esp-idf")]
     format: ImageFormatKind,
     // ESP-IDF arguments
     #[clap(flatten)]
@@ -271,13 +271,20 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             args.flash_args.image,
             &flash_config,
             config,
+            chip,
+            target_xtal_freq,
+        );
+        let image_format = make_image_format(
+            &elf_data,
+            &flash_data,
             args.format,
+            config,
             Some(args.esp_idf_format_args),
             None,
             None,
         )?;
 
-        flash_elf_image(&mut flasher, &elf_data, flash_data, target_xtal_freq)?;
+        flash_elf_image(&mut flasher, image_format)?;
     }
 
     if args.flash_args.monitor {
@@ -317,29 +324,34 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .or(config.project_config.flash.size) // If no CLI argument, try the config file
         .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
-    let flash_data = make_flash_data(
-        args.save_image_args.image,
-        &flash_config,
-        config,
-        args.format,
-        Some(args.esp_idf_format_args),
-        None,
-        None,
-    )?;
-
     let xtal_freq = args
         .save_image_args
         .xtal_freq
         .unwrap_or(XtalFrequency::default(args.save_image_args.chip));
 
-    save_elf_as_image(
-        &elf_data,
+    let flash_data = make_flash_data(
+        args.save_image_args.image,
+        &flash_config,
+        config,
         args.save_image_args.chip,
+        xtal_freq,
+    );
+    let image_format = make_image_format(
+        &elf_data,
+        &flash_data,
+        args.format,
+        config,
+        Some(args.esp_idf_format_args),
+        None,
+        None,
+    )?;
+
+    save_elf_as_image(
         args.save_image_args.file,
-        flash_data,
+        flash_data.flash_settings.size,
         args.save_image_args.merge,
         args.save_image_args.skip_padding,
-        xtal_freq,
+        image_format,
     )?;
 
     Ok(())

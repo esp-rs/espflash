@@ -1,13 +1,9 @@
 use std::ops::Range;
 
 use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32 as efuse};
+use crate::Error;
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
-use crate::{
-    Error,
-    flasher::FlashData,
-    image_format::{IdfBootloaderFormat, ImageFormat, ImageFormatArgs},
-};
 
 pub(crate) const CHIP_ID: u16 = 0;
 
@@ -161,21 +157,6 @@ impl Target for Esp32 {
         };
 
         Ok(norm_xtal)
-    }
-
-    fn flash_image<'a>(
-        &self,
-        elf_data: &'a [u8],
-        flash_data: FlashData,
-        _chip_revision: Option<(u32, u32)>,
-        xtal_freq: XtalFrequency,
-    ) -> Result<ImageFormat<'a>, Error> {
-        match &flash_data.format_args {
-            ImageFormatArgs::EspIdf(_) => {
-                let idf = IdfBootloaderFormat::new(elf_data, Chip::Esp32, flash_data, xtal_freq)?;
-                Ok(idf.into())
-            }
-        }
     }
 
     fn spi_registers(&self) -> SpiRegisters {

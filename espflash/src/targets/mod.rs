@@ -22,11 +22,7 @@ use self::{
     esp32s2::Esp32s2,
     esp32s3::Esp32s3,
 };
-use crate::{
-    Error,
-    flasher::{FlashData, FlashFrequency},
-    image_format::ImageFormat,
-};
+use crate::{Error, flasher::FlashFrequency};
 #[cfg(feature = "serialport")]
 use crate::{
     connection::Connection,
@@ -76,6 +72,7 @@ pub enum XtalFrequency {
     _48Mhz,
 }
 
+// TODO: This feels a bit werid, maybe move it to the Chip enum for consistency?
 impl XtalFrequency {
     /// Default crystal frequency for a given chip.
     pub fn default(chip: Chip) -> Self {
@@ -419,15 +416,6 @@ pub trait Target: ReadEFuse {
     fn flash_write_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
         Ok(FLASH_WRITE_SIZE)
     }
-
-    /// Build an image from the provided data for flashing
-    fn flash_image<'a>(
-        &self,
-        elf_data: &'a [u8],
-        flash_data: FlashData,
-        chip_revision: Option<(u32, u32)>,
-        xtal_freq: XtalFrequency,
-    ) -> Result<ImageFormat<'a>, Error>;
 
     #[cfg(feature = "serialport")]
     /// What is the MAC address?

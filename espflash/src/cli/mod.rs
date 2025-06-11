@@ -46,7 +46,12 @@ use crate::{
         Flasher,
         ProgressCallbacks,
     },
-    image_format::{ImageFormatArgs, ImageFormatKind, Metadata, esp_idf::parse_partition_table},
+    image_format::{
+        ImageFormat,
+        ImageFormatKind,
+        Metadata,
+        esp_idf::{IdfBootloaderFormat, parse_partition_table},
+    },
     targets::{Chip, XtalFrequency},
 };
 
@@ -652,24 +657,15 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
 }
 
 /// Convert the provided firmware image from ELF to binary
-#[allow(clippy::too_many_arguments)]
-pub fn save_elf_as_image(
-    elf_data: &[u8],
-    chip: Chip,
+pub fn save_elf_as_image<'a>(
     image_path: PathBuf,
-    flash_data: FlashData,
+    flash_size: Option<FlashSize>,
     merge: bool,
     skip_padding: bool,
-    xtal_freq: XtalFrequency,
+    image_format: ImageFormat<'a>,
 ) -> Result<()> {
-    // To get a chip revision, the connection is needed
-    // For simplicity, the revision None is used
-    let image = chip
-        .into_target()
-        .flash_image(elf_data, flash_data.clone(), None, xtal_freq)?;
-
     // ESP_IDF ONLY
-    let metadata = image.metadata();
+    let metadata = image_format.metadata();
     if metadata.contains_key("app_size") && metadata.contains_key("part_size") {
         let app_size = metadata["app_size"].parse::<u32>().unwrap();
         let part_size = metadata["part_size"].parse::<u32>().unwrap();
@@ -685,7 +681,7 @@ pub fn save_elf_as_image(
             .open(image_path)
             .into_diagnostic()?;
 
-        for segment in image.flash_segments() {
+        for segment in image_format.flash_segments() {
             let padding_bytes = vec![
                 0xffu8;
                 segment.addr as usize
@@ -699,14 +695,13 @@ pub fn save_elf_as_image(
             // Take flash_size as input parameter, if None, use default value of 4Mb
             let padding_bytes = vec![
                 0xffu8;
-                flash_data.flash_settings.size.unwrap_or_default().size()
-                    as usize
+                flash_size.unwrap_or_default().size() as usize
                     - file.metadata().into_diagnostic()?.len() as usize
             ];
             file.write_all(&padding_bytes).into_diagnostic()?;
         }
     } else {
-        match image.ota_segments().as_slice() {
+        match image_format.ota_segments().as_slice() {
             [single] => fs::write(&image_path, &single.data).into_diagnostic()?,
             parts => {
                 for part in parts {
@@ -825,20 +820,8 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
 }
 
 /// Write an ELF image to a target device's flash
-pub fn flash_elf_image(
-    flasher: &mut Flasher,
-    elf_data: &[u8],
-    flash_data: FlashData,
-    xtal_freq: XtalFrequency,
-) -> Result<()> {
-    // Load the ELF data, optionally using the provider bootloader/partition
-    // table/image format, to the device's flash memory.
-    flasher.load_elf_to_flash(
-        elf_data,
-        flash_data,
-        Some(&mut EspflashProgress::default()),
-        xtal_freq,
-    )?;
+pub fn flash_elf_image<'a>(flasher: &mut Flasher, image_format: ImageFormat<'a>) -> Result<()> {
+    flasher.load_elf_to_flash(Some(&mut EspflashProgress::default()), image_format)?;
     info!("Flashing has completed!");
 
     Ok(())
@@ -980,6 +963,7 @@ pub fn partition_table(args: PartitionTableArgs) -> Result<()> {
 }
 
 /// Pretty print a partition table
+// TODO: Move to esp-idf mod?
 fn pretty_print(table: PartitionTable) {
     let mut pretty = Table::new();
 
@@ -1028,21 +1012,19 @@ fn pretty_print(table: PartitionTable) {
     println!("{pretty}");
 }
 
-/// Creates `FlashData` from `ImageArgs`, `FlashConfigArgs`, and `Config`.
-pub fn make_flash_data(
-    image_args: ImageArgs,
-    flash_config_args: &FlashConfigArgs,
-    config: &Config,
+pub fn make_image_format<'a>(
+    elf_data: &'a [u8],
+    flash_data: &FlashData,
     image_format_kind: ImageFormatKind,
+    config: &Config,
     esp_idf_format_args: Option<EspIdfFormatArgs>,
     build_ctx_bootloader: Option<PathBuf>,
     build_ctx_partition_table: Option<PathBuf>,
-) -> Result<FlashData, Error> {
-    let format_args = match image_format_kind {
+) -> Result<ImageFormat<'a>, Error> {
+    let image_format = match image_format_kind {
         ImageFormatKind::EspIdf => {
             let mut args = esp_idf_format_args.unwrap_or_default();
-
-            // Set bootloader path from config if not provided
+            // Set bootloader path with precedence
             if args.bootloader.is_none() {
                 args.bootloader = config
                     .project_config
@@ -1052,7 +1034,7 @@ pub fn make_flash_data(
                     .or(build_ctx_bootloader);
             }
 
-            // Set partition table path from config if not provided
+            // Set partition table path with precedence
             if args.partition_table.is_none() {
                 args.partition_table = config
                     .project_config
@@ -1061,27 +1043,48 @@ pub fn make_flash_data(
                     .clone()
                     .or(build_ctx_partition_table);
             }
-
-            ImageFormatArgs::EspIdf(args)
+            // TODO: Verify that we can ignore chip revision, it was not used before?
+            IdfBootloaderFormat::new(
+                elf_data,
+                flash_data,
+                args.partition_table.as_deref(),
+                args.bootloader.as_deref(),
+                args.partition_table_offset,
+                args.target_app_partition.as_deref(),
+            )?
         }
     };
 
-    // Create flash settings from config args or config file
-    let flash_settings = FlashSettings::new(
-        flash_config_args
-            .flash_mode
-            .or(config.project_config.flash.mode),
-        flash_config_args.flash_size,
-        flash_config_args
-            .flash_freq
-            .or(config.project_config.flash.freq),
-    );
+    Ok(image_format.into())
+}
+
+pub fn make_flash_data(
+    image_args: ImageArgs,
+    flash_config_args: &FlashConfigArgs,
+    config: &Config,
+    chip: Chip,
+    xtal_freq: XtalFrequency,
+) -> FlashData {
+    // Create flash settings with precedence
+    let mode = flash_config_args
+        .flash_mode
+        .or(config.project_config.flash.mode);
+    let size = flash_config_args
+        .flash_size
+        .or(config.project_config.flash.size)
+        .or_else(|| Some(FlashSize::default()));
+    let freq = flash_config_args
+        .flash_freq
+        .or(config.project_config.flash.freq);
+
+    let flash_settings = FlashSettings::new(mode, size, freq);
 
     FlashData::new(
         flash_settings,
         image_args.min_chip_rev,
         image_args.mmu_page_size,
-        format_args,
+        chip,
+        xtal_freq,
     )
 }
 
