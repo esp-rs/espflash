@@ -15,6 +15,7 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
+    image_format::check_idf_bootloader,
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
@@ -317,6 +318,11 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(build_ctx.artifact_path.clone()).into_diagnostic()?;
+
+    // Check if the ELF contains the app descriptor, if required.
+    if args.flash_args.image.check_app_descriptor.unwrap_or(true) {
+        check_idf_bootloader(&elf_data)?;
+    }
 
     let mut monitor_args = args.flash_args.monitor_args;
     monitor_args.elf = Some(build_ctx.artifact_path.clone());
