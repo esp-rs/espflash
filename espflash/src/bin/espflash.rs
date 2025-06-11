@@ -284,7 +284,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             None,
         )?;
 
-        flash_elf_image(&mut flasher, image_format)?;
+        flash_image(&mut flasher, image_format)?;
     }
 
     if args.flash_args.monitor {

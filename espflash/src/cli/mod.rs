@@ -820,8 +820,8 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
 }
 
 /// Write an ELF image to a target device's flash
-pub fn flash_elf_image<'a>(flasher: &mut Flasher, image_format: ImageFormat<'a>) -> Result<()> {
-    flasher.load_elf_to_flash(Some(&mut EspflashProgress::default()), image_format)?;
+pub fn flash_image<'a>(flasher: &mut Flasher, image_format: ImageFormat<'a>) -> Result<()> {
+    flasher.load_image_to_flash(Some(&mut EspflashProgress::default()), image_format)?;
     info!("Flashing has completed!");
 
     Ok(())

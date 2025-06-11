@@ -1037,7 +1037,7 @@ impl Flasher {
     }
 
     /// Load an ELF image to flash and execute it
-    pub fn load_elf_to_flash<'a>(
+    pub fn load_image_to_flash<'a>(
         &mut self,
         mut progress: Option<&mut dyn ProgressCallbacks>,
         image_format: ImageFormat<'a>,
