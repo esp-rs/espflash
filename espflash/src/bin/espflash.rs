@@ -3,7 +3,6 @@ use std::{fs, path::PathBuf};
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use espflash::{
     Error,
-    bt::check_bootloader,
     cli::{
         self,
         config::Config,
@@ -11,6 +10,7 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
+    image_format::check_idf_bootloader,
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
@@ -238,7 +238,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     // Check if the ELF contains the app descriptor, if required.
     if args.flash_args.image.check_app_descriptor.unwrap_or(true) {
-        check_bootloader(&elf_data)?;
+        check_idf_bootloader(&elf_data)?;
     }
 
     print_board_info(&mut flasher)?;

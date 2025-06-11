@@ -22,6 +22,8 @@ use crate::targets::Chip;
 mod esp_idf;
 mod metadata;
 
+pub use esp_idf::check_idf_bootloader;
+
 /// A segment of code from the source ELF
 #[derive(Default, Clone, Eq)]
 pub struct Segment<'a> {

@@ -5,7 +5,15 @@ use std::{borrow::Cow, ffi::c_char, io::Write, iter::once, mem::size_of};
 use bytemuck::{Pod, Zeroable, bytes_of, from_bytes, pod_read_unaligned};
 use esp_idf_part::{AppType, DataType, Flags, Partition, PartitionTable, SubType, Type};
 use log::warn;
-use object::{Endianness, Object, ObjectSection, read::elf::ElfFile32 as ElfFile};
+use miette::{IntoDiagnostic, Result};
+use object::{
+    Endianness,
+    File,
+    Object,
+    ObjectSection,
+    ObjectSymbol,
+    read::elf::ElfFile32 as ElfFile,
+};
 use sha2::{Digest, Sha256};
 
 use super::{Segment, ram_segments, rom_segments};
@@ -664,6 +672,19 @@ where
     }
 
     s
+}
+
+// Check if the provided ELF contains the app descriptor.
+pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
+    let object = File::parse(elf_data.as_slice()).into_diagnostic()?;
+    let section = object.section_by_name(".rodata_desc").is_some();
+    let symbol = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"));
+
+    if !section || !symbol {
+        return Err(Error::AppDescriptorNotPresent).into_diagnostic();
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
