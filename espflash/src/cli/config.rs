@@ -87,10 +87,10 @@ pub struct ProjectConfig {
     /// Baudrate
     #[serde(default)]
     pub baudrate: Option<u32>,
-    // Image format
+    /// Image format
     #[serde(default)]
     pub format: ImageFormatKind,
-    // ESP-IDF format arguments
+    /// ESP-IDF format arguments
     #[serde(default)]
     pub esp_idf_format_args: cli::EspIdfFormatArgs,
     /// Flash settings

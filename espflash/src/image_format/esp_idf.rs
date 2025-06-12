@@ -67,7 +67,11 @@ const BOOTLOADER_ESP32S2: &[u8] =
 const BOOTLOADER_ESP32S3: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin");
 
-pub(crate) fn bootloader(chip: Chip, xtal_freq: XtalFrequency) -> Result<&'static [u8], Error> {
+/// Get the default bootloader for the given chip and crystal frequency
+pub(crate) fn default_bootloader(
+    chip: Chip,
+    xtal_freq: XtalFrequency,
+) -> Result<&'static [u8], Error> {
     let error = Error::UnsupportedFeature {
         chip,
         feature: "the selected crystal frequency".into(),
@@ -286,7 +290,7 @@ impl<'a> IdfBootloaderFormat<'a> {
             let bootloader = fs::read(bootloader_path)?;
             Cow::Owned(bootloader)
         } else {
-            let default_bootloader = bootloader(flash_data.chip, flash_data.xtal_freq)?;
+            let default_bootloader = default_bootloader(flash_data.chip, flash_data.xtal_freq)?;
             Cow::Borrowed(default_bootloader)
         };
 

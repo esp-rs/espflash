@@ -161,7 +161,7 @@ pub struct FlashArgs {
     /// Don't skip flashing of parts with matching checksum
     #[arg(long)]
     pub no_skip: bool,
-    /// TODO
+    /// Image related arguments
     #[clap(flatten)]
     pub image: ImageArgs,
     /// Erase partitions by label
@@ -177,7 +177,7 @@ pub struct FlashArgs {
 }
 
 /// Operations for ESP-IDF partition tables
-/// ESP-IDF ONLY
+// ESP-IDF ONLY
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct PartitionTableArgs {
@@ -266,23 +266,15 @@ pub struct ImageArgs {
 #[group(skip)]
 pub struct EspIdfFormatArgs {
     /// Path to a binary ESP-IDF bootloader file
-    ///
-    /// This only applies when using ESP-IDF image format
     #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
     /// Path to a CSV file containing partition table
-    ///
-    /// This only applies when using ESP-IDF image format
     #[arg(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Partition table offset
-    ///
-    /// This only applies when using ESP-IDF image format
     #[arg(long, value_name = "OFFSET", value_parser = parse_u32)]
     pub partition_table_offset: Option<u32>,
     /// Label of target app partition
-    ///
-    /// This only applies when using ESP-IDF image format
     #[arg(long, value_name = "LABEL")]
     pub target_app_partition: Option<String>,
 }
@@ -830,7 +822,7 @@ pub fn flash_image<'a>(flasher: &mut Flasher, image_format: ImageFormat<'a>) -> 
 }
 
 /// Erase one or more partitions by label or [DataType]
-/// ESP-IDF ONLY
+// ESP-IDF ONLY
 pub fn erase_partitions(
     flasher: &mut Flasher,
     partition_table: Option<PartitionTable>,
@@ -1014,6 +1006,7 @@ fn pretty_print(table: PartitionTable) {
     println!("{pretty}");
 }
 
+/// Make an image format from the given arguments
 pub fn make_image_format<'a>(
     elf_data: &'a [u8],
     flash_data: &FlashData,
@@ -1059,6 +1052,7 @@ pub fn make_image_format<'a>(
     Ok(image_format.into())
 }
 
+/// Make flash data from the given arguments
 pub fn make_flash_data(
     image_args: ImageArgs,
     flash_config_args: &FlashConfigArgs,
@@ -1172,6 +1166,7 @@ pub fn ensure_chip_compatibility(chip: Chip, elf: Option<&[u8]>) -> Result<()> {
     }
 }
 
+/// Check if the given arguments are valid for the ESP-IDF format
 pub fn check_esp_idf_args(
     format: ImageFormatKind,
     erase_parts: &Option<Vec<String>>,
