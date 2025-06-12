@@ -30,13 +30,17 @@ use crate::{
 #[cfg(feature = "serialport")]
 use crate::{
     connection::{
-        Connection, Port,
+        Connection,
+        Port,
         command::{Command, CommandType},
         reset::{ResetAfterOperation, ResetBeforeOperation},
     },
     error::{ConnectionError, ResultExt as _},
     flasher::stubs::{
-        CHIP_DETECT_MAGIC_REG_ADDR, DEFAULT_TIMEOUT, EXPECTED_STUB_HANDSHAKE, FlashStub,
+        CHIP_DETECT_MAGIC_REG_ADDR,
+        DEFAULT_TIMEOUT,
+        EXPECTED_STUB_HANDSHAKE,
+        FlashStub,
     },
     image_format::{ImageFormat, Segment, ram_segments, rom_segments},
 };

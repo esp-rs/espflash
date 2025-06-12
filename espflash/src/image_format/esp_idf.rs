@@ -1,7 +1,13 @@
 //! ESP-IDF application binary image format
 
 use std::{
-    borrow::Cow, collections::HashMap, ffi::c_char, fs, io::Write, iter::once, mem::size_of,
+    borrow::Cow,
+    collections::HashMap,
+    ffi::c_char,
+    fs,
+    io::Write,
+    iter::once,
+    mem::size_of,
     path::Path,
 };
 
@@ -10,7 +16,12 @@ use esp_idf_part::{AppType, DataType, Flags, Partition, PartitionTable, SubType,
 use log::warn;
 use miette::{IntoDiagnostic, Result};
 use object::{
-    Endianness, File, Object, ObjectSection, ObjectSymbol, read::elf::ElfFile32 as ElfFile,
+    Endianness,
+    File,
+    Object,
+    ObjectSection,
+    ObjectSymbol,
+    read::elf::ElfFile32 as ElfFile,
 };
 use sha2::{Digest, Sha256};
 
