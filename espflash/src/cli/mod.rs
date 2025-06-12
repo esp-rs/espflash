@@ -177,7 +177,6 @@ pub struct FlashArgs {
 }
 
 /// Operations for ESP-IDF partition tables
-// ESP-IDF ONLY
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct PartitionTableArgs {
@@ -658,7 +657,6 @@ pub fn save_elf_as_image<'a>(
     skip_padding: bool,
     image_format: ImageFormat<'a>,
 ) -> Result<()> {
-    // ESP_IDF ONLY
     let metadata = image_format.metadata();
     if metadata.contains_key("app_size") && metadata.contains_key("part_size") {
         let app_size = metadata["app_size"].parse::<u32>().unwrap();
@@ -822,7 +820,6 @@ pub fn flash_image<'a>(flasher: &mut Flasher, image_format: ImageFormat<'a>) -> 
 }
 
 /// Erase one or more partitions by label or [DataType]
-// ESP-IDF ONLY
 pub fn erase_partitions(
     flasher: &mut Flasher,
     partition_table: Option<PartitionTable>,

@@ -105,7 +105,6 @@ enum Commands {
 }
 
 /// Erase named partitions based on provided partition table
-// ESP-IDF ONLY
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct ErasePartsArgs {
