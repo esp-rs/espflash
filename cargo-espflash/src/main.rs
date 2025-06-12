@@ -387,7 +387,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
                 erase_partitions(
                     &mut flasher,
-                    Some(idf_format.partition_table.clone()),
+                    Some(idf_format.partition_table()),
                     args.flash_args.erase_parts,
                     args.flash_args.erase_data_parts,
                 )?;

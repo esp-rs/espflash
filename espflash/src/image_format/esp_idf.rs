@@ -245,8 +245,8 @@ impl AppDescriptor {
 #[derive(Debug)]
 pub struct IdfBootloaderFormat<'a> {
     boot_addr: u32,
-    pub bootloader: Cow<'a, [u8]>,
-    pub partition_table: PartitionTable,
+    bootloader: Cow<'a, [u8]>,
+    partition_table: PartitionTable,
     flash_segment: Segment<'a>,
     app_size: u32,
     partition_table_size: u32,
@@ -626,6 +626,10 @@ impl<'a> IdfBootloaderFormat<'a> {
             ("app_size", self.app_size.to_string()),
             ("part_size", self.partition_table_size.to_string()),
         ])
+    }
+
+    pub fn partition_table(&self) -> PartitionTable {
+        self.partition_table.clone()
     }
 }
 
