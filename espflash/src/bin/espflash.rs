@@ -210,7 +210,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     let chip = flasher.chip();
     let partition_table = match args.partition_table {
-        Some(path) => Some(parse_partition_table(path.to_str().unwrap())?),
+        Some(path) => Some(parse_partition_table(&path)?),
         None => None,
     };
 

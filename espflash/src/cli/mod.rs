@@ -928,7 +928,7 @@ pub fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
 /// Convert and display CSV and binary partition tables
 pub fn partition_table(args: PartitionTableArgs) -> Result<()> {
     if args.to_binary {
-        let table = parse_partition_table(args.partition_table.to_str().unwrap())?;
+        let table = parse_partition_table(&args.partition_table)?;
 
         // Use either stdout or a file if provided for the output.
         let mut writer: Box<dyn Write> = if let Some(output) = args.output {

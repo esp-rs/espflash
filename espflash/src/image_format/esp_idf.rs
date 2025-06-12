@@ -262,7 +262,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         let elf = ElfFile::parse(elf_data)?;
 
         let partition_table = if let Some(partition_table_path) = partition_table_path {
-            parse_partition_table(partition_table_path.to_str().unwrap())?
+            parse_partition_table(partition_table_path)?
         } else {
             default_partition_table(
                 flash_data.chip,
@@ -783,8 +783,7 @@ fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
 }
 
 /// Parse a [PartitionTable] from the provided path
-pub fn parse_partition_table(path: &str) -> Result<PartitionTable, Error> {
-    let path = Path::new(path);
+pub fn parse_partition_table(path: &Path) -> Result<PartitionTable, Error> {
     let data = fs::read(path).map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
 
     Ok(PartitionTable::try_from(data)?)
