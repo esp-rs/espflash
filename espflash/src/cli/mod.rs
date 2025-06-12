@@ -954,7 +954,6 @@ pub fn partition_table(args: PartitionTableArgs) -> Result<()> {
 }
 
 /// Pretty print a partition table
-// TODO: Move to esp-idf mod?
 fn pretty_print(table: PartitionTable) {
     let mut pretty = Table::new();
 
