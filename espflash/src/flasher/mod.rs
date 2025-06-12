@@ -30,17 +30,13 @@ use crate::{
 #[cfg(feature = "serialport")]
 use crate::{
     connection::{
-        Connection,
-        Port,
+        Connection, Port,
         command::{Command, CommandType},
         reset::{ResetAfterOperation, ResetBeforeOperation},
     },
     error::{ConnectionError, ResultExt as _},
     flasher::stubs::{
-        CHIP_DETECT_MAGIC_REG_ADDR,
-        DEFAULT_TIMEOUT,
-        EXPECTED_STUB_HANDSHAKE,
-        FlashStub,
+        CHIP_DETECT_MAGIC_REG_ADDR, DEFAULT_TIMEOUT, EXPECTED_STUB_HANDSHAKE, FlashStub,
     },
     image_format::{ImageFormat, Segment, ram_segments, rom_segments},
 };
@@ -480,7 +476,9 @@ pub struct FlashData {
     pub min_chip_rev: u16,
     /// MMU page size.
     pub mmu_page_size: Option<u32>,
+    /// Target chip.
     pub chip: Chip,
+    /// Crystal frequency.
     pub xtal_freq: XtalFrequency,
 }
 
