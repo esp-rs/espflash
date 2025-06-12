@@ -77,7 +77,7 @@ pub enum XtalFrequency {
 }
 
 impl XtalFrequency {
-    /// Default crystal frequency for a given chip
+    /// Default crystal frequency for a given chip.
     pub fn default(chip: Chip) -> Self {
         match chip {
             Chip::Esp32c5 => Self::_48Mhz,
@@ -114,7 +114,7 @@ pub enum Chip {
 }
 
 impl Chip {
-    /// Create a [Chip] from a magic value
+    /// Create a [Chip] from a magic value.
     pub fn from_magic(magic: u32) -> Result<Self, Error> {
         if Esp32::has_magic_value(magic) {
             Ok(Chip::Esp32)
@@ -141,7 +141,7 @@ impl Chip {
         }
     }
 
-    /// Convert a [Chip] to a [Target]
+    /// Convert a [Chip] to a [Target].
     pub fn into_target(&self) -> Box<dyn Target> {
         match self {
             Chip::Esp32 => Box::new(Esp32),
@@ -231,34 +231,34 @@ impl TryFrom<u16> for Chip {
 /// Device-specific parameters
 #[derive(Debug, Clone, Copy)]
 pub struct Esp32Params {
-    /// Bootloader address
+    /// Bootloader address.
     pub boot_addr: u32,
-    /// Partition table address
+    /// Partition table address.
     pub partition_addr: u32,
-    /// NVS partition address
+    /// NVS partition address.
     pub nvs_addr: u32,
-    /// NVS partition size
+    /// NVS partition size.
     pub nvs_size: u32,
-    /// PHY init data address
+    /// PHY init data address.
     pub phy_init_data_addr: u32,
-    /// PHY init data size
+    /// PHY init data size.
     pub phy_init_data_size: u32,
-    /// Application address
+    /// Application address.
     pub app_addr: u32,
-    /// Application size
+    /// Application size.
     pub app_size: u32,
-    /// Chip ID
+    /// Chip ID.
     pub chip_id: u16,
-    /// Flash frequency
+    /// Flash frequency.
     pub flash_freq: FlashFrequency,
-    /// Default bootloader
+    /// Default bootloader.
     pub default_bootloader: &'static [u8],
     /// If the MMU page size is configurable, contains the supported page sizes.
     pub mmu_page_sizes: Option<&'static [u32]>,
 }
 
 impl Esp32Params {
-    /// Create a new [Esp32Params] instance
+    /// Create a new [Esp32Params] instance.
     pub const fn new(
         boot_addr: u32,
         app_addr: u32,
@@ -285,7 +285,7 @@ impl Esp32Params {
     }
 }
 
-/// SPI register addresses
+/// SPI register addresses.
 #[derive(Debug)]
 pub struct SpiRegisters {
     base: u32,
@@ -298,37 +298,37 @@ pub struct SpiRegisters {
 }
 
 impl SpiRegisters {
-    /// Get the base address of the SPI registers
+    /// Get the base address of the SPI registers.
     pub fn cmd(&self) -> u32 {
         self.base
     }
 
-    /// Get the address of the USR register
+    /// Get the address of the USR register.
     pub fn usr(&self) -> u32 {
         self.base + self.usr_offset
     }
 
-    /// Get the address of the USR1 register
+    /// Get the address of the USR1 register.
     pub fn usr1(&self) -> u32 {
         self.base + self.usr1_offset
     }
 
-    /// Get the address of the USR2 register
+    /// Get the address of the USR2 register.
     pub fn usr2(&self) -> u32 {
         self.base + self.usr2_offset
     }
 
-    /// Get the address of the W0 register
+    /// Get the address of the W0 register.
     pub fn w0(&self) -> u32 {
         self.base + self.w0_offset
     }
 
-    /// Get the address of the MOSI length register
+    /// Get the address of the MOSI length register.
     pub fn mosi_length(&self) -> Option<u32> {
         self.mosi_length_offset.map(|offset| self.base + offset)
     }
 
-    /// Get the address of the MISO length register
+    /// Get the address of the MISO length register.
     pub fn miso_length(&self) -> Option<u32> {
         self.miso_length_offset.map(|offset| self.base + offset)
     }

@@ -168,7 +168,7 @@ pub struct IdfBootloaderFormat<'a> {
 }
 
 impl<'a> IdfBootloaderFormat<'a> {
-    /// Create a new [`IdfBootloaderFormat`]
+    /// Create a new [`IdfBootloaderFormat`].
     pub fn new(
         elf_data: &'a [u8],
         chip: Chip,
@@ -478,7 +478,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         })
     }
 
-    /// Returns an iterator over the [RomSegment]
+    /// Returns an iterator over the [RomSegment].
     pub fn flash_segments<'b>(&'b self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
     where
         'a: 'b,
@@ -505,7 +505,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         )
     }
 
-    /// Returns an iterator over the OTA segment
+    /// Returns an iterator over the OTA segment.
     pub fn ota_segments<'b>(&'b self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
     where
         'a: 'b,
@@ -513,12 +513,12 @@ impl<'a> IdfBootloaderFormat<'a> {
         Box::new(once(self.flash_segment.borrow()))
     }
 
-    /// Get the size of the application binary
+    /// Get the size of the application binary.
     pub fn app_size(&self) -> u32 {
         self.app_size
     }
 
-    /// Get the size of the partition
+    /// Get the size of the partition.
     pub fn part_size(&self) -> Option<u32> {
         Some(self.part_size)
     }
