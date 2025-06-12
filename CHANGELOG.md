@@ -47,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated to Rust 2024 edition (#843)
 - Complete rework of reading eFuse field values (#847)
 - Updated bootloaders with `release/v5.4` ones from IDF (#857)
+- Refactor image formatting to allow supporting more image formats in a backward compatible way (#877)
+- Avoid having ESP-IDF format assumptions in the codebase (#877)
 
 ### Fixed
 
