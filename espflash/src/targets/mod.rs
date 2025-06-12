@@ -185,6 +185,7 @@ impl Chip {
         }
     }
 
+    /// Returns the valid MMU page sizes for the [Chip]
     pub fn valid_mmu_page_sizes(self) -> Option<&'static [u32]> {
         match self {
             Chip::Esp32c2 => Some(&[16 * 1024, 32 * 1024, 64 * 1024]),
@@ -194,6 +195,7 @@ impl Chip {
         }
     }
 
+    /// Returns the boot address for the [Chip]
     pub fn boot_address(&self) -> u32 {
         match self {
             Chip::Esp32c2 | Chip::Esp32c3 | Chip::Esp32c6 | Chip::Esp32h2 | Chip::Esp32s3 => 0x0,
@@ -202,6 +204,7 @@ impl Chip {
         }
     }
 
+    /// Returns the default flash frequency for the [Chip]
     pub fn default_flash_frequency(&self) -> FlashFrequency {
         match self {
             Chip::Esp32
@@ -216,6 +219,7 @@ impl Chip {
         }
     }
 
+    /// Returns the default crystal frequency for the [Chip]
     pub fn default_crystal_frequency(&self) -> XtalFrequency {
         match self {
             Chip::Esp32c5 => XtalFrequency::_48Mhz,
