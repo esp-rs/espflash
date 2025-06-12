@@ -1045,7 +1045,6 @@ pub fn make_image_format<'a>(
                     .clone()
                     .or(build_ctx_partition_table);
             }
-            // TODO: Verify that we can ignore chip revision, it was not used before?
             IdfBootloaderFormat::new(
                 elf_data,
                 flash_data,
