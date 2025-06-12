@@ -1,21 +1,9 @@
 use std::{collections::HashMap, ops::Range};
 
-use super::{
-    Chip,
-    Esp32Params,
-    ReadEFuse,
-    SpiRegisters,
-    Target,
-    XtalFrequency,
-    efuse::esp32h2 as efuse,
-};
+use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32h2 as efuse};
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
-use crate::{
-    Error,
-    flasher::{FlashData, FlashFrequency},
-    image_format::IdfBootloaderFormat,
-};
+use crate::{Error, flasher::FlashFrequency};
 
 pub(crate) const CHIP_ID: u16 = 16;
 
@@ -25,16 +13,6 @@ const FLASH_RANGES: &[Range<u32>] = &[
     0x4200_0000..0x4280_0000, // IROM
     0x4280_0000..0x4300_0000, // DROM
 ];
-
-const PARAMS: Esp32Params = Esp32Params::new(
-    0x0,
-    0x1_0000,
-    0x3f_0000,
-    CHIP_ID,
-    FlashFrequency::_24Mhz,
-    include_bytes!("../../resources/bootloaders/esp32h2-bootloader.bin"),
-    Some(&[8 * 1024, 16 * 1024, 32 * 1024, 64 * 1024]),
-);
 
 /// ESP32-H2 Target
 pub struct Esp32h2;
@@ -96,23 +74,6 @@ impl Target for Esp32h2 {
         let encodings = [(_12Mhz, 0x2), (_16Mhz, 0x1), (_24Mhz, 0x0), (_48Mhz, 0xF)];
 
         HashMap::from(encodings)
-    }
-
-    fn flash_image<'a>(
-        &self,
-        elf_data: &'a [u8],
-        flash_data: FlashData,
-        _chip_revision: Option<(u32, u32)>,
-        xtal_freq: XtalFrequency,
-    ) -> Result<IdfBootloaderFormat<'a>, Error> {
-        if xtal_freq != XtalFrequency::_32Mhz {
-            return Err(Error::UnsupportedFeature {
-                chip: Chip::Esp32h2,
-                feature: "the selected crystal frequency".into(),
-            });
-        }
-
-        IdfBootloaderFormat::new(elf_data, Chip::Esp32h2, flash_data, PARAMS)
     }
 
     fn spi_registers(&self) -> SpiRegisters {

@@ -1,6 +1,15 @@
 //! ESP-IDF application binary image format
 
-use std::{borrow::Cow, ffi::c_char, io::Write, iter::once, mem::size_of};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    ffi::c_char,
+    fs,
+    io::Write,
+    iter::once,
+    mem::size_of,
+    path::Path,
+};
 
 use bytemuck::{Pod, Zeroable, bytes_of, from_bytes, pod_read_unaligned};
 use esp_idf_part::{AppType, DataType, Flags, Partition, PartitionTable, SubType, Type};
@@ -21,7 +30,7 @@ use crate::{
     Error,
     error::AppDescriptorError,
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize},
-    targets::{Chip, Esp32Params},
+    targets::{Chip, XtalFrequency},
 };
 
 const ESP_CHECKSUM_MAGIC: u8 = 0xEF;
@@ -32,6 +41,83 @@ const WP_PIN_DISABLED: u8 = 0xEE;
 
 /// Max partition size is 16 MB
 const MAX_PARTITION_SIZE: u32 = 16 * 1000 * 1024;
+
+const BOOTLOADER_ESP32_26MHZ: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32_26-bootloader.bin");
+const BOOTLOADER_ESP32_40MHZ: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32-bootloader.bin");
+
+const BOOTLOADER_ESP32C2_26MHZ: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32c2_26-bootloader.bin");
+const BOOTLOADER_ESP32C2_40MHZ: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32c2-bootloader.bin");
+
+const BOOTLOADER_ESP32C3: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32c3-bootloader.bin");
+const BOOTLOADER_ESP32C5: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32c5-bootloader.bin");
+const BOOTLOADER_ESP32C6: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32c6-bootloader.bin");
+const BOOTLOADER_ESP32H2: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32h2-bootloader.bin");
+const BOOTLOADER_ESP32P4: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32p4-bootloader.bin");
+const BOOTLOADER_ESP32S2: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin");
+const BOOTLOADER_ESP32S3: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin");
+
+/// Get the default bootloader for the given chip and crystal frequency
+pub(crate) fn default_bootloader(
+    chip: Chip,
+    xtal_freq: XtalFrequency,
+) -> Result<&'static [u8], Error> {
+    let error = Error::UnsupportedFeature {
+        chip,
+        feature: "the selected crystal frequency".into(),
+    };
+
+    match chip {
+        Chip::Esp32 => match xtal_freq {
+            XtalFrequency::_26Mhz => Ok(BOOTLOADER_ESP32_26MHZ),
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32_40MHZ),
+            _ => Err(error),
+        },
+        Chip::Esp32c2 => match xtal_freq {
+            XtalFrequency::_26Mhz => Ok(BOOTLOADER_ESP32C2_26MHZ),
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32C2_40MHZ),
+            _ => Err(error),
+        },
+        Chip::Esp32c3 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32C3),
+            _ => Err(error),
+        },
+        Chip::Esp32c5 => match xtal_freq {
+            XtalFrequency::_40Mhz | XtalFrequency::_48Mhz => Ok(BOOTLOADER_ESP32C5),
+            _ => Err(error),
+        },
+        Chip::Esp32c6 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32C6),
+            _ => Err(error),
+        },
+        Chip::Esp32h2 => match xtal_freq {
+            XtalFrequency::_32Mhz => Ok(BOOTLOADER_ESP32H2),
+            _ => Err(error),
+        },
+        Chip::Esp32p4 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32P4),
+            _ => Err(error),
+        },
+        Chip::Esp32s2 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32S2),
+            _ => Err(error),
+        },
+        Chip::Esp32s3 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32S3),
+            _ => Err(error),
+        },
+    }
+}
 
 /// Firmware header used by the ESP-IDF bootloader.
 ///
@@ -158,12 +244,12 @@ impl AppDescriptor {
 /// ESP-IDF
 #[derive(Debug)]
 pub struct IdfBootloaderFormat<'a> {
-    params: Esp32Params,
+    boot_addr: u32,
     bootloader: Cow<'a, [u8]>,
     partition_table: PartitionTable,
     flash_segment: Segment<'a>,
     app_size: u32,
-    part_size: u32,
+    partition_table_size: u32,
     partition_table_offset: u32,
 }
 
@@ -171,15 +257,22 @@ impl<'a> IdfBootloaderFormat<'a> {
     /// Create a new [`IdfBootloaderFormat`].
     pub fn new(
         elf_data: &'a [u8],
-        chip: Chip,
-        flash_data: FlashData,
-        params: Esp32Params,
+        flash_data: &FlashData,
+        partition_table_path: Option<&Path>,
+        bootloader_path: Option<&Path>,
+        partition_table_offset: Option<u32>,
+        target_app_partition: Option<&str>,
     ) -> Result<Self, Error> {
         let elf = ElfFile::parse(elf_data)?;
 
-        let partition_table = flash_data.partition_table.unwrap_or_else(|| {
-            default_partition_table(&params, flash_data.flash_settings.size.map(|v| v.size()))
-        });
+        let partition_table = if let Some(partition_table_path) = partition_table_path {
+            parse_partition_table(partition_table_path)?
+        } else {
+            default_partition_table(
+                flash_data.chip,
+                flash_data.flash_settings.size.map(|v| v.size()),
+            )
+        };
 
         if partition_table
             .partitions()
@@ -193,10 +286,12 @@ impl<'a> IdfBootloaderFormat<'a> {
             ));
         }
 
-        let mut bootloader = if let Some(bytes) = flash_data.bootloader {
-            Cow::Owned(bytes)
+        let mut bootloader = if let Some(bootloader_path) = bootloader_path {
+            let bootloader = fs::read(bootloader_path)?;
+            Cow::Owned(bootloader)
         } else {
-            Cow::Borrowed(params.default_bootloader)
+            let default_bootloader = default_bootloader(flash_data.chip, flash_data.xtal_freq)?;
+            Cow::Borrowed(default_bootloader)
         };
 
         // fetch the generated header from the bootloader
@@ -223,8 +318,11 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         header.write_flash_config(
             flash_data.flash_settings.size.unwrap_or_default(),
-            flash_data.flash_settings.freq.unwrap_or(params.flash_freq),
-            chip,
+            flash_data
+                .flash_settings
+                .freq
+                .unwrap_or(flash_data.chip.default_flash_frequency()),
+            flash_data.chip,
         )?;
 
         bootloader.to_mut().splice(
@@ -258,7 +356,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // just update the entry point
         header.entry = elf.elf_header().e_entry.get(Endianness::Little);
         header.wp_pin = WP_PIN_DISABLED;
-        header.chip_id = params.chip_id;
+        header.chip_id = flash_data.chip.id();
         header.min_chip_rev_full = flash_data.min_chip_rev;
         header.append_digest = 1;
 
@@ -268,10 +366,12 @@ impl<'a> IdfBootloaderFormat<'a> {
         // alignment by padding segments might result in overlapping segments. We
         // need to merge adjacent segments first to avoid the possibility of them
         // overlapping, and then do the padding.
-        let mut flash_segments: Vec<_> =
-            pad_align_segments(merge_adjacent_segments(rom_segments(chip, &elf).collect()));
-        let mut ram_segments: Vec<_> =
-            pad_align_segments(merge_adjacent_segments(ram_segments(chip, &elf).collect()));
+        let mut flash_segments: Vec<_> = pad_align_segments(merge_adjacent_segments(
+            rom_segments(flash_data.chip, &elf).collect(),
+        ));
+        let mut ram_segments: Vec<_> = pad_align_segments(merge_adjacent_segments(
+            ram_segments(flash_data.chip, &elf).collect(),
+        ));
 
         let mut checksum = ESP_CHECKSUM_MAGIC;
         let mut segment_count = 0;
@@ -294,7 +394,10 @@ impl<'a> IdfBootloaderFormat<'a> {
             None
         };
 
-        let valid_page_sizes = params.mmu_page_sizes.unwrap_or(&[IROM_ALIGN]);
+        let valid_page_sizes = flash_data
+            .chip
+            .valid_mmu_page_sizes()
+            .unwrap_or(&[IROM_ALIGN]);
         let valid_page_sizes_string = valid_page_sizes
             .iter()
             .map(|size| format!("{:#x}", size))
@@ -424,12 +527,13 @@ impl<'a> IdfBootloaderFormat<'a> {
         let hash = hasher.finalize();
         data.write_all(&hash)?;
 
-        let target_app_partition: &Partition =
+        let target_app_partition: Partition =
         // Use the target app partition if provided
-        if let Some(target_partition) = flash_data.target_app_partition {
+        if let Some(target_partition) = target_app_partition {
             partition_table
-                .find(&target_partition)
+                .find(target_partition)
                 .ok_or(Error::AppPartitionNotFound)?
+                .clone()
         } else {
             // The default partition table contains the "factory" partition, and if a user
             // provides a partition table via command-line then the validation step confirms
@@ -439,15 +543,16 @@ impl<'a> IdfBootloaderFormat<'a> {
                 .find("factory")
                 .or_else(|| partition_table.find_by_type(Type::App))
                 .ok_or(Error::AppPartitionNotFound)?
+                .clone()
         };
 
         let app_size = data.len() as u32;
-        let part_size = target_app_partition.size();
+        let partition_table_size = target_app_partition.size();
 
         // The size of the application must not exceed the size of the target app
         // partition.
-        if app_size as f32 / part_size as f32 > 1.0 {
-            return Err(Error::ElfTooBig(app_size, part_size));
+        if app_size as f32 / partition_table_size as f32 > 1.0 {
+            return Err(Error::ElfTooBig(app_size, partition_table_size));
         }
 
         let flash_segment = Segment {
@@ -458,7 +563,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // If the user did not specify a partition offset, we need to assume that the
         // partition offset is (first partition offset) - 0x1000, since this is
         // the most common case.
-        let partition_table_offset = flash_data.partition_table_offset.unwrap_or_else(|| {
+        let partition_table_offset = partition_table_offset.unwrap_or_else(|| {
             let partitions = partition_table.partitions();
             let first_partition = partitions
                 .iter()
@@ -467,25 +572,27 @@ impl<'a> IdfBootloaderFormat<'a> {
             first_partition.offset() - 0x1000
         });
 
+        let boot_addr = flash_data.chip.boot_address();
+
         Ok(Self {
-            params,
+            boot_addr,
             bootloader,
             partition_table,
             flash_segment,
             app_size,
-            part_size,
+            partition_table_size,
             partition_table_offset,
         })
     }
 
     /// Returns an iterator over the [RomSegment].
-    pub fn flash_segments<'b>(&'b self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
+    pub fn flash_segments<'b>(self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
     where
         'a: 'b,
     {
         let bootloader_segment = Segment {
-            addr: self.params.boot_addr,
-            data: Cow::Borrowed(&self.bootloader),
+            addr: self.boot_addr,
+            data: self.bootloader,
         };
 
         let partition_table_segment = Segment {
@@ -495,7 +602,7 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         let app_segment = Segment {
             addr: self.flash_segment.addr,
-            data: Cow::Borrowed(&self.flash_segment.data),
+            data: self.flash_segment.data,
         };
 
         Box::new(
@@ -506,53 +613,73 @@ impl<'a> IdfBootloaderFormat<'a> {
     }
 
     /// Returns an iterator over the OTA segment.
-    pub fn ota_segments<'b>(&'b self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
+    pub fn ota_segments<'b>(self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
     where
         'a: 'b,
     {
-        Box::new(once(self.flash_segment.borrow()))
+        Box::new(once(self.flash_segment))
     }
 
-    /// Get the size of the application binary.
-    pub fn app_size(&self) -> u32 {
-        self.app_size
+    /// Returns a map of metadata about the application image.
+    pub fn metadata(&self) -> HashMap<&str, String> {
+        HashMap::from([
+            ("app_size", self.app_size.to_string()),
+            ("part_size", self.partition_table_size.to_string()),
+        ])
     }
 
-    /// Get the size of the partition.
-    pub fn part_size(&self) -> Option<u32> {
-        Some(self.part_size)
+    /// Returns the partition table.
+    pub fn partition_table(&self) -> PartitionTable {
+        self.partition_table.clone()
     }
 }
 
 /// Generates a default partition table.
 ///
 /// `flash_size` is used to scale app partition when present, otherwise the
-/// paramameter defaults are used.
-fn default_partition_table(params: &Esp32Params, flash_size: Option<u32>) -> PartitionTable {
+/// parameter defaults are used.
+fn default_partition_table(chip: Chip, flash_size: Option<u32>) -> PartitionTable {
+    const NVS_ADDR: u32 = 0x9000;
+    const NVS_SIZE: u32 = 0x6000;
+    const PHY_INIT_DATA_ADDR: u32 = 0xf000;
+    const PHY_INIT_DATA_SIZE: u32 = 0x1000;
+
+    let (app_addr, app_size) = match chip {
+        Chip::Esp32 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32c2 => (0x1_0000, 0x1f_0000),
+        Chip::Esp32c3 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32c5 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32c6 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32h2 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32p4 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32s2 => (0x1_0000, 0x10_0000),
+        Chip::Esp32s3 => (0x1_0000, 0x10_0000),
+    };
+
     PartitionTable::new(vec![
         Partition::new(
             String::from("nvs"),
             Type::Data,
             SubType::Data(DataType::Nvs),
-            params.nvs_addr,
-            params.nvs_size,
+            NVS_ADDR,
+            NVS_SIZE,
             Flags::empty(),
         ),
         Partition::new(
             String::from("phy_init"),
             Type::Data,
             SubType::Data(DataType::Phy),
-            params.phy_init_data_addr,
-            params.phy_init_data_size,
+            PHY_INIT_DATA_ADDR,
+            PHY_INIT_DATA_SIZE,
             Flags::empty(),
         ),
         Partition::new(
             String::from("factory"),
             Type::App,
             SubType::App(AppType::Factory),
-            params.app_addr,
+            app_addr,
             core::cmp::min(
-                flash_size.map_or(params.app_size, |size| size - params.app_addr),
+                flash_size.map_or(app_size, |size| size - app_addr),
                 MAX_PARTITION_SIZE,
             ),
             Flags::empty(),
@@ -662,6 +789,13 @@ fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
     }
 
     checksum
+}
+
+/// Parse a [PartitionTable] from the provided path
+pub fn parse_partition_table(path: &Path) -> Result<PartitionTable, Error> {
+    let data = fs::read(path).map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
+
+    Ok(PartitionTable::try_from(data)?)
 }
 
 fn encode_hex<T>(data: T) -> String
