@@ -10,7 +10,12 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
-    image_format::{ImageFormatKind, check_idf_bootloader, esp_idf::parse_partition_table},
+    image_format::{
+        ImageFormat,
+        ImageFormatKind,
+        check_idf_bootloader,
+        esp_idf::parse_partition_table,
+    },
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
@@ -225,6 +230,11 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let mut monitor_args = args.flash_args.monitor_args;
     monitor_args.elf = Some(args.image.clone());
     check_monitor_args(&args.flash_args.monitor, &monitor_args)?;
+    check_esp_idf_args(
+        args.format,
+        &args.flash_args.erase_parts,
+        &args.flash_args.erase_data_parts,
+    )?;
 
     let mut flasher = connect(
         &args.connect_args,
@@ -283,6 +293,18 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             None,
             None,
         )?;
+
+        // If using ESP-IDF image format, check if we need to erase partitions.
+        if let ImageFormat::EspIdf(idf_format) = &image_format {
+            if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
+                erase_partitions(
+                    &mut flasher,
+                    Some(idf_format.partition_table.clone()),
+                    args.flash_args.erase_parts,
+                    args.flash_args.erase_data_parts,
+                )?;
+            }
+        }
 
         flash_image(&mut flasher, image_format)?;
     }

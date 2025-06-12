@@ -164,6 +164,16 @@ pub struct FlashArgs {
     /// TODO
     #[clap(flatten)]
     pub image: ImageArgs,
+    /// Erase partitions by label
+    ///
+    /// Only valid when using the `esp-idf` format.
+    #[arg(long, value_name = "LABELS", value_delimiter = ',')]
+    pub erase_parts: Option<Vec<String>>,
+    /// Erase specified data partitions
+    ///
+    /// Only valid when using the `esp-idf` format.
+    #[arg(long, value_name = "PARTS", value_enum, value_delimiter = ',')]
+    pub erase_data_parts: Option<Vec<DataType>>,
 }
 
 /// Operations for ESP-IDF partition tables
@@ -275,14 +285,6 @@ pub struct EspIdfFormatArgs {
     /// This only applies when using ESP-IDF image format
     #[arg(long, value_name = "LABEL")]
     pub target_app_partition: Option<String>,
-    /// Erase partitions by label
-    // TODO: We may need to check if this makes sense in the subcommand
-    #[arg(long, value_name = "LABELS", value_delimiter = ',')]
-    pub erase_parts: Option<Vec<String>>,
-    /// Erase specified data partitions
-    // TODO: We may need to check if this makes sense in the subcommand
-    #[arg(long, value_name = "PARTS", value_enum, value_delimiter = ',')]
-    pub erase_data_parts: Option<Vec<DataType>>,
 }
 
 /// Arguments for connection and monitoring
@@ -1169,6 +1171,20 @@ pub fn ensure_chip_compatibility(chip: Chip, elf: Option<&[u8]>) -> Result<()> {
         })
         .into_diagnostic(),
     }
+}
+
+pub fn check_esp_idf_args(
+    format: ImageFormatKind,
+    erase_parts: &Option<Vec<String>>,
+    erase_data_parts: &Option<Vec<DataType>>,
+) -> Result<()> {
+    if format != ImageFormatKind::EspIdf && (erase_parts.is_some() || erase_data_parts.is_some()) {
+        return Err(miette::miette!(
+            "`erase-parts` and `erase-data` parts are only supported when using the `esp-idf` format."
+        ));
+    }
+
+    Ok(())
 }
 
 mod test {
