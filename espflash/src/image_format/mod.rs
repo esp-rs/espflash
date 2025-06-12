@@ -1,8 +1,11 @@
 //! Binary application image formats
 
+#[cfg(not(feature = "cli"))]
+use std::path::PathBuf;
 use std::{
     borrow::Cow,
     cmp::Ordering,
+    collections::HashMap,
     fmt::{Debug, Formatter},
     mem::take,
     ops::AddAssign,
@@ -15,14 +18,65 @@ use object::{
     elf::SHT_PROGBITS,
     read::elf::{ElfFile32 as ElfFile, SectionHeader},
 };
+use serde::{Deserialize, Serialize};
 
 pub use self::{esp_idf::IdfBootloaderFormat, metadata::Metadata};
 use crate::targets::Chip;
 
-mod esp_idf;
+pub mod esp_idf;
 mod metadata;
-
 pub use esp_idf::check_idf_bootloader;
+
+/// Supported binary application image formats
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum ImageFormatKind {
+    /// ESP-IDF application image format
+    ///
+    /// See: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html>
+    #[default]
+    EspIdf,
+}
+
+/// Binary application image format data
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ImageFormat<'a> {
+    /// ESP-IDF application image format
+    ///
+    /// See: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html>
+    EspIdf(IdfBootloaderFormat<'a>),
+}
+
+impl<'a> ImageFormat<'a> {
+    /// Returns all flashable data segments
+    pub fn flash_segments(self) -> Vec<Segment<'a>> {
+        match self {
+            ImageFormat::EspIdf(idf) => idf.flash_segments().collect(),
+        }
+    }
+
+    /// Returns all data segments required for OTA updates
+    pub fn ota_segments(self) -> Vec<Segment<'a>> {
+        match self {
+            ImageFormat::EspIdf(idf) => idf.ota_segments().collect(),
+        }
+    }
+
+    /// Returns metadata about the application image
+    pub fn metadata(&self) -> HashMap<&str, String> {
+        match self {
+            ImageFormat::EspIdf(idf) => idf.metadata(),
+        }
+    }
+}
+
+impl<'a> From<IdfBootloaderFormat<'a>> for ImageFormat<'a> {
+    fn from(idf: IdfBootloaderFormat<'a>) -> Self {
+        Self::EspIdf(idf)
+    }
+}
 
 /// A segment of code from the source ELF
 #[derive(Default, Clone, Eq)]

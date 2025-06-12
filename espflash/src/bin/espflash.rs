@@ -10,7 +10,12 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
-    image_format::check_idf_bootloader,
+    image_format::{
+        ImageFormat,
+        ImageFormatKind,
+        check_idf_bootloader,
+        esp_idf::parse_partition_table,
+    },
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
@@ -128,6 +133,12 @@ struct FlashArgs {
     flash_args: cli::FlashArgs,
     /// ELF image to flash
     image: PathBuf,
+    /// Application image format to use
+    #[clap(long, default_value = "esp-idf")]
+    format: ImageFormatKind,
+    /// ESP-IDF arguments
+    #[clap(flatten)]
+    esp_idf_format_args: cli::EspIdfFormatArgs,
 }
 
 #[derive(Debug, Args)]
@@ -141,13 +152,19 @@ struct SaveImageArgs {
     /// Sage image arguments
     #[clap(flatten)]
     save_image_args: cli::SaveImageArgs,
+    /// Application image format to use
+    #[clap(long, default_value = "esp-idf")]
+    format: ImageFormatKind,
+    // ESP-IDF arguments
+    #[clap(flatten)]
+    esp_idf_format_args: cli::EspIdfFormatArgs,
 }
 
 fn main() -> Result<()> {
     miette::set_panic_hook();
     initialize_logger(LevelFilter::Info);
 
-    // Attempt to parse any provided comand-line arguments, or print the help
+    // Attempt to parse any provided command-line arguments, or print the help
     // message and terminate if the invocation is not correct.
     let cli = Cli::parse();
     let args = cli.subcommand;
@@ -212,6 +229,11 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let mut monitor_args = args.flash_args.monitor_args;
     monitor_args.elf = Some(args.image.clone());
     check_monitor_args(&args.flash_args.monitor, &monitor_args)?;
+    check_esp_idf_args(
+        args.format,
+        &args.flash_args.erase_parts,
+        &args.flash_args.erase_data_parts,
+    )?;
 
     let mut flasher = connect(
         &args.connect_args,
@@ -254,18 +276,36 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
     } else {
-        let flash_data = make_flash_data(args.flash_args.image, &flash_config, config, None, None)?;
+        let flash_data = make_flash_data(
+            args.flash_args.image,
+            &flash_config,
+            config,
+            chip,
+            target_xtal_freq,
+        );
+        let image_format = make_image_format(
+            &elf_data,
+            &flash_data,
+            args.format,
+            config,
+            Some(args.esp_idf_format_args),
+            None,
+            None,
+        )?;
 
-        if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
-            erase_partitions(
-                &mut flasher,
-                flash_data.partition_table.clone(),
-                args.flash_args.erase_parts,
-                args.flash_args.erase_data_parts,
-            )?;
+        // If using ESP-IDF image format, check if we need to erase partitions.
+        if let ImageFormat::EspIdf(idf_format) = &image_format {
+            if args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some() {
+                erase_partitions(
+                    &mut flasher,
+                    Some(idf_format.partition_table()),
+                    args.flash_args.erase_parts,
+                    args.flash_args.erase_data_parts,
+                )?;
+            }
         }
 
-        flash_elf_image(&mut flasher, &elf_data, flash_data, target_xtal_freq)?;
+        flash_image(&mut flasher, image_format)?;
     }
 
     if args.flash_args.monitor {
@@ -305,27 +345,34 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .or(config.project_config.flash.size) // If no CLI argument, try the config file
         .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
+    let xtal_freq = args
+        .save_image_args
+        .xtal_freq
+        .unwrap_or(args.save_image_args.chip.default_crystal_frequency());
+
     let flash_data = make_flash_data(
         args.save_image_args.image,
         &flash_config,
         config,
+        args.save_image_args.chip,
+        xtal_freq,
+    );
+    let image_format = make_image_format(
+        &elf_data,
+        &flash_data,
+        args.format,
+        config,
+        Some(args.esp_idf_format_args),
         None,
         None,
     )?;
 
-    let xtal_freq = args
-        .save_image_args
-        .xtal_freq
-        .unwrap_or(XtalFrequency::default(args.save_image_args.chip));
-
     save_elf_as_image(
-        &elf_data,
-        args.save_image_args.chip,
         args.save_image_args.file,
-        flash_data,
+        flash_data.flash_settings.size,
         args.save_image_args.merge,
         args.save_image_args.skip_padding,
-        xtal_freq,
+        image_format,
     )?;
 
     Ok(())

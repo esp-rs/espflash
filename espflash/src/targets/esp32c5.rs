@@ -1,21 +1,9 @@
 use std::ops::Range;
 
-use super::{
-    Chip,
-    Esp32Params,
-    ReadEFuse,
-    SpiRegisters,
-    Target,
-    XtalFrequency,
-    efuse::esp32c5 as efuse,
-};
+use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32c5 as efuse};
+use crate::Error;
 #[cfg(feature = "serialport")]
 use crate::connection::Connection;
-use crate::{
-    Error,
-    flasher::{FlashData, FlashFrequency},
-    image_format::IdfBootloaderFormat,
-};
 
 pub(crate) const CHIP_ID: u16 = 23;
 
@@ -32,16 +20,6 @@ const UART_CLKDIV_REG: u32 = 0x6000_0014; // UART0_BASE_REG + 0x14
 const UART_CLKDIV_MASK: u32 = 0xfffff;
 #[cfg(feature = "serialport")]
 const XTAL_CLK_DIVIDER: u32 = 1;
-
-const PARAMS: Esp32Params = Esp32Params::new(
-    0x2000,
-    0x1_0000,
-    0x3f_0000,
-    CHIP_ID,
-    FlashFrequency::_40Mhz,
-    include_bytes!("../../resources/bootloaders/esp32c5-bootloader.bin"),
-    None,
-);
 
 /// ESP32-C5 Target
 pub struct Esp32c5;
@@ -108,23 +86,6 @@ impl Target for Esp32c5 {
         };
 
         Ok(norm_xtal)
-    }
-
-    fn flash_image<'a>(
-        &self,
-        elf_data: &'a [u8],
-        flash_data: FlashData,
-        _chip_revision: Option<(u32, u32)>,
-        xtal_freq: XtalFrequency,
-    ) -> Result<IdfBootloaderFormat<'a>, Error> {
-        if !matches!(xtal_freq, XtalFrequency::_40Mhz | XtalFrequency::_48Mhz) {
-            return Err(Error::UnsupportedFeature {
-                chip: Chip::Esp32c5,
-                feature: "the selected crystal frequency".into(),
-            });
-        }
-
-        IdfBootloaderFormat::new(elf_data, Chip::Esp32c5, flash_data, PARAMS)
     }
 
     fn spi_registers(&self) -> SpiRegisters {

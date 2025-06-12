@@ -22,11 +22,7 @@ use self::{
     esp32s2::Esp32s2,
     esp32s3::Esp32s3,
 };
-use crate::{
-    Error,
-    flasher::{FlashData, FlashFrequency},
-    image_format::IdfBootloaderFormat,
-};
+use crate::{Error, flasher::FlashFrequency};
 #[cfg(feature = "serialport")]
 use crate::{
     connection::Connection,
@@ -74,17 +70,6 @@ pub enum XtalFrequency {
     /// 48MHz
     #[strum(serialize = "48 MHz")]
     _48Mhz,
-}
-
-impl XtalFrequency {
-    /// Default crystal frequency for a given chip.
-    pub fn default(chip: Chip) -> Self {
-        match chip {
-            Chip::Esp32c5 => Self::_48Mhz,
-            Chip::Esp32h2 => Self::_32Mhz,
-            _ => Self::_40Mhz,
-        }
-    }
 }
 
 /// All supported devices
@@ -141,7 +126,22 @@ impl Chip {
         }
     }
 
-    /// Convert a [Chip] to a [Target].
+    /// Returns the chip ID for the [Chip]
+    pub fn id(&self) -> u16 {
+        match self {
+            Chip::Esp32 => esp32::CHIP_ID,
+            Chip::Esp32c2 => esp32c2::CHIP_ID,
+            Chip::Esp32c3 => esp32c3::CHIP_ID,
+            Chip::Esp32c5 => esp32c5::CHIP_ID,
+            Chip::Esp32c6 => esp32c6::CHIP_ID,
+            Chip::Esp32h2 => esp32h2::CHIP_ID,
+            Chip::Esp32p4 => esp32p4::CHIP_ID,
+            Chip::Esp32s2 => esp32s2::CHIP_ID,
+            Chip::Esp32s3 => esp32s3::CHIP_ID,
+        }
+    }
+
+    /// Convert a [Chip] to a [Target]
     pub fn into_target(&self) -> Box<dyn Target> {
         match self {
             Chip::Esp32 => Box::new(Esp32),
@@ -182,6 +182,49 @@ impl Chip {
                 chip: self,
                 feature: "USB OTG".into(),
             }),
+        }
+    }
+
+    /// Returns the valid MMU page sizes for the [Chip]
+    pub fn valid_mmu_page_sizes(self) -> Option<&'static [u32]> {
+        match self {
+            Chip::Esp32c2 => Some(&[16 * 1024, 32 * 1024, 64 * 1024]),
+            Chip::Esp32c6 | Chip::Esp32h2 => Some(&[8 * 1024, 16 * 1024, 32 * 1024, 64 * 1024]),
+            // TODO: Verify this is correct for Esp32c5
+            _ => None,
+        }
+    }
+
+    /// Returns the boot address for the [Chip]
+    pub fn boot_address(&self) -> u32 {
+        match self {
+            Chip::Esp32c2 | Chip::Esp32c3 | Chip::Esp32c6 | Chip::Esp32h2 | Chip::Esp32s3 => 0x0,
+            Chip::Esp32 | Chip::Esp32s2 => 0x1000,
+            Chip::Esp32c5 | Chip::Esp32p4 => 0x2000,
+        }
+    }
+
+    /// Returns the default flash frequency for the [Chip]
+    pub fn default_flash_frequency(&self) -> FlashFrequency {
+        match self {
+            Chip::Esp32
+            | Chip::Esp32c3
+            | Chip::Esp32c5
+            | Chip::Esp32c6
+            | Chip::Esp32p4
+            | Chip::Esp32s2
+            | Chip::Esp32s3 => FlashFrequency::_40Mhz,
+            Chip::Esp32c2 => FlashFrequency::_30Mhz,
+            Chip::Esp32h2 => FlashFrequency::_24Mhz,
+        }
+    }
+
+    /// Returns the default crystal frequency for the [Chip]
+    pub fn default_crystal_frequency(&self) -> XtalFrequency {
+        match self {
+            Chip::Esp32c5 => XtalFrequency::_48Mhz,
+            Chip::Esp32h2 => XtalFrequency::_32Mhz,
+            _ => XtalFrequency::_40Mhz,
         }
     }
 
@@ -228,64 +271,7 @@ impl TryFrom<u16> for Chip {
     }
 }
 
-/// Device-specific parameters
-#[derive(Debug, Clone, Copy)]
-pub struct Esp32Params {
-    /// Bootloader address.
-    pub boot_addr: u32,
-    /// Partition table address.
-    pub partition_addr: u32,
-    /// NVS partition address.
-    pub nvs_addr: u32,
-    /// NVS partition size.
-    pub nvs_size: u32,
-    /// PHY init data address.
-    pub phy_init_data_addr: u32,
-    /// PHY init data size.
-    pub phy_init_data_size: u32,
-    /// Application address.
-    pub app_addr: u32,
-    /// Application size.
-    pub app_size: u32,
-    /// Chip ID.
-    pub chip_id: u16,
-    /// Flash frequency.
-    pub flash_freq: FlashFrequency,
-    /// Default bootloader.
-    pub default_bootloader: &'static [u8],
-    /// If the MMU page size is configurable, contains the supported page sizes.
-    pub mmu_page_sizes: Option<&'static [u32]>,
-}
-
-impl Esp32Params {
-    /// Create a new [Esp32Params] instance.
-    pub const fn new(
-        boot_addr: u32,
-        app_addr: u32,
-        app_size: u32,
-        chip_id: u16,
-        flash_freq: FlashFrequency,
-        bootloader: &'static [u8],
-        mmu_page_sizes: Option<&'static [u32]>,
-    ) -> Self {
-        Self {
-            boot_addr,
-            partition_addr: 0x8000,
-            nvs_addr: 0x9000,
-            nvs_size: 0x6000,
-            phy_init_data_addr: 0xf000,
-            phy_init_data_size: 0x1000,
-            app_addr,
-            app_size,
-            chip_id,
-            flash_freq,
-            default_bootloader: bootloader,
-            mmu_page_sizes,
-        }
-    }
-}
-
-/// SPI register addresses.
+/// SPI register addresses
 #[derive(Debug)]
 pub struct SpiRegisters {
     base: u32,
@@ -430,15 +416,6 @@ pub trait Target: ReadEFuse {
     fn flash_write_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
         Ok(FLASH_WRITE_SIZE)
     }
-
-    /// Build an image from the provided data for flashing
-    fn flash_image<'a>(
-        &self,
-        elf_data: &'a [u8],
-        flash_data: FlashData,
-        chip_revision: Option<(u32, u32)>,
-        xtal_freq: XtalFrequency,
-    ) -> Result<IdfBootloaderFormat<'a>, Error>;
 
     #[cfg(feature = "serialport")]
     /// What is the MAC address?

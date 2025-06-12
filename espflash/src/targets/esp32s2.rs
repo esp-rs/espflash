@@ -2,20 +2,8 @@ use std::ops::Range;
 
 #[cfg(feature = "serialport")]
 use super::flash_target::MAX_RAM_BLOCK_SIZE;
-use super::{
-    Chip,
-    Esp32Params,
-    ReadEFuse,
-    SpiRegisters,
-    Target,
-    XtalFrequency,
-    efuse::esp32s2 as efuse,
-};
-use crate::{
-    Error,
-    flasher::{FlashData, FlashFrequency},
-    image_format::IdfBootloaderFormat,
-};
+use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32s2 as efuse};
+use crate::Error;
 #[cfg(feature = "serialport")]
 use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE};
 
@@ -30,16 +18,6 @@ const FLASH_RANGES: &[Range<u32>] = &[
 
 #[cfg(feature = "serialport")]
 const MAX_USB_BLOCK_SIZE: usize = 0x800;
-
-const PARAMS: Esp32Params = Esp32Params::new(
-    0x1000,
-    0x1_0000,
-    0x10_0000,
-    CHIP_ID,
-    FlashFrequency::_40Mhz,
-    include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin"),
-    None,
-);
 
 /// ESP32-S2 Target
 pub struct Esp32s2;
@@ -151,23 +129,6 @@ impl Target for Esp32s2 {
         } else {
             FLASH_WRITE_SIZE
         })
-    }
-
-    fn flash_image<'a>(
-        &self,
-        elf_data: &'a [u8],
-        flash_data: FlashData,
-        _chip_revision: Option<(u32, u32)>,
-        xtal_freq: XtalFrequency,
-    ) -> Result<IdfBootloaderFormat<'a>, Error> {
-        if xtal_freq != XtalFrequency::_40Mhz {
-            return Err(Error::UnsupportedFeature {
-                chip: Chip::Esp32s2,
-                feature: "the selected crystal frequency".into(),
-            });
-        }
-
-        IdfBootloaderFormat::new(elf_data, Chip::Esp32s2, flash_data, PARAMS)
     }
 
     #[cfg(feature = "serialport")]

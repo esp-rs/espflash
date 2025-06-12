@@ -6,9 +6,8 @@
 
 #[cfg(feature = "serialport")]
 use std::{borrow::Cow, io::Write, path::PathBuf, thread::sleep, time::Duration};
-use std::{collections::HashMap, fmt, fs, path::Path, str::FromStr};
+use std::{collections::HashMap, fmt, fs::OpenOptions, str::FromStr};
 
-use esp_idf_part::PartitionTable;
 #[cfg(feature = "serialport")]
 use log::{debug, info, warn};
 #[cfg(feature = "serialport")]
@@ -43,7 +42,7 @@ use crate::{
         EXPECTED_STUB_HANDSHAKE,
         FlashStub,
     },
-    image_format::{Segment, ram_segments, rom_segments},
+    image_format::{ImageFormat, Segment, ram_segments, rom_segments},
 };
 
 #[cfg(feature = "serialport")]
@@ -476,65 +475,33 @@ impl FlashSettings {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct FlashData {
-    /// Bootloader binary.
-    pub bootloader: Option<Vec<u8>>,
-    /// Partition table.
-    pub partition_table: Option<PartitionTable>,
-    /// Partition table offset.
-    pub partition_table_offset: Option<u32>,
-    /// Target app partition.
-    pub target_app_partition: Option<String>,
-    /// Flash settings.
     pub flash_settings: FlashSettings,
     /// Minimum chip revision.
     pub min_chip_rev: u16,
     /// MMU page size.
     pub mmu_page_size: Option<u32>,
+    /// Target chip.
+    pub chip: Chip,
+    /// Crystal frequency.
+    pub xtal_freq: XtalFrequency,
 }
 
 impl FlashData {
     /// Creates a new [`FlashData`] object.
     pub fn new(
-        bootloader: Option<&Path>,
-        partition_table: Option<&Path>,
-        partition_table_offset: Option<u32>,
-        target_app_partition: Option<String>,
         flash_settings: FlashSettings,
         min_chip_rev: u16,
         mmu_page_size: Option<u32>,
-    ) -> Result<Self, Error> {
-        // If the '--bootloader' option is provided, load the binary file at the
-        // specified path.
-        let bootloader = if let Some(path) = bootloader {
-            let data = fs::canonicalize(path)
-                .and_then(fs::read)
-                .map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
-
-            Some(data)
-        } else {
-            None
-        };
-
-        // If the '-T' option is provided, load the partition table from
-        // the CSV or binary file at the specified path.
-        let partition_table = if let Some(path) = partition_table {
-            let data =
-                fs::read(path).map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
-
-            Some(PartitionTable::try_from(data)?)
-        } else {
-            None
-        };
-
-        Ok(FlashData {
-            bootloader,
-            partition_table,
-            partition_table_offset,
-            target_app_partition,
+        chip: Chip,
+        xtal_freq: XtalFrequency,
+    ) -> Self {
+        FlashData {
             flash_settings,
             min_chip_rev,
             mmu_page_size,
-        })
+            chip,
+            xtal_freq,
+        }
     }
 }
 
@@ -1072,34 +1039,29 @@ impl Flasher {
     }
 
     /// Load an ELF image to flash and execute it
-    pub fn load_elf_to_flash(
+    pub fn load_image_to_flash<'a>(
         &mut self,
-        elf_data: &[u8],
-        flash_data: FlashData,
         mut progress: Option<&mut dyn ProgressCallbacks>,
-        xtal_freq: XtalFrequency,
+        image_format: ImageFormat<'a>,
     ) -> Result<(), Error> {
         let mut target =
             self.chip
                 .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
         target.begin(&mut self.connection).flashing()?;
 
-        let chip_revision = Some(
-            self.chip
-                .into_target()
-                .chip_revision(&mut self.connection)?,
-        );
-
-        let image =
-            self.chip
-                .into_target()
-                .flash_image(elf_data, flash_data, chip_revision, xtal_freq)?;
-
         // When the `cli` feature is enabled, display the image size information.
         #[cfg(feature = "cli")]
-        crate::cli::display_image_size(image.app_size(), image.part_size());
+        {
+            let metadata = image_format.metadata();
+            if metadata.contains_key("app_size") && metadata.contains_key("part_size") {
+                let app_size = metadata["app_size"].parse::<u32>().unwrap();
+                let part_size = metadata["part_size"].parse::<u32>().unwrap();
 
-        for segment in image.flash_segments() {
+                crate::cli::display_image_size(app_size, Some(part_size));
+            }
+        }
+
+        for segment in image_format.flash_segments() {
             target
                 .write_segment(&mut self.connection, segment, &mut progress)
                 .flashing()?;
@@ -1260,7 +1222,7 @@ impl Flasher {
 
         let mut data: Vec<u8> = Vec::new();
 
-        let mut file = fs::OpenOptions::new()
+        let mut file = OpenOptions::new()
             .write(true)
             .truncate(true)
             .create(true)
@@ -1317,7 +1279,7 @@ impl Flasher {
 
         let mut data = Vec::new();
 
-        let mut file = fs::OpenOptions::new()
+        let mut file = OpenOptions::new()
             .write(true)
             .truncate(true)
             .create(true)
