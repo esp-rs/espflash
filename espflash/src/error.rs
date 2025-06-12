@@ -19,7 +19,7 @@ use crate::{
     targets::Chip,
 };
 
-/// All possible errors returned by espflash
+/// All possible errors returned by espflash.
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -283,7 +283,7 @@ impl From<SlipError> for Error {
     }
 }
 
-/// App descriptor errors
+/// App descriptor errors.
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 pub enum AppDescriptorError {
@@ -299,7 +299,7 @@ pub enum AppDescriptorError {
     IncorrectDescriptorAlignment,
 }
 
-/// Connection-related errors
+/// Connection-related errors.
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 pub enum ConnectionError {
@@ -401,7 +401,7 @@ impl From<SlipError> for ConnectionError {
     }
 }
 
-/// An executed command which has timed out
+/// An executed command which has timed out.
 #[derive(Clone, Debug, Default)]
 #[cfg(feature = "serialport")]
 pub struct TimedOutCommand {
@@ -425,7 +425,7 @@ impl From<CommandType> for TimedOutCommand {
     }
 }
 
-/// Errors originating from a device's ROM functionality
+/// Errors originating from a device's ROM functionality.
 #[derive(Clone, Copy, Debug, Default, Diagnostic, Error, strum::FromRepr)]
 #[non_exhaustive]
 #[repr(u8)]
@@ -512,7 +512,7 @@ impl From<u8> for RomErrorKind {
     }
 }
 
-/// An error originating from a device's ROM functionality
+/// An error originating from a device's ROM functionality.
 #[derive(Clone, Copy, Debug, Diagnostic, Error)]
 #[error("Error while running {command} command")]
 #[cfg(feature = "serialport")]
@@ -525,12 +525,13 @@ pub struct RomError {
 
 #[cfg(feature = "serialport")]
 impl RomError {
+    /// Create a new [RomError].
     pub fn new(command: CommandType, kind: RomErrorKind) -> RomError {
         RomError { command, kind }
     }
 }
 
-/// Missing partition error
+/// Missing partition error.
 #[derive(Debug, Diagnostic, Error)]
 #[error("Missing partition")]
 #[diagnostic(
@@ -545,7 +546,7 @@ impl From<String> for MissingPartition {
     }
 }
 
-/// Missing partition table error
+/// Missing partition table error.
 #[derive(Debug, Error, Diagnostic)]
 #[error("No partition table could be found")]
 #[diagnostic(
@@ -556,9 +557,9 @@ pub struct MissingPartitionTable;
 
 #[cfg(feature = "serialport")]
 pub(crate) trait ResultExt {
-    /// Mark an error as having occurred during the flashing stage
+    /// Mark an error as having occurred during the flashing stage.
     fn flashing(self) -> Self;
-    /// Mark the command from which this error originates
+    /// Mark the command from which this error originates.
     fn for_command(self, command: CommandType) -> Self;
 }
 

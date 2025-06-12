@@ -208,29 +208,31 @@ pub struct ReadFlashArgs {
     pub max_in_flight: u32,
 }
 
-/// Save the image to disk instead of flashing to device
+/// Save the image to disk instead of flashing to device.
 #[derive(Debug, Args)]
 #[non_exhaustive]
 #[group(skip)]
 pub struct SaveImageArgs {
-    /// Chip to create an image for
+    /// Chip to create an image for.
     #[arg(long, value_enum)]
     pub chip: Chip,
-    /// File name to save the generated image to
+    /// File name to save the generated image to.
     pub file: PathBuf,
-    /// Boolean flag to merge binaries into single binary
+    /// Boolean flag to merge binaries into single binary.
     #[arg(long)]
     pub merge: bool,
-    /// Don't pad the image to the flash size
+    /// Don't pad the image to the flash size.
     #[arg(long, requires = "merge")]
     pub skip_padding: bool,
-    /// Cristal frequency of the target
+    /// Crystal frequency of the target.
     #[arg(long, short = 'x')]
     pub xtal_freq: Option<XtalFrequency>,
     #[clap(flatten)]
+    /// Image arguments.
     pub image: ImageArgs,
 }
 
+/// Image arguments needed for image generation.
 #[derive(Debug, Args)]
 #[non_exhaustive]
 #[group(skip)]
@@ -258,6 +260,7 @@ pub struct ImageArgs {
     pub check_app_descriptor: Option<bool>,
 }
 
+/// Arguments for connection and monitoring
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct MonitorArgs {
@@ -300,6 +303,7 @@ pub struct MonitorConfigArgs {
     processors: Option<String>,
 }
 
+/// Arguments for MD5 checksum calculation
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct ChecksumMd5Args {
@@ -757,6 +761,7 @@ impl ProgressCallbacks for EspflashProgress {
     }
 }
 
+/// Erase the entire flash memory of a target device
 pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(Error::StubRequired.into());
@@ -777,6 +782,7 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Erase a specified region of flash memory
 pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(Error::StubRequired).into_diagnostic();
@@ -1016,6 +1022,7 @@ fn pretty_print(table: PartitionTable) {
     println!("{pretty}");
 }
 
+/// Creates `FlashData` from `ImageArgs`, `FlashConfigArgs`, and `Config`.
 pub fn make_flash_data(
     image_args: ImageArgs,
     flash_config_args: &FlashConfigArgs,

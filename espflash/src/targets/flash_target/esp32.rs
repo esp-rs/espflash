@@ -35,6 +35,7 @@ pub struct Esp32Target {
 }
 
 impl Esp32Target {
+    /// Create a new ESP32 target.
     pub fn new(
         chip: Chip,
         spi_attach_params: SpiAttachParams,
