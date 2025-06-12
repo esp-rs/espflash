@@ -72,18 +72,6 @@ pub enum XtalFrequency {
     _48Mhz,
 }
 
-// TODO: This feels a bit werid, maybe move it to the Chip enum for consistency?
-impl XtalFrequency {
-    /// Default crystal frequency for a given chip.
-    pub fn default(chip: Chip) -> Self {
-        match chip {
-            Chip::Esp32c5 => Self::_48Mhz,
-            Chip::Esp32h2 => Self::_32Mhz,
-            _ => Self::_40Mhz,
-        }
-    }
-}
-
 /// All supported devices
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames)]
@@ -225,6 +213,14 @@ impl Chip {
             | Chip::Esp32s3 => FlashFrequency::_40Mhz,
             Chip::Esp32c2 => FlashFrequency::_30Mhz,
             Chip::Esp32h2 => FlashFrequency::_24Mhz,
+        }
+    }
+
+    pub fn default_crystal_frequency(&self) -> XtalFrequency {
+        match self {
+            Chip::Esp32c5 => XtalFrequency::_48Mhz,
+            Chip::Esp32h2 => XtalFrequency::_32Mhz,
+            _ => XtalFrequency::_40Mhz,
         }
     }
 

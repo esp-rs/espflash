@@ -348,7 +348,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     let xtal_freq = args
         .save_image_args
         .xtal_freq
-        .unwrap_or(XtalFrequency::default(args.save_image_args.chip));
+        .unwrap_or(args.save_image_args.chip.default_crystal_frequency());
 
     let flash_data = make_flash_data(
         args.save_image_args.image,
