@@ -141,6 +141,26 @@ impl Config {
 
         let mut port_config = if let Ok(data) = read_to_string(&port_config_file) {
             toml::from_str(&data).into_diagnostic()?
+        } else if let Ok(data) = read_to_string(&project_config_file) {
+            if data.contains("[connection]") || data.contains("[[usb_device]]") {
+                debug!(
+                    "espflash@3 configuration detected. Migrating port config to port_config_file: {:#?}",
+                    &port_config_file
+                );
+                let port_config = toml::from_str(&data).into_diagnostic()?;
+                let serialized = toml::to_string(&port_config)
+                    .into_diagnostic()
+                    .wrap_err("Failed to serialize config")?;
+                create_dir_all(port_config_file.parent().unwrap())
+                    .into_diagnostic()
+                    .wrap_err("Failed to create config directory")?;
+                write(&port_config_file, serialized)
+                    .into_diagnostic()
+                    .wrap_err("Failed to write config")?;
+                port_config
+            } else {
+                PortConfig::default()
+            }
         } else {
             PortConfig::default()
         };
