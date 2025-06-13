@@ -1148,6 +1148,11 @@ impl Flasher {
             new_baud = new_baud * 40 / 26;
         }
 
+        if prior_baud == new_baud {
+            debug!("Baud rate is already set to {}", baud);
+            return Ok(());
+        }
+
         self.connection
             .with_timeout(CommandType::ChangeBaudrate.timeout(), |connection| {
                 connection.command(Command::ChangeBaudrate {
