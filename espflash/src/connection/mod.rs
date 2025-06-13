@@ -135,7 +135,7 @@ pub struct Connection {
     after_operation: ResetAfterOperation,
     before_operation: ResetBeforeOperation,
     pub(crate) secure_download_mode: bool,
-    pub(crate) speed: u32,
+    pub(crate) baud: u32,
 }
 
 impl Connection {
@@ -145,7 +145,7 @@ impl Connection {
         port_info: UsbPortInfo,
         after_operation: ResetAfterOperation,
         before_operation: ResetBeforeOperation,
-        speed: u32,
+        baud: u32,
     ) -> Self {
         Connection {
             serial,
@@ -154,7 +154,7 @@ impl Connection {
             after_operation,
             before_operation,
             secure_download_mode: false,
-            speed,
+            baud,
         }
     }
 
@@ -392,15 +392,15 @@ impl Connection {
     }
 
     /// Set baud rate for the serial port.
-    pub fn set_baud(&mut self, speed: u32) -> Result<(), Error> {
-        self.serial.set_baud_rate(speed)?;
-        self.speed = speed;
+    pub fn set_baud(&mut self, baud: u32) -> Result<(), Error> {
+        self.serial.set_baud_rate(baud)?;
+        self.baud = baud;
         Ok(())
     }
 
     /// Get the current baud rate of the serial port.
-    pub fn speed(&self) -> u32 {
-        self.speed
+    pub fn baud(&self) -> u32 {
+        self.baud
     }
 
     /// Run a command with a timeout defined by the command type.

@@ -640,7 +640,7 @@ pub struct Flasher {
 #[cfg(feature = "serialport")]
 impl Flasher {
     /// The serial port's baud rate should be 115_200 to connect. After
-    /// connecting, Flasher will change the baud rate to the `speed`
+    /// connecting, Flasher will change the baud rate to the `baud`
     /// parameter.
     pub fn connect(
         mut connection: Connection,
@@ -706,9 +706,9 @@ impl Flasher {
 
         // Now that we have established a connection and detected the chip and flash
         // size, we can set the baud rate of the connection to the configured value.
-        if flasher.connection.speed() > 115_200 {
+        if flasher.connection.baud() > 115_200 {
             warn!("Setting baud rate higher than 115,200 can cause issues");
-            flasher.change_baud(flasher.connection.speed())?;
+            flasher.change_baud(flasher.connection.baud())?;
         }
 
         Ok(flasher)
@@ -1128,11 +1128,11 @@ impl Flasher {
     }
 
     /// Change the baud rate of the connection.
-    pub fn change_baud(&mut self, speed: u32) -> Result<(), Error> {
-        debug!("Change baud to: {}", speed);
+    pub fn change_baud(&mut self, baud: u32) -> Result<(), Error> {
+        debug!("Change baud to: {}", baud);
 
         let prior_baud = match self.use_stub {
-            true => self.connection.speed(),
+            true => self.connection.baud(),
             false => 0,
         };
 
@@ -1143,7 +1143,7 @@ impl Flasher {
         //
         // The ROM code thinks it uses a 40 MHz XTAL. Recompute the baud rate in order
         // to trick the ROM code to set the correct baud rate for a 26 MHz XTAL.
-        let mut new_baud = speed;
+        let mut new_baud = baud;
         if self.chip == Chip::Esp32c2 && !self.use_stub && xtal_freq == XtalFrequency::_26Mhz {
             new_baud = new_baud * 40 / 26;
         }
@@ -1155,7 +1155,7 @@ impl Flasher {
                     prior_baud,
                 })
             })?;
-        self.connection.set_baud(speed)?;
+        self.connection.set_baud(baud)?;
         sleep(Duration::from_secs_f32(0.05));
         self.connection.flush()?;
 

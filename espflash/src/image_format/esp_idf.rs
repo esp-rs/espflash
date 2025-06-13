@@ -177,7 +177,7 @@ impl Default for ImageHeader {
 }
 
 impl ImageHeader {
-    /// Updates flash size and speed filed.
+    /// Updates flash size and baud filed.
     pub fn write_flash_config(
         &mut self,
         size: FlashSize,
@@ -185,10 +185,10 @@ impl ImageHeader {
         chip: Chip,
     ) -> Result<(), Error> {
         let flash_size = size.encode_flash_size()?;
-        let flash_speed = freq.encode_flash_frequency(chip)?;
+        let flash_baud = freq.encode_flash_frequency(chip)?;
 
         // bit field
-        self.flash_config = (flash_size << 4) | flash_speed;
+        self.flash_config = (flash_size << 4) | flash_baud;
         Ok(())
     }
 }
