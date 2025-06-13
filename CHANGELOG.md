@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Run some arguments checks for monitoring flags. (#842)
 - Add support for the ESP32-C5 (#863)
 - `--after` options now work with `espflash board-info`, `espflash read-flash` and `espflash checksum-md5` (#867)
-- Add support for serial port configuration files. (#777)
+- Add support for serial port configuration files. (#777, #883)
 - Add a `check-app-descriptor` bool option to `ImageArgs` and add the flag to `flash` commad(#872)
 
 ### Changed
@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated bootloaders with `release/v5.4` ones from IDF (#857)
 - Refactor image formatting to allow supporting more image formats in a backward compatible way (#877)
 - Avoid having ESP-IDF format assumptions in the codebase (#877)
+- Automatically migrate `espflash@3` configuration files to the new format (#883)
 
 ### Fixed
 
