@@ -453,6 +453,7 @@ pub fn connect(
         !no_verify,
         !no_skip,
         args.chip,
+        args.baud.or(config.project_config.baudrate),
     )?)
 }
 
