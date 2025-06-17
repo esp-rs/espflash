@@ -1,7 +1,5 @@
 //! Binary application image formats
 
-#[cfg(not(feature = "cli"))]
-use std::path::PathBuf;
 use std::{
     borrow::Cow,
     cmp::Ordering,

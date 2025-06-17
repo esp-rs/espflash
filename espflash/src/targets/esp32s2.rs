@@ -1,11 +1,10 @@
 use std::ops::Range;
 
+use super::{Chip, ReadEFuse, SpiRegisters, Target, efuse::esp32s2 as efuse};
 #[cfg(feature = "serialport")]
-use super::flash_target::MAX_RAM_BLOCK_SIZE;
-use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32s2 as efuse};
-use crate::Error;
+use super::{XtalFrequency, flash_target::MAX_RAM_BLOCK_SIZE};
 #[cfg(feature = "serialport")]
-use crate::{connection::Connection, flasher::FLASH_WRITE_SIZE};
+use crate::{Error, connection::Connection, flasher::FLASH_WRITE_SIZE};
 
 pub(crate) const CHIP_ID: u16 = 2;
 
