@@ -50,10 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated bootloaders with `release/v5.4` ones from IDF (#857)
 - Refactor image formatting to allow supporting more image formats in a backward compatible way (#877)
 - Avoid having ESP-IDF format assumptions in the codebase (#877)
-- Automatically migrate `espflash@3` configuration files to the new format (#883)
-- `Flasher` now takes the `Connection` in new, instead of constructing the connection inside `Flasher::connect` (#882)
+- `Flasher` now takes the `Connection` in new, instead of constructing the connection inside `Flasher::connect` (#882, #885)
 - `detect_chip` has moved to the `Connection` struct (#882)
 - `Flasher::into_serial` has been replaced by `Flasher::into_connection` (#882)
+- Automatically migrate `espflash@3` configuration files to the new format (#883)
 
 ### Fixed
 

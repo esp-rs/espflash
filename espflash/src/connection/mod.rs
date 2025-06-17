@@ -398,9 +398,9 @@ impl Connection {
         Ok(())
     }
 
-    /// Get the current baud rate of the serial port.
-    pub fn baud(&self) -> u32 {
-        self.baud
+    // Get the current baud rate of the serial port.
+    pub fn baud(&self) -> Result<u32, Error> {
+        Ok(self.serial.baud_rate()?)
     }
 
     /// Run a command with a timeout defined by the command type.

@@ -648,6 +648,7 @@ impl Flasher {
         verify: bool,
         skip: bool,
         chip: Option<Chip>,
+        baud: Option<u32>,
     ) -> Result<Self, Error> {
         // The connection should already be established with the device using the
         // default baud rate of 115,200 and timeout of 3 seconds.
@@ -706,9 +707,11 @@ impl Flasher {
 
         // Now that we have established a connection and detected the chip and flash
         // size, we can set the baud rate of the connection to the configured value.
-        if flasher.connection.baud() > 115_200 {
-            warn!("Setting baud rate higher than 115,200 can cause issues");
-            flasher.change_baud(flasher.connection.baud())?;
+        if let Some(baud) = baud {
+            if baud > 115_200 {
+                warn!("Setting baud rate higher than 115,200 can cause issues");
+                flasher.change_baud(baud)?;
+            }
         }
 
         Ok(flasher)
@@ -1132,7 +1135,7 @@ impl Flasher {
         debug!("Change baud to: {}", baud);
 
         let prior_baud = match self.use_stub {
-            true => self.connection.baud(),
+            true => self.connection.baud()?,
             false => 0,
         };
 

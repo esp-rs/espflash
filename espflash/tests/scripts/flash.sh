@@ -53,3 +53,15 @@ if ! echo "$result" | grep -q "Hello world!"; then
     echo "Monitoring failed!"
     exit 1
 fi
+
+# Test with a higher baud rate
+result=$(timeout 15s espflash flash --no-skip --monitor --non-interactive --baud 921600 $app 2>&1 | tr -d '\0')
+echo "$result"
+if [[ ! $result =~ "Flashing has completed!" ]]; then
+    echo "Flashing failed!"
+    exit 1
+fi
+if ! echo "$result" | grep -q "Hello world!"; then
+    echo "Monitoring failed!"
+    exit 1
+fi
