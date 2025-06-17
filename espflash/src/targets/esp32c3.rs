@@ -1,9 +1,10 @@
 use std::ops::Range;
 
-use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32c3 as efuse};
-use crate::Error;
 #[cfg(feature = "serialport")]
-use crate::connection::Connection;
+use super::XtalFrequency;
+use super::{Chip, ReadEFuse, SpiRegisters, Target, efuse::esp32c3 as efuse};
+#[cfg(feature = "serialport")]
+use crate::{Error, connection::Connection};
 
 pub(crate) const CHIP_ID: u16 = 5;
 

@@ -1,9 +1,11 @@
 use std::{collections::HashMap, ops::Range};
 
-use super::{Chip, ReadEFuse, SpiRegisters, Target, XtalFrequency, efuse::esp32h2 as efuse};
 #[cfg(feature = "serialport")]
-use crate::connection::Connection;
-use crate::{Error, flasher::FlashFrequency};
+use super::XtalFrequency;
+use super::{Chip, ReadEFuse, SpiRegisters, Target, efuse::esp32h2 as efuse};
+use crate::flasher::FlashFrequency;
+#[cfg(feature = "serialport")]
+use crate::{Error, connection::Connection};
 
 pub(crate) const CHIP_ID: u16 = 16;
 

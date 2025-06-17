@@ -86,8 +86,8 @@ jobs:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
 
-      - run: cargo check -p espflash --lib --no-default-features
-      - run: cargo check -p espflash --lib --no-default-features --features serialport
+      - run: RUSTFLAGS="-D warnings" cargo check -p espflash --lib --no-default-features
+      - run: RUSTFLAGS="-D warnings" cargo check -p espflash --lib --no-default-features --features serialport
 
   msrv:
     name: Check lib MSRV  (${{ matrix.platform.target }})

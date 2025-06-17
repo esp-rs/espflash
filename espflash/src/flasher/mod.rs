@@ -5,8 +5,10 @@
 //! read information from the target device.
 
 #[cfg(feature = "serialport")]
+use std::fs::OpenOptions;
+#[cfg(feature = "serialport")]
 use std::{borrow::Cow, io::Write, path::PathBuf, thread::sleep, time::Duration};
-use std::{collections::HashMap, fmt, fs::OpenOptions, str::FromStr};
+use std::{collections::HashMap, fmt, str::FromStr};
 
 #[cfg(feature = "serialport")]
 use log::{debug, info, warn};
