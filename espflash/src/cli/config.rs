@@ -141,6 +141,21 @@ impl Config {
 
         let mut port_config = if let Ok(data) = read_to_string(&port_config_file) {
             toml::from_str(&data).into_diagnostic()?
+        } else if let Ok(data) = read_to_string(&project_config_file) {
+            if data.contains("[connection]") || data.contains("[[usb_device]]") {
+                log::info!(
+                    "espflash@3 configuration detected. Migrating port config to port_config_file: {:#?}",
+                    &port_config_file
+                );
+                // Write the updated configs
+                let port_config = toml::from_str(&data).into_diagnostic()?;
+                Self::write_config(&port_config, &port_config_file)?;
+                Self::write_config(&project_config, &project_config_file)?;
+
+                port_config
+            } else {
+                PortConfig::default()
+            }
         } else {
             PortConfig::default()
         };
@@ -153,26 +168,28 @@ impl Config {
         })
     }
 
+    fn write_config<T: Serialize>(config: &T, path: &PathBuf) -> Result<()> {
+        let serialized = toml::to_string(config)
+            .into_diagnostic()
+            .wrap_err("Failed to serialize config")?;
+
+        if let Some(parent) = path.parent() {
+            create_dir_all(parent)
+                .into_diagnostic()
+                .wrap_err("Failed to create config directory")?;
+        }
+
+        write(path, serialized)
+            .into_diagnostic()
+            .wrap_err_with(|| format!("Failed to write config to {}", path.display()))
+    }
+
     /// Save port configuration to the configuration file
     pub fn save_with<F: Fn(&mut Self)>(&self, modify_fn: F) -> Result<()> {
         let mut copy = self.clone();
         modify_fn(&mut copy);
 
-        let serialized = toml::to_string(&copy.port_config)
-            .into_diagnostic()
-            .wrap_err("Failed to serialize config")?;
-
-        create_dir_all(self.port_config.save_path.parent().unwrap())
-            .into_diagnostic()
-            .wrap_err("Failed to create config directory")?;
-        write(&self.port_config.save_path, serialized)
-            .into_diagnostic()
-            .wrap_err_with(|| {
-                format!(
-                    "Failed to write config to {}",
-                    self.port_config.save_path.display()
-                )
-            })
+        Self::write_config(&copy.port_config, &self.port_config.save_path)
     }
 
     fn project_config_path() -> Result<PathBuf, Error> {
