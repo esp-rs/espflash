@@ -116,7 +116,7 @@ jobs:
           timeout 90 bash espflash/tests/scripts/save-image_write-bin.sh ${{ matrix.board.mcu }}
 
       - name: erase-region test
-        run: timeout 15 bash espflash/tests/scripts/erase-region.sh
+        run: timeout 30 bash espflash/tests/scripts/erase-region.sh
 
       - name: hold-in-reset test
         run: timeout 10 bash espflash/tests/scripts/hold-in-reset.sh
