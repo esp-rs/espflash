@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--after` options now work with `espflash board-info`, `espflash read-flash` and `espflash checksum-md5` (#867)
 - Add support for serial port configuration files. (#777, #883)
 - Add a `check-app-descriptor` bool option to `ImageArgs` and add the flag to `flash` commad(#872)
+- `Connection::into_serial` to get the underlying port from the connection (#882)
 
 ### Changed
 
@@ -50,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor image formatting to allow supporting more image formats in a backward compatible way (#877)
 - Avoid having ESP-IDF format assumptions in the codebase (#877)
 - Automatically migrate `espflash@3` configuration files to the new format (#883)
+- `Flasher` now takes the `Connection` in new, instead of constructing the connection inside `Flasher::connect` (#882)
+- `detect_chip` has moved to the `Connection` struct (#882)
+- `Flasher::into_serial` has been replaced by `Flasher::into_connection` (#882)
 
 ### Fixed
 
@@ -62,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed a case where esplash transformed the firmware elf in a way that made it unbootable (#831)
 - The app descriptor is now correctly placed in the front of the bianry (#835)
 - espflash now extracts the MMU page size from the app descriptor (#835)
+- `ResetBeforeOperation` & `ResetAfterOperation` are now public, to allow the creation of a `Connection` (#882)
 
 ### Removed
 

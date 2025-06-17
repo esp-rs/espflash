@@ -397,7 +397,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     }
 
     if args.flash_args.monitor {
-        let pid = flasher.usb_pid();
+        let pid = flasher.connection().usb_pid();
 
         // The 26MHz ESP32-C2's need to be treated as a special case.
         if chip == Chip::Esp32c2
@@ -410,7 +410,12 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
         monitor_args.elf = Some(build_ctx.artifact_path);
 
-        monitor(flasher.into_serial(), Some(&elf_data), pid, monitor_args)
+        monitor(
+            flasher.into_connection().into_serial(),
+            Some(&elf_data),
+            pid,
+            monitor_args,
+        )
     } else {
         Ok(())
     }

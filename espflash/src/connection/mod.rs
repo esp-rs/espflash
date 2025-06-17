@@ -35,6 +35,7 @@ use self::{
 };
 use crate::{
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
+    flasher::stubs::CHIP_DETECT_MAGIC_REG_ADDR,
     targets::Chip,
 };
 
@@ -134,6 +135,7 @@ pub struct Connection {
     after_operation: ResetAfterOperation,
     before_operation: ResetBeforeOperation,
     pub(crate) secure_download_mode: bool,
+    pub(crate) baud: u32,
 }
 
 impl Connection {
@@ -143,6 +145,7 @@ impl Connection {
         port_info: UsbPortInfo,
         after_operation: ResetAfterOperation,
         before_operation: ResetBeforeOperation,
+        baud: u32,
     ) -> Self {
         Connection {
             serial,
@@ -151,6 +154,7 @@ impl Connection {
             after_operation,
             before_operation,
             secure_download_mode: false,
+            baud,
         }
     }
 
@@ -388,15 +392,15 @@ impl Connection {
     }
 
     /// Set baud rate for the serial port.
-    pub fn set_baud(&mut self, speed: u32) -> Result<(), Error> {
-        self.serial.set_baud_rate(speed)?;
-
+    pub fn set_baud(&mut self, baud: u32) -> Result<(), Error> {
+        self.serial.set_baud_rate(baud)?;
+        self.baud = baud;
         Ok(())
     }
 
     /// Get the current baud rate of the serial port.
-    pub fn baud(&self) -> Result<u32, Error> {
-        Ok(self.serial.baud_rate()?)
+    pub fn baud(&self) -> u32 {
+        self.baud
     }
 
     /// Run a command with a timeout defined by the command type.
@@ -617,6 +621,33 @@ impl Connection {
 
     pub(crate) fn is_using_usb_serial_jtag(&self) -> bool {
         self.port_info.pid == USB_SERIAL_JTAG_PID
+    }
+
+    pub fn after_operation(&self) -> ResetAfterOperation {
+        self.after_operation
+    }
+    pub fn before_operation(&self) -> ResetBeforeOperation {
+        self.before_operation
+    }
+
+    /// Detect which chip is connected to this connection
+    pub fn detect_chip(
+        &mut self,
+        use_stub: bool,
+    ) -> Result<crate::targets::Chip, crate::error::Error> {
+        // Try to read the magic value from the chip
+        let magic = if use_stub {
+            self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
+                connection.command(Command::ReadReg {
+                    address: CHIP_DETECT_MAGIC_REG_ADDR,
+                })
+            })?
+            .try_into()?
+        } else {
+            self.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?
+        };
+        debug!("Read chip magic value: 0x{:08x}", magic);
+        Chip::from_magic(magic)
     }
 }
 
