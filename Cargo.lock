@@ -426,7 +426,7 @@ version = "7.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a65ebfec4fb190b6f90e944a817d60499ee0744e582530e2c9900a22e591d9a"
 dependencies = [
- "crossterm 0.28.1",
+ "crossterm",
  "unicode-segmentation",
  "unicode-width 0.2.1",
 ]
@@ -442,15 +442,6 @@ dependencies = [
  "once_cell",
  "unicode-width 0.2.1",
  "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "convert_case"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb402b8d4c85569410425650ce3eddc7d698ed96d39a73f941b08fb63082f1e7"
-dependencies = [
- "unicode-segmentation",
 ]
 
 [[package]]
@@ -504,24 +495,9 @@ checksum = "829d955a0bb380ef178a640b91779e3987da38c9aea133b20614cfed8cdea9c6"
 dependencies = [
  "bitflags 2.9.1",
  "crossterm_winapi",
- "parking_lot",
- "rustix 0.38.44",
- "winapi",
-]
-
-[[package]]
-name = "crossterm"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8b9f2e4c67f833b660cdb0a3523065869fb35570177239812ed4c905aeff87b"
-dependencies = [
- "bitflags 2.9.1",
- "crossterm_winapi",
- "derive_more 2.0.1",
- "document-features",
  "mio",
  "parking_lot",
- "rustix 1.0.7",
+ "rustix 0.38.44",
  "signal-hook",
  "signal-hook-mio",
  "winapi",
@@ -728,27 +704,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "derive_more"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "093242cf7570c207c83073cf82f79706fe7b8317e98620a47d5be7c3d8497678"
-dependencies = [
- "derive_more-impl",
-]
-
-[[package]]
-name = "derive_more-impl"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3"
-dependencies = [
- "convert_case",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "dialoguer"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -808,15 +763,6 @@ name = "dissimilar"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8975ffdaa0ef3661bfe02dbdcc06c9f829dfafe6a3c474de366a8d5e44276921"
-
-[[package]]
-name = "document-features"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95249b50c6c185bee49034bcb378a49dc2b5dff0be90ff6616d31d64febab05d"
-dependencies = [
- "litrs",
-]
 
 [[package]]
 name = "encode_unicode"
@@ -911,7 +857,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "comfy-table",
- "crossterm 0.29.0",
+ "crossterm",
  "ctrlc",
  "defmt-decoder",
  "dialoguer",
@@ -1503,12 +1449,6 @@ name = "litemap"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "241eaef5fd12c88705a01fc1066c48c4b36e0dd4377dcdc7ec3942cea7a69956"
-
-[[package]]
-name = "litrs"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
 
 [[package]]
 name = "lock_api"
@@ -2201,7 +2141,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5174a470eeb535a721ae9fdd6e291c2411a906b96592182d05217591d5c5cf7b"
 dependencies = [
  "byteorder",
- "derive_more 0.99.20",
+ "derive_more",
  "twox-hash 1.6.3",
 ]
 
