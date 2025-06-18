@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Range};
 
 #[cfg(feature = "serialport")]
 use super::XtalFrequency;
-use super::{Chip, ReadEFuse, SpiRegisters, Target, efuse::esp32c2 as efuse};
+use super::{Chip, SpiRegisters, Target, efuse::esp32c2 as efuse};
 use crate::flasher::FlashFrequency;
 #[cfg(feature = "serialport")]
 use crate::{Error, connection::Connection};
@@ -37,20 +37,6 @@ impl Esp32c2 {
     }
 }
 
-impl ReadEFuse for Esp32c2 {
-    fn efuse_reg(&self) -> u32 {
-        0x6000_8800
-    }
-
-    fn block0_offset(&self) -> u32 {
-        0x35
-    }
-
-    fn block_size(&self, block: usize) -> u32 {
-        efuse::BLOCK_SIZES[block]
-    }
-}
-
 impl Target for Esp32c2 {
     fn chip(&self) -> Chip {
         Chip::Esp32c2
@@ -67,12 +53,14 @@ impl Target for Esp32c2 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        self.read_efuse(connection, efuse::WAFER_VERSION_MAJOR)
+        self.chip()
+            .read_efuse(connection, efuse::WAFER_VERSION_MAJOR)
     }
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        self.read_efuse(connection, efuse::WAFER_VERSION_MINOR)
+        self.chip()
+            .read_efuse(connection, efuse::WAFER_VERSION_MINOR)
     }
 
     #[cfg(feature = "serialport")]

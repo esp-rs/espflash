@@ -2,7 +2,7 @@ use std::ops::Range;
 
 #[cfg(feature = "serialport")]
 use super::XtalFrequency;
-use super::{Chip, ReadEFuse, SpiRegisters, Target, efuse::esp32c6 as efuse};
+use super::{Chip, SpiRegisters, Target, efuse::esp32c6 as efuse};
 #[cfg(feature = "serialport")]
 use crate::{Error, connection::Connection};
 
@@ -25,20 +25,6 @@ impl Esp32c6 {
     }
 }
 
-impl ReadEFuse for Esp32c6 {
-    fn efuse_reg(&self) -> u32 {
-        0x600B_0800
-    }
-
-    fn block0_offset(&self) -> u32 {
-        0x2C
-    }
-
-    fn block_size(&self, block: usize) -> u32 {
-        efuse::BLOCK_SIZES[block]
-    }
-}
-
 impl Target for Esp32c6 {
     fn chip(&self) -> Chip {
         Chip::Esp32c6
@@ -55,12 +41,14 @@ impl Target for Esp32c6 {
 
     #[cfg(feature = "serialport")]
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        self.read_efuse(connection, efuse::WAFER_VERSION_MAJOR)
+        self.chip()
+            .read_efuse(connection, efuse::WAFER_VERSION_MAJOR)
     }
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        self.read_efuse(connection, efuse::WAFER_VERSION_MINOR)
+        self.chip()
+            .read_efuse(connection, efuse::WAFER_VERSION_MINOR)
     }
 
     #[cfg(feature = "serialport")]

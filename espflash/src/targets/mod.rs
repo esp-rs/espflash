@@ -248,6 +248,90 @@ impl Chip {
     ) -> Box<dyn FlashTarget> {
         Box::new(RamTarget::new(entry, max_ram_block_size))
     }
+
+    /// Returns the base address of the eFuse register
+    pub fn efuse_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => 0x3FF5_A000,
+            Chip::Esp32c2 => 0x6000_8800,
+            Chip::Esp32c3 => 0x6000_8800,
+            Chip::Esp32c5 => 0x600B4800,
+            Chip::Esp32c6 => 0x600B_0800,
+            Chip::Esp32h2 => 0x600B_0800,
+            Chip::Esp32p4 => 0x5012_D000,
+            Chip::Esp32s2 => 0x3F41_A000,
+            Chip::Esp32s3 => 0x6000_7000,
+        }
+    }
+
+    /// Returns the offset of BLOCK0 relative to the eFuse base register address
+    pub fn block0_offset(&self) -> u32 {
+        match self {
+            Chip::Esp32 => 0x0,
+            Chip::Esp32c2 => 0x35,
+            Chip::Esp32c3 => 0x2D,
+            Chip::Esp32c5 => 0x2C,
+            Chip::Esp32c6 => 0x2C,
+            Chip::Esp32h2 => 0x2C,
+            Chip::Esp32p4 => 0x2C,
+            Chip::Esp32s2 => 0x2C,
+            Chip::Esp32s3 => 0x2D,
+        }
+    }
+
+    /// Returns the size of the specified block for the implementing target
+    /// device
+    pub fn block_size(&self, block: usize) -> u32 {
+        match self {
+            Chip::Esp32 => efuse::esp32::BLOCK_SIZES[block],
+            Chip::Esp32c2 => efuse::esp32c2::BLOCK_SIZES[block],
+            Chip::Esp32c3 => efuse::esp32c3::BLOCK_SIZES[block],
+            Chip::Esp32c5 => efuse::esp32c5::BLOCK_SIZES[block],
+            Chip::Esp32c6 => efuse::esp32c6::BLOCK_SIZES[block],
+            Chip::Esp32h2 => efuse::esp32h2::BLOCK_SIZES[block],
+            Chip::Esp32p4 => efuse::esp32p4::BLOCK_SIZES[block],
+            Chip::Esp32s2 => efuse::esp32s2::BLOCK_SIZES[block],
+            Chip::Esp32s3 => efuse::esp32s3::BLOCK_SIZES[block],
+        }
+    }
+
+    /// Given an active connection, read the specified field of the eFuse region
+    #[cfg(feature = "serialport")]
+    pub fn read_efuse(&self, connection: &mut Connection, field: EfuseField) -> Result<u32, Error> {
+        let mask = if field.bit_count == 32 {
+            u32::MAX
+        } else {
+            (1u32 << field.bit_count) - 1
+        };
+
+        let shift = field.bit_start % 32;
+
+        let value = self.read_efuse_raw(connection, field.block, field.word)?;
+        let value = (value >> shift) & mask;
+
+        Ok(value)
+    }
+
+    /// Read the raw word in the specified eFuse block, without performing any
+    /// bit-shifting or masking of the read value
+    #[cfg(feature = "serialport")]
+    pub fn read_efuse_raw(
+        &self,
+        connection: &mut Connection,
+        block: u32,
+        word: u32,
+    ) -> Result<u32, Error> {
+        let block0_addr = self.efuse_reg() + self.block0_offset();
+
+        let mut block_offset = 0;
+        for b in 0..block {
+            block_offset += self.block_size(b as usize);
+        }
+
+        let addr = block0_addr + block_offset + (word * 0x4);
+
+        connection.read_reg(addr)
+    }
 }
 
 impl TryFrom<u16> for Chip {
@@ -320,59 +404,8 @@ impl SpiRegisters {
     }
 }
 
-/// Enable the reading of eFuses for a target
-pub trait ReadEFuse {
-    /// Returns the base address of the eFuse register
-    fn efuse_reg(&self) -> u32;
-
-    /// Returns the offset of BLOCK0 relative to the eFuse base register address
-    fn block0_offset(&self) -> u32;
-
-    /// Returns the size of the specified block for the implementing target
-    /// device
-    fn block_size(&self, block: usize) -> u32;
-
-    /// Given an active connection, read the specified field of the eFuse region
-    #[cfg(feature = "serialport")]
-    fn read_efuse(&self, connection: &mut Connection, field: EfuseField) -> Result<u32, Error> {
-        let mask = if field.bit_count == 32 {
-            u32::MAX
-        } else {
-            (1u32 << field.bit_count) - 1
-        };
-
-        let shift = field.bit_start % 32;
-
-        let value = self.read_efuse_raw(connection, field.block, field.word)?;
-        let value = (value >> shift) & mask;
-
-        Ok(value)
-    }
-
-    /// Read the raw word in the specified eFuse block, without performing any
-    /// bit-shifting or masking of the read value
-    #[cfg(feature = "serialport")]
-    fn read_efuse_raw(
-        &self,
-        connection: &mut Connection,
-        block: u32,
-        word: u32,
-    ) -> Result<u32, Error> {
-        let block0_addr = self.efuse_reg() + self.block0_offset();
-
-        let mut block_offset = 0;
-        for b in 0..block {
-            block_offset += self.block_size(b as usize);
-        }
-
-        let addr = block0_addr + block_offset + (word * 0x4);
-
-        connection.read_reg(addr)
-    }
-}
-
 /// Operations for interacting with supported target devices
-pub trait Target: ReadEFuse {
+pub trait Target {
     /// The associated [Chip] for the implementing target
     fn chip(&self) -> Chip;
 
@@ -432,8 +465,8 @@ pub trait Target: ReadEFuse {
             Chip::Esp32s3 => (self::efuse::esp32s3::MAC0, self::efuse::esp32s3::MAC1),
         };
 
-        let mac0 = self.read_efuse(connection, mac0_field)?;
-        let mac1 = self.read_efuse(connection, mac1_field)?;
+        let mac0 = self.chip().read_efuse(connection, mac0_field)?;
+        let mac1 = self.chip().read_efuse(connection, mac1_field)?;
 
         let bytes = ((mac1 as u64) << 32) | mac0 as u64;
         let bytes = bytes.to_be_bytes();

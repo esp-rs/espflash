@@ -2,7 +2,7 @@ use std::ops::Range;
 
 #[cfg(feature = "serialport")]
 use super::XtalFrequency;
-use super::{Chip, ReadEFuse, SpiRegisters, Target, efuse::esp32 as efuse};
+use super::{Chip, SpiRegisters, Target, efuse::esp32 as efuse};
 #[cfg(feature = "serialport")]
 use crate::{Error, connection::Connection};
 
@@ -34,26 +34,12 @@ impl Esp32 {
     /// Return the package version based on the eFuses
     #[cfg(feature = "serialport")]
     fn package_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let word3 = self.read_efuse_raw(connection, 0, 3)?;
+        let word3 = self.chip().read_efuse_raw(connection, 0, 3)?;
 
         let pkg_version = (word3 >> 9) & 0x7;
         let pkg_version = pkg_version + (((word3 >> 2) & 0x1) << 3);
 
         Ok(pkg_version)
-    }
-}
-
-impl ReadEFuse for Esp32 {
-    fn efuse_reg(&self) -> u32 {
-        0x3FF5_A000
-    }
-
-    fn block0_offset(&self) -> u32 {
-        0x0
-    }
-
-    fn block_size(&self, block: usize) -> u32 {
-        efuse::BLOCK_SIZES[block]
     }
 }
 
@@ -70,21 +56,25 @@ impl Target for Esp32 {
     fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
         let mut features = vec!["WiFi"];
 
-        let disable_bt = self.read_efuse(connection, efuse::DISABLE_BT)?;
+        let disable_bt = self.chip().read_efuse(connection, efuse::DISABLE_BT)?;
         if disable_bt == 0 {
             features.push("BT");
         }
 
-        let disable_app_cpu = self.read_efuse(connection, efuse::DISABLE_APP_CPU)?;
+        let disable_app_cpu = self.chip().read_efuse(connection, efuse::DISABLE_APP_CPU)?;
         if disable_app_cpu == 0 {
             features.push("Dual Core");
         } else {
             features.push("Single Core");
         }
 
-        let chip_cpu_freq_rated = self.read_efuse(connection, efuse::CHIP_CPU_FREQ_RATED)?;
+        let chip_cpu_freq_rated = self
+            .chip()
+            .read_efuse(connection, efuse::CHIP_CPU_FREQ_RATED)?;
         if chip_cpu_freq_rated != 0 {
-            let chip_cpu_freq_low = self.read_efuse(connection, efuse::CHIP_CPU_FREQ_LOW)?;
+            let chip_cpu_freq_low = self
+                .chip()
+                .read_efuse(connection, efuse::CHIP_CPU_FREQ_LOW)?;
             if chip_cpu_freq_low != 0 {
                 features.push("160MHz");
             } else {
@@ -100,17 +90,19 @@ impl Target for Esp32 {
             features.push("Embedded PSRAM");
         }
 
-        let adc_vref = self.read_efuse(connection, efuse::ADC_VREF)?;
+        let adc_vref = self.chip().read_efuse(connection, efuse::ADC_VREF)?;
         if adc_vref != 0 {
             features.push("VRef calibration in efuse");
         }
 
-        let blk3_part_reserve = self.read_efuse(connection, efuse::BLK3_PART_RESERVE)?;
+        let blk3_part_reserve = self
+            .chip()
+            .read_efuse(connection, efuse::BLK3_PART_RESERVE)?;
         if blk3_part_reserve != 0 {
             features.push("BLK3 partially reserved");
         }
 
-        let coding_scheme = self.read_efuse(connection, efuse::CODING_SCHEME)?;
+        let coding_scheme = self.chip().read_efuse(connection, efuse::CODING_SCHEME)?;
         features.push(match coding_scheme {
             0 => "Coding Scheme None",
             1 => "Coding Scheme 3/4",
@@ -125,8 +117,8 @@ impl Target for Esp32 {
     fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let apb_ctl_date = connection.read_reg(0x3FF6_607C)?;
 
-        let word3 = self.read_efuse_raw(connection, 0, 3)?;
-        let word5 = self.read_efuse_raw(connection, 0, 5)?;
+        let word3 = self.chip().read_efuse_raw(connection, 0, 3)?;
+        let word5 = self.chip().read_efuse_raw(connection, 0, 5)?;
 
         let rev_bit0 = (word3 >> 15) & 0x1;
         let rev_bit1 = (word5 >> 20) & 0x1;
@@ -144,7 +136,8 @@ impl Target for Esp32 {
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        self.read_efuse(connection, efuse::WAFER_VERSION_MINOR)
+        self.chip()
+            .read_efuse(connection, efuse::WAFER_VERSION_MINOR)
     }
 
     #[cfg(feature = "serialport")]

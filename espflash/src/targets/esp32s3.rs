@@ -2,7 +2,7 @@ use std::ops::Range;
 
 #[cfg(feature = "serialport")]
 use super::XtalFrequency;
-use super::{Chip, ReadEFuse, SpiRegisters, Target, efuse::esp32s3 as efuse};
+use super::{Chip, SpiRegisters, Target, efuse::esp32s3 as efuse};
 #[cfg(feature = "serialport")]
 use crate::{Error, connection::Connection};
 
@@ -22,32 +22,18 @@ impl Esp32s3 {
     #[cfg(feature = "serialport")]
     /// Return the major BLK version based on eFuses
     fn blk_version_major(&self, connection: &mut Connection) -> Result<u32, Error> {
-        self.read_efuse(connection, efuse::BLK_VERSION_MAJOR)
+        self.chip().read_efuse(connection, efuse::BLK_VERSION_MAJOR)
     }
 
     #[cfg(feature = "serialport")]
     /// Return the minor BLK version based on eFuses
     fn blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
-        self.read_efuse(connection, efuse::BLK_VERSION_MINOR)
+        self.chip().read_efuse(connection, efuse::BLK_VERSION_MINOR)
     }
 
     /// Check if the magic value contains the specified value
     pub fn has_magic_value(value: u32) -> bool {
         CHIP_DETECT_MAGIC_VALUES.contains(&value)
-    }
-}
-
-impl ReadEFuse for Esp32s3 {
-    fn efuse_reg(&self) -> u32 {
-        0x6000_7000
-    }
-
-    fn block0_offset(&self) -> u32 {
-        0x2D
-    }
-
-    fn block_size(&self, block: usize) -> u32 {
-        efuse::BLOCK_SIZES[block]
     }
 }
 
@@ -76,14 +62,19 @@ impl Target for Esp32s3 {
         {
             Ok(0)
         } else {
-            self.read_efuse(connection, efuse::WAFER_VERSION_MAJOR)
+            self.chip()
+                .read_efuse(connection, efuse::WAFER_VERSION_MAJOR)
         }
     }
 
     #[cfg(feature = "serialport")]
     fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        let hi = self.read_efuse(connection, efuse::WAFER_VERSION_MINOR_HI)?;
-        let lo = self.read_efuse(connection, efuse::WAFER_VERSION_MINOR_LO)?;
+        let hi = self
+            .chip()
+            .read_efuse(connection, efuse::WAFER_VERSION_MINOR_HI)?;
+        let lo = self
+            .chip()
+            .read_efuse(connection, efuse::WAFER_VERSION_MINOR_LO)?;
 
         Ok((hi << 3) + lo)
     }
