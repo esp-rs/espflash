@@ -36,7 +36,10 @@ impl PackageMetadata {
             metadata
                 .packages
                 .iter()
-                .find(|package| Some(package.name.clone()) == *package_name)
+                .find(|package| match package_name {
+                    Some(name) => package.name.to_string() == *name,
+                    None => false,
+                })
                 .cloned()
         };
 

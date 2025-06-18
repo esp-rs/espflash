@@ -21,11 +21,11 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "zip"
 
 [dependencies]
-cargo_metadata = "0.19.1"
-clap           = { version = "4.5.24", features = ["derive", "wrap_help"] }
+cargo_metadata = "0.20.0"
+clap           = { version = "4.5.40", features = ["derive", "wrap_help"] }
 espflash       = { version = "4.0.0-dev", path = "../espflash" }
-log            = "0.4.22"
-miette         = { version = "7.4.0", features = ["fancy"] }
-serde          = { version = "1.0.217", features = ["derive"] }
-thiserror      = "2.0.10"
-toml           = "0.8.19"
+log            = "0.4.27"
+miette         = { version = "7.6.0", features = ["fancy"] }
+serde          = { version = "1.0.219", features = ["derive"] }
+thiserror      = "2.0.12"
+toml           = "0.8.23"
