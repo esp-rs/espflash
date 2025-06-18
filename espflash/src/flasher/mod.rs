@@ -741,8 +741,7 @@ impl Flasher {
 
         let mut ram_target = self.chip.ram_target(
             Some(stub.entry()),
-            self.chip
-                .max_ram_block_size(&mut self.connection)?,
+            self.chip.max_ram_block_size(&mut self.connection)?,
         );
         ram_target.begin(&mut self.connection).flashing()?;
 
@@ -1016,8 +1015,7 @@ impl Flasher {
 
         let mut target = self.chip.ram_target(
             Some(elf.elf_header().e_entry.get(Endianness::Little)),
-            self.chip
-                .max_ram_block_size(&mut self.connection)?,
+            self.chip.max_ram_block_size(&mut self.connection)?,
         );
         target.begin(&mut self.connection).flashing()?;
 

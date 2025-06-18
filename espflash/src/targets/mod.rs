@@ -11,17 +11,6 @@ use strum::{Display, EnumIter, EnumString, VariantNames};
 
 #[cfg(feature = "serialport")]
 pub use self::flash_target::{Esp32Target, RamTarget};
-use self::{
-    esp32::Esp32,
-    esp32c2::Esp32c2,
-    esp32c3::Esp32c3,
-    esp32c5::Esp32c5,
-    esp32c6::Esp32c6,
-    esp32h2::Esp32h2,
-    esp32p4::Esp32p4,
-    esp32s2::Esp32s2,
-    esp32s3::Esp32s3,
-};
 use crate::{Error, flasher::FlashFrequency};
 #[cfg(feature = "serialport")]
 use crate::{
@@ -34,15 +23,6 @@ use crate::{
 };
 
 mod efuse;
-mod esp32;
-mod esp32c2;
-mod esp32c3;
-mod esp32c5;
-mod esp32c6;
-mod esp32h2;
-mod esp32p4;
-mod esp32s2;
-mod esp32s3;
 
 #[cfg(feature = "serialport")]
 pub(crate) mod flash_target;
@@ -101,77 +81,218 @@ pub enum Chip {
 impl Chip {
     /// Create a [Chip] from a magic value.
     pub fn from_magic(magic: u32) -> Result<Self, Error> {
-        if Esp32::has_magic_value(magic) {
-            Ok(Chip::Esp32)
-        } else if Esp32c2::has_magic_value(magic) {
-            Ok(Chip::Esp32c2)
-        } else if Esp32c3::has_magic_value(magic) {
-            Ok(Chip::Esp32c3)
-        } else if Esp32c5::has_magic_value(magic) {
-            Ok(Chip::Esp32c5)
-        } else if Esp32c6::has_magic_value(magic) {
-            Ok(Chip::Esp32c6)
-        } else if Esp32h2::has_magic_value(magic) {
-            Ok(Chip::Esp32h2)
-        } else if Esp32p4::has_magic_value(magic) {
-            Ok(Chip::Esp32p4)
-        } else if Esp32s2::has_magic_value(magic) {
-            Ok(Chip::Esp32s2)
-        } else if Esp32s3::has_magic_value(magic) {
-            Ok(Chip::Esp32s3)
-        } else {
-            Err(Error::ChipDetectError(format!(
-                "unrecognized magic value: {magic:#x}"
-            )))
+        for chip in [
+            Chip::Esp32,
+            Chip::Esp32c2,
+            Chip::Esp32c3,
+            Chip::Esp32c5,
+            Chip::Esp32c6,
+            Chip::Esp32h2,
+            Chip::Esp32p4,
+            Chip::Esp32s2,
+            Chip::Esp32s3,
+        ] {
+            if chip.has_magic_value(magic) {
+                return Ok(chip);
+            }
+        }
+
+        Err(Error::ChipDetectError(format!(
+            "unrecognized magic value: {magic:#x}"
+        )))
+    }
+
+    /// Check if the magic value contains the specified value
+    pub fn has_magic_value(&self, value: u32) -> bool {
+        match self {
+            Chip::Esp32 => [0x00f0_1d83].contains(&value),
+            Chip::Esp32c2 => [
+                0x6f51_306f, // ECO0
+                0x7c41_a06f, // ECO1
+            ]
+            .contains(&value),
+            Chip::Esp32c3 => [
+                0x6921_506f, // ECO1 + ECO2
+                0x1b31_506f, // ECO3
+                0x4881_606F, // ECO6
+                0x4361_606f, // ECO7
+            ]
+            .contains(&value),
+            Chip::Esp32c5 => [].contains(&value), // Empty array
+            Chip::Esp32c6 => [0x2CE0_806F].contains(&value),
+            Chip::Esp32h2 => [0xD7B7_3E80].contains(&value),
+            Chip::Esp32p4 => [0x0, 0x0ADDBAD0].contains(&value),
+            Chip::Esp32s2 => [0x0000_07c6].contains(&value),
+            Chip::Esp32s3 => [0x9].contains(&value),
+        }
+    }
+
+    /// Get the RTC watchdog write protect register address
+    #[cfg(feature = "serialport")]
+    pub fn wdt_wprotect(&self) -> Option<u32> {
+        match self {
+            Chip::Esp32c3 => Some(0x6000_80A8),
+            Chip::Esp32p4 => Some(0x5011_6018),
+            Chip::Esp32s2 => Some(0x3F40_80AC),
+            Chip::Esp32s3 => Some(0x6000_80B0),
+            _ => None,
+        }
+    }
+
+    /// Get the RTC watchdog config0 register address
+    #[cfg(feature = "serialport")]
+    pub fn wdt_config0(&self) -> Option<u32> {
+        match self {
+            Chip::Esp32c3 => Some(0x6000_8090),
+            Chip::Esp32p4 => Some(0x5011_6000),
+            Chip::Esp32s2 => Some(0x3F40_8094),
+            Chip::Esp32s3 => Some(0x6000_8098),
+            _ => None,
+        }
+    }
+
+    /// Get the RTC watchdog config1 register address
+    #[cfg(feature = "serialport")]
+    pub fn wdt_config1(&self) -> Option<u32> {
+        match self {
+            Chip::Esp32c3 => Some(0x6000_8094),
+            Chip::Esp32p4 => Some(0x5011_6004),
+            Chip::Esp32s2 => Some(0x3F40_8098),
+            Chip::Esp32s3 => Some(0x6000_809C),
+            _ => None,
+        }
+    }
+
+    /// Check if RTC WDT reset can be performed
+    #[cfg(feature = "serialport")]
+    pub fn can_rtc_wdt_reset(&self, connection: &mut Connection) -> Result<bool, Error> {
+        match self {
+            Chip::Esp32c3 | Chip::Esp32p4 => Ok(true),
+            Chip::Esp32s2 => {
+                const GPIO_STRAP: u32 = 0x3F40_4038;
+                const OPTION1: u32 = 0x3F40_8128;
+                const GPIO_STRAP_SPI_BOOT_MASK: u32 = 1 << 3;
+                const FORCE_DOWNLOAD_BOOT_MASK: u32 = 0x1;
+
+                Ok(
+                    connection.read_reg(GPIO_STRAP)? & GPIO_STRAP_SPI_BOOT_MASK == 0 // GPIO0 low
+                        && connection.read_reg(OPTION1)? & FORCE_DOWNLOAD_BOOT_MASK == 0,
+                )
+            }
+            Chip::Esp32s3 => {
+                const GPIO_STRAP: u32 = 0x6000_4038;
+                const OPTION1: u32 = 0x6000_812C;
+                const GPIO_STRAP_SPI_BOOT_MASK: u32 = 1 << 3; // Not download mode
+                const FORCE_DOWNLOAD_BOOT_MASK: u32 = 0x1;
+
+                Ok(
+                    connection.read_reg(GPIO_STRAP)? & GPIO_STRAP_SPI_BOOT_MASK == 0 // GPIO0 low
+                        && connection.read_reg(OPTION1)? & FORCE_DOWNLOAD_BOOT_MASK == 0,
+                )
+            }
+            _ => Err(Error::UnsupportedFeature {
+                chip: *self,
+                feature: "RTC WDT reset".into(),
+            }),
+        }
+    }
+
+    /// Get the UART device buffer number register address
+    #[cfg(feature = "serialport")]
+    pub fn uartdev_buf_no(&self) -> Option<u32> {
+        match self {
+            Chip::Esp32p4 => Some(0x4FF3_FEC8),
+            Chip::Esp32s2 => Some(0x3FFF_FD14),
+            Chip::Esp32s3 => Some(0x3FCE_F14C),
+            _ => None,
+        }
+    }
+
+    /// Get the UART device buffer number for USB OTG
+    #[cfg(feature = "serialport")]
+    pub fn uartdev_buf_no_usb_otg(&self) -> Option<u32> {
+        match self {
+            Chip::Esp32p4 => Some(5),
+            Chip::Esp32s2 => Some(2),
+            Chip::Esp32s3 => Some(3),
+            _ => None,
+        }
+    }
+
+    /// Check if USB OTG is being used
+    #[cfg(feature = "serialport")]
+    pub fn is_using_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
+        match (self.uartdev_buf_no(), self.uartdev_buf_no_usb_otg()) {
+            (Some(buf_no), Some(usb_otg)) => {
+                let value = connection.read_reg(buf_no)?;
+                Ok(value == usb_otg)
+            }
+            _ => Err(Error::UnsupportedFeature {
+                chip: *self,
+                feature: "USB OTG".into(),
+            }),
+        }
+    }
+
+    /// Perform RTC WDT reset
+    #[cfg(feature = "serialport")]
+    pub fn rtc_wdt_reset(&self, connection: &mut Connection) -> Result<(), Error> {
+        match (self.wdt_wprotect(), self.wdt_config0(), self.wdt_config1()) {
+            (Some(wdt_wprotect), Some(wdt_config0), Some(wdt_config1)) => {
+                use bitflags::bitflags;
+
+                bitflags! {
+                    struct WdtConfig0Flags: u32 {
+                        const EN               = 1 << 31;
+                        const STAGE0           = 5 << 28; // 5 (binary: 101) in bits 28-30
+                        const CHIP_RESET_EN    = 1 << 8;  // 8th bit
+                        const CHIP_RESET_WIDTH = 1 << 2;  // 1st bit
+                    }
+                }
+
+                let flags = (WdtConfig0Flags::EN // enable RTC watchdog
+                    | WdtConfig0Flags::STAGE0 // enable at the interrupt/system and RTC stage
+                    | WdtConfig0Flags::CHIP_RESET_EN // enable chip reset
+                    | WdtConfig0Flags::CHIP_RESET_WIDTH) // set chip reset width
+                    .bits();
+
+                const WDT_WKEY: u32 = 0x50D8_3AA1;
+
+                log::debug!("Resetting with RTC WDT");
+                connection.write_reg(wdt_wprotect, WDT_WKEY, None)?;
+                connection.write_reg(wdt_config1, 2000, None)?;
+                connection.write_reg(wdt_config0, flags, None)?;
+                connection.write_reg(wdt_wprotect, 0, None)?;
+
+                std::thread::sleep(std::time::Duration::from_millis(50));
+
+                Ok(())
+            }
+            _ => Err(Error::UnsupportedFeature {
+                chip: *self,
+                feature: "RTC WDT reset".into(),
+            }),
         }
     }
 
     /// Returns the chip ID for the [Chip]
     pub fn id(&self) -> u16 {
         match self {
-            Chip::Esp32 => esp32::CHIP_ID,
-            Chip::Esp32c2 => esp32c2::CHIP_ID,
-            Chip::Esp32c3 => esp32c3::CHIP_ID,
-            Chip::Esp32c5 => esp32c5::CHIP_ID,
-            Chip::Esp32c6 => esp32c6::CHIP_ID,
-            Chip::Esp32h2 => esp32h2::CHIP_ID,
-            Chip::Esp32p4 => esp32p4::CHIP_ID,
-            Chip::Esp32s2 => esp32s2::CHIP_ID,
-            Chip::Esp32s3 => esp32s3::CHIP_ID,
+            Chip::Esp32 => 0,
+            Chip::Esp32c2 => 12,
+            Chip::Esp32c3 => 5,
+            Chip::Esp32c5 => 23,
+            Chip::Esp32c6 => 13,
+            Chip::Esp32h2 => 16,
+            Chip::Esp32p4 => 18,
+            Chip::Esp32s2 => 2,
+            Chip::Esp32s3 => 9,
         }
     }
-
-
 
     /// Creates and returns a new [FlashTarget] for [Esp32Target], using the
     /// provided [SpiAttachParams].
     #[cfg(feature = "serialport")]
-    pub(crate) fn into_rtc_wdt_reset(self) -> Result<Box<dyn RtcWdtReset>, Error> {
-        match self {
-            Chip::Esp32c3 => Ok(Box::new(Esp32c3)),
-            Chip::Esp32p4 => Ok(Box::new(Esp32p4)),
-            Chip::Esp32s2 => Ok(Box::new(Esp32s2)),
-            Chip::Esp32s3 => Ok(Box::new(Esp32s3)),
-            _ => Err(Error::UnsupportedFeature {
-                chip: self,
-                feature: "RTC WDT reset".into(),
-            }),
-        }
-    }
-
-    #[cfg(feature = "serialport")]
-    pub(crate) fn into_usb_otg(self) -> Result<Box<dyn UsbOtg>, Error> {
-        match self {
-            Chip::Esp32p4 => Ok(Box::new(Esp32p4)),
-            Chip::Esp32s2 => Ok(Box::new(Esp32s2)),
-            Chip::Esp32s3 => Ok(Box::new(Esp32s3)),
-            _ => Err(Error::UnsupportedFeature {
-                chip: self,
-                feature: "USB OTG".into(),
-            }),
-        }
-    }
-
     /// Returns the valid MMU page sizes for the [Chip]
     pub fn valid_mmu_page_sizes(self) -> Option<&'static [u32]> {
         match self {
@@ -408,9 +529,11 @@ impl Chip {
                     features.push("Single Core");
                 }
 
-                let chip_cpu_freq_rated = self.read_efuse(connection, efuse::esp32::CHIP_CPU_FREQ_RATED)?;
+                let chip_cpu_freq_rated =
+                    self.read_efuse(connection, efuse::esp32::CHIP_CPU_FREQ_RATED)?;
                 if chip_cpu_freq_rated != 0 {
-                    let chip_cpu_freq_low = self.read_efuse(connection, efuse::esp32::CHIP_CPU_FREQ_LOW)?;
+                    let chip_cpu_freq_low =
+                        self.read_efuse(connection, efuse::esp32::CHIP_CPU_FREQ_LOW)?;
                     if chip_cpu_freq_low != 0 {
                         features.push("160MHz");
                     } else {
@@ -432,7 +555,8 @@ impl Chip {
                     features.push("VRef calibration in efuse");
                 }
 
-                let blk3_part_reserve = self.read_efuse(connection, efuse::esp32::BLK3_PART_RESERVE)?;
+                let blk3_part_reserve =
+                    self.read_efuse(connection, efuse::esp32::BLK3_PART_RESERVE)?;
                 if blk3_part_reserve != 0 {
                     features.push("BLK3 partially reserved");
                 }
@@ -641,16 +765,11 @@ impl Chip {
     pub fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
         use FlashFrequency::*;
 
-        match self {
-            Chip::Esp32h2 => {
-                let encodings = [(_12Mhz, 0x2), (_16Mhz, 0x1), (_24Mhz, 0x0), (_48Mhz, 0xF)];
-                HashMap::from(encodings)
-            }
-            _ => {
-                let encodings = [(_20Mhz, 0x2), (_26Mhz, 0x1), (_40Mhz, 0x0), (_80Mhz, 0xf)];
-                HashMap::from(encodings)
-            }
-        }
+        HashMap::from(match self {
+            Chip::Esp32h2 => [(_12Mhz, 0x2), (_16Mhz, 0x1), (_24Mhz, 0x0), (_48Mhz, 0xF)],
+            Chip::Esp32c2 => [(_15Mhz, 0x2), (_20Mhz, 0x1), (_30Mhz, 0x0), (_60Mhz, 0xF)],
+            _ => [(_20Mhz, 0x2), (_26Mhz, 0x1), (_40Mhz, 0x0), (_80Mhz, 0xf)],
+        })
     }
 
     #[cfg(feature = "serialport")]
@@ -852,15 +971,15 @@ impl TryFrom<u16> for Chip {
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
-            esp32::CHIP_ID => Ok(Chip::Esp32),
-            esp32c2::CHIP_ID => Ok(Chip::Esp32c2),
-            esp32c3::CHIP_ID => Ok(Chip::Esp32c3),
-            esp32c5::CHIP_ID => Ok(Chip::Esp32c5),
-            esp32c6::CHIP_ID => Ok(Chip::Esp32c6),
-            esp32h2::CHIP_ID => Ok(Chip::Esp32h2),
-            esp32p4::CHIP_ID => Ok(Chip::Esp32p4),
-            esp32s2::CHIP_ID => Ok(Chip::Esp32s2),
-            esp32s3::CHIP_ID => Ok(Chip::Esp32s3),
+            0 => Ok(Chip::Esp32),
+            12 => Ok(Chip::Esp32c2),
+            5 => Ok(Chip::Esp32c3),
+            23 => Ok(Chip::Esp32c5),
+            13 => Ok(Chip::Esp32c6),
+            16 => Ok(Chip::Esp32h2),
+            18 => Ok(Chip::Esp32p4),
+            2 => Ok(Chip::Esp32s2),
+            9 => Ok(Chip::Esp32s3),
             _ => Err(Error::ChipDetectError(format!(
                 "unrecognized chip ID: {value}"
             ))),
@@ -914,62 +1033,5 @@ impl SpiRegisters {
     /// Get the address of the MISO length register.
     pub fn miso_length(&self) -> Option<u32> {
         self.miso_length_offset.map(|offset| self.base + offset)
-    }
-}
-
-
-
-#[cfg(feature = "serialport")]
-pub(crate) trait RtcWdtReset {
-    fn wdt_wkey(&self) -> u32 {
-        0x50D8_3AA1
-    }
-
-    fn wdt_wprotect(&self) -> u32;
-
-    fn wdt_config0(&self) -> u32;
-
-    fn wdt_config1(&self) -> u32;
-
-    fn can_rtc_wdt_reset(&self, connection: &mut Connection) -> Result<bool, Error>;
-
-    fn rtc_wdt_reset(&self, connection: &mut Connection) -> Result<(), Error> {
-        bitflags::bitflags! {
-            struct WdtConfig0Flags: u32 {
-                const EN               = 1 << 31;
-                const STAGE0           = 5 << 28; // 5 (binary: 101) in bits 28-30
-                const CHIP_RESET_EN    = 1 << 8;  // 8th bit
-                const CHIP_RESET_WIDTH = 1 << 2;  // 1st bit
-            }
-        }
-
-        let flags = (WdtConfig0Flags::EN // enable RTC watchdog
-            | WdtConfig0Flags::STAGE0 // enable at the interrupt/system and RTC stage
-            | WdtConfig0Flags::CHIP_RESET_EN // enable chip reset
-            | WdtConfig0Flags::CHIP_RESET_WIDTH) // set chip reset width
-            .bits();
-
-        log::debug!("Resetting with RTC WDT");
-        connection.write_reg(self.wdt_wprotect(), self.wdt_wkey(), None)?;
-        connection.write_reg(self.wdt_config1(), 2000, None)?;
-        connection.write_reg(self.wdt_config0(), flags, None)?;
-        connection.write_reg(self.wdt_wprotect(), 0, None)?;
-
-        std::thread::sleep(std::time::Duration::from_millis(50));
-
-        Ok(())
-    }
-}
-
-#[cfg(feature = "serialport")]
-pub(crate) trait UsbOtg {
-    fn uartdev_buf_no(&self) -> u32;
-
-    fn uartdev_buf_no_usb_otg(&self) -> u32;
-
-    fn is_using_usb_otg(&self, connection: &mut Connection) -> Result<bool, Error> {
-        connection
-            .read_reg(self.uartdev_buf_no())
-            .map(|value| value == self.uartdev_buf_no_usb_otg())
     }
 }
