@@ -210,6 +210,14 @@ pub enum Error {
     #[diagnostic(transparent)]
     RomError(#[from] RomError),
 
+    #[error("The selected partition does not exist in the partition table")]
+    #[diagnostic(transparent)]
+    MissingPartition(#[from] MissingPartition),
+
+    #[error("The partition table is missing or invalid")]
+    #[diagnostic(transparent)]
+    MissingPartitionTable(#[from] MissingPartitionTable),
+
     #[cfg(feature = "cli")]
     #[error(transparent)]
     #[diagnostic(transparent)]
@@ -563,6 +571,7 @@ impl RomError {
 )]
 pub struct MissingPartition(String);
 
+#[cfg(feature = "cli")]
 impl From<String> for MissingPartition {
     fn from(part: String) -> Self {
         MissingPartition(part)
