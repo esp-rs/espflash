@@ -287,7 +287,6 @@ impl Chip {
         }
     }
 
-    #[cfg(feature = "serialport")]
     /// Returns the valid MMU page sizes for the [Chip]
     pub fn valid_mmu_page_sizes(self) -> Option<&'static [u32]> {
         match self {
