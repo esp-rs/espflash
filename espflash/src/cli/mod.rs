@@ -53,7 +53,7 @@ use crate::{
         ImageFormat,
         ImageFormatKind,
         Metadata,
-        esp_idf::{IdfBootloaderFormat, parse_partition_table},
+        idf::{IdfBootloaderFormat, parse_partition_table},
     },
     targets::{Chip, XtalFrequency},
 };

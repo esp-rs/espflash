@@ -13,8 +13,7 @@ use espflash::{
     image_format::{
         ImageFormat,
         ImageFormatKind,
-        check_idf_bootloader,
-        esp_idf::parse_partition_table,
+        idf::{check_idf_bootloader, parse_partition_table},
     },
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},

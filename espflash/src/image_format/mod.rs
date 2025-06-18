@@ -18,12 +18,11 @@ use object::{
 };
 use serde::{Deserialize, Serialize};
 
-pub use self::{esp_idf::IdfBootloaderFormat, metadata::Metadata};
-use crate::targets::Chip;
+pub use self::metadata::Metadata;
+use crate::{image_format::idf::IdfBootloaderFormat, targets::Chip};
 
-pub mod esp_idf;
+pub mod idf;
 mod metadata;
-pub use esp_idf::check_idf_bootloader;
 
 /// Supported binary application image formats
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
