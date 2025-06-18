@@ -3,32 +3,22 @@ use std::error::Error;
 use addr2line::{
     Context,
     LookupResult,
-    gimli::{self, Dwarf, EndianSlice, LittleEndian, SectionId},
+    gimli::{EndianRcSlice, RunTimeEndian},
+    object::{Object, ObjectSegment, ObjectSymbol, read::File},
 };
-use object::{Object, ObjectSection, ObjectSegment, ObjectSymbol, read::File};
 
 // Wrapper around addr2line that allows to look up function names and
 // locations from a given address.
 pub(crate) struct Symbols<'sym> {
     object: File<'sym, &'sym [u8]>,
-    ctx: Context<EndianSlice<'sym, LittleEndian>>,
+    ctx: Context<EndianRcSlice<RunTimeEndian>>,
 }
 
 impl<'sym> Symbols<'sym> {
     /// Tries to create a new `Symbols` instance from the given ELF file bytes.
     pub fn try_from(bytes: &'sym [u8]) -> Result<Self, Box<dyn Error>> {
         let object = File::parse(bytes)?;
-        let dwarf = Dwarf::load(
-            |id: SectionId| -> Result<EndianSlice<'sym, LittleEndian>, gimli::Error> {
-                let data = object
-                    .section_by_name(id.name())
-                    .and_then(|section| section.data().ok())
-                    .unwrap_or(&[][..]);
-                Ok(EndianSlice::new(data, LittleEndian))
-            },
-        )?;
-
-        let ctx = Context::from_dwarf(dwarf)?;
+        let ctx = Context::new(&object)?;
 
         Ok(Self { object, ctx })
     }

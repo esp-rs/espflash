@@ -41,6 +41,29 @@ if [[ "$1" == "esp32c6" ]]; then
         echo "Monitoring failed!"
         exit 1
     fi
+
+    # Backtrace test
+    app_backtrace="${app}_backtrace"
+
+    result=$(timeout 10s espflash flash --no-skip --monitor --non-interactive $app_backtrace 2>&1)
+    echo "$result"
+    if [[ ! $result =~ "Flashing has completed!" ]]; then
+        echo "Flashing failed!"
+        exit 1
+    fi
+    expected_strings=(
+        "0x420012c8"
+        "main"
+        "esp32c6_backtrace/src/bin/main.rs:"
+        "0x42001280"
+        "hal_main"
+    )
+    for expected in "${expected_strings[@]}"; do
+        if ! echo "$result" | grep -q "$expected"; then
+            echo "Monitoring failed! Expected '$expected' not found in output."
+            exit 1
+        fi
+    done
 fi
 
 result=$(timeout 15s espflash flash --no-skip --monitor --non-interactive $app 2>&1)
