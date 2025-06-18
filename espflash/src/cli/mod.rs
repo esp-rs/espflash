@@ -642,13 +642,11 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
 
     ensure_chip_compatibility(chip, elf.as_deref())?;
 
-    let target = chip.into_target();
-
     let mut monitor_args = args.monitor_args;
 
     // The 26MHz ESP32-C2's need to be treated as a special case.
     if chip == Chip::Esp32c2
-        && target.crystal_freq(flasher.connection())? == XtalFrequency::_26Mhz
+        && chip.crystal_freq(flasher.connection())? == XtalFrequency::_26Mhz
         && monitor_args.monitor_baud == 115_200
     {
         // 115_200 * 26 MHz / 40 MHz = 74_880
@@ -1115,8 +1113,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     print_board_info(&mut flasher)?;
 
     let chip = flasher.chip();
-    let target = chip.into_target();
-    let target_xtal_freq = target.crystal_freq(flasher.connection())?;
+    let target_xtal_freq = chip.crystal_freq(flasher.connection())?;
 
     flasher.write_bin_to_flash(
         args.address,

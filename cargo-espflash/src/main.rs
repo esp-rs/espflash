@@ -325,8 +325,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     }
 
     let chip = flasher.chip();
-    let target = chip.into_target();
-    let target_xtal_freq = target.crystal_freq(flasher.connection())?;
+    let target_xtal_freq = chip.crystal_freq(flasher.connection())?;
 
     flasher.disable_watchdog()?;
 
@@ -441,7 +440,7 @@ fn build(
     }
     let metadata = metadata_cmd.exec().into_diagnostic()?;
 
-    if !chip.into_target().supports_build_target(target) {
+    if !chip.supports_build_target(target) {
         return Err(UnsupportedTargetError::new(target, chip).into());
     }
 

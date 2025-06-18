@@ -112,7 +112,7 @@ impl UnsupportedTargetError {
     }
 
     fn supported_targets(&self) -> String {
-        self.chip.into_target().supported_build_targets().join(", ")
+        self.chip.supported_build_targets().join(", ")
     }
 }
 
@@ -139,7 +139,7 @@ impl Diagnostic for NoTargetError {
             Some(chip) => format!(
                 "Specify the target in `.cargo/config.toml`, the {} support the following targets: {}",
                 chip,
-                chip.into_target().supported_build_targets().join(", ")
+                chip.supported_build_targets().join(", ")
             ),
             None => "Specify the target in `.cargo/config.toml`".into(),
         }))

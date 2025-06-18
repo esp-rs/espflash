@@ -141,20 +141,7 @@ impl Chip {
         }
     }
 
-    /// Convert a [Chip] to a [Target]
-    pub fn into_target(&self) -> Box<dyn Target> {
-        match self {
-            Chip::Esp32 => Box::new(Esp32),
-            Chip::Esp32c2 => Box::new(Esp32c2),
-            Chip::Esp32c3 => Box::new(Esp32c3),
-            Chip::Esp32c5 => Box::new(Esp32c5),
-            Chip::Esp32c6 => Box::new(Esp32c6),
-            Chip::Esp32h2 => Box::new(Esp32h2),
-            Chip::Esp32p4 => Box::new(Esp32p4),
-            Chip::Esp32s2 => Box::new(Esp32s2),
-            Chip::Esp32s3 => Box::new(Esp32s3),
-        }
-    }
+
 
     /// Creates and returns a new [FlashTarget] for [Esp32Target], using the
     /// provided [SpiAttachParams].
@@ -332,6 +319,532 @@ impl Chip {
 
         connection.read_reg(addr)
     }
+
+    /// Is the provided address `addr` in flash?
+    pub fn addr_is_flash(&self, addr: u32) -> bool {
+        match self {
+            Chip::Esp32 => {
+                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
+                    0x400d_0000..0x4040_0000, // IROM
+                    0x3f40_0000..0x3f80_0000, // DROM
+                ];
+                FLASH_RANGES.iter().any(|range| range.contains(&addr))
+            }
+            Chip::Esp32c2 => {
+                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
+                    0x4200_0000..0x4240_0000, // IROM
+                    0x3c00_0000..0x3c40_0000, // DROM
+                ];
+                FLASH_RANGES.iter().any(|range| range.contains(&addr))
+            }
+            Chip::Esp32c3 => {
+                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
+                    0x4200_0000..0x4280_0000, // IROM
+                    0x3c00_0000..0x3c80_0000, // DROM
+                ];
+                FLASH_RANGES.iter().any(|range| range.contains(&addr))
+            }
+            Chip::Esp32c5 => {
+                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
+                    0x4200_0000..0x4280_0000, // IROM
+                    0x3c00_0000..0x3c80_0000, // DROM
+                ];
+                FLASH_RANGES.iter().any(|range| range.contains(&addr))
+            }
+            Chip::Esp32c6 => {
+                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
+                    0x4200_0000..0x4280_0000, // IROM
+                    0x3c00_0000..0x3c80_0000, // DROM
+                ];
+                FLASH_RANGES.iter().any(|range| range.contains(&addr))
+            }
+            Chip::Esp32h2 => {
+                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
+                    0x4200_0000..0x4280_0000, // IROM
+                    0x3c00_0000..0x3c80_0000, // DROM
+                ];
+                FLASH_RANGES.iter().any(|range| range.contains(&addr))
+            }
+            Chip::Esp32p4 => {
+                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
+                    0x4800_0000..0x4C00_0000, // IROM
+                    0x4000_0000..0x4400_0000, // DROM
+                ];
+                FLASH_RANGES.iter().any(|range| range.contains(&addr))
+            }
+            Chip::Esp32s2 => {
+                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
+                    0x4008_0000..0x4180_0000, // IROM
+                    0x3f00_0000..0x3f3f_0000, // DROM
+                ];
+                FLASH_RANGES.iter().any(|range| range.contains(&addr))
+            }
+            Chip::Esp32s3 => {
+                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
+                    0x4200_0000..0x4400_0000, // IROM
+                    0x3c00_0000..0x3e00_0000, // DROM
+                ];
+                FLASH_RANGES.iter().any(|range| range.contains(&addr))
+            }
+        }
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Enumerate the chip's features, read from eFuse
+    pub fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
+        match self {
+            Chip::Esp32 => {
+                let mut features = vec!["WiFi"];
+
+                let disable_bt = self.read_efuse(connection, efuse::esp32::DISABLE_BT)?;
+                if disable_bt == 0 {
+                    features.push("BT");
+                }
+
+                let disable_app_cpu = self.read_efuse(connection, efuse::esp32::DISABLE_APP_CPU)?;
+                if disable_app_cpu == 0 {
+                    features.push("Dual Core");
+                } else {
+                    features.push("Single Core");
+                }
+
+                let chip_cpu_freq_rated = self.read_efuse(connection, efuse::esp32::CHIP_CPU_FREQ_RATED)?;
+                if chip_cpu_freq_rated != 0 {
+                    let chip_cpu_freq_low = self.read_efuse(connection, efuse::esp32::CHIP_CPU_FREQ_LOW)?;
+                    if chip_cpu_freq_low != 0 {
+                        features.push("160MHz");
+                    } else {
+                        features.push("240MHz");
+                    }
+                }
+
+                // Get package version using helper method
+                let pkg_version = self.esp32_package_version(connection)?;
+                if [2, 4, 5, 6].contains(&pkg_version) {
+                    features.push("Embedded Flash");
+                }
+                if pkg_version == 6 {
+                    features.push("Embedded PSRAM");
+                }
+
+                let adc_vref = self.read_efuse(connection, efuse::esp32::ADC_VREF)?;
+                if adc_vref != 0 {
+                    features.push("VRef calibration in efuse");
+                }
+
+                let blk3_part_reserve = self.read_efuse(connection, efuse::esp32::BLK3_PART_RESERVE)?;
+                if blk3_part_reserve != 0 {
+                    features.push("BLK3 partially reserved");
+                }
+
+                let coding_scheme = self.read_efuse(connection, efuse::esp32::CODING_SCHEME)?;
+                features.push(match coding_scheme {
+                    0 => "Coding Scheme None",
+                    1 => "Coding Scheme 3/4",
+                    2 => "Coding Scheme Repeat (UNSUPPORTED)",
+                    _ => "Coding Scheme Invalid",
+                });
+
+                Ok(features)
+            }
+            Chip::Esp32c2 => Ok(vec!["WiFi", "BLE"]),
+            Chip::Esp32c3 => Ok(vec!["WiFi", "BLE"]),
+            Chip::Esp32c5 => Ok(vec!["WiFi", "BLE", "IEEE802.15.4", "240MHz"]),
+            Chip::Esp32c6 => Ok(vec!["WiFi 6", "BT 5"]),
+            Chip::Esp32h2 => Ok(vec!["BLE"]),
+            Chip::Esp32p4 => Ok(vec!["High-Performance MCU"]),
+            Chip::Esp32s2 => {
+                let mut features = vec!["WiFi"];
+
+                let flash_version = match self.esp32s2_flash_version(connection)? {
+                    0 => "No Embedded Flash",
+                    1 => "Embedded Flash 2MB",
+                    2 => "Embedded Flash 4MB",
+                    _ => "Unknown Embedded Flash",
+                };
+                features.push(flash_version);
+
+                let psram_version = match self.esp32s2_psram_version(connection)? {
+                    0 => "No Embedded PSRAM",
+                    1 => "Embedded PSRAM 2MB",
+                    2 => "Embedded PSRAM 4MB",
+                    _ => "Unknown Embedded PSRAM",
+                };
+                features.push(psram_version);
+
+                let block2_version = match self.esp32s2_block2_version(connection)? {
+                    0 => "No calibration in BLK2 of efuse",
+                    1 => "ADC and temperature sensor calibration in BLK2 of efuse V1",
+                    2 => "ADC and temperature sensor calibration in BLK2 of efuse V2",
+                    _ => "Unknown Calibration in BLK2",
+                };
+                features.push(block2_version);
+
+                Ok(features)
+            }
+            Chip::Esp32s3 => {
+                let mut features = vec!["WiFi", "BLE"];
+
+                // Special handling for chip revision 0
+                if self.esp32s3_blk_version_major(connection)? == 1
+                    && self.esp32s3_blk_version_minor(connection)? == 1
+                {
+                    features.push("Embedded PSRAM");
+                } else {
+                    features.push("Embedded Flash");
+                }
+
+                Ok(features)
+            }
+        }
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Determine the chip's revision number
+    pub fn chip_revision(&self, connection: &mut Connection) -> Result<(u32, u32), Error> {
+        let major = self.major_chip_version(connection)?;
+        let minor = self.minor_chip_version(connection)?;
+
+        Ok((major, minor))
+    }
+
+    #[cfg(feature = "serialport")]
+    pub fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        match self {
+            Chip::Esp32 => {
+                let apb_ctl_date = connection.read_reg(0x3FF6_607C)?;
+
+                let word3 = self.read_efuse_raw(connection, 0, 3)?;
+                let word5 = self.read_efuse_raw(connection, 0, 5)?;
+
+                let rev_bit0 = (word3 >> 15) & 0x1;
+                let rev_bit1 = (word5 >> 20) & 0x1;
+                let rev_bit2 = (apb_ctl_date >> 31) & 0x1;
+
+                let combine_value = (rev_bit2 << 2) | (rev_bit1 << 1) | rev_bit0;
+
+                match combine_value {
+                    1 => Ok(1),
+                    3 => Ok(2),
+                    7 => Ok(3),
+                    _ => Ok(0),
+                }
+            }
+            Chip::Esp32c2 => self.read_efuse(connection, efuse::esp32c2::WAFER_VERSION_MAJOR),
+            Chip::Esp32c3 => self.read_efuse(connection, efuse::esp32c3::WAFER_VERSION_MAJOR),
+            Chip::Esp32c5 => self.read_efuse(connection, efuse::esp32c5::WAFER_VERSION_MAJOR),
+            Chip::Esp32c6 => self.read_efuse(connection, efuse::esp32c6::WAFER_VERSION_MAJOR),
+            Chip::Esp32h2 => self.read_efuse(connection, efuse::esp32h2::WAFER_VERSION_MAJOR),
+            Chip::Esp32p4 => self.read_efuse(connection, efuse::esp32p4::WAFER_VERSION_MAJOR),
+            Chip::Esp32s2 => self.read_efuse(connection, efuse::esp32s2::WAFER_VERSION_MAJOR),
+            Chip::Esp32s3 => {
+                if self.esp32s3_blk_version_major(connection)? == 1
+                    && self.esp32s3_blk_version_minor(connection)? == 1
+                {
+                    Ok(0)
+                } else {
+                    self.read_efuse(connection, efuse::esp32s3::WAFER_VERSION_MAJOR)
+                }
+            }
+        }
+    }
+
+    #[cfg(feature = "serialport")]
+    pub fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        match self {
+            Chip::Esp32 => self.read_efuse(connection, efuse::esp32::WAFER_VERSION_MINOR),
+            Chip::Esp32c2 => self.read_efuse(connection, efuse::esp32c2::WAFER_VERSION_MINOR),
+            Chip::Esp32c3 => {
+                let hi = self.read_efuse(connection, efuse::esp32c3::WAFER_VERSION_MINOR_HI)?;
+                let lo = self.read_efuse(connection, efuse::esp32c3::WAFER_VERSION_MINOR_LO)?;
+
+                Ok((hi << 3) + lo)
+            }
+            Chip::Esp32c5 => self.read_efuse(connection, efuse::esp32c5::WAFER_VERSION_MINOR),
+            Chip::Esp32c6 => self.read_efuse(connection, efuse::esp32c6::WAFER_VERSION_MINOR),
+            Chip::Esp32h2 => self.read_efuse(connection, efuse::esp32h2::WAFER_VERSION_MINOR),
+            Chip::Esp32p4 => self.read_efuse(connection, efuse::esp32p4::WAFER_VERSION_MINOR),
+            Chip::Esp32s2 => {
+                let hi = self.read_efuse(connection, efuse::esp32s2::WAFER_VERSION_MINOR_HI)?;
+                let lo = self.read_efuse(connection, efuse::esp32s2::WAFER_VERSION_MINOR_LO)?;
+
+                Ok((hi << 3) + lo)
+            }
+            Chip::Esp32s3 => {
+                let hi = self.read_efuse(connection, efuse::esp32s3::WAFER_VERSION_MINOR_HI)?;
+                let lo = self.read_efuse(connection, efuse::esp32s3::WAFER_VERSION_MINOR_LO)?;
+
+                Ok((hi << 3) + lo)
+            }
+        }
+    }
+
+    #[cfg(feature = "serialport")]
+    /// What is the crystal frequency?
+    pub fn crystal_freq(&self, connection: &mut Connection) -> Result<XtalFrequency, Error> {
+        match self {
+            Chip::Esp32 => {
+                const UART_CLKDIV_REG: u32 = 0x3ff4_0014; // UART0_BASE_REG + 0x14
+                const UART_CLKDIV_MASK: u32 = 0xfffff;
+                const XTAL_CLK_DIVIDER: u32 = 1;
+
+                let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
+                let est_xtal = (connection.baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
+                let norm_xtal = if est_xtal > 33 {
+                    XtalFrequency::_40Mhz
+                } else {
+                    XtalFrequency::_26Mhz
+                };
+
+                Ok(norm_xtal)
+            }
+            Chip::Esp32c2 => {
+                const UART_CLKDIV_REG: u32 = 0x6000_0014; // UART0_BASE_REG + 0x14
+                const UART_CLKDIV_MASK: u32 = 0xfffff;
+                const XTAL_CLK_DIVIDER: u32 = 1;
+
+                let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
+                let est_xtal = (connection.baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
+                let norm_xtal = if est_xtal > 33 {
+                    XtalFrequency::_40Mhz
+                } else {
+                    XtalFrequency::_26Mhz
+                };
+
+                Ok(norm_xtal)
+            }
+            Chip::Esp32c3 => Ok(XtalFrequency::_40Mhz), // Fixed frequency
+            Chip::Esp32c5 => {
+                const UART_CLKDIV_REG: u32 = 0x6000_0014; // UART0_BASE_REG + 0x14
+                const UART_CLKDIV_MASK: u32 = 0xfffff;
+                const XTAL_CLK_DIVIDER: u32 = 1;
+
+                let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
+                let est_xtal = (connection.baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
+                let norm_xtal = if est_xtal > 45 {
+                    XtalFrequency::_48Mhz
+                } else {
+                    XtalFrequency::_40Mhz
+                };
+
+                Ok(norm_xtal)
+            }
+            Chip::Esp32c6 => Ok(XtalFrequency::_40Mhz), // Fixed frequency
+            Chip::Esp32h2 => Ok(XtalFrequency::_32Mhz), // Fixed frequency
+            Chip::Esp32p4 => Ok(XtalFrequency::_40Mhz), // Fixed frequency
+            Chip::Esp32s2 => Ok(XtalFrequency::_40Mhz), // Fixed frequency
+            Chip::Esp32s3 => Ok(XtalFrequency::_40Mhz), // Fixed frequency
+        }
+    }
+
+    /// Numeric encodings for the flash frequencies supported by a chip
+    pub fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
+        use FlashFrequency::*;
+
+        match self {
+            Chip::Esp32h2 => {
+                let encodings = [(_12Mhz, 0x2), (_16Mhz, 0x1), (_24Mhz, 0x0), (_48Mhz, 0xF)];
+                HashMap::from(encodings)
+            }
+            _ => {
+                let encodings = [(_20Mhz, 0x2), (_26Mhz, 0x1), (_40Mhz, 0x0), (_80Mhz, 0xf)];
+                HashMap::from(encodings)
+            }
+        }
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Write size for flashing operations
+    pub fn flash_write_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
+        Ok(FLASH_WRITE_SIZE)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// What is the MAC address?
+    pub fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
+        let (mac0_field, mac1_field) = match self {
+            Chip::Esp32 => (self::efuse::esp32::MAC0, self::efuse::esp32::MAC1),
+            Chip::Esp32c2 => (self::efuse::esp32c2::MAC0, self::efuse::esp32c2::MAC1),
+            Chip::Esp32c3 => (self::efuse::esp32c3::MAC0, self::efuse::esp32c3::MAC1),
+            Chip::Esp32c5 => (self::efuse::esp32c5::MAC0, self::efuse::esp32c5::MAC1),
+            Chip::Esp32c6 => (self::efuse::esp32c6::MAC0, self::efuse::esp32c6::MAC1),
+            Chip::Esp32h2 => (self::efuse::esp32h2::MAC0, self::efuse::esp32h2::MAC1),
+            Chip::Esp32p4 => (self::efuse::esp32p4::MAC0, self::efuse::esp32p4::MAC1),
+            Chip::Esp32s2 => (self::efuse::esp32s2::MAC0, self::efuse::esp32s2::MAC1),
+            Chip::Esp32s3 => (self::efuse::esp32s3::MAC0, self::efuse::esp32s3::MAC1),
+        };
+
+        let mac0 = self.read_efuse(connection, mac0_field)?;
+        let mac1 = self.read_efuse(connection, mac1_field)?;
+
+        let bytes = ((mac1 as u64) << 32) | mac0 as u64;
+        let bytes = bytes.to_be_bytes();
+        let bytes = &bytes[2..];
+
+        let mac_addr = bytes
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join(":");
+
+        Ok(mac_addr)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Maximum RAM block size for writing
+    pub fn max_ram_block_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
+        Ok(MAX_RAM_BLOCK_SIZE)
+    }
+
+    /// SPI register addresses for a chip
+    pub fn spi_registers(&self) -> SpiRegisters {
+        match self {
+            Chip::Esp32 => SpiRegisters {
+                base: 0x3ff4_2000,
+                usr_offset: 0x1c,
+                usr1_offset: 0x20,
+                usr2_offset: 0x24,
+                w0_offset: 0x80,
+                mosi_length_offset: Some(0x28),
+                miso_length_offset: Some(0x2c),
+            },
+            Chip::Esp32c2 => SpiRegisters {
+                base: 0x6000_3000,
+                usr_offset: 0x18,
+                usr1_offset: 0x1c,
+                usr2_offset: 0x20,
+                w0_offset: 0x58,
+                mosi_length_offset: Some(0x24),
+                miso_length_offset: Some(0x28),
+            },
+            Chip::Esp32c3 => SpiRegisters {
+                base: 0x6000_3000,
+                usr_offset: 0x18,
+                usr1_offset: 0x1c,
+                usr2_offset: 0x20,
+                w0_offset: 0x58,
+                mosi_length_offset: Some(0x24),
+                miso_length_offset: Some(0x28),
+            },
+            Chip::Esp32c5 => SpiRegisters {
+                base: 0x6000_3000,
+                usr_offset: 0x18,
+                usr1_offset: 0x1c,
+                usr2_offset: 0x20,
+                w0_offset: 0x58,
+                mosi_length_offset: Some(0x24),
+                miso_length_offset: Some(0x28),
+            },
+            Chip::Esp32c6 => SpiRegisters {
+                base: 0x6000_3000,
+                usr_offset: 0x18,
+                usr1_offset: 0x1c,
+                usr2_offset: 0x20,
+                w0_offset: 0x58,
+                mosi_length_offset: Some(0x24),
+                miso_length_offset: Some(0x28),
+            },
+            Chip::Esp32h2 => SpiRegisters {
+                base: 0x6000_3000,
+                usr_offset: 0x18,
+                usr1_offset: 0x1c,
+                usr2_offset: 0x20,
+                w0_offset: 0x58,
+                mosi_length_offset: Some(0x24),
+                miso_length_offset: Some(0x28),
+            },
+            Chip::Esp32p4 => SpiRegisters {
+                base: 0x5008_D000,
+                usr_offset: 0x18,
+                usr1_offset: 0x1c,
+                usr2_offset: 0x20,
+                w0_offset: 0x58,
+                mosi_length_offset: Some(0x24),
+                miso_length_offset: Some(0x28),
+            },
+            Chip::Esp32s2 => SpiRegisters {
+                base: 0x3f40_3000,
+                usr_offset: 0x18,
+                usr1_offset: 0x1c,
+                usr2_offset: 0x20,
+                w0_offset: 0x58,
+                mosi_length_offset: Some(0x24),
+                miso_length_offset: Some(0x28),
+            },
+            Chip::Esp32s3 => SpiRegisters {
+                base: 0x6000_3000,
+                usr_offset: 0x18,
+                usr1_offset: 0x1c,
+                usr2_offset: 0x20,
+                w0_offset: 0x58,
+                mosi_length_offset: Some(0x24),
+                miso_length_offset: Some(0x28),
+            },
+        }
+    }
+
+    /// Build targets supported by a chip
+    pub fn supported_build_targets(&self) -> &[&str] {
+        match self {
+            Chip::Esp32 => &["xtensa-esp32-espidf", "xtensa-esp32-none-elf"],
+            Chip::Esp32c2 => &["riscv32imc-esp-espidf", "riscv32imc-unknown-none-elf"],
+            Chip::Esp32c3 => &["riscv32imc-esp-espidf", "riscv32imc-unknown-none-elf"],
+            Chip::Esp32c5 => &["riscv32imac-esp-espidf", "riscv32imac-unknown-none-elf"],
+            Chip::Esp32c6 => &["riscv32imac-esp-espidf", "riscv32imac-unknown-none-elf"],
+            Chip::Esp32h2 => &["riscv32imac-esp-espidf", "riscv32imac-unknown-none-elf"],
+            Chip::Esp32p4 => &["riscv32imafc-esp-espidf", "riscv32imafc-unknown-none-elf"],
+            Chip::Esp32s2 => &["xtensa-esp32s2-espidf", "xtensa-esp32s2-none-elf"],
+            Chip::Esp32s3 => &["xtensa-esp32s3-espidf", "xtensa-esp32s3-none-elf"],
+        }
+    }
+
+    /// Is the build target `target` supported by the chip?
+    pub fn supports_build_target(&self, target: &str) -> bool {
+        self.supported_build_targets().contains(&target)
+    }
+
+    // Helper methods for chip-specific functionality
+
+    #[cfg(feature = "serialport")]
+    /// Return the package version based on the eFuses for ESP32
+    fn esp32_package_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        let word3 = self.read_efuse_raw(connection, 0, 3)?;
+
+        let pkg_version = (word3 >> 9) & 0x7;
+        let pkg_version = pkg_version + (((word3 >> 2) & 0x1) << 3);
+
+        Ok(pkg_version)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Return the block2 version based on eFuses for ESP32-S2
+    fn esp32s2_block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        self.read_efuse(connection, efuse::esp32s2::BLK_VERSION_MINOR)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Return the flash version based on eFuses for ESP32-S2
+    fn esp32s2_flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        self.read_efuse(connection, efuse::esp32s2::FLASH_VERSION)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Return the PSRAM version based on eFuses for ESP32-S2
+    fn esp32s2_psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+        self.read_efuse(connection, efuse::esp32s2::PSRAM_VERSION)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Return the major BLK version based on eFuses for ESP32-S3
+    fn esp32s3_blk_version_major(&self, connection: &mut Connection) -> Result<u32, Error> {
+        self.read_efuse(connection, efuse::esp32s3::BLK_VERSION_MAJOR)
+    }
+
+    #[cfg(feature = "serialport")]
+    /// Return the minor BLK version based on eFuses for ESP32-S3
+    fn esp32s3_blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
+        self.read_efuse(connection, efuse::esp32s3::BLK_VERSION_MINOR)
+    }
 }
 
 impl TryFrom<u16> for Chip {
@@ -404,100 +917,7 @@ impl SpiRegisters {
     }
 }
 
-/// Operations for interacting with supported target devices
-pub trait Target {
-    /// The associated [Chip] for the implementing target
-    fn chip(&self) -> Chip;
 
-    /// Is the provided address `addr` in flash?
-    fn addr_is_flash(&self, addr: u32) -> bool;
-
-    #[cfg(feature = "serialport")]
-    /// Enumerate the chip's features, read from eFuse
-    fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error>;
-
-    #[cfg(feature = "serialport")]
-    /// Determine the chip's revision number
-    fn chip_revision(&self, connection: &mut Connection) -> Result<(u32, u32), Error> {
-        let major = self.major_chip_version(connection)?;
-        let minor = self.minor_chip_version(connection)?;
-
-        Ok((major, minor))
-    }
-
-    #[cfg(feature = "serialport")]
-    fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error>;
-
-    #[cfg(feature = "serialport")]
-    fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error>;
-
-    #[cfg(feature = "serialport")]
-    /// What is the crystal frequency?
-    fn crystal_freq(&self, connection: &mut Connection) -> Result<XtalFrequency, Error>;
-
-    /// Numeric encodings for the flash frequencies supported by a chip
-    fn flash_frequency_encodings(&self) -> HashMap<FlashFrequency, u8> {
-        use FlashFrequency::*;
-
-        let encodings = [(_20Mhz, 0x2), (_26Mhz, 0x1), (_40Mhz, 0x0), (_80Mhz, 0xf)];
-
-        HashMap::from(encodings)
-    }
-
-    #[cfg(feature = "serialport")]
-    /// Write size for flashing operations
-    fn flash_write_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
-        Ok(FLASH_WRITE_SIZE)
-    }
-
-    #[cfg(feature = "serialport")]
-    /// What is the MAC address?
-    fn mac_address(&self, connection: &mut Connection) -> Result<String, Error> {
-        let (mac0_field, mac1_field) = match self.chip() {
-            Chip::Esp32 => (self::efuse::esp32::MAC0, self::efuse::esp32::MAC1),
-            Chip::Esp32c2 => (self::efuse::esp32c2::MAC0, self::efuse::esp32c2::MAC1),
-            Chip::Esp32c3 => (self::efuse::esp32c3::MAC0, self::efuse::esp32c3::MAC1),
-            Chip::Esp32c5 => (self::efuse::esp32c5::MAC0, self::efuse::esp32c5::MAC1),
-            Chip::Esp32c6 => (self::efuse::esp32c6::MAC0, self::efuse::esp32c6::MAC1),
-            Chip::Esp32h2 => (self::efuse::esp32h2::MAC0, self::efuse::esp32h2::MAC1),
-            Chip::Esp32p4 => (self::efuse::esp32p4::MAC0, self::efuse::esp32p4::MAC1),
-            Chip::Esp32s2 => (self::efuse::esp32s2::MAC0, self::efuse::esp32s2::MAC1),
-            Chip::Esp32s3 => (self::efuse::esp32s3::MAC0, self::efuse::esp32s3::MAC1),
-        };
-
-        let mac0 = self.chip().read_efuse(connection, mac0_field)?;
-        let mac1 = self.chip().read_efuse(connection, mac1_field)?;
-
-        let bytes = ((mac1 as u64) << 32) | mac0 as u64;
-        let bytes = bytes.to_be_bytes();
-        let bytes = &bytes[2..];
-
-        let mac_addr = bytes
-            .iter()
-            .map(|b| format!("{:02x}", b))
-            .collect::<Vec<_>>()
-            .join(":");
-
-        Ok(mac_addr)
-    }
-
-    #[cfg(feature = "serialport")]
-    /// Maximum RAM block size for writing
-    fn max_ram_block_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
-        Ok(MAX_RAM_BLOCK_SIZE)
-    }
-
-    /// SPI register addresses for a chip
-    fn spi_registers(&self) -> SpiRegisters;
-
-    /// Build targets supported by a chip
-    fn supported_build_targets(&self) -> &[&str];
-
-    /// Is the build target `target` supported by the chip?
-    fn supports_build_target(&self, target: &str) -> bool {
-        self.supported_build_targets().contains(&target)
-    }
-}
 
 #[cfg(feature = "serialport")]
 pub(crate) trait RtcWdtReset {

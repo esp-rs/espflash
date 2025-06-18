@@ -207,7 +207,7 @@ pub(crate) fn ram_segments<'a>(
     chip: Chip,
     elf: &'a ElfFile<'a>,
 ) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
-    Box::new(segments(elf).filter(move |segment| !chip.into_target().addr_is_flash(segment.addr)))
+    Box::new(segments(elf).filter(move |segment| !chip.addr_is_flash(segment.addr)))
 }
 
 /// Returns an iterator over all ROM segments for a given chip and ELF file.
@@ -215,7 +215,7 @@ pub(crate) fn rom_segments<'a>(
     chip: Chip,
     elf: &'a ElfFile<'a>,
 ) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
-    Box::new(segments(elf).filter(move |segment| chip.into_target().addr_is_flash(segment.addr)))
+    Box::new(segments(elf).filter(move |segment| chip.addr_is_flash(segment.addr)))
 }
 
 fn segments<'a>(elf: &'a ElfFile<'a>) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
