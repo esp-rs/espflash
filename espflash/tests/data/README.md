@@ -15,3 +15,22 @@ esp-generate --chip=esp32c6 -o defmt --headless esp32c6_defmt
 cd esp32c6_defmt
 DEFMT_LOG=info cargo build --release
 ```
+
+
+The `esp32c6_backtrace` elf file under this folder has been generated using `esp-generate@f4213a9`:
+```
+esp-generate --chip=esp32c6 --headless -o esp-backtrace esp32c6_backtrace
+cd esp32c6_backtrace
+```
+Modified the main.rs to panic:
+```diff
+    let _peripherals = esp_hal::init(config);
+
++    panic!("test");
++
+    loop {
+```
+And then build the elf file:
+```
+cargo build --release
+```
