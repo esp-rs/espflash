@@ -10,16 +10,13 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
 #[cfg(feature = "serialport")]
-pub use self::flash_target::{Esp32Target, RamTarget};
+pub use self::flash_target::{Esp32Target, FlashTarget, RamTarget};
 use crate::{Error, flasher::FlashFrequency};
 #[cfg(feature = "serialport")]
 use crate::{
     connection::Connection,
     flasher::{FLASH_WRITE_SIZE, SpiAttachParams},
-    targets::{
-        efuse::EfuseField,
-        flash_target::{FlashTarget, MAX_RAM_BLOCK_SIZE},
-    },
+    targets::{efuse::EfuseField, flash_target::MAX_RAM_BLOCK_SIZE},
 };
 
 mod efuse;
@@ -290,8 +287,6 @@ impl Chip {
         }
     }
 
-    /// Creates and returns a new [FlashTarget] for [Esp32Target], using the
-    /// provided [SpiAttachParams].
     #[cfg(feature = "serialport")]
     /// Returns the valid MMU page sizes for the [Chip]
     pub fn valid_mmu_page_sizes(self) -> Option<&'static [u32]> {
@@ -337,6 +332,8 @@ impl Chip {
     }
 
     #[cfg(feature = "serialport")]
+    /// Creates and returns a new [FlashTarget] for [Esp32Target], using the
+    /// provided [SpiAttachParams].
     pub fn flash_target(
         &self,
         spi_params: SpiAttachParams,

@@ -585,7 +585,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         })
     }
 
-    /// Returns an iterator over the [RomSegment].
+    /// Returns an iterator over the [Segment]'s that should be placed in flash.
     pub fn flash_segments<'b>(self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
     where
         'a: 'b,

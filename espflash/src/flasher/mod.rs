@@ -21,8 +21,6 @@ use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
 pub(crate) use self::stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
-#[cfg(feature = "serialport")]
-pub use crate::targets::flash_target::ProgressCallbacks;
 use crate::{
     Error,
     targets::{Chip, XtalFrequency},
@@ -51,6 +49,16 @@ pub(crate) mod stubs;
 #[cfg(feature = "serialport")]
 pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
     [SpiAttachParams::default(), SpiAttachParams::esp32_pico_d4()];
+
+/// Progress update callbacks
+pub trait ProgressCallbacks {
+    /// Initialize some progress report
+    fn init(&mut self, addr: u32, total: usize);
+    /// Update some progress report
+    fn update(&mut self, current: usize);
+    /// Finish some progress report
+    fn finish(&mut self);
+}
 
 /// Security Info Response containing
 #[derive(Debug)]
