@@ -19,6 +19,10 @@ use crate::{
     targets::Chip,
 };
 
+// A type alias for a dynamic error that can be used in the library.
+// https://d34dl0ck.me/rust-bites-designing-error-types-in-rust-libraries/index.html
+type CoreError = Box<dyn core::error::Error + Send + Sync>;
+
 /// All possible errors returned by espflash.
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
@@ -195,7 +199,7 @@ pub enum Error {
         code(espflash::invalid_elf),
         help("Try running `cargo clean` and rebuilding the image")
     )]
-    InvalidElf(#[from] object::Error),
+    InvalidElf(CoreError),
 
     #[error("Supplied ELF image contains an invalid application descriptor")]
     #[diagnostic(code(espflash::invalid_app_descriptor))]
@@ -218,10 +222,10 @@ pub enum Error {
     #[cfg(feature = "cli")]
     #[error(transparent)]
     #[diagnostic(code(espflash::dialoguer_error))]
-    DialoguerError(#[from] dialoguer::Error),
+    DialoguerError(CoreError),
 
     #[error(transparent)]
-    TryFromSlice(#[from] TryFromSliceError),
+    TryFromSlice(CoreError),
 
     #[error("Failed to open file: {0}")]
     FileOpenError(String, #[source] io::Error),
@@ -280,6 +284,25 @@ impl From<serialport::Error> for Error {
 impl From<SlipError> for Error {
     fn from(err: SlipError) -> Self {
         Self::Connection(err.into())
+    }
+}
+
+impl From<TryFromSliceError> for Error {
+    fn from(err: TryFromSliceError) -> Self {
+        Self::TryFromSlice(Box::new(err))
+    }
+}
+
+impl From<object::Error> for Error {
+    fn from(err: object::Error) -> Self {
+        Self::InvalidElf(err.into())
+    }
+}
+
+#[cfg(feature = "cli")]
+impl From<dialoguer::Error> for Error {
+    fn from(err: dialoguer::Error) -> Self {
+        Self::DialoguerError(err.into())
     }
 }
 
