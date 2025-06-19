@@ -73,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed a case where esplash transformed the firmware elf in a way that made it unbootable (#831)
 - The app descriptor is now correctly placed in the front of the bianry (#835)
 - espflash now extracts the MMU page size from the app descriptor (#835)
-- `ResetBeforeOperation` & `ResetAfterOperation` are now public, to allow the creation of a `Connection` (#882)
+- `ResetBeforeOperation` & `ResetAfterOperation` are now public, to allow the creation of a `Connection` (#895)
 
 ### Removed
 
