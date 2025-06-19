@@ -3,7 +3,7 @@ use std::time::Duration;
 use base64::{Engine as _, engine::general_purpose};
 use serde::{Deserialize, Serialize};
 
-use crate::targets::Chip;
+use crate::target::Chip;
 
 /// Flash stub object (deserialized from TOML, converted from JSON as used by
 /// `esptool.py`)
@@ -82,7 +82,7 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use super::FlashStub;
-    use crate::targets::Chip;
+    use crate::target::Chip;
 
     #[test]
     fn check_stub_encodings() {

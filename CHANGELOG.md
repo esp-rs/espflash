@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for serial port configuration files. (#777, #883)
 - Add a `check-app-descriptor` bool option to `ImageArgs` and add the flag to `flash` commad(#872)
 - `Connection::into_serial` to get the underlying port from the connection (#882)
+- All methods on the now removed `Target` & `ReadEFuse`, `UsbOtg` and `RtcWdtReset` traits have been implemented directly on (#891)
 
 ### Changed
 
@@ -55,7 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Flasher::into_serial` has been replaced by `Flasher::into_connection` (#882)
 - Automatically migrate `espflash@3` configuration files to the new format (#883)
 - Update dependencies to their latest versions (#893)
-
+- `ProgressCallbacks` has moved to `flasher` (#891)
+- `Chip::crystal_freq` has been renamed to `Chip::xtal_frequency` (#891)
+- `Chip::chip_revision` has been renamed to `Chip::revision` (also applies to `minor` and `major`) (#891)
+- Any reference to `esp_idf` or `EspIdf` has been cut to just `idf` (#891)
+- Renamed `targets` module to `target` (#891)
 
 ### Fixed
 
@@ -76,6 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the `flasher::parse_partition_table` function (#798)
 - The `FirmwareImage` trait has been removed (#802)
 - The `elf` module has been removed, and its contents moved to the `image_format` module (#802)
+- The `Target` trait, the `ReadEFuse` trait, and `Chip::into_target` (#891)
+- The `UsbOtg` and `RtcWdtReset` traits have been removed, along with `Chip::into_rtc_wdt_reset` & `Chip::into_usb_otg` (#891)
 
 ## [3.3.0] - 2025-01-13
 

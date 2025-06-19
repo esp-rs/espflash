@@ -1,19 +1,9 @@
 pub(crate) use self::ram::MAX_RAM_BLOCK_SIZE;
 pub use self::{esp32::Esp32Target, ram::RamTarget};
-use crate::{Error, connection::Connection, image_format::Segment};
+use crate::{Error, connection::Connection, flasher::ProgressCallbacks, image_format::Segment};
 
 mod esp32;
 mod ram;
-
-/// Progress update callbacks
-pub trait ProgressCallbacks {
-    /// Initialize some progress report
-    fn init(&mut self, addr: u32, total: usize);
-    /// Update some progress report
-    fn update(&mut self, current: usize);
-    /// Finish some progress report
-    fn finish(&mut self);
-}
 
 /// Operations for interacting with a flash target
 pub trait FlashTarget {

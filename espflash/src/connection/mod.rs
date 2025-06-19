@@ -36,7 +36,7 @@ use self::{
 use crate::{
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
     flasher::stubs::CHIP_DETECT_MAGIC_REG_ADDR,
-    targets::Chip,
+    target::Chip,
 };
 
 pub(crate) mod command;
@@ -321,37 +321,31 @@ impl Connection {
                 match chip {
                     Chip::Esp32c3 => {
                         if self.is_using_usb_serial_jtag() {
-                            chip.into_rtc_wdt_reset()?.rtc_wdt_reset(self)?;
+                            chip.rtc_wdt_reset(self)?;
                         }
                     }
                     Chip::Esp32p4 => {
                         // Check if the connection is USB OTG
-                        if chip.into_usb_otg()?.is_using_usb_otg(self)? {
-                            chip.into_rtc_wdt_reset()?.rtc_wdt_reset(self)?;
+                        if chip.is_using_usb_otg(self)? {
+                            chip.rtc_wdt_reset(self)?;
                         }
                     }
                     Chip::Esp32s2 => {
                         // Check if the connection is USB OTG
-                        if chip.into_usb_otg()?.is_using_usb_otg(self)? {
-                            let target = chip.into_rtc_wdt_reset()?;
-
+                        if chip.is_using_usb_otg(self)? {
                             // Check the strapping register to see if we can perform RTC WDT
                             // reset
-                            if target.can_rtc_wdt_reset(self)? {
-                                target.rtc_wdt_reset(self)?;
+                            if chip.can_rtc_wdt_reset(self)? {
+                                chip.rtc_wdt_reset(self)?;
                             }
                         }
                     }
                     Chip::Esp32s3 => {
-                        if self.is_using_usb_serial_jtag()
-                            || chip.into_usb_otg()?.is_using_usb_otg(self)?
-                        {
-                            let target = chip.into_rtc_wdt_reset()?;
-
+                        if self.is_using_usb_serial_jtag() || chip.is_using_usb_otg(self)? {
                             // Check the strapping register to see if we can perform RTC WDT
                             // reset
-                            if target.can_rtc_wdt_reset(self)? {
-                                target.rtc_wdt_reset(self)?;
+                            if chip.can_rtc_wdt_reset(self)? {
+                                chip.rtc_wdt_reset(self)?;
                             }
                         }
                     }
@@ -634,7 +628,7 @@ impl Connection {
     pub fn detect_chip(
         &mut self,
         use_stub: bool,
-    ) -> Result<crate::targets::Chip, crate::error::Error> {
+    ) -> Result<crate::target::Chip, crate::error::Error> {
         // Try to read the magic value from the chip
         let magic = if use_stub {
             self.with_timeout(CommandType::ReadReg.timeout(), |connection| {

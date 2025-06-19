@@ -92,7 +92,7 @@ pub struct ProjectConfig {
     pub format: ImageFormatKind,
     /// ESP-IDF format arguments
     #[serde(default)]
-    pub esp_idf_format_args: cli::EspIdfFormatArgs,
+    pub idf_format_args: cli::IdfFormatArgs,
     /// Flash settings
     #[serde(default)]
     pub flash: FlashSettings,
@@ -124,14 +124,14 @@ impl Config {
             ProjectConfig::default()
         };
 
-        if let Some(table) = &project_config.esp_idf_format_args.partition_table {
+        if let Some(table) = &project_config.idf_format_args.partition_table {
             match table.extension() {
                 Some(ext) if ext == "bin" || ext == "csv" => {}
                 _ => return Err(Error::InvalidPartitionTablePath.into()),
             }
         }
 
-        if let Some(bootloader) = &project_config.esp_idf_format_args.bootloader {
+        if let Some(bootloader) = &project_config.idf_format_args.bootloader {
             if bootloader.extension() != Some(OsStr::new("bin")) {
                 return Err(Error::InvalidBootloaderPath.into());
             }

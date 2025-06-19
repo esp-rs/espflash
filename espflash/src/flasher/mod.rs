@@ -21,11 +21,9 @@ use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
 pub(crate) use self::stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
-#[cfg(feature = "serialport")]
-pub use crate::targets::flash_target::ProgressCallbacks;
 use crate::{
     Error,
-    targets::{Chip, XtalFrequency},
+    target::{Chip, XtalFrequency},
 };
 #[cfg(feature = "serialport")]
 use crate::{
@@ -51,6 +49,16 @@ pub(crate) mod stubs;
 #[cfg(feature = "serialport")]
 pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
     [SpiAttachParams::default(), SpiAttachParams::esp32_pico_d4()];
+
+/// Progress update callbacks
+pub trait ProgressCallbacks {
+    /// Initialize some progress report
+    fn init(&mut self, addr: u32, total: usize);
+    /// Update some progress report
+    fn update(&mut self, current: usize);
+    /// Finish some progress report
+    fn finish(&mut self);
+}
 
 /// Security Info Response containing
 #[derive(Debug)]
@@ -271,7 +279,7 @@ pub enum FlashFrequency {
 impl FlashFrequency {
     /// Encodes flash frequency into the format used by the bootloader.
     pub fn encode_flash_frequency(self: FlashFrequency, chip: Chip) -> Result<u8, Error> {
-        let encodings = chip.into_target().flash_frequency_encodings();
+        let encodings = chip.flash_frequency_encodings();
         if let Some(&f) = encodings.get(&self) {
             Ok(f)
         } else {
@@ -741,9 +749,7 @@ impl Flasher {
 
         let mut ram_target = self.chip.ram_target(
             Some(stub.entry()),
-            self.chip
-                .into_target()
-                .max_ram_block_size(&mut self.connection)?,
+            self.chip.max_ram_block_size(&mut self.connection)?,
         );
         ram_target.begin(&mut self.connection).flashing()?;
 
@@ -882,7 +888,7 @@ impl Flasher {
         assert!(read_bits < 32);
         assert!(data.len() < 64);
 
-        let spi_registers = self.chip.into_target().spi_registers();
+        let spi_registers = self.chip.spi_registers();
 
         let old_spi_usr = self.connection.read_reg(spi_registers.usr())?;
         let old_spi_usr2 = self.connection.read_reg(spi_registers.usr2())?;
@@ -974,22 +980,20 @@ impl Flasher {
     /// Read and print any information we can about the connected device
     pub fn device_info(&mut self) -> Result<DeviceInfo, Error> {
         let chip = self.chip();
-        let target = chip.into_target();
-
         // chip_revision reads from efuse, which is not possible in Secure Download Mode
         let revision = (!self.connection.secure_download_mode)
-            .then(|| target.chip_revision(self.connection()))
+            .then(|| chip.revision(self.connection()))
             .transpose()?;
 
-        let crystal_frequency = target.crystal_freq(self.connection())?;
-        let features = target
+        let crystal_frequency = chip.xtal_frequency(self.connection())?;
+        let features = chip
             .chip_features(self.connection())?
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
 
         let mac_address = (!self.connection.secure_download_mode)
-            .then(|| target.mac_address(self.connection()))
+            .then(|| chip.mac_address(self.connection()))
             .transpose()?;
 
         let info = DeviceInfo {
@@ -1019,9 +1023,7 @@ impl Flasher {
 
         let mut target = self.chip.ram_target(
             Some(elf.elf_header().e_entry.get(Endianness::Little)),
-            self.chip
-                .into_target()
-                .max_ram_block_size(&mut self.connection)?,
+            self.chip.max_ram_block_size(&mut self.connection)?,
         );
         target.begin(&mut self.connection).flashing()?;
 
@@ -1141,8 +1143,7 @@ impl Flasher {
             false => 0,
         };
 
-        let target = self.chip.into_target();
-        let xtal_freq = target.crystal_freq(&mut self.connection)?;
+        let xtal_freq = self.chip.xtal_frequency(&mut self.connection)?;
 
         // Probably this is just a temporary solution until the next chip revision.
         //
@@ -1335,7 +1336,8 @@ impl Flasher {
 
     /// Verify the minimum chip revision.
     pub fn verify_minimum_revision(&mut self, minimum: u16) -> Result<(), Error> {
-        let (major, minor) = self.chip.into_target().chip_revision(self.connection())?;
+        let chip = self.chip;
+        let (major, minor) = chip.revision(self.connection())?;
         let revision = (major * 100 + minor) as u16;
         if revision < minimum {
             return Err(Error::UnsupportedChipRevision {

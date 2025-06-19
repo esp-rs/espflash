@@ -16,7 +16,7 @@ use crate::cli::monitor::parser::esp_defmt::DefmtError;
 use crate::connection::command::CommandType;
 use crate::{
     flasher::{FlashFrequency, FlashSize},
-    targets::Chip,
+    target::Chip,
 };
 
 // A type alias for a dynamic error that can be used in the library.
@@ -209,6 +209,14 @@ pub enum Error {
     #[cfg(feature = "serialport")]
     #[diagnostic(transparent)]
     RomError(#[from] RomError),
+
+    #[error("The selected partition does not exist in the partition table")]
+    #[diagnostic(transparent)]
+    MissingPartition(#[from] MissingPartition),
+
+    #[error("The partition table is missing or invalid")]
+    #[diagnostic(transparent)]
+    MissingPartitionTable(#[from] MissingPartitionTable),
 
     #[cfg(feature = "cli")]
     #[error(transparent)]
@@ -563,6 +571,7 @@ impl RomError {
 )]
 pub struct MissingPartition(String);
 
+#[cfg(feature = "cli")]
 impl From<String> for MissingPartition {
     fn from(part: String) -> Self {
         MissingPartition(part)

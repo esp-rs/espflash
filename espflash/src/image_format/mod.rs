@@ -18,12 +18,11 @@ use object::{
 };
 use serde::{Deserialize, Serialize};
 
-pub use self::{esp_idf::IdfBootloaderFormat, metadata::Metadata};
-use crate::targets::Chip;
+pub use self::metadata::Metadata;
+use crate::{image_format::idf::IdfBootloaderFormat, target::Chip};
 
-pub mod esp_idf;
+pub mod idf;
 mod metadata;
-pub use esp_idf::check_idf_bootloader;
 
 /// Supported binary application image formats
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
@@ -207,7 +206,7 @@ pub(crate) fn ram_segments<'a>(
     chip: Chip,
     elf: &'a ElfFile<'a>,
 ) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
-    Box::new(segments(elf).filter(move |segment| !chip.into_target().addr_is_flash(segment.addr)))
+    Box::new(segments(elf).filter(move |segment| !chip.addr_is_flash(segment.addr)))
 }
 
 /// Returns an iterator over all ROM segments for a given chip and ELF file.
@@ -215,7 +214,7 @@ pub(crate) fn rom_segments<'a>(
     chip: Chip,
     elf: &'a ElfFile<'a>,
 ) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
-    Box::new(segments(elf).filter(move |segment| chip.into_target().addr_is_flash(segment.addr)))
+    Box::new(segments(elf).filter(move |segment| chip.addr_is_flash(segment.addr)))
 }
 
 fn segments<'a>(elf: &'a ElfFile<'a>) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {

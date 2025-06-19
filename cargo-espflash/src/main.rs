@@ -18,11 +18,10 @@ use espflash::{
     image_format::{
         ImageFormat,
         ImageFormatKind,
-        check_idf_bootloader,
-        esp_idf::parse_partition_table,
+        idf::{check_idf_bootloader, parse_partition_table},
     },
     logging::initialize_logger,
-    targets::{Chip, XtalFrequency},
+    target::{Chip, XtalFrequency},
     update::check_for_update,
 };
 use log::{LevelFilter, debug, info};
@@ -208,7 +207,7 @@ struct FlashArgs {
     format: ImageFormatKind,
     /// ESP-IDF format arguments
     #[clap(flatten)]
-    esp_idf_format_args: cli::EspIdfFormatArgs,
+    idf_format_args: cli::IdfFormatArgs,
 }
 
 #[derive(Debug, Args)]
@@ -223,7 +222,7 @@ struct SaveImageArgs {
     format: ImageFormatKind,
     /// ESP-IDF format arguments
     #[clap(flatten)]
-    esp_idf_format_args: cli::EspIdfFormatArgs,
+    idf_format_args: cli::IdfFormatArgs,
 }
 
 fn main() -> Result<()> {
@@ -284,7 +283,7 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
 
     let partition_table = args.partition_table.as_deref().or(config
         .project_config
-        .esp_idf_format_args
+        .idf_format_args
         .partition_table
         .as_deref());
     let mut flasher = connect(&args.connect_args, config, false, false)?;
@@ -325,8 +324,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     }
 
     let chip = flasher.chip();
-    let target = chip.into_target();
-    let target_xtal_freq = target.crystal_freq(flasher.connection())?;
+    let target_xtal_freq = chip.xtal_frequency(flasher.connection())?;
 
     flasher.disable_watchdog()?;
 
@@ -345,7 +343,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     monitor_args.elf = Some(build_ctx.artifact_path.clone());
 
     check_monitor_args(&args.flash_args.monitor, &monitor_args)?;
-    check_esp_idf_args(
+    check_idf_args(
         args.format,
         &args.flash_args.erase_parts,
         &args.flash_args.erase_data_parts,
@@ -376,7 +374,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             &flash_data,
             args.format,
             config,
-            Some(args.esp_idf_format_args),
+            Some(args.idf_format_args),
             build_ctx.bootloader_path,
             build_ctx.partition_table_path,
         )?;
@@ -441,7 +439,7 @@ fn build(
     }
     let metadata = metadata_cmd.exec().into_diagnostic()?;
 
-    if !chip.into_target().supports_build_target(target) {
+    if !chip.supports_build_target(target) {
         return Err(UnsupportedTargetError::new(target, chip).into());
     }
 
@@ -627,7 +625,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     let xtal_freq = args
         .save_image_args
         .xtal_freq
-        .unwrap_or(args.save_image_args.chip.default_crystal_frequency());
+        .unwrap_or(args.save_image_args.chip.default_xtal_frequency());
 
     let flash_data = make_flash_data(
         args.save_image_args.image,
@@ -641,7 +639,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         &flash_data,
         args.format,
         config,
-        Some(args.esp_idf_format_args),
+        Some(args.idf_format_args),
         build_ctx.bootloader_path,
         build_ctx.partition_table_path,
     )?;

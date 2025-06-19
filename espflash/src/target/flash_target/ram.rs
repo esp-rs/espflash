@@ -6,7 +6,7 @@ use crate::{
         command::{Command, CommandType},
     },
     flasher::ProgressCallbacks,
-    targets::FlashTarget,
+    target::FlashTarget,
 };
 
 /// Maximum block size for RAM flashing.

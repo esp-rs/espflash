@@ -13,11 +13,10 @@ use espflash::{
     image_format::{
         ImageFormat,
         ImageFormatKind,
-        check_idf_bootloader,
-        esp_idf::parse_partition_table,
+        idf::{check_idf_bootloader, parse_partition_table},
     },
     logging::initialize_logger,
-    targets::{Chip, XtalFrequency},
+    target::{Chip, XtalFrequency},
     update::check_for_update,
 };
 use log::{LevelFilter, debug, info};
@@ -138,7 +137,7 @@ struct FlashArgs {
     format: ImageFormatKind,
     /// ESP-IDF arguments
     #[clap(flatten)]
-    esp_idf_format_args: cli::EspIdfFormatArgs,
+    idf_format_args: cli::IdfFormatArgs,
 }
 
 #[derive(Debug, Args)]
@@ -157,7 +156,7 @@ struct SaveImageArgs {
     format: ImageFormatKind,
     // ESP-IDF arguments
     #[clap(flatten)]
-    esp_idf_format_args: cli::EspIdfFormatArgs,
+    idf_format_args: cli::IdfFormatArgs,
 }
 
 fn main() -> Result<()> {
@@ -229,7 +228,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let mut monitor_args = args.flash_args.monitor_args;
     monitor_args.elf = Some(args.image.clone());
     check_monitor_args(&args.flash_args.monitor, &monitor_args)?;
-    check_esp_idf_args(
+    check_idf_args(
         args.format,
         &args.flash_args.erase_parts,
         &args.flash_args.erase_data_parts,
@@ -252,8 +251,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     }
 
     let chip = flasher.chip();
-    let target = chip.into_target();
-    let target_xtal_freq = target.crystal_freq(flasher.connection())?;
+    let target_xtal_freq = chip.xtal_frequency(flasher.connection())?;
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(&args.image).into_diagnostic()?;
@@ -288,7 +286,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             &flash_data,
             args.format,
             config,
-            Some(args.esp_idf_format_args),
+            Some(args.idf_format_args),
             None,
             None,
         )?;
@@ -353,7 +351,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     let xtal_freq = args
         .save_image_args
         .xtal_freq
-        .unwrap_or(args.save_image_args.chip.default_crystal_frequency());
+        .unwrap_or(args.save_image_args.chip.default_xtal_frequency());
 
     let flash_data = make_flash_data(
         args.save_image_args.image,
@@ -367,7 +365,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         &flash_data,
         args.format,
         config,
-        Some(args.esp_idf_format_args),
+        Some(args.idf_format_args),
         None,
         None,
     )?;
