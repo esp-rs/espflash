@@ -23,7 +23,7 @@ use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
 pub(crate) use self::stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
 use crate::{
     Error,
-    targets::{Chip, XtalFrequency},
+    target::{Chip, XtalFrequency},
 };
 #[cfg(feature = "serialport")]
 use crate::{

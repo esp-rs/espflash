@@ -16,7 +16,7 @@ use crate::cli::monitor::parser::esp_defmt::DefmtError;
 use crate::connection::command::CommandType;
 use crate::{
     flasher::{FlashFrequency, FlashSize},
-    targets::Chip,
+    target::Chip,
 };
 
 // A type alias for a dynamic error that can be used in the library.

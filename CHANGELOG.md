@@ -56,11 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Flasher::into_serial` has been replaced by `Flasher::into_connection` (#882)
 - Automatically migrate `espflash@3` configuration files to the new format (#883)
 - Update dependencies to their latest versions (#893)
-
 - `ProgressCallbacks` has moved to `flasher` (#891)
 - `Chip::crystal_freq` has been renamed to `Chip::xtal_frequency` (#891)
 - `Chip::chip_revision` has been renamed to `Chip::revision` (also applies to `minor` and `major`) (#891)
 - Any reference to `esp_idf` or `EspIdf` has been cut to just `idf` (#891)
+- Renamed `targets` module to `target` (#891)
 
 ### Fixed
 

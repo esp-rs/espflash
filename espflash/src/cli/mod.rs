@@ -55,7 +55,7 @@ use crate::{
         Metadata,
         idf::{IdfBootloaderFormat, parse_partition_table},
     },
-    targets::{Chip, XtalFrequency},
+    target::{Chip, XtalFrequency},
 };
 
 pub mod config;

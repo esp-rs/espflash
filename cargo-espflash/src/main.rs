@@ -21,7 +21,7 @@ use espflash::{
         idf::{check_idf_bootloader, parse_partition_table},
     },
     logging::initialize_logger,
-    targets::{Chip, XtalFrequency},
+    target::{Chip, XtalFrequency},
     update::check_for_update,
 };
 use log::{LevelFilter, debug, info};

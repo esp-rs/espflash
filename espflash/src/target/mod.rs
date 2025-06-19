@@ -16,7 +16,7 @@ use crate::{Error, flasher::FlashFrequency};
 use crate::{
     connection::Connection,
     flasher::{FLASH_WRITE_SIZE, SpiAttachParams},
-    targets::{efuse::EfuseField, flash_target::MAX_RAM_BLOCK_SIZE},
+    target::{efuse::EfuseField, flash_target::MAX_RAM_BLOCK_SIZE},
 };
 
 mod efuse;
@@ -24,6 +24,7 @@ mod efuse;
 #[cfg(feature = "serialport")]
 pub(crate) mod flash_target;
 
+#[cfg(feature = "serialport")]
 pub(crate) const WDT_WKEY: u32 = 0x50D8_3AA1;
 
 /// Supported crystal frequencies

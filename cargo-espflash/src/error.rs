@@ -3,7 +3,7 @@ use std::{
     iter::once,
 };
 
-use espflash::targets::Chip;
+use espflash::target::Chip;
 use miette::{Diagnostic, LabeledSpan, SourceCode};
 use thiserror::Error;
 

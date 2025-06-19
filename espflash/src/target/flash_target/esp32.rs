@@ -11,7 +11,7 @@ use crate::{
     Error,
     flasher::{FLASH_SECTOR_SIZE, SpiAttachParams},
     image_format::Segment,
-    targets::{Chip, WDT_WKEY},
+    target::{Chip, WDT_WKEY},
 };
 #[cfg(feature = "serialport")]
 use crate::{
@@ -20,7 +20,7 @@ use crate::{
         command::{Command, CommandType},
     },
     flasher::ProgressCallbacks,
-    targets::FlashTarget,
+    target::FlashTarget,
 };
 
 /// Applications running from an ESP32's (or variant's) flash

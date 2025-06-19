@@ -30,7 +30,7 @@ use crate::{
     Error,
     error::AppDescriptorError,
     flasher::{FlashData, FlashFrequency, FlashMode, FlashSize},
-    targets::{Chip, XtalFrequency},
+    target::{Chip, XtalFrequency},
 };
 
 const ESP_CHECKSUM_MAGIC: u8 = 0xEF;

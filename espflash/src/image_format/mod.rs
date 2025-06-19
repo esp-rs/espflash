@@ -19,7 +19,7 @@ use object::{
 use serde::{Deserialize, Serialize};
 
 pub use self::metadata::Metadata;
-use crate::{image_format::idf::IdfBootloaderFormat, targets::Chip};
+use crate::{image_format::idf::IdfBootloaderFormat, target::Chip};
 
 pub mod idf;
 mod metadata;
