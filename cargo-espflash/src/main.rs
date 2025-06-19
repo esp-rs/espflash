@@ -545,7 +545,7 @@ fn build(
                     continue;
                 };
 
-                if package.name != "esp-idf-sys" {
+                if package.name.as_str() != "esp-idf-sys" {
                     continue;
                 }
 

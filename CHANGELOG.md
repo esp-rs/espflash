@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `detect_chip` has moved to the `Connection` struct (#882)
 - `Flasher::into_serial` has been replaced by `Flasher::into_connection` (#882)
 - Automatically migrate `espflash@3` configuration files to the new format (#883)
+- Update dependencies to their latest versions (#893)
+
 
 ### Fixed
 
