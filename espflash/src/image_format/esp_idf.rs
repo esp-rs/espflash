@@ -817,9 +817,12 @@ where
 pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
     let object = File::parse(elf_data.as_slice()).into_diagnostic()?;
     let section = object.section_by_name(".rodata_desc").is_some();
+    let esp_hal = object.section_by_name(".espressif.metadata").is_some();
     let symbol = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"));
 
-    if !section || !symbol {
+    // esp-hal specific, because it searches for the hard-coded esp_app_desc symbol
+    // in an ELF section
+    if esp_hal && (!section || !symbol) {
         return Err(Error::AppDescriptorNotPresent).into_diagnostic();
     }
 
