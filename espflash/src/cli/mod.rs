@@ -266,7 +266,7 @@ pub struct ImageArgs {
 #[derive(Debug, Args, Clone, Deserialize, Serialize, Default)]
 #[non_exhaustive]
 #[group(skip)]
-pub struct EspIdfFormatArgs {
+pub struct IdfFormatArgs {
     /// Path to a binary ESP-IDF bootloader file
     #[arg(long, value_name = "FILE")]
     pub bootloader: Option<PathBuf>,
@@ -646,7 +646,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
 
     // The 26MHz ESP32-C2's need to be treated as a special case.
     if chip == Chip::Esp32c2
-        && chip.crystal_freq(flasher.connection())? == XtalFrequency::_26Mhz
+        && chip.xtal_frequency(flasher.connection())? == XtalFrequency::_26Mhz
         && monitor_args.monitor_baud == 115_200
     {
         // 115_200 * 26 MHz / 40 MHz = 74_880
@@ -1020,18 +1020,18 @@ pub fn make_image_format<'a>(
     flash_data: &FlashData,
     image_format_kind: ImageFormatKind,
     config: &Config,
-    esp_idf_format_args: Option<EspIdfFormatArgs>,
+    idf_format_args: Option<IdfFormatArgs>,
     build_ctx_bootloader: Option<PathBuf>,
     build_ctx_partition_table: Option<PathBuf>,
 ) -> Result<ImageFormat<'a>, Error> {
     let image_format = match image_format_kind {
         ImageFormatKind::EspIdf => {
-            let mut args = esp_idf_format_args.unwrap_or_default();
+            let mut args = idf_format_args.unwrap_or_default();
             // Set bootloader path with precedence
             if args.bootloader.is_none() {
                 args.bootloader = config
                     .project_config
-                    .esp_idf_format_args
+                    .idf_format_args
                     .bootloader
                     .clone()
                     .or(build_ctx_bootloader);
@@ -1041,7 +1041,7 @@ pub fn make_image_format<'a>(
             if args.partition_table.is_none() {
                 args.partition_table = config
                     .project_config
-                    .esp_idf_format_args
+                    .idf_format_args
                     .partition_table
                     .clone()
                     .or(build_ctx_partition_table);
@@ -1113,7 +1113,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     print_board_info(&mut flasher)?;
 
     let chip = flasher.chip();
-    let target_xtal_freq = chip.crystal_freq(flasher.connection())?;
+    let target_xtal_freq = chip.xtal_frequency(flasher.connection())?;
 
     flasher.write_bin_to_flash(
         args.address,
@@ -1176,7 +1176,7 @@ pub fn ensure_chip_compatibility(chip: Chip, elf: Option<&[u8]>) -> Result<()> {
 }
 
 /// Check if the given arguments are valid for the ESP-IDF format
-pub fn check_esp_idf_args(
+pub fn check_idf_args(
     format: ImageFormatKind,
     erase_parts: &Option<Vec<String>>,
     erase_data_parts: &Option<Vec<DataType>>,
@@ -1198,7 +1198,7 @@ mod test {
     #[derive(Parser)]
     struct TestParser {
         #[clap(flatten)]
-        args: EspIdfFormatArgs,
+        args: IdfFormatArgs,
     }
 
     #[test]

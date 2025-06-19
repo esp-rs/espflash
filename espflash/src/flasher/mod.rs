@@ -982,10 +982,10 @@ impl Flasher {
         let chip = self.chip();
         // chip_revision reads from efuse, which is not possible in Secure Download Mode
         let revision = (!self.connection.secure_download_mode)
-            .then(|| chip.chip_revision(self.connection()))
+            .then(|| chip.revision(self.connection()))
             .transpose()?;
 
-        let crystal_frequency = chip.crystal_freq(self.connection())?;
+        let crystal_frequency = chip.xtal_frequency(self.connection())?;
         let features = chip
             .chip_features(self.connection())?
             .iter()
@@ -1143,7 +1143,7 @@ impl Flasher {
             false => 0,
         };
 
-        let xtal_freq = self.chip.crystal_freq(&mut self.connection)?;
+        let xtal_freq = self.chip.xtal_frequency(&mut self.connection)?;
 
         // Probably this is just a temporary solution until the next chip revision.
         //
@@ -1337,7 +1337,7 @@ impl Flasher {
     /// Verify the minimum chip revision.
     pub fn verify_minimum_revision(&mut self, minimum: u16) -> Result<(), Error> {
         let chip = self.chip;
-        let (major, minor) = chip.chip_revision(self.connection())?;
+        let (major, minor) = chip.revision(self.connection())?;
         let revision = (major * 100 + minor) as u16;
         if revision < minimum {
             return Err(Error::UnsupportedChipRevision {

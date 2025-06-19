@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use strum::{Display, EnumIter, EnumString, VariantNames};
+use strum::{Display, EnumIter, EnumString, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
 pub use self::flash_target::{Esp32Target, FlashTarget, RamTarget};
@@ -23,6 +23,8 @@ mod efuse;
 
 #[cfg(feature = "serialport")]
 pub(crate) mod flash_target;
+
+pub(crate) const WDT_WKEY: u32 = 0x50D8_3AA1;
 
 /// Supported crystal frequencies
 ///
@@ -78,17 +80,7 @@ pub enum Chip {
 impl Chip {
     /// Create a [Chip] from a magic value.
     pub fn from_magic(magic: u32) -> Result<Self, Error> {
-        for chip in [
-            Chip::Esp32,
-            Chip::Esp32c2,
-            Chip::Esp32c3,
-            Chip::Esp32c5,
-            Chip::Esp32c6,
-            Chip::Esp32h2,
-            Chip::Esp32p4,
-            Chip::Esp32s2,
-            Chip::Esp32s3,
-        ] {
+        for chip in Chip::iter() {
             if chip.has_magic_value(magic) {
                 return Ok(chip);
             }
@@ -253,8 +245,6 @@ impl Chip {
                     | WdtConfig0Flags::CHIP_RESET_WIDTH) // set chip reset width
                     .bits();
 
-                const WDT_WKEY: u32 = 0x50D8_3AA1;
-
                 log::debug!("Resetting with RTC WDT");
                 connection.write_reg(wdt_wprotect, WDT_WKEY, None)?;
                 connection.write_reg(wdt_config1, 2000, None)?;
@@ -322,7 +312,7 @@ impl Chip {
     }
 
     /// Returns the default crystal frequency for the [Chip]
-    pub fn default_crystal_frequency(&self) -> XtalFrequency {
+    pub fn default_xtal_frequency(&self) -> XtalFrequency {
         match self {
             Chip::Esp32c5 => XtalFrequency::_48Mhz,
             Chip::Esp32h2 => XtalFrequency::_32Mhz,
@@ -621,15 +611,15 @@ impl Chip {
 
     #[cfg(feature = "serialport")]
     /// Determine the chip's revision number
-    pub fn chip_revision(&self, connection: &mut Connection) -> Result<(u32, u32), Error> {
-        let major = self.major_chip_version(connection)?;
-        let minor = self.minor_chip_version(connection)?;
+    pub fn revision(&self, connection: &mut Connection) -> Result<(u32, u32), Error> {
+        let major = self.major_version(connection)?;
+        let minor = self.minor_version(connection)?;
 
         Ok((major, minor))
     }
 
     #[cfg(feature = "serialport")]
-    pub fn major_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+    pub fn major_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         match self {
             Chip::Esp32 => {
                 let apb_ctl_date = connection.read_reg(0x3FF6_607C)?;
@@ -670,7 +660,7 @@ impl Chip {
     }
 
     #[cfg(feature = "serialport")]
-    pub fn minor_chip_version(&self, connection: &mut Connection) -> Result<u32, Error> {
+    pub fn minor_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         match self {
             Chip::Esp32 => self.read_efuse(connection, efuse::esp32::WAFER_VERSION_MINOR),
             Chip::Esp32c2 => self.read_efuse(connection, efuse::esp32c2::WAFER_VERSION_MINOR),
@@ -700,8 +690,8 @@ impl Chip {
     }
 
     #[cfg(feature = "serialport")]
-    /// What is the crystal frequency?
-    pub fn crystal_freq(&self, connection: &mut Connection) -> Result<XtalFrequency, Error> {
+    /// retrieve the xtal frequency of the chip.
+    pub fn xtal_frequency(&self, connection: &mut Connection) -> Result<XtalFrequency, Error> {
         match self {
             Chip::Esp32 => {
                 const UART_CLKDIV_REG: u32 = 0x3ff4_0014; // UART0_BASE_REG + 0x14
@@ -749,11 +739,10 @@ impl Chip {
 
                 Ok(norm_xtal)
             }
-            Chip::Esp32c6 => Ok(XtalFrequency::_40Mhz), // Fixed frequency
             Chip::Esp32h2 => Ok(XtalFrequency::_32Mhz), // Fixed frequency
-            Chip::Esp32p4 => Ok(XtalFrequency::_40Mhz), // Fixed frequency
-            Chip::Esp32s2 => Ok(XtalFrequency::_40Mhz), // Fixed frequency
-            Chip::Esp32s3 => Ok(XtalFrequency::_40Mhz), // Fixed frequency
+            Chip::Esp32c6 | Chip::Esp32p4 | Chip::Esp32s2 | Chip::Esp32s3 => {
+                Ok(XtalFrequency::_40Mhz)
+            } // Fixed frequency
         }
     }
 

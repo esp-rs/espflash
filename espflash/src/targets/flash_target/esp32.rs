@@ -11,7 +11,7 @@ use crate::{
     Error,
     flasher::{FLASH_SECTOR_SIZE, SpiAttachParams},
     image_format::Segment,
-    targets::Chip,
+    targets::{Chip, WDT_WKEY},
 };
 #[cfg(feature = "serialport")]
 use crate::{
@@ -77,59 +77,24 @@ impl FlashTarget for Esp32Target {
         // TODO: the stub doesn't appear to disable the watchdog on ESP32-S3, so we
         //       explicitly disable the watchdog here.
         if connection.is_using_usb_serial_jtag() {
-            match self.chip {
-                Chip::Esp32c3 => {
-                    connection.command(Command::WriteReg {
-                        address: 0x6000_80a8,
-                        value: 0x50D8_3AA1,
-                        mask: None,
-                    })?; // WP disable
-                    connection.command(Command::WriteReg {
-                        address: 0x6000_8090,
-                        value: 0x0,
-                        mask: None,
-                    })?; // turn off RTC WDT
-                    connection.command(Command::WriteReg {
-                        address: 0x6000_80a8,
-                        value: 0x0,
-                        mask: None,
-                    })?; // WP enable
-                }
-                Chip::Esp32s3 => {
-                    connection.command(Command::WriteReg {
-                        address: 0x6000_80B0,
-                        value: 0x50D8_3AA1,
-                        mask: None,
-                    })?; // WP disable
-                    connection.command(Command::WriteReg {
-                        address: 0x6000_8098,
-                        value: 0x0,
-                        mask: None,
-                    })?; // turn off RTC WDT
-                    connection.command(Command::WriteReg {
-                        address: 0x6000_80B0,
-                        value: 0x0,
-                        mask: None,
-                    })?; // WP enable
-                }
-                Chip::Esp32c6 => {
-                    connection.command(Command::WriteReg {
-                        address: 0x600B_1C18,
-                        value: 0x50D8_3AA1,
-                        mask: None,
-                    })?; // WP disable
-                    connection.command(Command::WriteReg {
-                        address: 0x600B_1C00,
-                        value: 0x0,
-                        mask: None,
-                    })?; // turn off RTC WDT
-                    connection.command(Command::WriteReg {
-                        address: 0x600B_1C18,
-                        value: 0x0,
-                        mask: None,
-                    })?; // WP enable
-                }
-                _ => {}
+            if let (Some(wdt_wprotect), Some(wdt_config0)) =
+                (self.chip.wdt_wprotect(), self.chip.wdt_config0())
+            {
+                connection.command(Command::WriteReg {
+                    address: wdt_wprotect,
+                    value: WDT_WKEY,
+                    mask: None,
+                })?; // WP disable
+                connection.command(Command::WriteReg {
+                    address: wdt_config0,
+                    value: 0x0,
+                    mask: None,
+                })?; // turn off RTC WDT
+                connection.command(Command::WriteReg {
+                    address: wdt_wprotect,
+                    value: 0x0,
+                    mask: None,
+                })?; // WP enable
             }
         }
 
