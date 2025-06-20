@@ -9,6 +9,10 @@ license      = "MIT OR Apache-2.0"
 keywords     = ["cli", "embedded", "esp"]
 categories   = ["command-line-utilities", "development-tools", "embedded"]
 
+exclude = [
+    "tests" # do not include test elfs/scripts in the released package
+]
+
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.{ archive-format }"
 bin-dir = "{ bin }{ binary-ext }"

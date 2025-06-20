@@ -61,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Chip::chip_revision` has been renamed to `Chip::revision` (also applies to `minor` and `major`) (#891)
 - Any reference to `esp_idf` or `EspIdf` has been cut to just `idf` (#891)
 - Renamed `targets` module to `target` (#891)
+- Test data is now excluded from the crates.io release (#897)
 
 ### Fixed
 
