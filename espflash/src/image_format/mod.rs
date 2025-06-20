@@ -205,35 +205,33 @@ impl Ord for Segment<'_> {
 pub(crate) fn ram_segments<'a>(
     chip: Chip,
     elf: &'a ElfFile<'a>,
-) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
-    Box::new(segments(elf).filter(move |segment| !chip.addr_is_flash(segment.addr)))
+) -> impl Iterator<Item = Segment<'a>> {
+    segments(elf).filter(move |segment| !chip.addr_is_flash(segment.addr))
 }
 
 /// Returns an iterator over all ROM segments for a given chip and ELF file.
 pub(crate) fn rom_segments<'a>(
     chip: Chip,
     elf: &'a ElfFile<'a>,
-) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
-    Box::new(segments(elf).filter(move |segment| chip.addr_is_flash(segment.addr)))
+) -> impl Iterator<Item = Segment<'a>> {
+    segments(elf).filter(move |segment| chip.addr_is_flash(segment.addr))
 }
 
-fn segments<'a>(elf: &'a ElfFile<'a>) -> Box<dyn Iterator<Item = Segment<'a>> + 'a> {
-    Box::new(
-        elf.sections()
-            .filter(|section| {
-                let header = section.elf_section_header();
+fn segments<'a>(elf: &'a ElfFile<'a>) -> impl Iterator<Item = Segment<'a>> {
+    elf.sections()
+        .filter(|section| {
+            let header = section.elf_section_header();
 
-                section.size() > 0
-                    && header.sh_type(Endianness::Little) == SHT_PROGBITS
-                    && header.sh_offset.get(Endianness::Little) > 0
-                    && section.address() > 0
-                    && !is_empty(section.flags())
-            })
-            .flat_map(move |section| match section.data() {
-                Ok(data) => Some(Segment::new(section.address() as u32, data)),
-                _ => None,
-            }),
-    )
+            section.size() > 0
+                && header.sh_type(Endianness::Little) == SHT_PROGBITS
+                && header.sh_offset.get(Endianness::Little) > 0
+                && section.address() > 0
+                && !is_empty(section.flags())
+        })
+        .flat_map(move |section| match section.data() {
+            Ok(data) => Some(Segment::new(section.address() as u32, data)),
+            _ => None,
+        })
 }
 
 fn is_empty(flags: object::SectionFlags) -> bool {
