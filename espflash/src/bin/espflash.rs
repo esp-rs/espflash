@@ -201,7 +201,7 @@ fn main() -> Result<()> {
     }
 }
 
-pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
+fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(Error::StubRequired.into());
     }

@@ -229,7 +229,7 @@ fn main() -> Result<()> {
     miette::set_panic_hook();
     initialize_logger(LevelFilter::Info);
 
-    // Attempt to parse any provided comand-line arguments, or print the help
+    // Attempt to parse any provided command-line arguments, or print the help
     // message and terminate if the invocation is not correct.
     let cli = Cli::parse();
     let CargoSubcommand::Espflash {
@@ -276,7 +276,7 @@ struct BuildContext {
     pub partition_table_path: Option<PathBuf>,
 }
 
-pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
+fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(EspflashError::StubRequired).into_diagnostic();
     }
