@@ -168,7 +168,7 @@ impl Connection {
         );
 
         for (_, reset_strategy) in zip(0..MAX_CONNECT_ATTEMPTS, reset_sequence.iter().cycle()) {
-            match self.connect_attempt(reset_strategy) {
+            match self.connect_attempt(reset_strategy.as_ref()) {
                 Ok(_) => {
                     return Ok(());
                 }
@@ -182,8 +182,7 @@ impl Connection {
     }
 
     /// Try to connect to a device.
-    #[allow(clippy::borrowed_box)]
-    fn connect_attempt(&mut self, reset_strategy: &Box<dyn ResetStrategy>) -> Result<(), Error> {
+    fn connect_attempt(&mut self, reset_strategy: &dyn ResetStrategy) -> Result<(), Error> {
         // If we're doing no_sync, we're likely communicating as a pass through
         // with an intermediate device to the ESP32
         if self.before_operation == ResetBeforeOperation::NoResetNoSync {

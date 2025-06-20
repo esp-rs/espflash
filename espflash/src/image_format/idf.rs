@@ -586,7 +586,7 @@ impl<'a> IdfBootloaderFormat<'a> {
     }
 
     /// Returns an iterator over the [Segment]'s that should be placed in flash.
-    pub fn flash_segments<'b>(self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
+    pub fn flash_segments<'b>(self) -> impl Iterator<Item = Segment<'b>>
     where
         'a: 'b,
     {
@@ -605,19 +605,17 @@ impl<'a> IdfBootloaderFormat<'a> {
             data: self.flash_segment.data,
         };
 
-        Box::new(
-            once(bootloader_segment)
-                .chain(once(partition_table_segment))
-                .chain(once(app_segment)),
-        )
+        once(bootloader_segment)
+            .chain(once(partition_table_segment))
+            .chain(once(app_segment))
     }
 
     /// Returns an iterator over the OTA segment.
-    pub fn ota_segments<'b>(self) -> Box<dyn Iterator<Item = Segment<'b>> + 'b>
+    pub fn ota_segments<'b>(self) -> impl Iterator<Item = Segment<'b>>
     where
         'a: 'b,
     {
-        Box::new(once(self.flash_segment))
+        once(self.flash_segment)
     }
 
     /// Returns a map of metadata about the application image.
