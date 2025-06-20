@@ -227,10 +227,19 @@ fn segments<'a>(elf: &'a ElfFile<'a>) -> Box<dyn Iterator<Item = Segment<'a>> + 
                     && header.sh_type(Endianness::Little) == SHT_PROGBITS
                     && header.sh_offset.get(Endianness::Little) > 0
                     && section.address() > 0
+                    && !is_empty(section.flags())
             })
             .flat_map(move |section| match section.data() {
                 Ok(data) => Some(Segment::new(section.address() as u32, data)),
                 _ => None,
             }),
     )
+}
+
+fn is_empty(flags: object::SectionFlags) -> bool {
+    match flags {
+        object::SectionFlags::None => true,
+        object::SectionFlags::Elf { sh_flags } => sh_flags == 0,
+        _ => unreachable!(),
+    }
 }
