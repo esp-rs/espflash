@@ -22,6 +22,7 @@ use espflash::{
 use log::{LevelFilter, debug, info};
 use miette::{IntoDiagnostic, Result, WrapErr};
 
+/// Main CLI parser.
 #[derive(Debug, Parser)]
 #[command(about, max_term_width = 100, propagate_version = true, version)]
 pub struct Cli {
@@ -65,7 +66,7 @@ enum Commands {
     /// Please refer to the ESP-IDF documentation for more information on the
     /// binary image format:
     ///
-    /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/app_image_format.html
+    /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/app_image_format.html>
     Flash(FlashArgs),
     /// Hold the target device in reset
     HoldInReset(ConnectArgs),
@@ -81,7 +82,7 @@ enum Commands {
     /// Uses the ESP-IDF format for partition tables; please refer to the
     /// ESP-IDF documentation for more information on this format:
     ///
-    /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html
+    /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
     ///
     /// Allows for conversion between formats via the '--to-csv' and
     /// '--to-binary' options, plus the ability to print a partition table

@@ -56,8 +56,11 @@ pub type Port = serialport::COMPort;
 /// The value of a command response.
 #[derive(Debug, Clone)]
 pub enum CommandResponseValue {
+    /// A 32-bit value.
     ValueU32(u32),
+    /// A 128-bit value.
     ValueU128(u128),
+    /// A vector of bytes.
     Vector(Vec<u8>),
 }
 
@@ -391,7 +394,7 @@ impl Connection {
         Ok(())
     }
 
-    // Get the current baud rate of the serial port.
+    /// Get the current baud rate of the serial port.
     pub fn baud(&self) -> Result<u32, Error> {
         Ok(self.serial.baud_rate()?)
     }
@@ -612,13 +615,17 @@ impl Connection {
         self.port_info.pid
     }
 
+    /// Returns if the connection is using USB serial JTAG.
     pub(crate) fn is_using_usb_serial_jtag(&self) -> bool {
         self.port_info.pid == USB_SERIAL_JTAG_PID
     }
 
+    /// Returns the reset after operation.
     pub fn after_operation(&self) -> ResetAfterOperation {
         self.after_operation
     }
+
+    /// Returns the reset before operation.
     pub fn before_operation(&self) -> ResetBeforeOperation {
         self.before_operation
     }
@@ -675,7 +682,7 @@ mod encoder {
     impl<W: Write> Write for SlipEncoder<'_, W> {
         /// Writes the given buffer replacing the END and ESC bytes.
         ///
-        /// See https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/serial-protocol.html#low-level-protocol
+        /// See <https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/serial-protocol.html#low-level-protocol>
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
             for value in buf.iter() {
                 match *value {

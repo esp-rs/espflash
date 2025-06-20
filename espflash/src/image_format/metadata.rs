@@ -2,18 +2,21 @@ use std::{collections::HashMap, error::Error};
 
 use object::{File, Object, ObjectSection, ObjectSymbol};
 
+/// Image format metadata.
 #[derive(Debug, Clone)]
 pub struct Metadata {
     symbols: HashMap<String, Vec<u8>>,
 }
 
 impl Metadata {
+    /// Creates an empty [`Metadata`].
     fn empty() -> Self {
         Self {
             symbols: HashMap::new(),
         }
     }
 
+    /// Creates a new [`Metadata`] from bytes.
     pub fn from_bytes(bytes: Option<&[u8]>) -> Self {
         match Self::try_from(bytes) {
             Ok(metadata) => metadata,
@@ -58,16 +61,19 @@ impl Metadata {
         Ok(this)
     }
 
+    /// Reads a string from the metadata.
     fn read_string<'f>(&'f self, name: &str) -> Option<&'f str> {
         self.symbols
             .get(name)
             .and_then(|data| std::str::from_utf8(data).ok())
     }
 
+    /// Returns the chip name.
     pub fn chip_name(&self) -> Option<&str> {
         self.read_string("build_info.CHIP_NAME")
     }
 
+    /// Returns the log format.
     pub fn log_format(&self) -> Option<&str> {
         self.read_string("espflash.LOG_FORMAT")
     }

@@ -13,6 +13,7 @@ pub mod serial;
 
 /// Trait for parsing input data.
 pub trait InputParser {
+    /// Feeds the parser with new data.
     fn feed(&mut self, bytes: &[u8], out: &mut dyn Write);
 }
 

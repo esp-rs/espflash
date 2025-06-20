@@ -26,7 +26,7 @@ const SYNC_FRAME: [u8; 36] = [
 
 /// Types of commands that can be sent to a target device
 ///
-/// https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/serial-protocol.html#supported-by-stub-loader-and-rom-loader
+/// <https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/serial-protocol.html#supported-by-stub-loader-and-rom-loader>
 #[derive(Copy, Clone, Debug, Display)]
 #[non_exhaustive]
 #[repr(u8)]

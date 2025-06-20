@@ -587,6 +587,7 @@ impl From<String> for MissingPartition {
 )]
 pub struct MissingPartitionTable;
 
+/// Extension helpers.
 #[cfg(feature = "serialport")]
 pub(crate) trait ResultExt {
     /// Mark an error as having occurred during the flashing stage.

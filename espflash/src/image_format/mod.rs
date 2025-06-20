@@ -85,6 +85,7 @@ pub struct Segment<'a> {
 }
 
 impl<'a> Segment<'a> {
+    /// Creates a new [`Segment`].
     pub fn new(addr: u32, data: &'a [u8]) -> Self {
         // Do not pad the data here, as it might result in overlapping segments
         // in the ELF file. The padding should be done after merging adjacent segments.
@@ -94,8 +95,8 @@ impl<'a> Segment<'a> {
         }
     }
 
-    /// Split of the first `count` bytes into a new segment, adjusting the
-    /// remaining segment as needed
+    /// Splits off the first `count` bytes into a new segment, adjusting the
+    /// remaining segment as needed.
     pub fn split_off(&mut self, count: usize) -> Self {
         if count < self.data.len() {
             let (head, tail) = match take(&mut self.data) {

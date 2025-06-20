@@ -44,7 +44,7 @@ mod error;
 #[cfg(feature = "cli")]
 pub mod cli;
 
-// Logging utilities
+/// Logging utilities
 #[cfg(feature = "cli")]
 pub mod logging {
     use env_logger::{Builder, Env};
