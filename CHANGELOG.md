@@ -17,10 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `--monitor` option to `write-bin`. (#783)
 - Add `watchdog-reset` strategy to `--after` subcommand (#779)
 - Add `ROM` version of `read-flash` command (#812)
-- `espflash` can detect the log format automatically from ESP-HAL metadata. Reqires `esp-println` 0.14 (presumably, yet to be released) (#809)
+- `espflash` can detect the log format automatically from ESP-HAL metadata. Requires `esp-println` 0.14 (presumably, yet to be released) (#809)
 - Add `--output-format` option to monitor (#818)
 - Added chip detection based on security info, where supported (#814)
-- `espflash` can detect the chip from ESP-HAL metadata to prevent flashing firmware built for a different device. Reqires `esp-hal` 1.0.0-beta.0 (presumably, yet to be released) (#816)
+- `espflash` can detect the chip from ESP-HAL metadata to prevent flashing firmware built for a different device. Requires `esp-hal` 1.0.0-beta.0 (presumably, yet to be released) (#816)
 - `espflash` no longer allows flashing a too-big partition table (#830)
 - Allow specifying a partition label for `write-bin`, add `--partition-table`. (#828)
 - `--mmu-page-size` parameter for `flash` and `save-image` (#835)
@@ -28,13 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for the ESP32-C5 (#863)
 - `--after` options now work with `espflash board-info`, `espflash read-flash` and `espflash checksum-md5` (#867)
 - Add support for serial port configuration files. (#777, #883)
-- Add a `check-app-descriptor` bool option to `ImageArgs` and add the flag to `flash` commad(#872)
+- Add a `check-app-descriptor` bool option to `ImageArgs` and add the flag to `flash` command (#872)
 - `Connection::into_serial` to get the underlying port from the connection (#882)
 - All methods on the now removed `Target` & `ReadEFuse`, `UsbOtg` and `RtcWdtReset` traits have been implemented directly on (#891)
 
 ### Changed
 
-- Split the baudrate for connecting and monitorinig in `flash` subcommand (#737)
+- Split the baudrate for connecting and monitoring in `flash` subcommand (#737)
 - Normalized arguments of the CLI commands (#759)
 - `board-info` now prints `Security information`. (#758)
 - The `command`, `elf` and `error` modules are no longer public (#772)
@@ -72,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `read-flash` which didn't work with some lengths (#804)
 - espflash can now flash an ESP32-S2 in download mode over USB (#813)
 - Fixed a case where esplash transformed the firmware elf in a way that made it unbootable (#831)
-- The app descriptor is now correctly placed in the front of the bianry (#835)
+- The app descriptor is now correctly placed in the front of the binary (#835)
 - espflash now extracts the MMU page size from the app descriptor (#835)
 - `ResetBeforeOperation` & `ResetAfterOperation` are now public, to allow the creation of a `Connection` (#895)
 

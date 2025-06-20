@@ -262,6 +262,7 @@ fn handle_key_event(key_event: KeyEvent) -> Option<Vec<u8>> {
     key_str.map(|slice| slice.into())
 }
 
+/// Checks the monitor arguments and emits warnings if they are invalid.
 pub fn check_monitor_args(monitor: &bool, monitor_args: &MonitorConfigArgs) -> Result<()> {
     // Check if any monitor args are provided but monitor flag isn't set
     if !monitor

@@ -497,8 +497,8 @@ impl Chip {
         }
     }
 
-    #[cfg(feature = "serialport")]
     /// Enumerate the chip's features, read from eFuse
+    #[cfg(feature = "serialport")]
     pub fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
         match self {
             Chip::Esp32 => {
@@ -610,8 +610,8 @@ impl Chip {
         }
     }
 
-    #[cfg(feature = "serialport")]
     /// Determine the chip's revision number
+    #[cfg(feature = "serialport")]
     pub fn revision(&self, connection: &mut Connection) -> Result<(u32, u32), Error> {
         let major = self.major_version(connection)?;
         let minor = self.minor_version(connection)?;
@@ -619,6 +619,7 @@ impl Chip {
         Ok((major, minor))
     }
 
+    /// Returns the chip's major version.
     #[cfg(feature = "serialport")]
     pub fn major_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         match self {
@@ -660,6 +661,7 @@ impl Chip {
         }
     }
 
+    /// Returns the chip's minor version.
     #[cfg(feature = "serialport")]
     pub fn minor_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         match self {

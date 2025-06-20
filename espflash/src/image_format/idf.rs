@@ -334,7 +334,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         // bootloader. The hash is at the end of the bootloader segments and
         // 1-byte checksum at the end of a 16-byte padded boundary.
         //
-        // Source: Point 3 of https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32c3/api-reference/system/app_image_format.html
+        // Source: Point 3 of <https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32c3/api-reference/system/app_image_format.html>
         calc_bootloader_size += 1; // add checksum size
         calc_bootloader_size = calc_bootloader_size + ((16 - (calc_bootloader_size % 16)) % 16);
         let bootloader_sha_start = calc_bootloader_size;

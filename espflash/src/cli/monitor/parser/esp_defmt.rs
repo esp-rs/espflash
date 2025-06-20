@@ -203,6 +203,7 @@ impl DefmtData {
     }
 }
 
+/// A parser for defmt-encoded data.
 pub struct EspDefmt {
     delimiter: FrameDelimiter,
     defmt_data: DefmtData,
@@ -215,6 +216,7 @@ impl std::fmt::Debug for EspDefmt {
 }
 
 impl EspDefmt {
+    /// Creates a new `EspDefmt` parser.
     pub fn new(elf: Option<&[u8]>, output_format: Option<String>) -> Result<Self> {
         DefmtData::load(elf, output_format).map(|defmt_data| Self {
             delimiter: FrameDelimiter::new(),

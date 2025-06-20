@@ -94,7 +94,7 @@ enum Commands {
     /// Please refer to the ESP-IDF documentation for more information on the
     /// binary image format:
     ///
-    /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/app_image_format.html
+    /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/app_image_format.html>
     Flash(FlashArgs),
     /// Hold the target device in reset
     HoldInReset(ConnectArgs),
@@ -110,7 +110,7 @@ enum Commands {
     /// Uses the ESP-IDF format for partition tables; please refer to the
     /// ESP-IDF documentation for more information on this format:
     ///
-    /// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html
+    /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
     ///
     /// Allows for conversion between formats via the '--to-csv' and
     /// '--to-binary' options, plus the ability to print a partition table
@@ -229,7 +229,7 @@ fn main() -> Result<()> {
     miette::set_panic_hook();
     initialize_logger(LevelFilter::Info);
 
-    // Attempt to parse any provided comand-line arguments, or print the help
+    // Attempt to parse any provided command-line arguments, or print the help
     // message and terminate if the invocation is not correct.
     let cli = Cli::parse();
     let CargoSubcommand::Espflash {
@@ -276,7 +276,7 @@ struct BuildContext {
     pub partition_table_path: Option<PathBuf>,
 }
 
-pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
+fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
         return Err(EspflashError::StubRequired).into_diagnostic();
     }

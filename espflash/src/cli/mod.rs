@@ -339,6 +339,7 @@ pub struct ChecksumMd5Args {
     connect_args: ConnectArgs,
 }
 
+/// List the available serial ports.
 #[derive(Debug, Args)]
 #[non_exhaustive]
 pub struct ListPortsArgs {
@@ -490,6 +491,7 @@ pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// List the available serial ports.
 pub fn list_ports(args: &ListPortsArgs, config: &PortConfig) -> Result<()> {
     let mut ports: Vec<SerialPortInfo> = serial::detect_usb_serial_ports(true)?
         .into_iter()
@@ -1141,6 +1143,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Reset the target device.
 pub fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
     let mut args = args.clone();
     args.no_stub = true;
@@ -1151,6 +1154,7 @@ pub fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Hold the target device in reset.
 pub fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
     connect(&args, config, true, true)?;
     info!("Holding target device in reset");
@@ -1158,6 +1162,7 @@ pub fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Ensures the chip is compatible with the ELF file.
 pub fn ensure_chip_compatibility(chip: Chip, elf: Option<&[u8]>) -> Result<()> {
     let metadata = Metadata::from_bytes(elf);
     let Some(elf_chip) = metadata.chip_name() else {

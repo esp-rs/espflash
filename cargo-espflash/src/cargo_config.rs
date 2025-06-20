@@ -8,6 +8,7 @@ use serde::Deserialize;
 
 use crate::error::TomlError;
 
+/// Unstable features.
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Unstable {
@@ -15,11 +16,13 @@ pub struct Unstable {
     build_std: Vec<String>,
 }
 
+/// Build configuration extracted from `.cargo/config.toml`.
 #[derive(Debug, Default, Deserialize)]
 pub struct Build {
     target: Option<String>,
 }
 
+/// Representation of a Cargo configuration extracted from `.cargo/config.toml`.
 #[derive(Debug, Deserialize, Default)]
 pub struct CargoConfig {
     #[serde(default)]
@@ -29,6 +32,8 @@ pub struct CargoConfig {
 }
 
 impl CargoConfig {
+    /// Load and merge Cargo configuration from the workspace and/or package
+    /// level.
     pub fn load(workspace_root: &Path, package_root: &Path) -> Self {
         // If there is a Cargo configuration file in the current package, we will
         // deserialize and return it.
@@ -44,10 +49,12 @@ impl CargoConfig {
         }
     }
 
+    /// Returns if the build has unstable `build-std` feature enabled.
     pub fn has_build_std(&self) -> bool {
         !self.unstable.build_std.is_empty()
     }
 
+    /// Returns the build `target` specified in the configuration, if any.
     pub fn target(&self) -> Option<&str> {
         self.build.target.as_deref()
     }

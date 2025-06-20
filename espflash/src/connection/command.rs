@@ -26,7 +26,7 @@ const SYNC_FRAME: [u8; 36] = [
 
 /// Types of commands that can be sent to a target device
 ///
-/// https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/serial-protocol.html#supported-by-stub-loader-and-rom-loader
+/// <https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/serial-protocol.html#supported-by-stub-loader-and-rom-loader>
 #[derive(Copy, Clone, Debug, Display)]
 #[non_exhaustive]
 #[repr(u8)]
@@ -50,7 +50,6 @@ pub enum CommandType {
     FlashDeflData = 0x11,
     FlashDeflEnd = 0x12,
     FlashMd5 = 0x13,
-    // Not supported on ESP32
     GetSecurityInfo = 0x14,
     // Stub-only commands
     EraseFlash = 0xD0,
@@ -60,12 +59,12 @@ pub enum CommandType {
     RunUserCode = 0xD3,
     // Flash encryption debug mode supported command
     FlashEncryptedData = 0xD4,
-    // Read SPI flash manufacturer and device id - Not part of the protocol
+    // Not part of the protocol
     FlashDetect = 0x9F,
 }
 
 impl CommandType {
-    /// Return a timeout based on the command type
+    /// Return the default timeout for the [`CommandType`] variant.
     pub fn timeout(&self) -> Duration {
         match self {
             CommandType::MemEnd => MEM_END_TIMEOUT,
@@ -77,7 +76,8 @@ impl CommandType {
         }
     }
 
-    /// Return a timeout based on the size
+    /// Return a timeout for the command that scales with the amount of data
+    /// involved in the transfer.
     pub fn timeout_for_size(&self, size: u32) -> Duration {
         fn calc_timeout(timeout_per_mb: Duration, size: u32) -> Duration {
             let mb = size as f64 / 1_000_000.0;
@@ -99,105 +99,189 @@ impl CommandType {
 }
 
 /// Available commands
+///
+/// See <https://docs.espressif.com/projects/esptool/en/latest/esp32c6/advanced-topics/serial-protocol.html#commands>
 #[derive(Copy, Clone, Debug)]
 #[non_exhaustive]
 pub enum Command<'a> {
+    /// Begin Flash Download
     FlashBegin {
+        /// Size to erase
         size: u32,
+        /// Number of data packets
         blocks: u32,
+        /// Data size in one packet
         block_size: u32,
+        /// Flash offset
         offset: u32,
+        /// Supports encryption
         supports_encryption: bool,
     },
+    /// Flash Download Data
     FlashData {
+        /// Data
         data: &'a [u8],
+        /// Pad to
         pad_to: usize,
+        /// Pad byte
         pad_byte: u8,
+        /// Sequence number
         sequence: u32,
     },
+    /// Finish Flash Download
     FlashEnd {
+        /// Reboot
+        ///
+        /// 0 to reboot, 1 to run user code. Not necessary to send this command
+        /// if you wish to stay in the loader.
         reboot: bool,
     },
+    /// Begin RAM Download Start
     MemBegin {
+        /// Total size
         size: u32,
+        /// Number of data packets
         blocks: u32,
+        /// Data size in one packet
         block_size: u32,
+        /// Memory offset
         offset: u32,
+        /// Supports encryption
         supports_encryption: bool,
     },
-    MemEnd {
-        no_entry: bool,
-        entry: u32,
-    },
+    /// Finish RAM Download
+    MemEnd { no_entry: bool, entry: u32 },
+    /// RAM Download Data
     MemData {
+        /// Data size
         data: &'a [u8],
+        /// Pad to
         pad_to: usize,
+        /// Pad byte
         pad_byte: u8,
+        /// Sequence number
         sequence: u32,
     },
+    /// Sync Frame
+    ///
+    /// 36 bytes: 0x07 0x07 0x12 0x20, followed by 32 x 0x55
     Sync,
+    /// Write 32-bit memory address
     WriteReg {
+        /// Address
         address: u32,
+        /// Value
         value: u32,
+        /// Mask
         mask: Option<u32>,
     },
+    /// Read 32-bit memory address
     ReadReg {
+        /// Address
         address: u32,
     },
-    SpiSetParams {
-        spi_params: SpiSetParams,
-    },
-    SpiAttach {
-        spi_params: SpiAttachParams,
-    },
-    SpiAttachStub {
-        spi_params: SpiAttachParams,
-    },
+    /// Configure SPI flash
+    SpiSetParams { spi_params: SpiSetParams },
+    /// Attach SPI flash
+    SpiAttach { spi_params: SpiAttachParams },
+    /// Attach SPI flash (stub)
+    SpiAttachStub { spi_params: SpiAttachParams },
+    /// Change Baud rate
     ChangeBaudrate {
         /// New baud rate
         new_baud: u32,
         /// Prior baud rate ('0' for ROM flasher)
         prior_baud: u32,
     },
+    /// Begin compressed flash download
     FlashDeflBegin {
+        /// Uncompressed size
+        ///
+        /// With stub loader the uncompressed size is exact byte count to be
+        /// written, whereas on ROM bootloader it is rounded up to flash erase
+        /// block size.
         size: u32,
+        /// Number of data packets
         blocks: u32,
+        /// Data packet size
         block_size: u32,
+        /// Flash offset
         offset: u32,
+        /// Supports encryption
+        ///
+        /// ROM loader only: 1 to begin encrypted flash, 0 to not.
         supports_encryption: bool,
     },
+    /// Compressed flash download data
     FlashDeflData {
+        /// Data size
         data: &'a [u8],
+        /// Pad to
         pad_to: usize,
+        /// Pad byte
         pad_byte: u8,
+        /// Sequence number
         sequence: u32,
     },
+    /// End compressed flash download
     FlashDeflEnd {
+        /// Reboot
+        ///
+        /// 0 to reboot, 1 to run user code. Not necessary to send this command
+        /// if you wish to stay in the loader.
         reboot: bool,
     },
+    /// Calculate MD5 of flash region
     FlashMd5 {
+        /// Address
         offset: u32,
+        /// Size
         size: u32,
     },
+    /// Erase entire flash chip
+    ///
+    /// Supported by Stub Loader Only
     EraseFlash,
+    /// Erase flash region
+    ///
+    /// Supported by Stub Loader Only
     EraseRegion {
+        /// Flash offset to erase
         offset: u32,
+        /// Erase size in bytes
         size: u32,
     },
+    /// Read flash
+    ///
+    /// Supported by Stub Loader Only
     ReadFlash {
+        /// Flash offset
         offset: u32,
+        /// Read length
         size: u32,
+        /// Flash sector size
         block_size: u32,
+        /// Maximum number of un-acked packets
         max_in_flight: u32,
     },
+    /// Read flash (slow)
+    ///
+    /// Supported by ROM Loader Only
     ReadFlashSlow {
         offset: u32,
         size: u32,
         block_size: u32,
         max_in_flight: u32,
     },
+    /// Exits loader and runs user code
     RunUserCode,
+    /// Read SPI flash manufacturer and device id
+    ///
+    /// Not part of the serial protocol
     FlashDetect,
+    /// Read chip security info
+    ///
+    /// Not supported in ESP322
     GetSecurityInfo,
 }
 
@@ -239,7 +323,7 @@ impl Command<'_> {
 
     /// Write a command
     pub fn write<W: Write>(&self, mut writer: W) -> std::io::Result<()> {
-        // Write the Direction and Command Indentifier
+        // Write the Direction and Command Identifier
         writer.write_all(&[0, self.command_type() as u8])?;
         match *self {
             Command::FlashBegin {
