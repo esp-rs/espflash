@@ -227,10 +227,57 @@ fn segments<'a>(elf: &'a ElfFile<'a>) -> Box<dyn Iterator<Item = Segment<'a>> + 
                     && header.sh_type(Endianness::Little) == SHT_PROGBITS
                     && header.sh_offset.get(Endianness::Little) > 0
                     && section.address() > 0
+                    && !is_empty(section.flags())
             })
             .flat_map(move |section| match section.data() {
                 Ok(data) => Some(Segment::new(section.address() as u32, data)),
                 _ => None,
             }),
     )
+}
+
+fn is_empty(flags: object::SectionFlags) -> bool {
+    match flags {
+        object::SectionFlags::None => true,
+        object::SectionFlags::Elf { sh_flags } => sh_flags == 0,
+        _ => unreachable!(),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use object::read::elf::ElfFile;
+
+    use super::segments;
+
+    #[test]
+    fn test_overlapping_sections_are_removed() {
+        let elf_data: Vec<u8> = std::fs::read(
+            "tests/data/esp_hal_binary_with_overlapping_defmt_and_embedded_test_sections",
+        )
+        .unwrap();
+
+        let elf = ElfFile::parse(elf_data.as_slice()).unwrap();
+        let segments = segments(&elf).collect::<Vec<_>>();
+
+        let expected = [
+            // (address, size)
+            (0x3F400020, 256),   // .rodata_desc
+            (0x3F400120, 29152), // .rodata
+            (0x3FFB0000, 3716),  // .data
+            (0x40080000, 1024),  // .vectors
+            (0x40080400, 5088),  // .rwtext
+            (0x400D0020, 62654), // .text
+        ];
+
+        assert_eq!(segments.len(), expected.len());
+
+        for seg in segments {
+            let addr_and_len = (seg.addr, seg.size());
+            assert!(
+                expected.contains(&addr_and_len),
+                "Unexpected section: {addr_and_len:x?}"
+            )
+        }
+    }
 }
