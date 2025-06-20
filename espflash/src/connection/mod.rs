@@ -207,7 +207,7 @@ impl Connection {
                 let read_bytes = self.serial.read(&mut buff)? as u32;
 
                 if read_bytes != available_bytes {
-                    return Err(Error::Connection(ConnectionError::ReadMissmatch(
+                    return Err(Error::Connection(ConnectionError::ReadMismatch(
                         available_bytes,
                         read_bytes,
                     )));

@@ -54,7 +54,7 @@ pub enum Error {
     ChipMismatch(String, String),
 
     #[error(
-        "Chip not argument provided, this is required when using the `--before no-reset-no-sync` option"
+        "Chip argument not provided, this is required when using the `--before no-reset-no-sync` option"
     )]
     #[diagnostic(
         code(espflash::chip_not_provided),
@@ -62,11 +62,11 @@ pub enum Error {
     )]
     ChipNotProvided,
 
-    #[error("Corrupt data, expected {0:2x?} bytes but receved {1:2x?} bytes")]
+    #[error("Corrupt data, expected {0:2x?} bytes but received {1:2x?} bytes")]
     #[diagnostic(code(espflash::read_flash::corrupt_data))]
     CorruptData(usize, usize),
 
-    #[error("MD5 digest missmatch: expected {0:2x?}, received: {1:2x?}")]
+    #[error("MD5 digest mismatch: expected {0:2x?}, received: {1:2x?}")]
     #[diagnostic(code(espflash::read_flash::digest_mismatch))]
     DigestMismatch(Vec<u8>, Vec<u8>),
 
@@ -369,7 +369,7 @@ pub enum ConnectionError {
     )]
     NoSyncReply,
 
-    #[error("Received packet to large for buffer")]
+    #[error("Received packet too large for buffer")]
     #[diagnostic(
         code(espflash::oversized_packet),
         help(
@@ -381,8 +381,8 @@ pub enum ConnectionError {
     #[error(
         "Failed to read the available bytes on the serial port. Available bytes: {0}, Read bytes: {1}"
     )]
-    #[diagnostic(code(espflash::read_missmatch))]
-    ReadMissmatch(u32, u32),
+    #[diagnostic(code(espflash::read_mismatch))]
+    ReadMismatch(u32, u32),
 
     #[cfg(feature = "serialport")]
     #[error("Timeout while running {0}command")]
@@ -583,7 +583,7 @@ impl From<String> for MissingPartition {
 #[error("No partition table could be found")]
 #[diagnostic(
     code(espflash::partition_table::missing_partition_table),
-    help("Try providing a CSV or binary paritition table with the `--partition-table` argument.")
+    help("Try providing a CSV or binary partition table with the `--partition-table` argument.")
 )]
 pub struct MissingPartitionTable;
 
