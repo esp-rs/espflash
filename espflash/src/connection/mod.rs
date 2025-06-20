@@ -23,8 +23,6 @@ use self::{
     encoder::SlipEncoder,
     reset::{
         ClassicReset,
-        ResetAfterOperation,
-        ResetBeforeOperation,
         ResetStrategy,
         UsbJtagSerialReset,
         construct_reset_strategy_sequence,
@@ -41,6 +39,8 @@ use crate::{
 
 pub(crate) mod command;
 pub(crate) mod reset;
+
+pub use reset::{ResetAfterOperation, ResetBeforeOperation};
 
 const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
