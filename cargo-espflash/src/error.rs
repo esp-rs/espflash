@@ -7,6 +7,7 @@ use espflash::target::Chip;
 use miette::{Diagnostic, LabeledSpan, SourceCode};
 use thiserror::Error;
 
+/// Error type returned by `cargo-espflash`.
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -64,6 +65,7 @@ pub struct TomlError {
 }
 
 impl TomlError {
+    /// Create a new [`TomlError`] from the raw `toml`.
     pub fn new(err: toml::de::Error, source: String) -> Self {
         Self { err, source }
     }
@@ -104,6 +106,7 @@ pub struct UnsupportedTargetError {
 }
 
 impl UnsupportedTargetError {
+    /// Construct a new [`UnsupportedTargetError`].
     pub fn new(target: &str, chip: Chip) -> Self {
         Self {
             target: target.into(),
@@ -124,6 +127,7 @@ pub struct NoTargetError {
 }
 
 impl NoTargetError {
+    /// Create a new [`NoTargetError`].
     pub fn new(chip: Option<Chip>) -> Self {
         Self { chip }
     }
