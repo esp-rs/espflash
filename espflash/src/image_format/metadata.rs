@@ -21,7 +21,8 @@ impl Metadata {
         }
     }
 
-    pub fn try_from(bytes: Option<&[u8]>) -> Result<Self, Box<dyn Error>> {
+    /// Tries to create a new [`Metadata`] from bytes.
+    fn try_from(bytes: Option<&[u8]>) -> Result<Self, Box<dyn Error>> {
         const METADATA_SECTION: &str = ".espressif.metadata";
 
         let Some(bytes) = bytes else {
