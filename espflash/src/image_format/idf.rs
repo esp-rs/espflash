@@ -815,32 +815,26 @@ where
 pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
     let object = File::parse(elf_data.as_slice()).into_diagnostic()?;
 
-    // Check for section and symbol presence in esp-hal based projects
-    let section = object.section_by_name(".rodata_desc").is_some();
+    let has_app_desc = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"));
     let is_esp_hal = object.section_by_name(".espressif.metadata").is_some();
-    let esp_hal_symbol = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"));
 
-    // Check for esp-idf (.flash.rodata) without app_desc (.flash.appdesc)
-    let is_esp_idf_without_app_desc = object.section_by_name(".flash.rodata").is_some()
-        && object.section_by_name(".flash.appdesc").is_none();
-
-    if is_esp_hal && (!section || !esp_hal_symbol) {
-        // esp-hal specific, because it searches for the hard-coded esp_app_desc symbol
-        // in an ELF
-        return Err(Error::AppDescriptorNotPresent {
-        error: "The app descriptor is not present in the `esp-hal` based project.\n\
-                You need to add the https://github.com/esp-rs/esp-hal/tree/main/esp-bootloader-esp-idf \
-                to your project."
-            .to_string(),
-    })
-    .into_diagnostic();
-    } else if is_esp_idf_without_app_desc {
-        // esp-idf specific, because it searches for the .flash.rodata and
-        // .flash.appdesc sections
-        return Err(Error::AppDescriptorNotPresent {
-            error: "The app descriptor is not present in the `esp-idf` based project.".to_string(),
-        })
-        .into_diagnostic();
+    if !has_app_desc {
+        if is_esp_hal {
+            return Err(Error::AppDescriptorNotPresent (
+                "The app descriptor is not present in the `esp-hal` based project.\n\
+                        You need to add the https://github.com/esp-rs/esp-hal/tree/main/esp-bootloader-esp-idf \
+                        to your project."
+                    .to_string(),
+                    
+            ))
+            .into_diagnostic();
+        } else {
+            return Err(Error::AppDescriptorNotPresent (
+                "The app descriptor is not present in the `esp-idf` based project."
+                    .to_string(),
+            ))
+            .into_diagnostic();
+        }
     }
 
     Ok(())

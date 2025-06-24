@@ -266,9 +266,9 @@ pub enum Error {
     )]
     PartitionTableDoesNotFit(FlashSize),
 
-    #[error("{error}")]
+    #[error("{0}")]
     #[diagnostic(code(espflash::app_desc::app_descriptor_not_present))]
-    AppDescriptorNotPresent { error: String },
+    AppDescriptorNotPresent(String),
 }
 
 #[cfg(feature = "serialport")]
