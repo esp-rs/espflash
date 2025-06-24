@@ -825,13 +825,11 @@ pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
                         You need to add the https://github.com/esp-rs/esp-hal/tree/main/esp-bootloader-esp-idf \
                         to your project."
                     .to_string(),
-                    
             ))
             .into_diagnostic();
         } else {
-            return Err(Error::AppDescriptorNotPresent (
-                "The app descriptor is not present in the `esp-idf` based project."
-                    .to_string(),
+            return Err(Error::AppDescriptorNotPresent(
+                "The app descriptor is not present in the `esp-idf` based project.".to_string(),
             ))
             .into_diagnostic();
         }
