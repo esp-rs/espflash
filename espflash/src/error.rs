@@ -266,11 +266,9 @@ pub enum Error {
     )]
     PartitionTableDoesNotFit(FlashSize),
 
-    #[error(
-        "The app descriptor is not present in the project. You need to add the https://github.com/esp-rs/esp-hal/tree/main/esp-bootloader-esp-idf to your project."
-    )]
+    #[error("{error}")]
     #[diagnostic(code(espflash::app_desc::app_descriptor_not_present))]
-    AppDescriptorNotPresent,
+    AppDescriptorNotPresent { error: String },
 }
 
 #[cfg(feature = "serialport")]
