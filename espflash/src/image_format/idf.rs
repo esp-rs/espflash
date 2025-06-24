@@ -820,9 +820,9 @@ pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
     let is_esp_hal = object.section_by_name(".espressif.metadata").is_some();
     let esp_hal_symbol = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"));
 
-    // Check for esp-idf (.flash.rodata) without .flash.appdesc (app desc)
+    // Check for esp-idf (.flash.rodata) without app_desc (.flash.appdesc)
     let is_esp_idf_without_app_desc = object.section_by_name(".flash.rodata").is_some()
-        && !object.section_by_name(".flash.appdesc").is_some();
+        && object.section_by_name(".flash.appdesc").is_none();
 
     if is_esp_hal && (!section || !esp_hal_symbol) {
         // esp-hal specific, because it searches for the hard-coded esp_app_desc symbol
