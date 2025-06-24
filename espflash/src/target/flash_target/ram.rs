@@ -1,10 +1,8 @@
 use crate::{Error, image_format::Segment};
 #[cfg(feature = "serialport")]
 use crate::{
-    connection::{
-        Connection,
-        command::{Command, CommandType},
-    },
+    command::{Command, CommandType},
+    connection::Connection,
     flasher::ProgressCallbacks,
     target::FlashTarget,
 };

@@ -5,7 +5,10 @@ use std::{io::Write, mem::size_of, time::Duration};
 use bytemuck::{Pod, Zeroable, bytes_of};
 use strum::Display;
 
-use crate::flasher::{SpiAttachParams, SpiSetParams};
+use crate::{
+    Error,
+    flasher::{SpiAttachParams, SpiSetParams},
+};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 const ERASE_REGION_TIMEOUT_PER_MB: Duration = Duration::from_secs(30);
@@ -61,6 +64,82 @@ pub enum CommandType {
     FlashEncryptedData = 0xD4,
     // Not part of the protocol
     FlashDetect = 0x9F,
+}
+
+/// The value of a command response.
+#[derive(Debug, Clone)]
+pub enum CommandResponseValue {
+    /// A 32-bit value.
+    ValueU32(u32),
+    /// A 128-bit value.
+    ValueU128(u128),
+    /// A vector of bytes.
+    Vector(Vec<u8>),
+}
+
+impl TryInto<u32> for CommandResponseValue {
+    type Error = Error;
+
+    fn try_into(self) -> Result<u32, Self::Error> {
+        match self {
+            CommandResponseValue::ValueU32(value) => Ok(value),
+            CommandResponseValue::ValueU128(_) => Err(Error::InvalidResponse(
+                "expected `u32` but found `u128`".into(),
+            )),
+            CommandResponseValue::Vector(_) => Err(Error::InvalidResponse(
+                "expected `u32` but found `Vec`".into(),
+            )),
+        }
+    }
+}
+
+impl TryInto<u128> for CommandResponseValue {
+    type Error = Error;
+
+    fn try_into(self) -> Result<u128, Self::Error> {
+        match self {
+            CommandResponseValue::ValueU32(_) => Err(Error::InvalidResponse(
+                "expected `u128` but found `u32`".into(),
+            )),
+            CommandResponseValue::ValueU128(value) => Ok(value),
+            CommandResponseValue::Vector(_) => Err(Error::InvalidResponse(
+                "expected `u128` but found `Vec`".into(),
+            )),
+        }
+    }
+}
+
+impl TryInto<Vec<u8>> for CommandResponseValue {
+    type Error = Error;
+
+    fn try_into(self) -> Result<Vec<u8>, Self::Error> {
+        match self {
+            CommandResponseValue::ValueU32(_) => Err(Error::InvalidResponse(
+                "expected `Vec` but found `u32`".into(),
+            )),
+            CommandResponseValue::ValueU128(_) => Err(Error::InvalidResponse(
+                "expected `Vec` but found `u128`".into(),
+            )),
+            CommandResponseValue::Vector(value) => Ok(value),
+        }
+    }
+}
+
+/// A response from a target device following a command.
+#[derive(Debug, Clone)]
+pub struct CommandResponse {
+    /// The response byte.
+    pub resp: u8,
+    /// The return operation byte.
+    pub return_op: u8,
+    /// The length of the return value.
+    pub return_length: u16,
+    /// The value of the response.
+    pub value: CommandResponseValue,
+    /// The error byte.
+    pub error: u8,
+    /// The status byte.
+    pub status: u8,
 }
 
 impl CommandType {

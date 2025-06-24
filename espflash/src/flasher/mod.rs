@@ -27,11 +27,8 @@ use crate::{
 };
 #[cfg(feature = "serialport")]
 use crate::{
-    connection::{
-        Connection,
-        command::{Command, CommandType},
-        reset::ResetBeforeOperation,
-    },
+    command::{Command, CommandType},
+    connection::{Connection, reset::ResetBeforeOperation},
     error::{ConnectionError, ResultExt as _},
     flasher::stubs::{
         CHIP_DETECT_MAGIC_REG_ADDR,
@@ -1364,7 +1361,7 @@ fn security_info(connection: &mut Connection, use_stub: bool) -> Result<Security
     connection.with_timeout(CommandType::GetSecurityInfo.timeout(), |connection| {
         let response = connection.command(Command::GetSecurityInfo)?;
         // Extract raw bytes and convert them into `SecurityInfo`
-        if let crate::connection::CommandResponseValue::Vector(data) = response {
+        if let crate::command::CommandResponseValue::Vector(data) = response {
             // HACK: Not quite sure why there seem to be 4 extra bytes at the end of the
             //       response when the stub is not being used...
             let end = if use_stub { data.len() } else { data.len() - 4 };

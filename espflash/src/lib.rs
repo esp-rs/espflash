@@ -31,6 +31,7 @@
 
 pub use self::error::Error;
 
+pub mod command;
 #[cfg(feature = "serialport")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serialport")))]
 pub mod connection;
