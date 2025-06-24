@@ -814,11 +814,25 @@ where
 /// Check if the provided ELF contains the app descriptor required by [the IDF bootloader](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/bootloader.html).
 pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
     let object = File::parse(elf_data.as_slice()).into_diagnostic()?;
-    let section = object.section_by_name(".rodata_desc").is_some();
-    let symbol = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"));
 
-    if !section || !symbol {
-        return Err(Error::AppDescriptorNotPresent).into_diagnostic();
+    let has_app_desc = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"));
+    let is_esp_hal = object.section_by_name(".espressif.metadata").is_some();
+
+    if !has_app_desc {
+        if is_esp_hal {
+            return Err(Error::AppDescriptorNotPresent(
+                "The app descriptor is not present in the `esp-hal` based project.\n\
+                        You need to add the https://crates.io/crates/esp-bootloader-esp-idf \
+                        to your project."
+                    .to_string(),
+            ))
+            .into_diagnostic();
+        } else {
+            return Err(Error::AppDescriptorNotPresent(
+                "The app descriptor is not present in the `esp-idf` based project.".to_string(),
+            ))
+            .into_diagnostic();
+        }
     }
 
     Ok(())
