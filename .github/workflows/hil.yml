@@ -17,6 +17,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_LOG: debug
 
 # Cancel any currently running workflows from the same PR, branch, or
 # tag when a new workflow is triggered.
@@ -113,7 +114,7 @@ jobs:
 
       - name: save-image/write-bin test
         run: |
-          timeout 90 bash espflash/tests/scripts/save-image_write-bin.sh ${{ matrix.board.mcu }}
+          timeout 180 bash espflash/tests/scripts/save-image_write-bin.sh ${{ matrix.board.mcu }}
 
       - name: erase-region test
         run: timeout 30 bash espflash/tests/scripts/erase-region.sh

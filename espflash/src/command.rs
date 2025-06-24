@@ -17,7 +17,7 @@ const ERASE_CHIP_TIMEOUT: Duration = Duration::from_secs(120);
 const MEM_END_TIMEOUT: Duration = Duration::from_millis(50);
 const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 const FLASH_DEFLATE_END_TIMEOUT: Duration = Duration::from_secs(10);
-const FLASH_MD5_TIMEOUT: Duration = Duration::from_secs(8);
+const FLASH_MD5_TIMEOUT_PER_MB: Duration = Duration::from_secs(8);
 
 /// Input data for SYNC command (36 bytes: 0x07 0x07 0x12 0x20, followed by
 /// 32 x 0x55)
@@ -150,7 +150,14 @@ impl CommandType {
             CommandType::Sync => SYNC_TIMEOUT,
             CommandType::EraseFlash => ERASE_CHIP_TIMEOUT,
             CommandType::FlashDeflEnd => FLASH_DEFLATE_END_TIMEOUT,
-            CommandType::FlashMd5 => FLASH_MD5_TIMEOUT,
+            CommandType::FlashMd5 => {
+                log::warn!(
+                    "Using default timeout for {}, this may not be sufficient for large flash regions. Consider using `timeout_for_size` instead.",
+                    self
+                );
+
+                DEFAULT_TIMEOUT
+            }
             _ => DEFAULT_TIMEOUT,
         }
     }
@@ -172,6 +179,7 @@ impl CommandType {
             CommandType::FlashData | CommandType::FlashDeflData => {
                 calc_timeout(ERASE_WRITE_TIMEOUT_PER_MB, size)
             }
+            CommandType::FlashMd5 => calc_timeout(FLASH_MD5_TIMEOUT_PER_MB, size),
             _ => self.timeout(),
         }
     }
