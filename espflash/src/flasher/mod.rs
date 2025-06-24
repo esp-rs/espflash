@@ -1102,9 +1102,9 @@ impl Flasher {
             });
         }
 
-        let mut target = self
-            .chip
-            .flash_target(self.spi_params, self.use_stub, false, false);
+        let mut target =
+            self.chip
+                .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
 
         target.begin(&mut self.connection).flashing()?;
 
