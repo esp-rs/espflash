@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Any reference to `esp_idf` or `EspIdf` has been cut to just `idf` (#891)
 - Renamed `targets` module to `target` (#891)
 - Test data is now excluded from the crates.io release (#897)
+- The command module, and `Command` related structs now exist in a top level module, instead of the `connection` module (#901) 
 
 ### Fixed
 
@@ -76,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The app descriptor is now correctly placed in the front of the binary (#835)
 - espflash now extracts the MMU page size from the app descriptor (#835)
 - `ResetBeforeOperation` & `ResetAfterOperation` are now public, to allow the creation of a `Connection` (#895)
+- `Flasher` now respects its internal `verify` and `skip` flags for all methods. (#901)
 
 ### Removed
 
