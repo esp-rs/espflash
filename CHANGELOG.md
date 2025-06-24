@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a `check-app-descriptor` bool option to `ImageArgs` and add the flag to `flash` command (#872)
 - `Connection::into_serial` to get the underlying port from the connection (#882)
 - All methods on the now removed `Target` & `ReadEFuse`, `UsbOtg` and `RtcWdtReset` traits have been implemented directly on (#891)
+- Update checks can now be skipped by setting the the `ESPFLASH_SKIP_UPDATE_CHECK` environment variable (#900)
 
 ### Changed
 
