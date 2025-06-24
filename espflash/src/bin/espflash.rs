@@ -30,7 +30,13 @@ pub struct Cli {
     subcommand: Commands,
 
     /// Do not check for updates
-    #[clap(short = 'S', long, global = true, action)]
+    #[clap(
+        short = 'S',
+        long,
+        global = true,
+        env = "ESPFLASH_SKIP_UPDATE_CHECK",
+        action
+    )]
     skip_update_check: bool,
 }
 
