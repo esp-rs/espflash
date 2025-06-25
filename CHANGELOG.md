@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All methods on the now removed `Target` & `ReadEFuse`, `UsbOtg` and `RtcWdtReset` traits have been implemented directly on (#891)
 - Update checks can now be skipped by setting the the `ESPFLASH_SKIP_UPDATE_CHECK` environment variable (#900)
 - `flash_write_size` and `max_ram_block_size` functions no longer take a connection parameter and return a Result type (#903)
+- `EmptyProgressCallbacks` which implements `ProgressCallbacks` but all methods are no-ops (#904)
 
 ### Changed
 
@@ -58,13 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Flasher::into_serial` has been replaced by `Flasher::into_connection` (#882)
 - Automatically migrate `espflash@3` configuration files to the new format (#883)
 - Update dependencies to their latest versions (#893)
-- `ProgressCallbacks` has moved to `flasher` (#891)
 - `Chip::crystal_freq` has been renamed to `Chip::xtal_frequency` (#891)
 - `Chip::chip_revision` has been renamed to `Chip::revision` (also applies to `minor` and `major`) (#891)
 - Any reference to `esp_idf` or `EspIdf` has been cut to just `idf` (#891)
 - Renamed `targets` module to `target` (#891)
 - Test data is now excluded from the crates.io release (#897)
-- The command module, and `Command` related structs now exist in a top level module, instead of the `connection` module (#901) 
+- The command module, and `Command` related structs now exist in a top level module, instead of the `connection` module (#901)
+- API's that take `Option<&mut dyn ProgressCallbacks>` now take `&mut dyn ProgressCallbacks` instead (#904)
 
 ### Fixed
 
@@ -79,6 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - espflash now extracts the MMU page size from the app descriptor (#835)
 - `ResetBeforeOperation` & `ResetAfterOperation` are now public, to allow the creation of a `Connection` (#895)
 - `Flasher` now respects its internal `verify` and `skip` flags for all methods. (#901)
+- Progress is now reported on skipped segments and verification (#904)
 
 ### Removed
 
