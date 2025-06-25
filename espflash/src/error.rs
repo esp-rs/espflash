@@ -1,8 +1,6 @@
 //! Library and application errors
 
 #[cfg(feature = "serialport")]
-use core::fmt;
-#[cfg(feature = "serialport")]
 use std::fmt::{Display, Formatter};
 use std::{array::TryFromSliceError, io};
 
@@ -268,25 +266,11 @@ pub enum Error {
     AppDescriptorNotPresent(String),
 }
 
-// SlipError doesn't implement `core::error::Error`, so we need to wrap it.
-#[cfg(feature = "serialport")]
-#[derive(Debug)]
-struct SlipErrorWrapper(pub SlipError);
-
-#[cfg(feature = "serialport")]
-impl fmt::Display for SlipErrorWrapper {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "SLIP error: {:?}", self.0)
-    }
-}
-
-#[cfg(feature = "serialport")]
-impl core::error::Error for SlipErrorWrapper {}
-
 #[cfg(feature = "serialport")]
 impl From<SlipError> for Error {
     fn from(err: SlipError) -> Self {
-        Self::Connection(Box::new(SlipErrorWrapper(err)))
+        let conn_err: ConnectionError = err.into(); // uses first impl
+        Self::Connection(Box::new(conn_err))
     }
 }
 
