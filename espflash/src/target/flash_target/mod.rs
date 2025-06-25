@@ -1,5 +1,5 @@
 pub use self::{esp32::Esp32Target, ram::RamTarget};
-use crate::{Error, connection::Connection, flasher::ProgressCallbacks, image_format::Segment};
+use crate::{Error, connection::Connection, image_format::Segment};
 
 mod esp32;
 mod ram;
@@ -14,9 +14,29 @@ pub trait FlashTarget {
         &mut self,
         connection: &mut Connection,
         segment: Segment<'_>,
-        progress: &mut Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error>;
 
     /// Complete the flashing operation
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error>;
+}
+
+/// Progress update callbacks
+pub trait ProgressCallbacks {
+    /// Initialize some progress report
+    fn init(&mut self, addr: u32, total: usize);
+    /// Update some progress report
+    fn update(&mut self, current: usize);
+    /// Finish some progress report
+    fn finish(&mut self);
+}
+
+/// An empty implementation of [ProgressCallbacks] that does nothing.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct EmptyProgressCallbacks;
+
+impl ProgressCallbacks for EmptyProgressCallbacks {
+    fn init(&mut self, _addr: u32, _total: usize) {}
+    fn update(&mut self, _current: usize) {}
+    fn finish(&mut self) {}
 }

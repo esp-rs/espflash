@@ -10,7 +10,14 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
-pub use self::flash_target::{Esp32Target, FlashTarget, RamTarget};
+pub use self::flash_target::{
+    EmptyProgressCallbacks,
+    Esp32Target,
+    FlashTarget,
+    ProgressCallbacks,
+    RamTarget,
+};
+#[cfg(feature = "serialport")]
 use crate::{
     Error,
     flasher::{FLASH_WRITE_SIZE, FlashFrequency},

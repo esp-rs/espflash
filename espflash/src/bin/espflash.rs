@@ -279,7 +279,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
     if args.flash_args.ram {
-        flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
+        flasher.load_elf_to_ram(&elf_data, &mut EspflashProgress::default())?;
     } else {
         let flash_data = make_flash_data(
             args.flash_args.image,
