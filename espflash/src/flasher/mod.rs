@@ -787,7 +787,9 @@ impl Flasher {
 
         match self.connection.read(EXPECTED_STUB_HANDSHAKE.len())? {
             Some(resp) if resp == EXPECTED_STUB_HANDSHAKE.as_bytes() => Ok(()),
-            _ => Err(Error::Connection(ConnectionError::InvalidStubHandshake)),
+            _ => Err(Error::Connection(Box::new(
+                ConnectionError::InvalidStubHandshake,
+            ))),
         }?;
 
         // Re-detect chip to check stub is up
@@ -953,7 +955,9 @@ impl Flasher {
             }
             i += 1;
             if i > 10 {
-                return Err(Error::Connection(ConnectionError::Timeout(command.into())));
+                return Err(Error::Connection(Box::new(ConnectionError::Timeout(
+                    command.into(),
+                ))));
             }
         }
 
