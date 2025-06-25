@@ -10,18 +10,15 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
-pub use self::{
-    efuse::EfuseField,
-    flash_target::{Esp32Target, FlashTarget, RamTarget},
-};
+pub use self::flash_target::{Esp32Target, FlashTarget, RamTarget};
 use crate::{
     Error,
     flasher::{FLASH_WRITE_SIZE, FlashFrequency},
 };
 #[cfg(feature = "serialport")]
-use crate::{connection::Connection, flasher::SpiAttachParams};
+use crate::{connection::Connection, flasher::SpiAttachParams, target::efuse::EfuseField};
 
-mod efuse;
+pub mod efuse;
 
 #[cfg(feature = "serialport")]
 pub(crate) mod flash_target;

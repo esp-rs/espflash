@@ -1,6 +1,8 @@
+//! eFuse field definitions for the esp32c3
+//!
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-06-25 09:59
+//! Generated: 2025-06-25 11:06
 //! Version:   4622cf9245401eca0eb1df8122449a6d
 
 #![allow(unused)]

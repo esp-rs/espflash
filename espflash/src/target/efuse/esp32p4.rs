@@ -1,6 +1,8 @@
+//! eFuse field definitions for the esp32p4
+//!
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-06-25 09:59
+//! Generated: 2025-06-25 11:06
 //! Version:   f7765f0ac3faf4b54f8c1f064307522c
 
 #![allow(unused)]

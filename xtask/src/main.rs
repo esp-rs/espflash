@@ -49,6 +49,8 @@ fn main() -> Result<()> {
 // Generate eFuse Fields
 
 const HEADER: &str = r#"
+//! eFuse field definitions for the $CHIP
+//!
 //! This file was automatically generated, please do not edit it manually!
 //! 
 //! Generated: $DATE
@@ -205,6 +207,7 @@ fn generate_efuse_definitions(espflash_path: &Path, efuse_fields: EfuseFields) -
             writer,
             "{}",
             HEADER
+                .replace("$CHIP", &chip)
                 .replace(
                     "$DATE",
                     &chrono::Utc::now().format("%Y-%m-%d %H:%M").to_string()
