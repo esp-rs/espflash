@@ -137,7 +137,7 @@ impl FlashTarget for Esp32Target {
         encoder.write_all(&segment.data)?;
         let compressed = encoder.finish()?;
 
-        let flash_write_size = self.chip.flash_write_size(connection)?;
+        let flash_write_size = self.chip.flash_write_size();
         let block_count = compressed.len().div_ceil(flash_write_size);
         let erase_count = segment.data.len().div_ceil(FLASH_SECTOR_SIZE);
 

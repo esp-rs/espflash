@@ -14,13 +14,12 @@ pub use self::{
     efuse::EfuseField,
     flash_target::{Esp32Target, FlashTarget, RamTarget},
 };
-use crate::{Error, flasher::FlashFrequency};
-#[cfg(feature = "serialport")]
 use crate::{
-    connection::Connection,
-    flasher::{FLASH_WRITE_SIZE, SpiAttachParams},
-    target::flash_target::MAX_RAM_BLOCK_SIZE,
+    Error,
+    flasher::{FLASH_WRITE_SIZE, FlashFrequency},
 };
+#[cfg(feature = "serialport")]
+use crate::{connection::Connection, flasher::SpiAttachParams};
 
 mod efuse;
 
@@ -29,6 +28,9 @@ pub(crate) mod flash_target;
 
 #[cfg(feature = "serialport")]
 pub(crate) const WDT_WKEY: u32 = 0x50D8_3AA1;
+
+/// Maximum block size for RAM flashing.
+pub(crate) const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 
 /// Supported crystal frequencies
 ///
@@ -770,10 +772,9 @@ impl Chip {
         })
     }
 
-    #[cfg(feature = "serialport")]
     /// Write size for flashing operations
-    pub fn flash_write_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
-        Ok(FLASH_WRITE_SIZE)
+    pub fn flash_write_size(&self) -> usize {
+        FLASH_WRITE_SIZE
     }
 
     #[cfg(feature = "serialport")]
@@ -807,10 +808,9 @@ impl Chip {
         Ok(mac_addr)
     }
 
-    #[cfg(feature = "serialport")]
     /// Maximum RAM block size for writing
-    pub fn max_ram_block_size(&self, _connection: &mut Connection) -> Result<usize, Error> {
-        Ok(MAX_RAM_BLOCK_SIZE)
+    pub fn max_ram_block_size(&self) -> usize {
+        MAX_RAM_BLOCK_SIZE
     }
 
     /// SPI register addresses for a chip
