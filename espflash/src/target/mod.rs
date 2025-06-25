@@ -10,13 +10,16 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
-pub use self::flash_target::{Esp32Target, FlashTarget, RamTarget};
+pub use self::{
+    efuse::EfuseField,
+    flash_target::{Esp32Target, FlashTarget, RamTarget},
+};
 use crate::{Error, flasher::FlashFrequency};
 #[cfg(feature = "serialport")]
 use crate::{
     connection::Connection,
     flasher::{FLASH_WRITE_SIZE, SpiAttachParams},
-    target::{efuse::EfuseField, flash_target::MAX_RAM_BLOCK_SIZE},
+    target::flash_target::MAX_RAM_BLOCK_SIZE,
 };
 
 mod efuse;
@@ -647,7 +650,14 @@ impl Chip {
             Chip::Esp32c5 => self.read_efuse(connection, efuse::esp32c5::WAFER_VERSION_MAJOR),
             Chip::Esp32c6 => self.read_efuse(connection, efuse::esp32c6::WAFER_VERSION_MAJOR),
             Chip::Esp32h2 => self.read_efuse(connection, efuse::esp32h2::WAFER_VERSION_MAJOR),
-            Chip::Esp32p4 => self.read_efuse(connection, efuse::esp32p4::WAFER_VERSION_MAJOR),
+            Chip::Esp32p4 => {
+                let hi = self.read_efuse(connection, efuse::esp32p4::WAFER_VERSION_MAJOR_HI)?;
+                let lo = self.read_efuse(connection, efuse::esp32p4::WAFER_VERSION_MAJOR_LO)?;
+
+                let version = (hi << 2) | lo;
+
+                Ok(version)
+            }
             Chip::Esp32s2 => self.read_efuse(connection, efuse::esp32s2::WAFER_VERSION_MAJOR),
             Chip::Esp32s3 => {
                 if self.esp32s3_blk_version_major(connection)? == 1

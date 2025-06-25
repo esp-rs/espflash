@@ -188,7 +188,7 @@ fn process_efuse_definitions(efuse_fields: &mut EfuseFields) -> Result<()> {
 fn generate_efuse_definitions(espflash_path: &Path, efuse_fields: EfuseFields) -> Result<()> {
     let targets_efuse_path = espflash_path
         .join("src")
-        .join("targets")
+        .join("target")
         .join("efuse")
         .canonicalize()?;
 
@@ -272,7 +272,7 @@ fn generate_efuse_constants(
         writeln!(writer, "/// {description}")?;
         writeln!(
             writer,
-            "pub(crate) const {}: EfuseField = EfuseField::new({}, {}, {}, {});",
+            "pub const {}: EfuseField = EfuseField::new({}, {}, {}, {});",
             name, block, word, start, len
         )?;
     }

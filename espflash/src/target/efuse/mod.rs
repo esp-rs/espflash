@@ -13,10 +13,10 @@ pub(crate) mod esp32s3;
 #[allow(unused)]
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct EfuseField {
-    pub(crate) block: u32,
-    pub(crate) word: u32,
-    pub(crate) bit_start: u32,
-    pub(crate) bit_count: u32,
+    pub block: u32,
+    pub word: u32,
+    pub bit_start: u32,
+    pub bit_count: u32,
 }
 
 impl EfuseField {
