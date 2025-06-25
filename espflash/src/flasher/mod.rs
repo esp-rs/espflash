@@ -20,9 +20,10 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
+use crate::target::{EmptyProgressCallbacks, ProgressCallbacks};
 use crate::{
     Error,
-    target::{Chip, EmptyProgressCallbacks, ProgressCallbacks, XtalFrequency},
+    target::{Chip, XtalFrequency},
 };
 #[cfg(feature = "serialport")]
 use crate::{

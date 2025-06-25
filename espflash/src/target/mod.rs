@@ -17,7 +17,6 @@ pub use self::flash_target::{
     ProgressCallbacks,
     RamTarget,
 };
-#[cfg(feature = "serialport")]
 use crate::{
     Error,
     flasher::{FLASH_WRITE_SIZE, FlashFrequency},
