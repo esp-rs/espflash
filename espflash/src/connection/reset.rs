@@ -11,13 +11,12 @@ use log::debug;
 use serialport::SerialPort;
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
-use super::{
-    Connection,
-    Port,
-    USB_SERIAL_JTAG_PID,
+use super::{Connection, Port, USB_SERIAL_JTAG_PID};
+use crate::{
+    Error,
     command::{Command, CommandType},
+    flasher::FLASH_WRITE_SIZE,
 };
-use crate::{Error, flasher::FLASH_WRITE_SIZE};
 
 /// Default time to wait before releasing the boot pin after a reset
 const DEFAULT_RESET_DELAY: u64 = 50; // ms

@@ -15,10 +15,8 @@ use crate::{
 };
 #[cfg(feature = "serialport")]
 use crate::{
-    connection::{
-        Connection,
-        command::{Command, CommandType},
-    },
+    command::{Command, CommandType},
+    connection::Connection,
     flasher::ProgressCallbacks,
     target::FlashTarget,
 };
@@ -114,15 +112,17 @@ impl FlashTarget for Esp32Target {
         let checksum_md5 = md5_hasher.finalize();
 
         if self.skip {
-            let flash_checksum_md5: u128 =
-                connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
+            let flash_checksum_md5: u128 = connection.with_timeout(
+                CommandType::FlashMd5.timeout_for_size(segment.data.len() as u32),
+                |connection| {
                     connection
                         .command(Command::FlashMd5 {
                             offset: addr,
                             size: segment.data.len() as u32,
                         })?
                         .try_into()
-                })?;
+                },
+            )?;
 
             if checksum_md5.as_slice() == flash_checksum_md5.to_be_bytes() {
                 info!(
@@ -199,15 +199,17 @@ impl FlashTarget for Esp32Target {
         }
 
         if self.verify {
-            let flash_checksum_md5: u128 =
-                connection.with_timeout(CommandType::FlashMd5.timeout(), |connection| {
+            let flash_checksum_md5: u128 = connection.with_timeout(
+                CommandType::FlashMd5.timeout_for_size(segment.data.len() as u32),
+                |connection| {
                     connection
                         .command(Command::FlashMd5 {
                             offset: addr,
                             size: segment.data.len() as u32,
                         })?
                         .try_into()
-                })?;
+                },
+            )?;
 
             if checksum_md5.as_slice() != flash_checksum_md5.to_be_bytes() {
                 return Err(Error::VerifyFailed);

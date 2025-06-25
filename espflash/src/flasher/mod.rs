@@ -27,11 +27,8 @@ use crate::{
 };
 #[cfg(feature = "serialport")]
 use crate::{
-    connection::{
-        Connection,
-        command::{Command, CommandType},
-        reset::ResetBeforeOperation,
-    },
+    command::{Command, CommandType},
+    connection::{Connection, reset::ResetBeforeOperation},
     error::{ConnectionError, ResultExt as _},
     flasher::stubs::{
         CHIP_DETECT_MAGIC_REG_ADDR,
@@ -1102,9 +1099,9 @@ impl Flasher {
             });
         }
 
-        let mut target = self
-            .chip
-            .flash_target(self.spi_params, self.use_stub, false, false);
+        let mut target =
+            self.chip
+                .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
 
         target.begin(&mut self.connection).flashing()?;
 
@@ -1119,15 +1116,17 @@ impl Flasher {
 
     /// Get MD5 of region
     pub fn checksum_md5(&mut self, addr: u32, length: u32) -> Result<u128, Error> {
-        self.connection
-            .with_timeout(CommandType::FlashMd5.timeout(), |connection| {
+        self.connection.with_timeout(
+            CommandType::FlashMd5.timeout_for_size(length),
+            |connection| {
                 connection
                     .command(Command::FlashMd5 {
                         offset: addr,
                         size: length,
                     })?
                     .try_into()
-            })
+            },
+        )
     }
 
     /// Get security info.
@@ -1364,7 +1363,7 @@ fn security_info(connection: &mut Connection, use_stub: bool) -> Result<Security
     connection.with_timeout(CommandType::GetSecurityInfo.timeout(), |connection| {
         let response = connection.command(Command::GetSecurityInfo)?;
         // Extract raw bytes and convert them into `SecurityInfo`
-        if let crate::connection::CommandResponseValue::Vector(data) = response {
+        if let crate::command::CommandResponseValue::Vector(data) = response {
             // HACK: Not quite sure why there seem to be 4 extra bytes at the end of the
             //       response when the stub is not being used...
             let end = if use_stub { data.len() } else { data.len() - 4 };
