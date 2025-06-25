@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Connection::into_serial` to get the underlying port from the connection (#882)
 - All methods on the now removed `Target` & `ReadEFuse`, `UsbOtg` and `RtcWdtReset` traits have been implemented directly on (#891)
 - Update checks can now be skipped by setting the the `ESPFLASH_SKIP_UPDATE_CHECK` environment variable (#900)
+- `flash_write_size` and `max_ram_block_size` functions no longer take a connection parameter and return a Result type (#903)
 
 ### Changed
 
@@ -48,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `get_` prefix from any functions which previously had it (#824)
 - Take elf data as bytes rather than `ElfFile` struct when creating an image format (#825)
 - Updated to Rust 2024 edition (#843)
-- Complete rework of reading eFuse field values (#847)
+- Complete rework of reading eFuse field values (#847, #903)
 - Updated bootloaders with `release/v5.4` ones from IDF (#857)
 - Refactor image formatting to allow supporting more image formats in a backward compatible way (#877)
 - Avoid having ESP-IDF format assumptions in the codebase (#877)

@@ -19,8 +19,6 @@ use object::{Endianness, read::elf::ElfFile32 as ElfFile};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
 
-#[cfg(feature = "serialport")]
-pub(crate) use self::stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
 use crate::{
     Error,
     target::{Chip, XtalFrequency},
@@ -46,6 +44,10 @@ pub(crate) mod stubs;
 #[cfg(feature = "serialport")]
 pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
     [SpiAttachParams::default(), SpiAttachParams::esp32_pico_d4()];
+
+#[cfg(feature = "serialport")]
+pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
+pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
 
 /// Progress update callbacks
 pub trait ProgressCallbacks {
@@ -745,10 +747,9 @@ impl Flasher {
         // Load flash stub
         let stub = FlashStub::get(self.chip);
 
-        let mut ram_target = self.chip.ram_target(
-            Some(stub.entry()),
-            self.chip.max_ram_block_size(&mut self.connection)?,
-        );
+        let mut ram_target = self
+            .chip
+            .ram_target(Some(stub.entry()), self.chip.max_ram_block_size());
         ram_target.begin(&mut self.connection).flashing()?;
 
         let (text_addr, text) = stub.text();
@@ -1021,7 +1022,7 @@ impl Flasher {
 
         let mut target = self.chip.ram_target(
             Some(elf.elf_header().e_entry.get(Endianness::Little)),
-            self.chip.max_ram_block_size(&mut self.connection)?,
+            self.chip.max_ram_block_size(),
         );
         target.begin(&mut self.connection).flashing()?;
 

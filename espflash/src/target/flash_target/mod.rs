@@ -1,4 +1,3 @@
-pub(crate) use self::ram::MAX_RAM_BLOCK_SIZE;
 pub use self::{esp32::Esp32Target, ram::RamTarget};
 use crate::{Error, connection::Connection, flasher::ProgressCallbacks, image_format::Segment};
 

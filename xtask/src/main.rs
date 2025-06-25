@@ -49,6 +49,8 @@ fn main() -> Result<()> {
 // Generate eFuse Fields
 
 const HEADER: &str = r#"
+//! eFuse field definitions for the $CHIP
+//!
 //! This file was automatically generated, please do not edit it manually!
 //! 
 //! Generated: $DATE
@@ -188,7 +190,7 @@ fn process_efuse_definitions(efuse_fields: &mut EfuseFields) -> Result<()> {
 fn generate_efuse_definitions(espflash_path: &Path, efuse_fields: EfuseFields) -> Result<()> {
     let targets_efuse_path = espflash_path
         .join("src")
-        .join("targets")
+        .join("target")
         .join("efuse")
         .canonicalize()?;
 
@@ -205,6 +207,7 @@ fn generate_efuse_definitions(espflash_path: &Path, efuse_fields: EfuseFields) -
             writer,
             "{}",
             HEADER
+                .replace("$CHIP", &chip)
                 .replace(
                     "$DATE",
                     &chrono::Utc::now().format("%Y-%m-%d %H:%M").to_string()
@@ -272,7 +275,7 @@ fn generate_efuse_constants(
         writeln!(writer, "/// {description}")?;
         writeln!(
             writer,
-            "pub(crate) const {}: EfuseField = EfuseField::new({}, {}, {}, {});",
+            "pub const {}: EfuseField = EfuseField::new({}, {}, {}, {});",
             name, block, word, start, len
         )?;
     }

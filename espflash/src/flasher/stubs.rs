@@ -25,9 +25,6 @@ pub(crate) const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
 pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 pub(crate) const EXPECTED_STUB_HANDSHAKE: &str = "OHAI";
 
-pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
-pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
-
 // Include stub objects in binary
 const STUB_32: &str = include_str!("../../resources/stubs/esp32.toml");
 const STUB_32C2: &str = include_str!("../../resources/stubs/esp32c2.toml");

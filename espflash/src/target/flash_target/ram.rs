@@ -1,4 +1,4 @@
-use crate::{Error, image_format::Segment};
+use crate::{Error, image_format::Segment, target::MAX_RAM_BLOCK_SIZE};
 #[cfg(feature = "serialport")]
 use crate::{
     command::{Command, CommandType},
@@ -6,9 +6,6 @@ use crate::{
     flasher::ProgressCallbacks,
     target::FlashTarget,
 };
-
-/// Maximum block size for RAM flashing.
-pub const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 
 /// Applications running in the target device's RAM.
 #[derive(Debug)]
