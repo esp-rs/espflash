@@ -187,12 +187,10 @@ pub enum Error {
     ParseChipRevError { chip_rev: String },
 
     #[error("Error while connecting to device")]
-    #[diagnostic(transparent)]
-    Connection(#[source] ConnectionError),
+    Connection(CoreError),
 
     #[error("Communication error while flashing device")]
-    #[diagnostic(transparent)]
-    Flashing(#[source] ConnectionError),
+    Flashing(CoreError),
 
     #[error("Supplied ELF image is not valid")]
     #[diagnostic(
@@ -203,20 +201,17 @@ pub enum Error {
 
     #[error("Supplied ELF image contains an invalid application descriptor")]
     #[diagnostic(code(espflash::invalid_app_descriptor))]
-    InvalidAppDescriptor(#[from] AppDescriptorError),
+    InvalidAppDescriptor(CoreError),
 
     #[error("The bootloader returned an error")]
     #[cfg(feature = "serialport")]
-    #[diagnostic(transparent)]
-    RomError(#[from] RomError),
+    RomError(CoreError),
 
     #[error("The selected partition does not exist in the partition table")]
-    #[diagnostic(transparent)]
-    MissingPartition(#[from] MissingPartition),
+    MissingPartition(CoreError),
 
     #[error("The partition table is missing or invalid")]
-    #[diagnostic(transparent)]
-    MissingPartitionTable(#[from] MissingPartitionTable),
+    MissingPartitionTable(CoreError),
 
     #[cfg(feature = "cli")]
     #[error(transparent)]
@@ -272,6 +267,14 @@ pub enum Error {
 }
 
 #[cfg(feature = "serialport")]
+impl From<SlipError> for Error {
+    fn from(err: SlipError) -> Self {
+        let conn_err: ConnectionError = err.into(); // uses first impl
+        Self::Connection(Box::new(conn_err))
+    }
+}
+
+#[cfg(feature = "serialport")]
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Self::Connection(err.into())
@@ -286,13 +289,6 @@ impl From<serialport::Error> for Error {
     }
 }
 
-#[cfg(feature = "serialport")]
-impl From<SlipError> for Error {
-    fn from(err: SlipError) -> Self {
-        Self::Connection(err.into())
-    }
-}
-
 impl From<TryFromSliceError> for Error {
     fn from(err: TryFromSliceError) -> Self {
         Self::TryFromSlice(Box::new(err))
@@ -302,6 +298,12 @@ impl From<TryFromSliceError> for Error {
 impl From<object::Error> for Error {
     fn from(err: object::Error) -> Self {
         Self::InvalidElf(err.into())
+    }
+}
+
+impl From<AppDescriptorError> for Error {
+    fn from(err: AppDescriptorError) -> Self {
+        Self::InvalidAppDescriptor(Box::new(err))
     }
 }
 
@@ -331,6 +333,7 @@ pub enum AppDescriptorError {
 /// Connection-related errors.
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
+#[cfg(feature = "serialport")]
 pub enum ConnectionError {
     #[error("Failed to connect to the device")]
     #[diagnostic(
@@ -604,13 +607,21 @@ impl<T> ResultExt for Result<T, Error> {
     }
 
     fn for_command(self, command: CommandType) -> Self {
+        fn remap_if_timeout(err: CoreError, command: CommandType) -> CoreError {
+            match err.downcast::<ConnectionError>() {
+                Ok(boxed_ce) => match *boxed_ce {
+                    ConnectionError::Timeout(_) => {
+                        Box::new(ConnectionError::Timeout(command.into()))
+                    }
+                    other => Box::new(other),
+                },
+                Err(orig) => orig,
+            }
+        }
+
         match self {
-            Err(Error::Connection(ConnectionError::Timeout(_))) => {
-                Err(Error::Connection(ConnectionError::Timeout(command.into())))
-            }
-            Err(Error::Flashing(ConnectionError::Timeout(_))) => {
-                Err(Error::Flashing(ConnectionError::Timeout(command.into())))
-            }
+            Err(Error::Connection(err)) => Err(Error::Connection(remap_if_timeout(err, command))),
+            Err(Error::Flashing(err)) => Err(Error::Flashing(remap_if_timeout(err, command))),
             res => res,
         }
     }

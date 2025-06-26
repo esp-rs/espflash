@@ -104,7 +104,9 @@ impl Connection {
             }
         }
 
-        Err(Error::Connection(ConnectionError::ConnectionFailed))
+        Err(Error::Connection(Box::new(
+            ConnectionError::ConnectionFailed,
+        )))
     }
 
     /// Try to connect to a device.
@@ -130,10 +132,10 @@ impl Connection {
                 let read_bytes = self.serial.read(&mut buff)? as u32;
 
                 if read_bytes != available_bytes {
-                    return Err(Error::Connection(ConnectionError::ReadMismatch(
+                    return Err(Error::Connection(Box::new(ConnectionError::ReadMismatch(
                         available_bytes,
                         read_bytes,
-                    )));
+                    ))));
                 }
                 read_bytes
             } else {
@@ -172,15 +174,17 @@ impl Connection {
 
         if boot_log_detected {
             if download_mode {
-                return Err(Error::Connection(ConnectionError::NoSyncReply));
+                return Err(Error::Connection(Box::new(ConnectionError::NoSyncReply)));
             } else {
-                return Err(Error::Connection(ConnectionError::WrongBootMode(
+                return Err(Error::Connection(Box::new(ConnectionError::WrongBootMode(
                     boot_mode.to_string(),
-                )));
+                ))));
             }
         }
 
-        Err(Error::Connection(ConnectionError::ConnectionFailed))
+        Err(Error::Connection(Box::new(
+            ConnectionError::ConnectionFailed,
+        )))
     }
 
     /// Try to sync with the device for a given timeout.
@@ -196,17 +200,17 @@ impl Connection {
                     Some(response) if response.return_op == CommandType::Sync as u8 => {
                         if response.status == 1 {
                             connection.flush().ok();
-                            return Err(Error::RomError(RomError::new(
+                            return Err(Error::RomError(Box::new(RomError::new(
                                 CommandType::Sync,
                                 RomErrorKind::from(response.error),
-                            )));
+                            ))));
                         }
                     }
                     _ => {
-                        return Err(Error::RomError(RomError::new(
+                        return Err(Error::RomError(Box::new(RomError::new(
                             CommandType::Sync,
                             RomErrorKind::InvalidMessage,
-                        )));
+                        ))));
                     }
                 }
             }
@@ -465,10 +469,10 @@ impl Connection {
                 Some(response) if response.return_op == ty as u8 => {
                     return if response.status != 0 {
                         let _error = self.flush();
-                        Err(Error::RomError(RomError::new(
+                        Err(Error::RomError(Box::new(RomError::new(
                             command.command_type(),
                             RomErrorKind::from(response.error),
-                        )))
+                        ))))
                     } else {
                         // Check if the response is a Vector and strip header (first 8 bytes)
                         // https://github.com/espressif/esptool/blob/749d1ad/esptool/loader.py#L481
@@ -486,7 +490,9 @@ impl Connection {
                 _ => continue,
             }
         }
-        Err(Error::Connection(ConnectionError::ConnectionFailed))
+        Err(Error::Connection(Box::new(
+            ConnectionError::ConnectionFailed,
+        )))
     }
 
     /// Read a register command with a timeout.
