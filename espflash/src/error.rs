@@ -607,10 +607,7 @@ impl<T> ResultExt for Result<T, Error> {
     }
 
     fn for_command(self, command: CommandType) -> Self {
-        fn remap_if_timeout(
-            err: Box<dyn std::error::Error + Send + Sync>,
-            command: CommandType,
-        ) -> Box<dyn std::error::Error + Send + Sync> {
+        fn remap_if_timeout(err: CoreError, command: CommandType) -> CoreError {
             match err.downcast::<ConnectionError>() {
                 Ok(boxed_ce) => match *boxed_ce {
                     ConnectionError::Timeout(_) => {
