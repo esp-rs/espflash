@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All methods on the now removed `Target` & `ReadEFuse`, `UsbOtg` and `RtcWdtReset` traits have been implemented directly on (#891)
 - Update checks can now be skipped by setting the the `ESPFLASH_SKIP_UPDATE_CHECK` environment variable (#900)
 - `flash_write_size` and `max_ram_block_size` functions no longer take a connection parameter and return a Result type (#903)
-- `EmptyProgressCallbacks` which implements `ProgressCallbacks` but all methods are no-ops (#904)
+- `DefaultProgressCallback` which implements `ProgressCallbacks` but all methods are no-ops (#904)
 
 ### Changed
 
@@ -66,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test data is now excluded from the crates.io release (#897)
 - The command module, and `Command` related structs now exist in a top level module, instead of the `connection` module (#901)
 - API's that take `Option<&mut dyn ProgressCallbacks>` now take `&mut dyn ProgressCallbacks` instead (#904)
+- `ProgressCallbacks::finish()` now has a `skipped: bool` parameter to indicate if a segment was skipped (#904)
 
 ### Fixed
 
