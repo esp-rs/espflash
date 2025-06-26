@@ -27,7 +27,7 @@
 //! [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(missing_debug_implementations, rust_2018_idioms)]
+#![deny(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 
 pub use self::error::Error;
 
