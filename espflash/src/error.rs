@@ -332,7 +332,7 @@ impl From<dialoguer::Error> for Error {
 /// App descriptor errors.
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
-pub enum AppDescriptorError {
+pub(crate) enum AppDescriptorError {
     #[error("Invalid app descriptor magic word: {0:#x}")]
     #[diagnostic(code(espflash::invalid_app_descriptor_magic_word))]
     MagicWordMismatch(u32),
@@ -349,7 +349,7 @@ pub enum AppDescriptorError {
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 #[cfg(feature = "serialport")]
-pub enum ConnectionError {
+pub(crate) enum ConnectionError {
     #[error("Failed to connect to the device")]
     #[diagnostic(
         code(espflash::connection_failed),
@@ -451,7 +451,7 @@ impl From<SlipError> for ConnectionError {
 /// An executed command which has timed out.
 #[derive(Clone, Debug, Default)]
 #[cfg(feature = "serialport")]
-pub struct TimedOutCommand {
+pub(crate) struct TimedOutCommand {
     command: Option<CommandType>,
 }
 
@@ -477,7 +477,7 @@ impl From<CommandType> for TimedOutCommand {
 #[non_exhaustive]
 #[repr(u8)]
 #[cfg(feature = "serialport")]
-pub enum RomErrorKind {
+pub(crate) enum RomErrorKind {
     #[error("Invalid message received")]
     #[diagnostic(code(espflash::rom::invalid_message))]
     InvalidMessage = 0x05,
@@ -564,7 +564,7 @@ impl From<u8> for RomErrorKind {
 #[error("Error while running {command} command")]
 #[cfg(feature = "serialport")]
 #[non_exhaustive]
-pub struct RomError {
+pub(crate) struct RomError {
     command: CommandType,
     #[source]
     kind: RomErrorKind,
@@ -573,7 +573,7 @@ pub struct RomError {
 #[cfg(feature = "serialport")]
 impl RomError {
     /// Create a new [RomError].
-    pub fn new(command: CommandType, kind: RomErrorKind) -> RomError {
+    pub(crate) fn new(command: CommandType, kind: RomErrorKind) -> RomError {
         RomError { command, kind }
     }
 }
@@ -585,7 +585,7 @@ impl RomError {
     code(espflash::partition_table::missing_partition),
     help("Partition table must contain the partition of type `{0}` to be erased")
 )]
-pub struct MissingPartition(String);
+pub(crate) struct MissingPartition(String);
 
 #[cfg(feature = "cli")]
 impl From<String> for MissingPartition {
@@ -601,7 +601,7 @@ impl From<String> for MissingPartition {
     code(espflash::partition_table::missing_partition_table),
     help("Try providing a CSV or binary partition table with the `--partition-table` argument.")
 )]
-pub struct MissingPartitionTable;
+pub(crate) struct MissingPartitionTable;
 
 /// Extension helpers.
 #[cfg(feature = "serialport")]
