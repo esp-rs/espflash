@@ -146,7 +146,7 @@ impl FlashTarget for Esp32Target {
                     addr
                 );
 
-                progress.finish();
+                progress.finish(true);
                 return Ok(());
             }
         }
@@ -212,7 +212,7 @@ impl FlashTarget for Esp32Target {
             progress.update(num_chunks + 1)
         }
 
-        progress.finish();
+        progress.finish(false);
 
         Ok(())
     }

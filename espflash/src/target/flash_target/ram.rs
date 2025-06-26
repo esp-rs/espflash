@@ -68,7 +68,7 @@ impl FlashTarget for RamTarget {
             progress.update(i + 1)
         }
 
-        progress.finish();
+        progress.finish(false);
 
         Ok(())
     }

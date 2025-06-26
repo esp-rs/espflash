@@ -11,7 +11,7 @@ use strum::{Display, EnumIter, EnumString, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
 pub use self::flash_target::{
-    EmptyProgressCallbacks,
+    DefaultProgressCallback,
     Esp32Target,
     FlashTarget,
     ProgressCallbacks,

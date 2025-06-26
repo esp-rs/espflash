@@ -766,7 +766,7 @@ impl ProgressCallbacks for EspflashProgress {
     }
 
     /// End the progress bar
-    fn finish(&mut self) {
+    fn finish(&mut self, _skipped: bool) {
         if let Some(ref pb) = self.pb {
             pb.finish();
         }

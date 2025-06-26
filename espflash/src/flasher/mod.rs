@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
-use crate::target::{EmptyProgressCallbacks, ProgressCallbacks};
+use crate::target::{DefaultProgressCallback, ProgressCallbacks};
 use crate::{
     Error,
     target::{Chip, XtalFrequency},
@@ -754,7 +754,7 @@ impl Flasher {
                     addr: text_addr,
                     data: Cow::Borrowed(&text),
                 },
-                &mut EmptyProgressCallbacks,
+                &mut DefaultProgressCallback,
             )
             .flashing()?;
 
@@ -768,7 +768,7 @@ impl Flasher {
                     addr: data_addr,
                     data: Cow::Borrowed(&data),
                 },
-                &mut EmptyProgressCallbacks,
+                &mut DefaultProgressCallback,
             )
             .flashing()?;
 
