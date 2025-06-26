@@ -234,7 +234,7 @@ pub enum Error {
     FileOpenError(String, #[source] io::Error),
 
     #[error("Failed to parse partition table")]
-    Partition(#[from] esp_idf_part::Error),
+    Partition(CoreError),
 
     #[error("Invalid response: {0}")]
     #[diagnostic(code(espflash::invalid_response))]
@@ -304,6 +304,12 @@ impl From<object::Error> for Error {
 impl From<AppDescriptorError> for Error {
     fn from(err: AppDescriptorError) -> Self {
         Self::InvalidAppDescriptor(Box::new(err))
+    }
+}
+
+impl From<esp_idf_part::Error> for Error {
+    fn from(err: esp_idf_part::Error) -> Self {
+        Self::Partition(Box::new(err))
     }
 }
 
