@@ -154,6 +154,15 @@ pub enum Error {
     )]
     SerialNotFound(String),
 
+    #[error("No serial port was provided")]
+    #[diagnostic(
+        code(espflash::serial_not_selected),
+        help(
+            "Make sure to provide a serial port via argument, environment variable or configuration file when using the `--non-interactive` flag"
+        )
+    )]
+    SerialNotSelected,
+
     #[error("The {chip} does not support {feature}")]
     #[diagnostic(code(espflash::unsupported_feature))]
     UnsupportedFeature { chip: Chip, feature: String },

@@ -90,6 +90,10 @@ pub struct ConnectArgs {
     /// Serial port connected to target device
     #[arg(short = 'p', long, env = "ESPFLASH_PORT")]
     pub port: Option<String>,
+    /// Avoids asking the user for interactions like selecting/resetting the
+    /// device
+    #[arg(long)]
+    pub non_interactive: bool,
 }
 
 /// Generate completions for the given shell
@@ -302,11 +306,10 @@ pub struct MonitorConfigArgs {
     /// ELF image to load the symbols from
     #[arg(long, value_name = "FILE")]
     pub elf: Option<PathBuf>,
-    /// Avoids asking the user for interactions like resetting the device
-    #[arg(long)]
-    non_interactive: bool,
     /// Avoids restarting the device before monitoring
-    #[arg(long, requires = "non_interactive")]
+    ///
+    /// Only valid when `non_interactive` is also set.
+    #[arg(long)]
     no_reset: bool,
     /// The encoding of the target's serial output.
     #[arg(long, short = 'L')]
@@ -421,7 +424,7 @@ pub fn connect(
         .map_err(Error::from)
         .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
 
-    // NOTE: since `get_serial_port_info` filters out all PCI Port and Bluetooth
+    // NOTE: since `serial_port_info` filters out all PCI Port and Bluetooth
     //       serial ports, we can just pretend these types don't exist here.
     let port_info = match port_info.port_type {
         SerialPortType::UsbPort(info) => info,
@@ -659,6 +662,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         elf.as_deref(),
         pid,
         monitor_args,
+        args.connect_args.non_interactive,
     )
 }
 
@@ -1095,7 +1099,11 @@ pub fn make_flash_data(
 /// Write a binary to the flash memory of a target device
 pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     // Check monitor arguments
-    check_monitor_args(&args.monitor, &args.monitor_args)?;
+    check_monitor_args(
+        &args.monitor,
+        &args.monitor_args,
+        args.connect_args.non_interactive,
+    )?;
 
     // Load the file to be flashed
     let mut f = File::open(&args.file).into_diagnostic()?;
@@ -1132,6 +1140,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
             None,
             pid,
             monitor_args,
+            args.connect_args.non_interactive,
         )?;
     }
 

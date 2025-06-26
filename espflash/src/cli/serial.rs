@@ -41,6 +41,9 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
         find_serial_port(&ports, serial)
     } else {
         let ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
+        if ports.len() > 1 && matches.non_interactive {
+            return Err(Error::SerialNotSelected);
+        }
         let (port, matches) = select_serial_port(ports, &config.port_config, matches.confirm_port)?;
         match &port.port_type {
             SerialPortType::UsbPort(usb_info) if !matches => {

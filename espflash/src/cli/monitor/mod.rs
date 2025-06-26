@@ -79,13 +79,14 @@ pub fn monitor(
     elf: Option<&[u8]>,
     pid: u16,
     monitor_args: MonitorConfigArgs,
+    non_interactive: bool,
 ) -> miette::Result<()> {
-    println!("Commands:");
-    println!("    CTRL+R    Reset chip");
-    println!("    CTRL+C    Exit");
-    println!();
-
-    if monitor_args.non_interactive && !monitor_args.no_reset {
+    if !non_interactive {
+        println!("Commands:");
+        println!("    CTRL+R    Reset chip");
+        println!("    CTRL+C    Exit");
+        println!();
+    } else if !monitor_args.no_reset {
         reset_after_flash(&mut serial, pid).into_diagnostic()?;
     }
 
@@ -139,7 +140,7 @@ pub fn monitor(
         // Don't forget to flush the writer!
         stdout.flush().ok();
 
-        if !handle_user_input(&mut serial, pid, monitor_args.non_interactive)? {
+        if !handle_user_input(&mut serial, pid, non_interactive)? {
             break;
         }
     }
@@ -263,19 +264,29 @@ fn handle_key_event(key_event: KeyEvent) -> Option<Vec<u8>> {
 }
 
 /// Checks the monitor arguments and emits warnings if they are invalid.
-pub fn check_monitor_args(monitor: &bool, monitor_args: &MonitorConfigArgs) -> Result<()> {
+pub fn check_monitor_args(
+    monitor: &bool,
+    monitor_args: &MonitorConfigArgs,
+    non_interactive: bool,
+) -> Result<()> {
     // Check if any monitor args are provided but monitor flag isn't set
     if !monitor
         && (monitor_args.elf.is_some()
             || monitor_args.log_format.is_some()
             || monitor_args.output_format.is_some()
             || monitor_args.processors.is_some()
-            || monitor_args.non_interactive
+            || non_interactive
             || monitor_args.no_reset
             || monitor_args.monitor_baud != 115_200)
     {
         warn!(
             "Monitor options were provided, but `--monitor/-M` flag isn't set. These options will be ignored."
+        );
+    }
+
+    if !non_interactive && monitor_args.no_reset {
+        warn!(
+            "The `--no-reset` flag only applies when using the `--non-interactive` flag. Ignoring it."
         );
     }
 

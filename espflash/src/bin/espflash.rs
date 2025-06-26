@@ -234,7 +234,11 @@ fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
 fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let mut monitor_args = args.flash_args.monitor_args;
     monitor_args.elf = Some(args.image.clone());
-    check_monitor_args(&args.flash_args.monitor, &monitor_args)?;
+    check_monitor_args(
+        &args.flash_args.monitor,
+        &monitor_args,
+        args.connect_args.non_interactive,
+    )?;
     check_idf_args(
         args.format,
         &args.flash_args.erase_parts,
@@ -332,6 +336,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             Some(&elf_data),
             pid,
             monitor_args,
+            args.connect_args.non_interactive,
         )
     } else {
         Ok(())
