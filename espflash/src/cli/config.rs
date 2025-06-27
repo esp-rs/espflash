@@ -61,7 +61,7 @@ fn serialize_u16_to_hex<S>(decimal: &u16, serializer: S) -> Result<S::Ok, S::Err
 where
     S: serde::Serializer,
 {
-    let hex_string = format!("{:04x}", decimal);
+    let hex_string = format!("{decimal:04x}");
     serializer.serialize_str(&hex_string)
 }
 

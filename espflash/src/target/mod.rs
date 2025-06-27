@@ -10,7 +10,13 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
-pub use self::flash_target::{Esp32Target, FlashTarget, RamTarget};
+pub use self::flash_target::{
+    DefaultProgressCallback,
+    Esp32Target,
+    FlashTarget,
+    ProgressCallbacks,
+    RamTarget,
+};
 use crate::{
     Error,
     flasher::{FLASH_WRITE_SIZE, FlashFrequency},
@@ -798,7 +804,7 @@ impl Chip {
 
         let mac_addr = bytes
             .iter()
-            .map(|b| format!("{:02x}", b))
+            .map(|b| format!("{b:02x}"))
             .collect::<Vec<_>>()
             .join(":");
 

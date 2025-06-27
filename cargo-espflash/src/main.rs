@@ -242,7 +242,7 @@ fn main() -> Result<()> {
         subcommand: args,
         skip_update_check,
     } = cli.subcommand;
-    debug!("{:#?}, {:#?}", args, skip_update_check);
+    debug!("{args:#?}, {skip_update_check:#?}");
 
     // Only check for updates once the command-line arguments have been processed,
     // to avoid printing any update notifications when the help message is
@@ -366,7 +366,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
     if args.flash_args.ram {
-        flasher.load_elf_to_ram(&elf_data, Some(&mut EspflashProgress::default()))?;
+        flasher.load_elf_to_ram(&elf_data, &mut EspflashProgress::default())?;
     } else {
         let flash_data = make_flash_data(
             args.flash_args.image,
@@ -581,7 +581,7 @@ fn build(
             }
             Message::CompilerMessage(message) => {
                 if let Some(rendered) = message.message.rendered {
-                    print!("{}", rendered);
+                    print!("{rendered}");
                 }
             }
             // Ignore all other messages.

@@ -275,8 +275,7 @@ fn generate_efuse_constants(
         writeln!(writer, "/// {description}")?;
         writeln!(
             writer,
-            "pub const {}: EfuseField = EfuseField::new({}, {}, {}, {});",
-            name, block, word, start, len
+            "pub const {name}: EfuseField = EfuseField::new({block}, {word}, {start}, {len});"
         )?;
     }
 

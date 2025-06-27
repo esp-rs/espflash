@@ -47,7 +47,6 @@ use crate::{
         FlashSettings,
         FlashSize,
         Flasher,
-        ProgressCallbacks,
     },
     image_format::{
         ImageFormat,
@@ -55,7 +54,7 @@ use crate::{
         Metadata,
         idf::{IdfBootloaderFormat, parse_partition_table},
     },
-    target::{Chip, XtalFrequency},
+    target::{Chip, ProgressCallbacks, XtalFrequency},
 };
 
 pub mod config;
@@ -481,7 +480,7 @@ pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
 
     let checksum = flasher.checksum_md5(args.address, args.size)?;
-    println!("0x{:x}", checksum);
+    println!("0x{checksum:x}");
 
     let chip = flasher.chip();
     flasher
@@ -620,7 +619,7 @@ pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
     println!("Features:          {}", info.features.join(", "));
 
     if let Some(mac) = info.mac_address {
-        println!("MAC address:       {}", mac);
+        println!("MAC address:       {mac}");
     }
 
     Ok(())
@@ -767,7 +766,7 @@ impl ProgressCallbacks for EspflashProgress {
     }
 
     /// End the progress bar
-    fn finish(&mut self) {
+    fn finish(&mut self, _skipped: bool) {
         if let Some(ref pb) = self.pb {
             pb.finish();
         }
@@ -827,7 +826,7 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
 
 /// Write an ELF image to a target device's flash
 pub fn flash_image<'a>(flasher: &mut Flasher, image_format: ImageFormat<'a>) -> Result<()> {
-    flasher.load_image_to_flash(Some(&mut EspflashProgress::default()), image_format)?;
+    flasher.load_image_to_flash(&mut EspflashProgress::default(), image_format)?;
     info!("Flashing has completed!");
 
     Ok(())
@@ -1117,11 +1116,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let chip = flasher.chip();
     let target_xtal_freq = chip.xtal_frequency(flasher.connection())?;
 
-    flasher.write_bin_to_flash(
-        args.address,
-        &buffer,
-        Some(&mut EspflashProgress::default()),
-    )?;
+    flasher.write_bin_to_flash(args.address, &buffer, &mut EspflashProgress::default())?;
 
     if args.monitor {
         let pid = flasher.connection().usb_pid();

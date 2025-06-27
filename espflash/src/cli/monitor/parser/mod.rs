@@ -38,7 +38,7 @@ fn resolve_addresses(
         let location = symbols.location(addr);
 
         if let Some(name) = name {
-            let output = if line.trim() == format!("0x{:x}", addr) {
+            let output = if line.trim() == format!("0x{addr:x}") {
                 if let Some((file, line_num)) = location {
                     format!("{name}\r\n    at {file}:{line_num}\r\n")
                 } else {

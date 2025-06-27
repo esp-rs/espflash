@@ -67,7 +67,7 @@ impl RawModeGuard {
 impl Drop for RawModeGuard {
     fn drop(&mut self) {
         if let Err(e) = disable_raw_mode() {
-            error!("Failed to disable raw_mode: {:#}", e)
+            error!("Failed to disable raw_mode: {e:#}")
         }
     }
 }
@@ -90,7 +90,7 @@ pub fn monitor(
     }
 
     let baud = monitor_args.monitor_baud;
-    debug!("Opening serial monitor with baudrate: {}", baud);
+    debug!("Opening serial monitor with baudrate: {baud}");
 
     // Explicitly set the baud rate when starting the serial monitor, to allow using
     // different rates for flashing.

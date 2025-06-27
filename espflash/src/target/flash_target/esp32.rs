@@ -4,7 +4,7 @@ use flate2::{
     Compression,
     write::{ZlibDecoder, ZlibEncoder},
 };
-use log::info;
+use log::debug;
 use md5::{Digest, Md5};
 
 use crate::{
@@ -17,8 +17,8 @@ use crate::{
 use crate::{
     command::{Command, CommandType},
     connection::Connection,
-    flasher::ProgressCallbacks,
     target::FlashTarget,
+    target::ProgressCallbacks,
 };
 
 /// Applications running from an ESP32's (or variant's) flash
@@ -103,13 +103,29 @@ impl FlashTarget for Esp32Target {
         &mut self,
         connection: &mut Connection,
         segment: Segment<'_>,
-        progress: &mut Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
         let addr = segment.addr;
 
         let mut md5_hasher = Md5::new();
         md5_hasher.update(&segment.data);
         let checksum_md5 = md5_hasher.finalize();
+
+        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
+        encoder.write_all(&segment.data)?;
+        let compressed = encoder.finish()?;
+
+        let flash_write_size = self.chip.flash_write_size();
+        let block_count = compressed.len().div_ceil(flash_write_size);
+        let erase_count = segment.data.len().div_ceil(FLASH_SECTOR_SIZE);
+
+        // round up to sector size
+        let erase_size = (erase_count * FLASH_SECTOR_SIZE) as u32;
+
+        let chunks = compressed.chunks(flash_write_size);
+        let num_chunks = chunks.len();
+
+        progress.init(addr, num_chunks + self.verify as usize);
 
         if self.skip {
             let flash_checksum_md5: u128 = connection.with_timeout(
@@ -125,24 +141,12 @@ impl FlashTarget for Esp32Target {
             )?;
 
             if checksum_md5.as_slice() == flash_checksum_md5.to_be_bytes() {
-                info!(
-                    "Segment at address '0x{:x}' has not changed, skipping write",
-                    addr
-                );
+                debug!("Segment at address '0x{addr:x}' has not changed, skipping write");
+
+                progress.finish(true);
                 return Ok(());
             }
         }
-
-        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
-        encoder.write_all(&segment.data)?;
-        let compressed = encoder.finish()?;
-
-        let flash_write_size = self.chip.flash_write_size();
-        let block_count = compressed.len().div_ceil(flash_write_size);
-        let erase_count = segment.data.len().div_ceil(FLASH_SECTOR_SIZE);
-
-        // round up to sector size
-        let erase_size = (erase_count * FLASH_SECTOR_SIZE) as u32;
 
         connection.with_timeout(
             CommandType::FlashDeflBegin.timeout_for_size(erase_size),
@@ -158,13 +162,6 @@ impl FlashTarget for Esp32Target {
             },
         )?;
         self.need_deflate_end = true;
-
-        let chunks = compressed.chunks(flash_write_size);
-        let num_chunks = chunks.len();
-
-        if let Some(cb) = progress.as_mut() {
-            cb.init(addr, num_chunks)
-        }
 
         // decode the chunks to see how much data the device will have to save
         let mut decoder = ZlibDecoder::new(Vec::new());
@@ -189,13 +186,7 @@ impl FlashTarget for Esp32Target {
                 },
             )?;
 
-            if let Some(cb) = progress.as_mut() {
-                cb.update(i + 1)
-            }
-        }
-
-        if let Some(cb) = progress.as_mut() {
-            cb.finish()
+            progress.update(i + 1)
         }
 
         if self.verify {
@@ -214,7 +205,11 @@ impl FlashTarget for Esp32Target {
             if checksum_md5.as_slice() != flash_checksum_md5.to_be_bytes() {
                 return Err(Error::VerifyFailed);
             }
+            debug!("Segment at address '0x{addr:x}' verified successfully");
+            progress.update(num_chunks + 1)
         }
+
+        progress.finish(false);
 
         Ok(())
     }

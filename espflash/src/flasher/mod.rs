@@ -19,6 +19,8 @@ use object::{Endianness, read::elf::ElfFile32 as ElfFile};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
 
+#[cfg(feature = "serialport")]
+use crate::target::{DefaultProgressCallback, ProgressCallbacks};
 use crate::{
     Error,
     target::{Chip, XtalFrequency},
@@ -48,16 +50,6 @@ pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
 #[cfg(feature = "serialport")]
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
-
-/// Progress update callbacks
-pub trait ProgressCallbacks {
-    /// Initialize some progress report
-    fn init(&mut self, addr: u32, total: usize);
-    /// Update some progress report
-    fn update(&mut self, current: usize);
-    /// Finish some progress report
-    fn finish(&mut self);
-}
 
 /// Security Info Response containing
 #[derive(Debug)]
@@ -147,23 +139,23 @@ impl fmt::Display for SecurityInfo {
         let key_purposes_str = self
             .key_purposes
             .iter()
-            .map(|b| format!("{}", b))
+            .map(|b| format!("{b}"))
             .collect::<Vec<_>>()
             .join(", ");
 
         writeln!(f, "\nSecurity Information:")?;
         writeln!(f, "=====================")?;
         writeln!(f, "Flags: {:#010x} ({:b})", self.flags, self.flags)?;
-        writeln!(f, "Key Purposes: [{}]", key_purposes_str)?;
+        writeln!(f, "Key Purposes: [{key_purposes_str}]")?;
 
         // Only print Chip ID if it's Some(value)
         if let Some(chip_id) = self.chip_id {
-            writeln!(f, "Chip ID: {}", chip_id)?;
+            writeln!(f, "Chip ID: {chip_id}")?;
         }
 
         // Only print API Version if it's Some(value)
         if let Some(api_version) = self.eco_version {
-            writeln!(f, "API Version: {}", api_version)?;
+            writeln!(f, "API Version: {api_version}")?;
         }
 
         // Secure Boot
@@ -181,7 +173,7 @@ impl fmt::Display for SecurityInfo {
             .iter()
             .enumerate()
             .filter(|(_, key)| self.security_flag_status(key))
-            .map(|(i, _)| format!("Secure Boot Key{} is Revoked", i))
+            .map(|(i, _)| format!("Secure Boot Key{i} is Revoked"))
             .collect();
 
             if !revoked_keys.is_empty() {
@@ -762,7 +754,7 @@ impl Flasher {
                     addr: text_addr,
                     data: Cow::Borrowed(&text),
                 },
-                &mut None,
+                &mut DefaultProgressCallback,
             )
             .flashing()?;
 
@@ -776,7 +768,7 @@ impl Flasher {
                     addr: data_addr,
                     data: Cow::Borrowed(&data),
                 },
-                &mut None,
+                &mut DefaultProgressCallback,
             )
             .flashing()?;
 
@@ -794,7 +786,7 @@ impl Flasher {
 
         // Re-detect chip to check stub is up
         let chip = self.connection.detect_chip(self.use_stub)?;
-        debug!("Re-detected chip: {:?}", chip);
+        debug!("Re-detected chip: {chip:?}");
 
         Ok(())
     }
@@ -803,7 +795,7 @@ impl Flasher {
         // Loop over all available SPI parameters until we find one that successfully
         // reads the flash size.
         for spi_params in TRY_SPI_PARAMS.iter().copied() {
-            debug!("Attempting flash enable with: {:?}", spi_params);
+            debug!("Attempting flash enable with: {spi_params:?}");
 
             // Send `SpiAttach` to enable flash, in some instances this command
             // may fail while the flash connection succeeds
@@ -857,8 +849,7 @@ impl Flasher {
             Ok(size) => size,
             Err(_) => {
                 warn!(
-                    "Could not detect flash size (FlashID=0x{:02X}, SizeID=0x{:02X}), defaulting to 4MB",
-                    flash_id, size_id
+                    "Could not detect flash size (FlashID=0x{flash_id:02X}, SizeID=0x{size_id:02X}), defaulting to 4MB"
                 );
                 FlashSize::default()
             }
@@ -1017,7 +1008,7 @@ impl Flasher {
     pub fn load_elf_to_ram(
         &mut self,
         elf_data: &[u8],
-        mut progress: Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
         let elf = ElfFile::parse(elf_data)?;
         if rom_segments(self.chip, &elf).next().is_some() {
@@ -1032,7 +1023,7 @@ impl Flasher {
 
         for segment in ram_segments(self.chip, &elf) {
             target
-                .write_segment(&mut self.connection, segment, &mut progress)
+                .write_segment(&mut self.connection, segment, progress)
                 .flashing()?;
         }
 
@@ -1042,7 +1033,7 @@ impl Flasher {
     /// Load an ELF image to flash and execute it
     pub fn load_image_to_flash<'a>(
         &mut self,
-        mut progress: Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
         image_format: ImageFormat<'a>,
     ) -> Result<(), Error> {
         let mut target =
@@ -1064,7 +1055,7 @@ impl Flasher {
 
         for segment in image_format.flash_segments() {
             target
-                .write_segment(&mut self.connection, segment, &mut progress)
+                .write_segment(&mut self.connection, segment, progress)
                 .flashing()?;
         }
 
@@ -1078,7 +1069,7 @@ impl Flasher {
         &mut self,
         addr: u32,
         data: &[u8],
-        progress: Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
         let segment = Segment {
             addr,
@@ -1095,7 +1086,7 @@ impl Flasher {
     pub fn write_bins_to_flash(
         &mut self,
         segments: &[Segment<'_>],
-        mut progress: Option<&mut dyn ProgressCallbacks>,
+        progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
         if self.connection.secure_download_mode {
             return Err(Error::UnsupportedFeature {
@@ -1111,7 +1102,7 @@ impl Flasher {
         target.begin(&mut self.connection).flashing()?;
 
         for segment in segments {
-            target.write_segment(&mut self.connection, segment.borrow(), &mut progress)?;
+            target.write_segment(&mut self.connection, segment.borrow(), progress)?;
         }
 
         target.finish(&mut self.connection, true).flashing()?;
@@ -1141,7 +1132,7 @@ impl Flasher {
 
     /// Change the baud rate of the connection.
     pub fn change_baud(&mut self, baud: u32) -> Result<(), Error> {
-        debug!("Change baud to: {}", baud);
+        debug!("Change baud to: {baud}");
 
         let prior_baud = match self.use_stub {
             true => self.connection.baud()?,
@@ -1175,7 +1166,7 @@ impl Flasher {
 
     /// Erase a region of flash.
     pub fn erase_region(&mut self, offset: u32, size: u32) -> Result<(), Error> {
-        debug!("Erasing region of 0x{:x}B at 0x{:08x}", size, offset);
+        debug!("Erasing region of 0x{size:x}B at 0x{offset:08x}");
 
         self.connection.with_timeout(
             CommandType::EraseRegion.timeout_for_size(size),
@@ -1267,7 +1258,7 @@ impl Flasher {
         max_in_flight: u32,
         file_path: PathBuf,
     ) -> Result<(), Error> {
-        debug!("Reading 0x{:x}B from 0x{:08x}", size, offset);
+        debug!("Reading 0x{size:x}B from 0x{offset:08x}");
 
         let mut data = Vec::new();
 

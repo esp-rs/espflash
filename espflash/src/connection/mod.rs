@@ -99,7 +99,7 @@ impl Connection {
                     return Ok(());
                 }
                 Err(e) => {
-                    debug!("Failed to reset, error {:#?}, retrying", e);
+                    debug!("Failed to reset, error {e:#?}, retrying");
                 }
             }
         }
@@ -159,8 +159,8 @@ impl Connection {
                 download_mode = data.get(2).is_some();
 
                 // Further processing or printing the results
-                debug!("Boot Mode: {}", boot_mode);
-                debug!("Download Mode: {}", download_mode);
+                debug!("Boot Mode: {boot_mode}");
+                debug!("Download Mode: {download_mode}");
             };
         }
 
@@ -447,7 +447,7 @@ impl Connection {
 
     /// Write a command to the serial port.
     pub fn write_command(&mut self, command: Command<'_>) -> Result<(), Error> {
-        debug!("Writing command: {:02x?}", command);
+        debug!("Writing command: {command:02x?}");
         let mut binding = Box::new(&mut self.serial);
         let serial = binding.as_mut();
 
@@ -575,7 +575,7 @@ impl Connection {
         } else {
             self.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?
         };
-        debug!("Read chip magic value: 0x{:08x}", magic);
+        debug!("Read chip magic value: 0x{magic:08x}");
         Chip::from_magic(magic)
     }
 }
