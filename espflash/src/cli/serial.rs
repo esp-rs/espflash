@@ -58,7 +58,7 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
                             pid: usb_info.pid,
                         })
                     }) {
-                        error!("Failed to save config {:#}", e);
+                        error!("Failed to save config {e:#}");
                     }
                 }
             }
@@ -190,7 +190,7 @@ fn select_serial_port(
                 match &port_info.port_type {
                     SerialPortType::UsbPort(info) => {
                         if let Some(product) = &info.product {
-                            format!("{} - {}", formatted, product)
+                            format!("{formatted} - {product}")
                         } else {
                             formatted.to_string()
                         }
@@ -242,9 +242,9 @@ fn confirm_port(port_name: &str, product: Option<&String>) -> Result<bool, Error
     Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt({
             if let Some(product) = product {
-                format!("Use serial port '{}' - {}?", port_name, product)
+                format!("Use serial port '{port_name}' - {product}?")
             } else {
-                format!("Use serial port '{}'?", port_name)
+                format!("Use serial port '{port_name}'?")
             }
         })
         .interact_opt()?

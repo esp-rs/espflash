@@ -242,7 +242,7 @@ fn main() -> Result<()> {
         subcommand: args,
         skip_update_check,
     } = cli.subcommand;
-    debug!("{:#?}, {:#?}", args, skip_update_check);
+    debug!("{args:#?}, {skip_update_check:#?}");
 
     // Only check for updates once the command-line arguments have been processed,
     // to avoid printing any update notifications when the help message is
@@ -581,7 +581,7 @@ fn build(
             }
             Message::CompilerMessage(message) => {
                 if let Some(rendered) = message.message.rendered {
-                    print!("{}", rendered);
+                    print!("{rendered}");
                 }
             }
             // Ignore all other messages.

@@ -480,7 +480,7 @@ pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
 
     let checksum = flasher.checksum_md5(args.address, args.size)?;
-    println!("0x{:x}", checksum);
+    println!("0x{checksum:x}");
 
     let chip = flasher.chip();
     flasher
@@ -619,7 +619,7 @@ pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
     println!("Features:          {}", info.features.join(", "));
 
     if let Some(mac) = info.mac_address {
-        println!("MAC address:       {}", mac);
+        println!("MAC address:       {mac}");
     }
 
     Ok(())

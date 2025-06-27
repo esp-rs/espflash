@@ -141,10 +141,7 @@ impl FlashTarget for Esp32Target {
             )?;
 
             if checksum_md5.as_slice() == flash_checksum_md5.to_be_bytes() {
-                debug!(
-                    "Segment at address '0x{:x}' has not changed, skipping write",
-                    addr
-                );
+                debug!("Segment at address '0x{addr:x}' has not changed, skipping write");
 
                 progress.finish(true);
                 return Ok(());
@@ -208,7 +205,7 @@ impl FlashTarget for Esp32Target {
             if checksum_md5.as_slice() != flash_checksum_md5.to_be_bytes() {
                 return Err(Error::VerifyFailed);
             }
-            debug!("Segment at address '0x{:x}' verified successfully", addr);
+            debug!("Segment at address '0x{addr:x}' verified successfully");
             progress.update(num_chunks + 1)
         }
 

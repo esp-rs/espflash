@@ -152,8 +152,7 @@ impl CommandType {
             CommandType::FlashDeflEnd => FLASH_DEFLATE_END_TIMEOUT,
             CommandType::FlashMd5 => {
                 log::warn!(
-                    "Using default timeout for {}, this may not be sufficient for large flash regions. Consider using `timeout_for_size` instead.",
-                    self
+                    "Using default timeout for {self}, this may not be sufficient for large flash regions. Consider using `timeout_for_size` instead."
                 );
 
                 DEFAULT_TIMEOUT

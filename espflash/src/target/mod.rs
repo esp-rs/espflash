@@ -804,7 +804,7 @@ impl Chip {
 
         let mac_addr = bytes
             .iter()
-            .map(|b| format!("{:02x}", b))
+            .map(|b| format!("{b:02x}"))
             .collect::<Vec<_>>()
             .join(":");
 

@@ -400,7 +400,7 @@ impl<'a> IdfBootloaderFormat<'a> {
             .unwrap_or(&[IROM_ALIGN]);
         let valid_page_sizes_string = valid_page_sizes
             .iter()
-            .map(|size| format!("{:#x}", size))
+            .map(|size| format!("{size:#x}"))
             .collect::<Vec<_>>()
             .join(", ");
         let app_desc_mmu_page_size = if let Some(address) = app_desc_addr {
@@ -439,9 +439,8 @@ impl<'a> IdfBootloaderFormat<'a> {
 
                 if page_size.is_none() {
                     warn!(
-                        "The app descriptor is placed at {:#x} which is not aligned to any of the \
-                        supported page sizes: {}",
-                        address, valid_page_sizes_string
+                        "The app descriptor is placed at {address:#x} which is not aligned to any of the \
+                        supported page sizes: {valid_page_sizes_string}"
                     );
                     return Err(AppDescriptorError::IncorrectDescriptorAlignment.into());
                 }
@@ -464,8 +463,7 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         if !valid_page_sizes.contains(&mmu_page_size) {
             warn!(
-                "MMU page size {:#x} is not supported. Supported page sizes are: {}",
-                mmu_page_size, valid_page_sizes_string
+                "MMU page size {mmu_page_size:#x} is not supported. Supported page sizes are: {valid_page_sizes_string}"
             );
             return Err(AppDescriptorError::IncorrectDescriptorAlignment.into());
         };
@@ -858,11 +856,11 @@ mod tests {
 
     #[test]
     fn test_encode_hex() {
-        assert_eq!(encode_hex(&[0u8]), "00");
-        assert_eq!(encode_hex(&[10u8]), "0a");
-        assert_eq!(encode_hex(&[255u8]), "ff");
+        assert_eq!(encode_hex([0u8]), "00");
+        assert_eq!(encode_hex([10u8]), "0a");
+        assert_eq!(encode_hex([255u8]), "ff");
 
-        assert_eq!(encode_hex(&[222u8, 202, 251, 173]), "decafbad");
+        assert_eq!(encode_hex([222u8, 202, 251, 173]), "decafbad");
     }
 
     #[test]

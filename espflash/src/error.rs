@@ -441,7 +441,7 @@ pub struct TimedOutCommand {
 impl Display for TimedOutCommand {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match &self.command {
-            Some(command) => write!(f, "{} ", command),
+            Some(command) => write!(f, "{command} "),
             None => Ok(()),
         }
     }
