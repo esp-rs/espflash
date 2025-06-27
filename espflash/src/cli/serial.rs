@@ -41,6 +41,9 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
         find_serial_port(&ports, serial)
     } else {
         let ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
+        if ports.len() > 1 && matches.non_interactive {
+            return Err(Error::SerialNotSelected);
+        }
         let (port, matches) = select_serial_port(ports, &config.port_config, matches.confirm_port)?;
         match &port.port_type {
             SerialPortType::UsbPort(usb_info) if !matches => {
@@ -110,6 +113,18 @@ pub(super) fn detect_usb_serial_ports(list_all_ports: bool) -> Result<Vec<Serial
     let ports = ports
         .into_iter()
         .filter(|port_info| {
+            // On macOS, each USB serial device is exposed twice: once as a
+            // "/dev/tty.*" callin device and once as a "/dev/cu.*" callout
+            // device. The latter is what users typically want because opening
+            // a tty.* device will block until a DCD signal is asserted.  To
+            // avoid confusing users with duplicate entries we hide the tty.*
+            // variants unless the caller explicitly asked to list *all* ports.
+            // See https://web.archive.org/web/20120602152224/http://lists.berlios.de/pipermail/gpsd-dev/2005-April/001288.html
+            #[cfg(target_os = "macos")]
+            if !list_all_ports && port_info.port_name.starts_with("/dev/tty.") {
+                return false;
+            }
+
             if list_all_ports {
                 matches!(
                     &port_info.port_type,

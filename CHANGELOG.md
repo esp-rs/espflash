@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update checks can now be skipped by setting the the `ESPFLASH_SKIP_UPDATE_CHECK` environment variable (#900)
 - `flash_write_size` and `max_ram_block_size` functions no longer take a connection parameter and return a Result type (#903)
 - `DefaultProgressCallback` which implements `ProgressCallbacks` but all methods are no-ops (#904)
+- Update checks can now be skipped by setting the `ESPFLASH_SKIP_UPDATE_CHECK` environment variable (#900)
 
 ### Changed
 
@@ -82,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ResetBeforeOperation` & `ResetAfterOperation` are now public, to allow the creation of a `Connection` (#895)
 - `Flasher` now respects its internal `verify` and `skip` flags for all methods. (#901)
 - Progress is now reported on skipped segments and verification (#904)
+- Moved the `non-interactive` flag to `ConnectArgs` so we also avoid asking the user to select a port (#906)
 
 ### Removed
 
