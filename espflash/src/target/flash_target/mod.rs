@@ -27,6 +27,8 @@ pub trait ProgressCallbacks {
     fn init(&mut self, addr: u32, total: usize);
     /// Update some progress report.
     fn update(&mut self, current: usize);
+    /// Indicate post-flash checksum verification has begun.
+    fn verifying(&mut self);
     /// Finish some progress report.
     fn finish(&mut self, skipped: bool);
 }
@@ -38,5 +40,6 @@ pub struct DefaultProgressCallback;
 impl ProgressCallbacks for DefaultProgressCallback {
     fn init(&mut self, _addr: u32, _total: usize) {}
     fn update(&mut self, _current: usize) {}
+    fn verifying(&mut self) {}
     fn finish(&mut self, _skipped: bool) {}
 }

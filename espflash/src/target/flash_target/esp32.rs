@@ -125,7 +125,7 @@ impl FlashTarget for Esp32Target {
         let chunks = compressed.chunks(flash_write_size);
         let num_chunks = chunks.len();
 
-        progress.init(addr, num_chunks + self.verify as usize);
+        progress.init(addr, num_chunks);
 
         if self.skip {
             let flash_checksum_md5: u128 = connection.with_timeout(
@@ -190,6 +190,7 @@ impl FlashTarget for Esp32Target {
         }
 
         if self.verify {
+            progress.verifying();
             let flash_checksum_md5: u128 = connection.with_timeout(
                 CommandType::FlashMd5.timeout_for_size(segment.data.len() as u32),
                 |connection| {
@@ -206,7 +207,6 @@ impl FlashTarget for Esp32Target {
                 return Err(Error::VerifyFailed);
             }
             debug!("Segment at address '0x{addr:x}' verified successfully");
-            progress.update(num_chunks + 1)
         }
 
         progress.finish(false);
