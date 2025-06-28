@@ -745,13 +745,15 @@ pub(crate) fn display_image_size(app_size: u32, part_size: Option<u32>) {
 #[derive(Debug, Default)]
 pub struct EspflashProgress {
     pb: Option<ProgressBar>,
+    current_addr: Option<u32>,
+    verifying: bool,
 }
 
 impl ProgressCallbacks for EspflashProgress {
     /// Initialize the progress bar
     fn init(&mut self, addr: u32, len: usize) {
         let pb = ProgressBar::new(len as u64)
-            .with_message(format!("{addr:#X}"))
+            .with_message(format!("{addr:#8X}"))
             .with_style(
                 ProgressStyle::default_bar()
                     .template("[{elapsed_precise}] [{bar:40}] {pos:>7}/{len:7} {msg}")
@@ -760,20 +762,45 @@ impl ProgressCallbacks for EspflashProgress {
             );
 
         self.pb = Some(pb);
+        self.verifying = false;
+        self.current_addr = Some(addr);
     }
 
     /// Update the progress bar
     fn update(&mut self, current: usize) {
-        if let Some(ref pb) = self.pb {
+        if let Some(pb) = &self.pb {
             pb.set_position(current as u64);
         }
     }
 
-    /// End the progress bar
-    fn finish(&mut self, _skipped: bool) {
-        if let Some(ref pb) = self.pb {
-            pb.finish();
+    /// Tell user we're verifying the flashed data
+    fn verifying(&mut self) {
+        if let Some(pb) = &self.pb
+            && let Some(addr) = &self.current_addr
+        {
+            self.verifying = true;
+            pb.set_message(format!("{addr:#8X} Verifying..."));
         }
+    }
+
+    /// End the progress bar
+    fn finish(&mut self, skipped: bool) {
+        if let Some(pb) = &self.pb
+            && let Some(addr) = &self.current_addr
+        {
+            use crossterm::style::Stylize;
+            if skipped {
+                let skipped = "Skipped! (checksum matches)".cyan();
+                pb.finish_with_message(format!("{addr:#8X} {skipped}"));
+            } else if self.verifying {
+                let ok = "OK!".green();
+                pb.finish_with_message(format!("{addr:#8X} Verifying... {ok}"));
+            } else {
+                pb.finish();
+            }
+        }
+        self.verifying = false;
+        self.current_addr = None;
     }
 }
 
