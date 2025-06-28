@@ -745,7 +745,6 @@ pub(crate) fn display_image_size(app_size: u32, part_size: Option<u32>) {
 #[derive(Debug, Default)]
 pub struct EspflashProgress {
     pb: Option<ProgressBar>,
-    current_addr: Option<u32>,
     verifying: bool,
 }
 
@@ -753,7 +752,7 @@ impl ProgressCallbacks for EspflashProgress {
     /// Initialize the progress bar
     fn init(&mut self, addr: u32, len: usize) {
         let pb = ProgressBar::new(len as u64)
-            .with_message(format!("{addr:#8X}"))
+            .with_message(format!("{addr:<#8X}"))
             .with_style(
                 ProgressStyle::default_bar()
                     .template("[{elapsed_precise}] [{bar:40}] {pos:>7}/{len:7} {msg}")
@@ -763,7 +762,6 @@ impl ProgressCallbacks for EspflashProgress {
 
         self.pb = Some(pb);
         self.verifying = false;
-        self.current_addr = Some(addr);
     }
 
     /// Update the progress bar
@@ -775,32 +773,31 @@ impl ProgressCallbacks for EspflashProgress {
 
     /// Tell user we're verifying the flashed data
     fn verifying(&mut self) {
-        if let Some(pb) = &self.pb
-            && let Some(addr) = &self.current_addr
-        {
+        if let Some(pb) = &self.pb {
             self.verifying = true;
-            pb.set_message(format!("{addr:#8X} Verifying..."));
+            let last_msg = pb.message();
+
+            pb.set_message(format!("{last_msg} Verifying..."));
         }
     }
 
     /// End the progress bar
     fn finish(&mut self, skipped: bool) {
-        if let Some(pb) = &self.pb
-            && let Some(addr) = &self.current_addr
-        {
+        if let Some(pb) = &self.pb {
             use crossterm::style::Stylize;
+            let last_msg = pb.message();
+
             if skipped {
                 let skipped = "Skipped! (checksum matches)".cyan();
-                pb.finish_with_message(format!("{addr:#8X} {skipped}"));
+                pb.finish_with_message(format!("{last_msg} {skipped}"));
             } else if self.verifying {
                 let ok = "OK!".green();
-                pb.finish_with_message(format!("{addr:#8X} Verifying... {ok}"));
+                pb.finish_with_message(format!("{last_msg} {ok}"));
             } else {
                 pb.finish();
             }
         }
         self.verifying = false;
-        self.current_addr = None;
     }
 }
 
