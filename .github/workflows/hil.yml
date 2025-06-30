@@ -100,39 +100,42 @@ jobs:
           chmod +x espflash_app/espflash
           echo "$PWD/espflash_app" >> "$GITHUB_PATH"
 
+      - name: Run all tests
+        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 60
+
       - name: board-info test
-        run: timeout 10 bash espflash/tests/scripts/board-info.sh
+        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 15 board-info
 
       - name: flash test
-        run: timeout 80 bash espflash/tests/scripts/flash.sh ${{ matrix.board.mcu }}
+        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 90 flash
 
       - name: monitor test
-        run: timeout 10 bash espflash/tests/scripts/monitor.sh
+        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 20 monitor
 
       - name: erase-flash test
-        run: timeout 60 bash espflash/tests/scripts/erase-flash.sh
+        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 60 erase-flash
 
       - name: save-image/write-bin test
         run: |
-          timeout 180 bash espflash/tests/scripts/save-image_write-bin.sh ${{ matrix.board.mcu }}
+          cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 60 save-image_write-bin
 
       - name: erase-region test
-        run: timeout 30 bash espflash/tests/scripts/erase-region.sh
+        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 60 erase-region
 
       - name: hold-in-reset test
-        run: timeout 10 bash espflash/tests/scripts/hold-in-reset.sh
+        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 10 hold-in-reset
 
       - name: reset test
-        run: timeout 10 bash espflash/tests/scripts/reset.sh
+        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 10 reset
 
       - name: checksum-md5 test
-        run: timeout 40 bash espflash/tests/scripts/checksum-md5.sh
+        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 10 checksum-md5
 
       - name: list-ports test
-        run: timeout 10 bash espflash/tests/scripts/list-ports.sh
+        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 10 list-ports
 
       - name: write-bin test
-        run: timeout 20 bash espflash/tests/scripts/write-bin.sh
+        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 30 write-bin
 
       - name: read-flash test
-        run: timeout 60 bash espflash/tests/scripts/read-flash.sh
+        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 60 read-flash
