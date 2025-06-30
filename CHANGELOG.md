@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `flash_write_size` and `max_ram_block_size` functions no longer take a connection parameter and return a Result type (#903)
 - `DefaultProgressCallback` which implements `ProgressCallbacks` but all methods are no-ops (#904)
 - Update checks can now be skipped by setting the `ESPFLASH_SKIP_UPDATE_CHECK` environment variable (#900)
+- `ProgressCallbacks` now has a `verifying` method to notify when post-flash checksum checking has begun (#908)
 
 ### Changed
 
@@ -68,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The command module, and `Command` related structs now exist in a top level module, instead of the `connection` module (#901)
 - API's that take `Option<&mut dyn ProgressCallbacks>` now take `&mut dyn ProgressCallbacks` instead (#904)
 - `ProgressCallbacks::finish()` now has a `skipped: bool` parameter to indicate if a segment was skipped (#904)
+- CLI usage now shows when a segment has been skipped due to already-matching checksum and when a segment is being verified (#908)
 
 ### Fixed
 
