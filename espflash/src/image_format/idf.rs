@@ -23,6 +23,7 @@ use object::{
     ObjectSymbol,
     read::elf::ElfFile32 as ElfFile,
 };
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use super::{Segment, ram_segments, rom_segments};
@@ -242,7 +243,7 @@ impl AppDescriptor {
 
 /// Image format for ESP32 family chips using the second-stage bootloader from
 /// ESP-IDF
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct IdfBootloaderFormat<'a> {
     boot_addr: u32,
     bootloader: Cow<'a, [u8]>,

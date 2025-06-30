@@ -1,9 +1,10 @@
 use std::{collections::HashMap, error::Error};
 
 use object::{File, Object, ObjectSection, ObjectSymbol};
+use serde::{Deserialize, Serialize};
 
 /// Image format metadata.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Metadata {
     symbols: HashMap<String, Vec<u8>>,
 }

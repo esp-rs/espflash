@@ -37,7 +37,7 @@ pub enum ImageFormatKind {
 }
 
 /// Binary application image format data
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub enum ImageFormat<'a> {
     /// ESP-IDF application image format
@@ -76,7 +76,7 @@ impl<'a> From<IdfBootloaderFormat<'a>> for ImageFormat<'a> {
 }
 
 /// A segment of code from the source ELF
-#[derive(Default, Clone, Eq)]
+#[derive(Default, Clone, Eq, Deserialize, Serialize)]
 pub struct Segment<'a> {
     /// Base address of the code segment
     pub addr: u32,
