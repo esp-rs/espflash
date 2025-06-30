@@ -1167,7 +1167,10 @@ impl Flasher {
     /// Erase a region of flash.
     pub fn erase_region(&mut self, offset: u32, size: u32) -> Result<(), Error> {
         debug!("Erasing region of 0x{size:x}B at 0x{offset:08x}");
+<<<<<<< HEAD
 
+=======
+>>>>>>> 854a32c (fix clippy warnings)
         self.connection.with_timeout(
             CommandType::EraseRegion.timeout_for_size(size),
             |connection| connection.command(Command::EraseRegion { offset, size }),
