@@ -886,7 +886,7 @@ impl Chip {
     }
 
     #[cfg(feature = "serialport")]
-    /// Return the package version based on the eFuses for ESP32
+    /// Returns the package version based on the eFuses for ESP32
     fn esp32_package_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let word3 = self.read_efuse_raw(connection, 0, 3)?;
 
@@ -897,31 +897,31 @@ impl Chip {
     }
 
     #[cfg(feature = "serialport")]
-    /// Return the block2 version based on eFuses for ESP32-S2
+    /// Returns the block2 version based on eFuses for ESP32-S2
     fn esp32s2_block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         self.read_efuse(connection, efuse::esp32s2::BLK_VERSION_MINOR)
     }
 
     #[cfg(feature = "serialport")]
-    /// Return the flash version based on eFuses for ESP32-S2
+    /// Returns the flash version based on eFuses for ESP32-S2
     fn esp32s2_flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         self.read_efuse(connection, efuse::esp32s2::FLASH_VERSION)
     }
 
     #[cfg(feature = "serialport")]
-    /// Return the PSRAM version based on eFuses for ESP32-S2
+    /// Returns the PSRAM version based on eFuses for ESP32-S2
     fn esp32s2_psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         self.read_efuse(connection, efuse::esp32s2::PSRAM_VERSION)
     }
 
     #[cfg(feature = "serialport")]
-    /// Return the major BLK version based on eFuses for ESP32-S3
+    /// Returns the major BLK version based on eFuses for ESP32-S3
     fn esp32s3_blk_version_major(&self, connection: &mut Connection) -> Result<u32, Error> {
         self.read_efuse(connection, efuse::esp32s3::BLK_VERSION_MAJOR)
     }
 
     #[cfg(feature = "serialport")]
-    /// Return the minor BLK version based on eFuses for ESP32-S3
+    /// Returns the minor BLK version based on eFuses for ESP32-S3
     fn esp32s3_blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
         self.read_efuse(connection, efuse::esp32s3::BLK_VERSION_MINOR)
     }
