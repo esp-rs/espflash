@@ -1,0 +1,104 @@
+name: Build Rust Binary
+
+on:
+  workflow_call:
+    inputs:
+      directory:
+        required: true
+        type: string
+      artifact-name:
+        required: true
+        type: string
+      binary-path: # This will be something like 'target/release/espflash'
+        required: true
+        type: string
+      repository:
+        required: false
+        type: string
+      ref:
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    container:
+      image: ubuntu:20.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: apt-get update && apt-get -y install curl musl-tools pkg-config
+
+      - name: Setup Rust toolchain with musl target
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: x86_64-unknown-linux-musl
+          override: true
+
+      - name: Build static binary ${{ inputs.artifact-name }} and copy to workspace
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
+          # No longer setting CARGO_TARGET_DIR here, it will be set in the 'run' block
+        run: |
+          # *** NEW: Set and export CARGO_TARGET_DIR directly in the shell ***
+          export CARGO_TARGET_DIR="${{ github.workspace }}/cargo_build_output"
+          echo "CARGO_TARGET_DIR is explicitly set to: $CARGO_TARGET_DIR"
+
+          echo "Current working directory BEFORE build: $(pwd)"
+          ls -F .
+          echo "---"
+
+          # 1. Build the binary within the specified directory
+          cargo build --release --target x86_64-unknown-linux-musl
+
+          echo "Current working directory AFTER build: $(pwd)"
+          echo "---"
+
+          # Debugging: List contents of the explicitly set CARGO_TARGET_DIR
+          echo "Contents of CARGO_TARGET_DIR ($CARGO_TARGET_DIR):"
+          ls -F "$CARGO_TARGET_DIR/" || true
+          echo "---"
+
+          echo "Contents of CARGO_TARGET_DIR/x86_64-unknown-linux-musl/release/:"
+          ls -F "$CARGO_TARGET_DIR/x86_64-unknown-linux-musl/release/" || true
+          echo "---"
+
+          # Determine the actual path of the built binary
+          BINARY_NAME="${{ inputs.artifact-name }}" # This is 'espflash' or 'xtask'
+
+          # Full path to the built binary within the explicitly set target directory
+          SOURCE_BINARY_ABSOLUTE_PATH="$CARGO_TARGET_DIR/x86_64-unknown-linux-musl/release/$BINARY_NAME"
+
+          # Define the destination directory relative to the *repository root*
+          DESTINATION_DIR="${{ github.workspace }}/artifacts"
+
+          # Ensure the destination directory exists at the workspace root
+          mkdir -p "$DESTINATION_DIR"
+
+          echo "Attempting to copy from: $SOURCE_BINARY_ABSOLUTE_PATH"
+          echo "Copying to: $DESTINATION_DIR/$BINARY_NAME"
+
+          if [ -f "$SOURCE_BINARY_ABSOLUTE_PATH" ]; then
+            cp "$SOURCE_BINARY_ABSOLUTE_PATH" "$DESTINATION_DIR/$BINARY_NAME"
+            echo "Successfully copied $SOURCE_BINARY_ABSOLUTE_PATH to $DESTINATION_DIR/$BINARY_NAME"
+            ls -l "$DESTINATION_DIR/" # List the contents of the artifacts directory for verification
+          else
+            echo "Error: Binary not found at expected path: $SOURCE_BINARY_ABSOLUTE_PATH"
+            exit 1 # Fail the step if the binary isn't found
+          fi
+        working-directory: ${{ inputs.directory }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: artifacts/${{ inputs.artifact-name }}
+          if-no-files-found: error
