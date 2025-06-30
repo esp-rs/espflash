@@ -367,7 +367,8 @@ impl Chip {
         }
     }
 
-    /// Returns the offset of BLOCK0 relative to the eFuse base register address.
+    /// Returns the offset of BLOCK0 relative to the eFuse base register
+    /// address.
     pub fn block0_offset(&self) -> u32 {
         match self {
             Chip::Esp32 => 0x0,
@@ -398,7 +399,8 @@ impl Chip {
         }
     }
 
-    /// Given an active connection, read the specified field of the eFuse region.
+    /// Given an active connection, read the specified field of the eFuse
+    /// region.
     #[cfg(feature = "serialport")]
     pub fn read_efuse(&self, connection: &mut Connection, field: EfuseField) -> Result<u32, Error> {
         let mask = if field.bit_count == 32 {
