@@ -651,6 +651,7 @@ impl RomError {
 }
 
 /// Missing partition error.
+#[cfg(feature = "cli")]
 #[derive(Debug, Diagnostic, Error)]
 #[error("Missing partition")]
 #[diagnostic(
@@ -667,6 +668,7 @@ impl From<String> for MissingPartition {
 }
 
 /// Missing partition table error.
+#[cfg(feature = "cli")]
 #[derive(Debug, Error, Diagnostic)]
 #[error("No partition table could be found")]
 #[diagnostic(
