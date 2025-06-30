@@ -3,6 +3,7 @@
 use std::{io::Write, mem::size_of, time::Duration};
 
 use bytemuck::{Pod, Zeroable, bytes_of};
+use serde::{Deserialize, Serialize};
 use strum::Display;
 
 use crate::{
@@ -30,7 +31,7 @@ const SYNC_FRAME: [u8; 36] = [
 /// Types of commands that can be sent to a target device
 ///
 /// <https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/serial-protocol.html#supported-by-stub-loader-and-rom-loader>
-#[derive(Copy, Clone, Debug, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display, Deserialize, Serialize)]
 #[non_exhaustive]
 #[repr(u8)]
 pub enum CommandType {
@@ -95,7 +96,7 @@ pub enum CommandType {
 }
 
 /// The value of a command response.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum CommandResponseValue {
     /// A 32-bit value.
     ValueU32(u32),
@@ -154,7 +155,7 @@ impl TryInto<Vec<u8>> for CommandResponseValue {
 }
 
 /// A response from a target device following a command.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct CommandResponse {
     /// The response byte.
     pub resp: u8,
@@ -215,7 +216,7 @@ impl CommandType {
 /// Available commands
 ///
 /// See <https://docs.espressif.com/projects/esptool/en/latest/esp32c6/advanced-topics/serial-protocol.html#commands>
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[non_exhaustive]
 pub enum Command<'a> {
     /// Begin flash download

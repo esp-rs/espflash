@@ -507,7 +507,7 @@ impl FlashData {
 /// Parameters of the attached SPI flash chip (sizes, etc).
 ///
 /// See: <https://github.com/espressif/esptool/blob/da31d9d/esptool.py#L655>
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[repr(C)]
 pub struct SpiSetParams {
     /// Flash chip ID
@@ -551,7 +551,7 @@ impl SpiSetParams {
 }
 
 /// Parameters for attaching to a target devices SPI flash
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[repr(C)]
 pub struct SpiAttachParams {
     clk: u8,
