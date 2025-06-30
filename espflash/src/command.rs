@@ -34,35 +34,63 @@ const SYNC_FRAME: [u8; 36] = [
 #[non_exhaustive]
 #[repr(u8)]
 pub enum CommandType {
-    Unknown = 0,
-    // Commands supported by the ESP32's bootloaders
+    /// Unknown command type
+    Unknown = 0x00,
+
+    // Commands supported by the ESP32's bootloader
+    /// Begin flash download
     FlashBegin = 0x02,
+    /// Flash download data
     FlashData = 0x03,
+    /// Finish flash download
     FlashEnd = 0x04,
+    /// Begin RAM download
     MemBegin = 0x05,
+    /// RAM download data
     MemEnd = 0x06,
+    /// Finish RAM download
     MemData = 0x07,
+    /// Synchronize frame
     Sync = 0x08,
+    /// Write 32-bit memory address
     WriteReg = 0x09,
+    /// Read 32-bit memory address
     ReadReg = 0x0A,
-    // Commands supported by the ESP32s bootloaders
+
+    // Commands supported by the ESP32's bootloader
+    /// Configure SPI flash
     SpiSetParams = 0x0B,
+    /// Attach SPI flash
     SpiAttach = 0x0D,
+    /// Read flash
+    ///
+    /// ROM-code only, much slower than the stub's `READ_FLASH` command.
+    ReadFlashSlow = 0x0E,
+    /// Change baud rate
     ChangeBaudrate = 0x0F,
+    /// Begin compressed flash download
     FlashDeflBegin = 0x10,
+    /// Compressed flash download data
     FlashDeflData = 0x11,
+    /// Finish compressed flash download
     FlashDeflEnd = 0x12,
+    /// Calculate MD5 checksum of flash region
     FlashMd5 = 0x13,
+    /// Read chip security info
     GetSecurityInfo = 0x14,
+
     // Stub-only commands
+    /// Erase entire flash chip
     EraseFlash = 0xD0,
+    /// Erase flash region
     EraseRegion = 0xD1,
+    /// Read flash
     ReadFlash = 0xD2,
-    ReadFlashSlow = 0x0E, // ROM only, much slower than the stub read_flash
+    /// Exits loader and runs user code
     RunUserCode = 0xD3,
-    // Flash encryption debug mode supported command
-    FlashEncryptedData = 0xD4,
+
     // Not part of the protocol
+    /// Detect the ID of the connected flash
     FlashDetect = 0x9F,
 }
 
@@ -190,7 +218,7 @@ impl CommandType {
 #[derive(Copy, Clone, Debug)]
 #[non_exhaustive]
 pub enum Command<'a> {
-    /// Begin Flash Download
+    /// Begin flash download
     FlashBegin {
         /// Size to erase
         size: u32,
@@ -203,7 +231,7 @@ pub enum Command<'a> {
         /// Supports encryption
         supports_encryption: bool,
     },
-    /// Flash Download Data
+    /// Flash download data
     FlashData {
         /// Data
         data: &'a [u8],
@@ -214,7 +242,7 @@ pub enum Command<'a> {
         /// Sequence number
         sequence: u32,
     },
-    /// Finish Flash Download
+    /// Finish flash download
     FlashEnd {
         /// Reboot
         ///
@@ -222,7 +250,7 @@ pub enum Command<'a> {
         /// if you wish to stay in the loader.
         reboot: bool,
     },
-    /// Begin RAM Download Start
+    /// Begin RAM download start
     MemBegin {
         /// Total size
         size: u32,
@@ -235,9 +263,14 @@ pub enum Command<'a> {
         /// Supports encryption
         supports_encryption: bool,
     },
-    /// Finish RAM Download
-    MemEnd { no_entry: bool, entry: u32 },
-    /// RAM Download Data
+    /// Finish RAM download
+    MemEnd {
+        /// Execute flag
+        no_entry: bool,
+        /// Entry point address
+        entry: u32,
+    },
+    /// RAM download data
     MemData {
         /// Data size
         data: &'a [u8],
@@ -248,9 +281,9 @@ pub enum Command<'a> {
         /// Sequence number
         sequence: u32,
     },
-    /// Sync Frame
+    /// Sync frame
     ///
-    /// 36 bytes: 0x07 0x07 0x12 0x20, followed by 32 x 0x55
+    /// 36 bytes: `0x07 0x07 0x12 0x20`, followed by 32 x `0x55`.
     Sync,
     /// Write 32-bit memory address
     WriteReg {
@@ -267,11 +300,20 @@ pub enum Command<'a> {
         address: u32,
     },
     /// Configure SPI flash
-    SpiSetParams { spi_params: SpiSetParams },
+    SpiSetParams {
+        /// SPI attach parameters
+        spi_params: SpiSetParams,
+    },
     /// Attach SPI flash
-    SpiAttach { spi_params: SpiAttachParams },
+    SpiAttach {
+        /// SPI attach parameters
+        spi_params: SpiAttachParams,
+    },
     /// Attach SPI flash (stub)
-    SpiAttachStub { spi_params: SpiAttachParams },
+    SpiAttachStub {
+        /// SPI attach parameters
+        spi_params: SpiAttachParams,
+    },
     /// Change Baud rate
     ChangeBaudrate {
         /// New baud rate
@@ -295,7 +337,7 @@ pub enum Command<'a> {
         offset: u32,
         /// Supports encryption
         ///
-        /// ROM loader only: 1 to begin encrypted flash, 0 to not.
+        /// ROM loader only: `1` to begin encrypted flash, `0` to not.
         supports_encryption: bool,
     },
     /// Compressed flash download data
@@ -313,8 +355,8 @@ pub enum Command<'a> {
     FlashDeflEnd {
         /// Reboot
         ///
-        /// 0 to reboot, 1 to run user code. Not necessary to send this command
-        /// if you wish to stay in the loader.
+        /// `0` to reboot, `1` to run user code. Not necessary to send this
+        /// command if you wish to stay in the loader.
         reboot: bool,
     },
     /// Calculate MD5 of flash region
@@ -326,11 +368,11 @@ pub enum Command<'a> {
     },
     /// Erase entire flash chip
     ///
-    /// Supported by Stub Loader Only
+    /// Supported by stub loader only.
     EraseFlash,
     /// Erase flash region
     ///
-    /// Supported by Stub Loader Only
+    /// Supported by stub loader only.
     EraseRegion {
         /// Flash offset to erase
         offset: u32,
@@ -339,7 +381,7 @@ pub enum Command<'a> {
     },
     /// Read flash
     ///
-    /// Supported by Stub Loader Only
+    /// Supported by stub loader only.
     ReadFlash {
         /// Flash offset
         offset: u32,
@@ -352,22 +394,26 @@ pub enum Command<'a> {
     },
     /// Read flash (slow)
     ///
-    /// Supported by ROM Loader Only
+    /// Supported by ROM loader only.
     ReadFlashSlow {
+        /// Offset in flash to start from
         offset: u32,
+        /// Size of the region to read
         size: u32,
+        /// Block size
         block_size: u32,
+        /// Maximum number of in-flight bytes
         max_in_flight: u32,
     },
     /// Exits loader and runs user code
     RunUserCode,
-    /// Read SPI flash manufacturer and device id
+    /// Read SPI flash manufacturer and device ID
     ///
-    /// Not part of the serial protocol
+    /// Not part of the serial protocol.
     FlashDetect,
     /// Read chip security info
     ///
-    /// Not supported in ESP322
+    /// Not supported by ESP32.
     GetSecurityInfo,
 }
 

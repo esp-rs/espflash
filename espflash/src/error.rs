@@ -23,27 +23,32 @@ use crate::{
 // https://d34dl0ck.me/rust-bites-designing-error-types-in-rust-libraries/index.html
 type CoreError = Box<dyn core::error::Error + Send + Sync>;
 
-/// All possible errors returned by espflash.
+/// All possible errors returned by espflash
 #[derive(Debug, Diagnostic, Error)]
 #[non_exhaustive]
 pub enum Error {
+    /// App partition not found
     #[error("App partition not found")]
     #[diagnostic(code(espflash::app_partition_not_found))]
     AppPartitionNotFound,
 
+    /// Operation was cancelled by the user
     #[error("Operation was cancelled by the user")]
     #[diagnostic(code(espflash::cancelled))]
     Cancelled,
 
+    /// Unable to detect chip type
     #[error("{0}")]
     #[diagnostic(
         code(espflash::chip_detect_error),
         help("Supported chips are: {}\n\
               If your chip is supported, try hard-resetting the device and try again",
-             Chip::VARIANTS.join(", "))
+             Chip::VARIANTS.join(", ")
+        )
     )]
     ChipDetectError(String),
 
+    /// The specified chip does not match the detected chip
     #[error("Chip provided with `-c/--chip` ({0}) does not match the detected chip ({1})")]
     #[diagnostic(
         code(espflash::chip_mismatch),
@@ -53,6 +58,8 @@ pub enum Error {
     )]
     ChipMismatch(String, String),
 
+    /// Chip argument not provided, this is required when using the `--before
+    /// no-reset-no-sync` option
     #[error(
         "Chip argument not provided, this is required when using the `--before no-reset-no-sync` option"
     )]
@@ -62,14 +69,18 @@ pub enum Error {
     )]
     ChipNotProvided,
 
+    /// Corrupted data received
     #[error("Corrupt data, expected {0:2x?} bytes but received {1:2x?} bytes")]
     #[diagnostic(code(espflash::read_flash::corrupt_data))]
     CorruptData(usize, usize),
 
+    /// The calculated and received MD5 digests do not match
     #[error("MD5 digest mismatch: expected {0:2x?}, received: {1:2x?}")]
     #[diagnostic(code(espflash::read_flash::digest_mismatch))]
     DigestMismatch(Vec<u8>, Vec<u8>),
 
+    /// Supplied ELF image can not be run from RAM, as it includes segments
+    /// mapped to ROM addresses
     #[error(
         "Supplied ELF image can not be run from RAM, as it includes segments mapped to ROM addresses"
     )]
@@ -81,6 +92,7 @@ pub enum Error {
     )]
     ElfNotRamLoadable,
 
+    /// The supplied ELF image is too large for the configured app partition
     #[error(
         "Supplied ELF image of {0}B is too big, and doesn't fit configured app partition of {1}B"
     )]
@@ -93,25 +105,31 @@ pub enum Error {
     )]
     ElfTooBig(u32, u32),
 
+    /// Failed to connect to on-device flash
     #[error("Failed to connect to on-device flash")]
     #[diagnostic(code(espflash::flash_connect))]
     FlashConnect,
 
+    /// Received MD5 digest has the incorrect length
     #[error("Expected MD5 digest (16 bytes), received: {0:#x} bytes")]
     #[diagnostic(code(espflash::read_flash::incorrect_digest_length))]
     IncorrectDigestLength(usize),
 
+    /// Incorrect response from the stub/ROM loader
     #[error("Incorrect response from the stub/ROM loader")]
     #[diagnostic(code(espflash::read_flash::incorrect_response))]
     IncorrectResponse,
 
+    /// The provided bootloader binary is invalid
     #[error("The provided bootloader binary is invalid")]
     InvalidBootloader,
 
+    /// Specified bootloader path is not a `.bin` file
     #[error("Specified bootloader path is not a .bin file")]
     #[diagnostic(code(espflash::invalid_bootloader_path))]
     InvalidBootloaderPath,
 
+    /// Invalid flash size provided
     #[error("The flash size '{0}' is invalid")]
     #[diagnostic(
         code(espflash::invalid_flash_size),
@@ -119,14 +137,17 @@ pub enum Error {
     )]
     InvalidFlashSize(String),
 
+    /// IO error
     #[cfg(not(feature = "serialport"))]
     #[error(transparent)]
     IoError(#[from] io::Error),
 
+    /// Specified partition table path is not a `.bin` or `.csv` file
     #[error("Specified partition table path is not a .bin or .csv file")]
     #[diagnostic(code(espflash::invalid_partition_table_path))]
     InvalidPartitionTablePath,
 
+    /// No serial ports could be detected
     #[error("No serial ports could be detected")]
     #[diagnostic(
         code(espflash::no_serial),
@@ -136,10 +157,12 @@ pub enum Error {
     )]
     NoSerial,
 
+    /// Read more bytes than expected
     #[error("Read more bytes than expected")]
     #[diagnostic(code(espflash::read_flash::read_more_than_expected))]
     ReadMoreThanExpected,
 
+    /// Command requires using the RAM stub
     #[error("This command requires using the RAM stub")]
     #[diagnostic(
         code(espflash::stub_required),
@@ -147,6 +170,7 @@ pub enum Error {
     )]
     StubRequired,
 
+    /// Serial port could not be found
     #[error("The serial port '{0}' could not be found")]
     #[diagnostic(
         code(espflash::serial_not_found),
@@ -154,6 +178,7 @@ pub enum Error {
     )]
     SerialNotFound(String),
 
+    /// No serial port argument was provided
     #[error("No serial port was provided")]
     #[diagnostic(
         code(espflash::serial_not_selected),
@@ -163,44 +188,66 @@ pub enum Error {
     )]
     SerialNotSelected,
 
+    /// Chip does not support a specific feature
     #[error("The {chip} does not support {feature}")]
     #[diagnostic(code(espflash::unsupported_feature))]
-    UnsupportedFeature { chip: Chip, feature: String },
+    UnsupportedFeature {
+        /// Chip
+        chip: Chip,
+        /// Unsupported feature
+        feature: String,
+    },
 
+    /// Unsupported flash chip
     #[error("Flash chip not supported, unrecognized flash ID: {0:#x}")]
     #[diagnostic(code(espflash::unrecognized_flash))]
     UnsupportedFlash(u8),
 
+    /// Flash frequency not supported by chip
     #[error("The specified flash frequency '{frequency}' is not supported by the {chip}")]
     #[diagnostic(code(espflash::unsupported_flash_frequency))]
     UnsupportedFlashFrequency {
+        /// Chip
         chip: Chip,
+        /// Flash frequency
         frequency: FlashFrequency,
     },
 
+    /// Unsupported chip revision for connected chip
     #[error(
         "Minimum supported revision is {major}.{minor}, connected device's revision is {found_major}.{found_minor}"
     )]
     #[diagnostic(code(espflash::unsupported_chip_revision))]
     UnsupportedChipRevision {
+        /// Minimum supported major version
         major: u16,
+        /// Minimum supported minor version
         minor: u16,
+        /// Detected major version
         found_major: u16,
+        /// Detected minor version
         found_minor: u16,
     },
 
+    /// Failed to parse chip revision due to invalid format
     #[error(
         "Failed to parse chip revision: {chip_rev}. Chip revision must be in the format `major.minor`"
     )]
     #[diagnostic(code(espflash::cli::parse_chip_rev_error))]
-    ParseChipRevError { chip_rev: String },
+    ParseChipRevError {
+        /// Chip revision
+        chip_rev: String,
+    },
 
+    /// Error while connecting to device
     #[error("Error while connecting to device")]
     Connection(CoreError),
 
+    /// Communication error while flashing device
     #[error("Communication error while flashing device")]
     Flashing(CoreError),
 
+    /// Supplied ELF image is not valid
     #[error("Supplied ELF image is not valid")]
     #[diagnostic(
         code(espflash::invalid_elf),
@@ -208,61 +255,85 @@ pub enum Error {
     )]
     InvalidElf(CoreError),
 
+    /// Supplied ELF image contains an invalid application descriptor
     #[error("Supplied ELF image contains an invalid application descriptor")]
     #[diagnostic(code(espflash::invalid_app_descriptor))]
     InvalidAppDescriptor(CoreError),
 
+    /// The bootloader returned an error
     #[error("The bootloader returned an error")]
     #[cfg(feature = "serialport")]
     RomError(CoreError),
 
+    /// The selected partition does not exist in the partition table
     #[error("The selected partition does not exist in the partition table")]
     MissingPartition(CoreError),
 
+    /// The partition table is missing or invalid
     #[error("The partition table is missing or invalid")]
     MissingPartitionTable(CoreError),
 
+    /// `defmt` error
     #[cfg(feature = "cli")]
     #[error(transparent)]
     #[diagnostic(transparent)]
     Defmt(#[from] DefmtError),
 
+    /// Verification of flash content failed
     #[error("Verification of flash content failed")]
     #[diagnostic(code(espflash::verify_failed))]
     VerifyFailed,
 
+    /// Error during user interaction
     #[cfg(feature = "cli")]
     #[error(transparent)]
     #[diagnostic(code(espflash::dialoguer_error))]
     DialoguerError(CoreError),
 
+    /// Error while trying to convert from slice
     #[error(transparent)]
     TryFromSlice(CoreError),
 
+    /// Failed to open file
     #[error("Failed to open file: {0}")]
     FileOpenError(String, #[source] io::Error),
 
+    /// Failed to parse partition table
     #[error("Failed to parse partition table")]
     Partition(CoreError),
 
+    /// Invalid response from target device
     #[error("Invalid response: {0}")]
     #[diagnostic(code(espflash::invalid_response))]
     InvalidResponse(String),
 
+    /// An invalid address and/or size argument was provided
     #[error("Invalid `address`({address})  and/or `size`({size}) argument(s)")]
     #[diagnostic(
         code(espflash::erase_region::invalid_argument),
         help("`address` and `size` must be multiples of 0x1000 (4096)")
     )]
-    InvalidEraseRegionArgument { address: u32, size: u32 },
+    InvalidEraseRegionArgument {
+        /// Address argument
+        address: u32,
+        /// Size argument
+        size: u32,
+    },
 
+    /// Firmware was built for a chip other than what was detected
     #[error("The firmware was built for {elf}, but the detected chip is {detected}")]
     #[diagnostic(
         code(espflash::chip_mismatch),
         help("Ensure that the device is connected and your host recognizes the serial adapter")
     )]
-    FirmwareChipMismatch { elf: String, detected: Chip },
+    FirmwareChipMismatch {
+        /// Chip which the ELF file was built for
+        elf: String,
+        /// Chip which was detected
+        detected: Chip,
+    },
 
+    /// The partition table does not fit into the flash
     #[error("The partition table does not fit into the flash ({0})")]
     #[diagnostic(
         code(espflash::partition_table::does_not_fit),
@@ -270,6 +341,7 @@ pub enum Error {
     )]
     PartitionTableDoesNotFit(FlashSize),
 
+    /// App descriptor not present in binary
     #[error("{0}")]
     #[diagnostic(code(espflash::app_desc::app_descriptor_not_present))]
     AppDescriptorNotPresent(String),
