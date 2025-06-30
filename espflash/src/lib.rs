@@ -18,7 +18,7 @@
 //! ```
 //!
 //! We add `default-features` here to disable the `cli` feature, which is
-//! enabled by default. It's important to note that the cli module does not
+//! enabled by default. It's important to note that the `cli` module does not
 //! provide SemVer guarantees. You likely will not need any of these types or
 //! functions in your application so there's no use pulling in the extra
 //! dependencies.
@@ -27,7 +27,7 @@
 //! [cargo-binstall]: https://github.com/cargo-bins/cargo-binstall
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(missing_debug_implementations, rust_2018_idioms)]
+#![deny(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 
 pub use self::error::Error;
 
@@ -59,7 +59,7 @@ pub mod logging {
     }
 }
 
-// Check for updates
+/// Check for updates
 #[cfg(feature = "cli")]
 pub mod update {
     use std::time::Duration;

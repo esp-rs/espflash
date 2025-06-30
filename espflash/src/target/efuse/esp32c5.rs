@@ -2,7 +2,7 @@
 //!
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-06-25 11:06
+//! Generated: 2025-06-26 09:47
 //! Version:   31c7fe3f5f4e0a55b178a57126c0aca7
 
 #![allow(unused)]
@@ -22,10 +22,10 @@ pub const BOOTLOADER_ANTI_ROLLBACK_SECURE_VERSION_HI: EfuseField = EfuseField::n
 /// Represents whether cache is disabled. 1: Disabled 0: Enabled
 pub const DIS_ICACHE: EfuseField = EfuseField::new(0, 1, 40, 1);
 /// Represents whether the USB-to-JTAG function in USB Serial/JTAG is disabled.
-/// Note that \hyperref[fielddesc:EFUSEDISUSBJTAG]{EFUSE\_DIS\_USB\_JTAG} is
+/// Note that \hyperref\[fielddesc:EFUSEDISUSBJTAG\]{EFUSE\_DIS\_USB\_JTAG} is
 /// available only when
-/// \hyperref[fielddesc:EFUSEDISUSBSERIALJTAG]{EFUSE\_DIS\_USB\_SERIAL\_JTAG} is
-/// configured to 0. For more information; please refer to Chapter
+/// \hyperref\[fielddesc:EFUSEDISUSBSERIALJTAG\]{EFUSE\_DIS\_USB\_SERIAL\_JTAG}
+/// is configured to 0. For more information; please refer to Chapter
 /// \ref{mod:bootctrl} \textit{\nameref{mod:bootctrl}}.1: Disabled0: Enabled
 pub const DIS_USB_JTAG: EfuseField = EfuseField::new(0, 1, 41, 1);
 /// Represents whether the ani-rollback check for the 2nd stage bootloader is
@@ -43,9 +43,9 @@ pub const SPI_DOWNLOAD_MSPI_DIS: EfuseField = EfuseField::new(0, 1, 45, 1);
 pub const DIS_TWAI: EfuseField = EfuseField::new(0, 1, 46, 1);
 /// Represents whether the selection of a JTAG signal source through the
 /// strapping pin value is enabled when all of
-/// \hyperref[fielddesc:EFUSEDISPADJTAG]{EFUSE\_DIS\_PAD\_JTAG};
-/// \hyperref[fielddesc:EFUSEDISUSBJTAG]{EFUSE\_DIS\_USB\_JTAG} and
-/// \hyperref[fielddesc:EFUSEDISUSBSERIALJTAG]{EFUSE\_DIS\_USB\_SERIAL\_JTAG}
+/// \hyperref\[fielddesc:EFUSEDISPADJTAG\]{EFUSE\_DIS\_PAD\_JTAG};
+/// \hyperref\[fielddesc:EFUSEDISUSBJTAG\]{EFUSE\_DIS\_USB\_JTAG} and
+/// \hyperref\[fielddesc:EFUSEDISUSBSERIALJTAG\]{EFUSE\_DIS\_USB\_SERIAL\_JTAG}
 /// are configured to 0. For more information; please refer to Chapter
 /// \ref{mod:bootctrl} \textit{\nameref{mod:bootctrl}}.1: Enabled0: Disabled
 pub const JTAG_SEL_ENABLE: EfuseField = EfuseField::new(0, 1, 47, 1);
@@ -88,7 +88,7 @@ pub const BOOTLOADER_ANTI_ROLLBACK_SECURE_VERSION_LO: EfuseField = EfuseField::n
 pub const KM_DISABLE_DEPLOY_MODE: EfuseField = EfuseField::new(0, 2, 64, 4);
 /// Represents the cycle at which the Key Manager switches random numbers.0:
 /// Controlled by the
-/// \hyperref[fielddesc:KEYMNGRNDSWITCHCYCLE]{KEYMNG\_RND\_SWITCH\_CYCLE}
+/// \hyperref\[fielddesc:KEYMNGRNDSWITCHCYCLE\]{KEYMNG\_RND\_SWITCH\_CYCLE}
 /// register. For more information; please refer to Chapter \ref{mod:keymng}
 /// \textit{\nameref{mod:keymng}}1: 8 Key Manager clock cycles2: 16 Key Manager
 /// clock cycles3: 32 Key Manager clock cycles
@@ -217,7 +217,7 @@ pub const XTAL_48M_SEL: EfuseField = EfuseField::new(0, 5, 169, 3);
 /// Represents what determines the XTAL frequency in \textbf{Joint Download
 /// Boot} mode.  For more information; please refer to Chapter
 /// \ref{mod:bootctrl} \textit{\nameref{mod:bootctrl}}.0: Strapping PAD state1:
-/// \hyperref[fielddesc:EFUSEXTAL48MSEL]{EFUSE\_XTAL\_48M\_SEL} in eFuse
+/// \hyperref\[fielddesc:EFUSEXTAL48MSEL\]{EFUSE\_XTAL\_48M\_SEL} in eFuse
 pub const XTAL_48M_SEL_MODE: EfuseField = EfuseField::new(0, 5, 172, 1);
 /// Represents whether to force ECC to use constant-time mode for point
 /// multiplication calculation. 0: Not force1: Force

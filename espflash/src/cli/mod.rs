@@ -10,6 +10,8 @@
 //! [cargo-espflash]: https://crates.io/crates/cargo-espflash
 //! [espflash]: https://crates.io/crates/espflash
 
+#![allow(missing_docs)]
+
 use std::{
     collections::HashMap,
     fs::{self, File},

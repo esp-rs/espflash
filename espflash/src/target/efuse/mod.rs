@@ -1,3 +1,8 @@
+//! eFuse field definitions for all target devices.
+//!
+//! Fields can be read from a connected device, writing is not currently
+//! supported.
+
 #![allow(clippy::empty_docs)]
 
 pub mod esp32;
@@ -10,12 +15,17 @@ pub mod esp32p4;
 pub mod esp32s2;
 pub mod esp32s3;
 
+/// An eFuse field which can be read from a target device.
 #[allow(unused)]
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct EfuseField {
+    /// The block in which the field is located.
     pub block: u32,
+    /// The word offset of the field.
     pub word: u32,
+    /// The bit offset of the start of the field.
     pub bit_start: u32,
+    /// The bit width of the field.
     pub bit_count: u32,
 }
 

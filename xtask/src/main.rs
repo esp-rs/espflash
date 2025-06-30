@@ -272,6 +272,8 @@ fn generate_efuse_constants(
             description,
         } = attrs;
 
+        let description = description.replace('[', "\\[").replace(']', "\\]");
+
         writeln!(writer, "/// {description}")?;
         writeln!(
             writer,
