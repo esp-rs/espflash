@@ -62,7 +62,7 @@ pub enum XtalFrequency {
 
 /// All supported devices
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames)]
 #[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
 pub enum Chip {
@@ -947,7 +947,7 @@ impl TryFrom<u16> for Chip {
 }
 
 /// SPI register addresses
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Hash, Debug, PartialEq, Eq)]
 pub struct SpiRegisters {
     base: u32,
     usr_offset: u32,
