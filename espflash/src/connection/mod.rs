@@ -580,6 +580,12 @@ impl Connection {
     }
 }
 
+impl From<Connection> for Port {
+    fn from(conn: Connection) -> Self {
+        conn.into_serial()
+    }
+}
+
 mod encoder {
     use std::io::Write;
 
