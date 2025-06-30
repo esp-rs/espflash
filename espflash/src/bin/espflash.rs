@@ -10,11 +10,7 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
-    image_format::{
-        ImageFormat,
-        ImageFormatKind,
-        idf::{check_idf_bootloader, parse_partition_table},
-    },
+    image_format::{ImageFormat, ImageFormatKind, idf::check_idf_bootloader},
     logging::initialize_logger,
     target::{Chip, XtalFrequency},
     update::check_for_update,
