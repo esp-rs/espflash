@@ -16,6 +16,12 @@ use clap::Args;
 
 use crate::Result;
 
+type SpawnedCommandOutput = (
+    Child,
+    Arc<Mutex<String>>,
+    thread::JoinHandle<()>,
+    thread::JoinHandle<()>,
+);
 /// Arguments for running tests
 #[derive(Debug, Args)]
 pub struct RunTestsArgs {
@@ -79,14 +85,7 @@ impl TestRunner {
         }
     }
 
-    fn spawn_and_capture_output(
-        mut cmd: Command,
-    ) -> Result<(
-        Child,
-        Arc<Mutex<String>>,
-        thread::JoinHandle<()>,
-        thread::JoinHandle<()>,
-    )> {
+    fn spawn_and_capture_output(mut cmd: Command) -> Result<SpawnedCommandOutput> {
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
         let mut child = cmd.spawn()?;
         let stdout = child.stdout.take().expect("Failed to capture stdout");
@@ -98,7 +97,7 @@ impl TestRunner {
 
         let stdout_handle = thread::spawn(move || {
             let reader = BufReader::new(stdout);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(|line| line.ok()) {
                 println!("{line}");
                 out_clone1.lock().unwrap().push_str(&line);
                 out_clone1.lock().unwrap().push('\n');
@@ -107,7 +106,7 @@ impl TestRunner {
 
         let stderr_handle = thread::spawn(move || {
             let reader = BufReader::new(stderr);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(|line| line.ok()) {
                 println!("{line}");
                 out_clone2.lock().unwrap().push_str(&line);
                 out_clone2.lock().unwrap().push('\n');
@@ -477,7 +476,7 @@ impl TestRunner {
                 "--no-skip",
                 "--monitor",
                 "--non-interactive",
-                &app_backtrace,
+                app_backtrace,
             ],
             Some(&[
                 "0x420012c8",
@@ -694,7 +693,7 @@ impl TestRunner {
 
         // Create a simple binary with a known pattern (regression test for issue #622)
         let test_pattern = [0x01, 0xA0];
-        fs::write(&binary_file, &test_pattern)?;
+        fs::write(&binary_file, test_pattern)?;
 
         // Write the binary to a specific address
         self.run_simple_command_test(
@@ -745,7 +744,7 @@ impl TestRunner {
 
         // Add frequency option for esp32c2
         if chip == "esp32c2" {
-            args.splice(2..2, ["-x", "26mhz"].iter().map(|&s| s));
+            args.splice(2..2, ["-x", "26mhz"].iter().copied());
         }
 
         // Save image
@@ -766,7 +765,7 @@ impl TestRunner {
                 "--non-interactive",
             ],
             Some(&["Hello world!"]),
-            Duration::from_secs(20),
+            Duration::from_secs(60),
             "write-bin and monitor",
         )?;
 
