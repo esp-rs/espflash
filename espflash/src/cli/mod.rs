@@ -655,7 +655,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     }
 
     monitor(
-        flasher.into_connection().into_serial(),
+        flasher.into(),
         elf.as_deref(),
         pid,
         monitor_args,
@@ -1164,7 +1164,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
             monitor_args.monitor_baud = 74_880;
         }
         monitor(
-            flasher.into_connection().into_serial(),
+            flasher.into(),
             None,
             pid,
             monitor_args,

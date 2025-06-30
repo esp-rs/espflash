@@ -20,6 +20,8 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
+use crate::connection::Port;
+#[cfg(feature = "serialport")]
 use crate::target::{DefaultProgressCallback, ProgressCallbacks};
 use crate::{
     Error,
@@ -1377,5 +1379,21 @@ fn detect_sdm(connection: &mut Connection) {
     if connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR).is_err() {
         log::warn!("Secure Download Mode is enabled on this chip");
         connection.secure_download_mode = true;
+    }
+}
+
+#[cfg(feature = "serialport")]
+impl From<Flasher> for Connection {
+    fn from(flasher: Flasher) -> Self {
+        flasher.into_connection()
+    }
+}
+
+#[cfg(feature = "serialport")]
+impl From<Flasher> for Port {
+    fn from(flasher: Flasher) -> Self {
+        // Enables `monitor(flasher.into(), …)`
+        let connection: Connection = flasher.into();
+        connection.into()
     }
 }
