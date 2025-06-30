@@ -46,16 +46,27 @@ jobs:
         run: apt-get update && apt-get -y install curl musl-tools pkg-config
 
       - name: Install toolchain
-        run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
       - name: Build espflash
         run: $HOME/.cargo/bin/cargo build --release
         working-directory: espflash
 
+      - name: Build xtask
+        run: $HOME/.cargo/bin/cargo build --release --locked
+        working-directory: xtask
+
       - uses: actions/upload-artifact@v4
         with:
           name: espflash
           path: target/release/espflash
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtask
+          path: target/release/xtask
           if-no-files-found: error
 
   run-target:
@@ -95,47 +106,17 @@ jobs:
           name: espflash
           path: espflash_app
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: xtask
+          path: xtask_app
+
       - name: Set up espflash binary
         run: |
           chmod +x espflash_app/espflash
           echo "$PWD/espflash_app" >> "$GITHUB_PATH"
+          chmod +x xtask_app/xtask
+          echo "$PWD/xtask_app" >> "$GITHUB_PATH"
 
       - name: Run all tests
-        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 60
-
-      - name: board-info test
-        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 15 board-info
-
-      - name: flash test
-        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 90 flash
-
-      - name: monitor test
-        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 20 monitor
-
-      - name: erase-flash test
-        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 60 erase-flash
-
-      - name: save-image/write-bin test
-        run: |
-          cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 60 save-image_write-bin
-
-      - name: erase-region test
-        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 60 erase-region
-
-      - name: hold-in-reset test
-        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 10 hold-in-reset
-
-      - name: reset test
-        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 10 reset
-
-      - name: checksum-md5 test
-        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 10 checksum-md5
-
-      - name: list-ports test
-        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 10 list-ports
-
-      - name: write-bin test
-        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 30 write-bin
-
-      - name: read-flash test
-        run: cargo xtask run-tests --chip ${{ matrix.board.mcu }} -t 60 read-flash
+        run: xtask run-tests --chip ${{ matrix.board.mcu }} -t 60
