@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DefaultProgressCallback` which implements `ProgressCallbacks` but all methods are no-ops (#904)
 - Update checks can now be skipped by setting the `ESPFLASH_SKIP_UPDATE_CHECK` environment variable (#900)
 - `ProgressCallbacks` now has a `verifying` method to notify when post-flash checksum checking has begun (#908)
+- Implement `From<Connection> for Port` and both `From<Flasher> for Connection` and `Port` conversions (#915)
 
 ### Changed
 
