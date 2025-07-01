@@ -62,8 +62,22 @@ pub enum XtalFrequency {
 
 /// All supported devices
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    Display,
+    EnumIter,
+    EnumString,
+    VariantNames,
+    Deserialize,
+    Serialize,
+)]
 #[non_exhaustive]
+#[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum Chip {
     /// ESP32
