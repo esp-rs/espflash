@@ -1,3 +1,5 @@
+//! Stub loader module.
+
 use std::time::Duration;
 
 use base64::{Engine as _, engine::general_purpose};
@@ -7,7 +9,7 @@ use crate::target::Chip;
 
 /// Flash stub object (deserialized from TOML, converted from JSON as used by
 /// `esptool.py`)
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FlashStub {
     /// Entry point (address)
     entry: u32,

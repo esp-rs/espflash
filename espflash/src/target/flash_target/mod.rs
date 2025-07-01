@@ -1,8 +1,17 @@
-pub use self::{esp32::Esp32Target, ram::RamTarget};
-use crate::{Error, connection::Connection, image_format::Segment};
+//! Flash target module.
+//!
+//! This module defines the traits and types used for flashing operations on a
+//! target device.
+//!
+//! This module include an `FlashTarget` trait impl for `Esp32Target` and
+//! `RamTarget`, enabling the writing of firmware images to the target device's
+//! flash memory or static memory (SRAM). It also provides a `ProgressCallbacks`
+//! trait which allows for progress updates during the flashing process.`
 
 mod esp32;
 mod ram;
+pub use self::{esp32::Esp32Target, ram::RamTarget};
+use crate::{Error, connection::Connection, image_format::Segment};
 
 /// Operations for interacting with a flash target.
 pub trait FlashTarget {

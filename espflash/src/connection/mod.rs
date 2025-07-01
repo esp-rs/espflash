@@ -65,7 +65,7 @@ pub struct Connection {
 }
 
 impl Connection {
-    /// Create a new connection with a target device.
+    /// Creates a new connection with a target device.
     pub fn new(
         serial: Port,
         port_info: UsbPortInfo,
@@ -84,7 +84,7 @@ impl Connection {
         }
     }
 
-    /// Initialize a connection with a device.
+    /// Initializes a connection with a device.
     pub fn begin(&mut self) -> Result<(), Error> {
         let port_name = self.serial.name().unwrap_or_default();
         let reset_sequence = construct_reset_strategy_sequence(
@@ -109,7 +109,7 @@ impl Connection {
         )))
     }
 
-    /// Try to connect to a device.
+    /// Connects to a device.
     fn connect_attempt(&mut self, reset_strategy: &dyn ResetStrategy) -> Result<(), Error> {
         // If we're doing no_sync, we're likely communicating as a pass through
         // with an intermediate device to the ESP32
@@ -187,7 +187,7 @@ impl Connection {
         )))
     }
 
-    /// Try to sync with the device for a given timeout.
+    /// Syncs with a device.
     pub(crate) fn sync(&mut self) -> Result<(), Error> {
         self.with_timeout(CommandType::Sync.timeout(), |connection| {
             connection.command(Command::Sync)?;
@@ -221,14 +221,14 @@ impl Connection {
         Ok(())
     }
 
-    /// Reset the device.
+    /// Resets the device.
     pub fn reset(&mut self) -> Result<(), Error> {
         reset_after_flash(&mut self.serial, self.port_info.pid)?;
 
         Ok(())
     }
 
-    /// Reset the device taking into account the reset after argument.
+    /// Resets the device taking into account the reset after argument.
     pub fn reset_after(&mut self, is_stub: bool, chip: Chip) -> Result<(), Error> {
         let pid = self.usb_pid();
 
@@ -291,7 +291,7 @@ impl Connection {
         }
     }
 
-    /// Reset the device to flash mode.
+    /// Resets the device to flash mode.
     pub fn reset_to_flash(&mut self, extra_delay: bool) -> Result<(), Error> {
         if self.is_using_usb_serial_jtag() {
             UsbJtagSerialReset.reset(&mut self.serial)
@@ -308,25 +308,25 @@ impl Connection {
         }
     }
 
-    /// Set timeout for the serial port.
+    /// Sets the timeout for the serial port.
     pub fn set_timeout(&mut self, timeout: Duration) -> Result<(), Error> {
         self.serial.set_timeout(timeout)?;
         Ok(())
     }
 
-    /// Set baud rate for the serial port.
+    /// Sets the baud rate for the serial port.
     pub fn set_baud(&mut self, baud: u32) -> Result<(), Error> {
         self.serial.set_baud_rate(baud)?;
         self.baud = baud;
         Ok(())
     }
 
-    /// Get the current baud rate of the serial port.
+    /// Returns the current baud rate of the serial port.
     pub fn baud(&self) -> Result<u32, Error> {
         Ok(self.serial.baud_rate()?)
     }
 
-    /// Run a command with a timeout defined by the command type.
+    /// Runs a command with a timeout defined by the command type.
     pub fn with_timeout<T, F>(&mut self, timeout: Duration, mut f: F) -> Result<T, Error>
     where
         F: FnMut(&mut Connection) -> Result<T, Error>,
@@ -346,7 +346,7 @@ impl Connection {
         result
     }
 
-    /// Read the response from a serial port.
+    /// Reads the response from a serial port.
     pub fn read_flash_response(&mut self) -> Result<Option<CommandResponse>, Error> {
         let mut response = Vec::new();
 
@@ -369,7 +369,7 @@ impl Connection {
         Ok(Some(header))
     }
 
-    /// Read the response from a serial port.
+    /// Reads the response from a serial port.
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
         match self.read(10)? {
             None => Ok(None),
@@ -432,7 +432,7 @@ impl Connection {
         }
     }
 
-    /// Write raw data to the serial port.
+    /// Writes raw data to the serial port.
     pub fn write_raw(&mut self, data: u32) -> Result<(), Error> {
         let mut binding = Box::new(&mut self.serial);
         let serial = binding.as_mut();
@@ -445,7 +445,7 @@ impl Connection {
         Ok(())
     }
 
-    /// Write a command to the serial port.
+    /// Writes a command to the serial port.
     pub fn write_command(&mut self, command: Command<'_>) -> Result<(), Error> {
         debug!("Writing command: {command:02x?}");
         let mut binding = Box::new(&mut self.serial);
@@ -460,7 +460,7 @@ impl Connection {
         Ok(())
     }
 
-    ///  Write a command and reads the response.
+    /// Writes a command and reads the response.
     pub fn command(&mut self, command: Command<'_>) -> Result<CommandResponseValue, Error> {
         let ty = command.command_type();
         self.write_command(command).for_command(ty)?;
@@ -495,7 +495,7 @@ impl Connection {
         )))
     }
 
-    /// Read a register command with a timeout.
+    /// Reads a register command with a timeout.
     pub fn read_reg(&mut self, addr: u32) -> Result<u32, Error> {
         let resp = self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
             connection.command(Command::ReadReg { address: addr })
@@ -504,7 +504,7 @@ impl Connection {
         resp.try_into()
     }
 
-    /// Write a register command with a timeout.
+    /// Writes a register command with a timeout.
     pub fn write_reg(&mut self, addr: u32, value: u32, mask: Option<u32>) -> Result<(), Error> {
         self.with_timeout(CommandType::WriteReg.timeout(), |connection| {
             connection.command(Command::WriteReg {
@@ -517,7 +517,7 @@ impl Connection {
         Ok(())
     }
 
-    /// Read a register command with a timeout.
+    /// Reads a register command with a timeout.
     pub(crate) fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
         let mut tmp = Vec::with_capacity(1024);
         loop {
@@ -528,18 +528,18 @@ impl Connection {
         }
     }
 
-    /// Flush the serial port.
+    /// Flushes  the serial port.
     pub fn flush(&mut self) -> Result<(), Error> {
         self.serial.flush()?;
         Ok(())
     }
 
-    /// Turn a serial port into a [Port].
+    /// Turns a serial port into a [Port].
     pub fn into_serial(self) -> Port {
         self.serial
     }
 
-    /// Get the USB PID of the serial port.
+    /// Returns the USB PID of the serial port.
     pub fn usb_pid(&self) -> u16 {
         self.port_info.pid
     }
@@ -559,7 +559,7 @@ impl Connection {
         self.before_operation
     }
 
-    /// Detect which chip is connected to this connection
+    /// Detects which chip is connected to this connection.
     pub fn detect_chip(
         &mut self,
         use_stub: bool,
@@ -580,8 +580,16 @@ impl Connection {
     }
 }
 
+impl From<Connection> for Port {
+    fn from(conn: Connection) -> Self {
+        conn.into_serial()
+    }
+}
+
 mod encoder {
     use std::io::Write;
+
+    use serde::Serialize;
 
     const END: u8 = 0xC0;
     const ESC: u8 = 0xDB;
@@ -589,6 +597,7 @@ mod encoder {
     const ESC_ESC: u8 = 0xDD;
 
     /// Encoder for the SLIP protocol.
+    #[derive(Debug, PartialEq, Eq, Serialize, Hash)]
     pub struct SlipEncoder<'a, W: Write> {
         writer: &'a mut W,
         len: usize,
@@ -601,7 +610,7 @@ mod encoder {
             Ok(Self { writer, len })
         }
 
-        /// Finish the encoding.
+        /// Finishes the encoding.
         pub fn finish(mut self) -> std::io::Result<usize> {
             self.len += self.writer.write(&[END])?;
             Ok(self.len)

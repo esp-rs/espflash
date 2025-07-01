@@ -1,3 +1,8 @@
+//! RAM target module.
+//!
+//! This module defines the traits and types used for flashing operations on a
+//! target device's RAM.
+
 use crate::{Error, image_format::Segment, target::MAX_RAM_BLOCK_SIZE};
 #[cfg(feature = "serialport")]
 use crate::{
@@ -8,7 +13,7 @@ use crate::{
 };
 
 /// Applications running in the target device's RAM.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct RamTarget {
     entry: Option<u32>,
     block_size: usize,

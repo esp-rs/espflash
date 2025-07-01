@@ -1,3 +1,8 @@
+//! ESP32 flash target module.
+//!
+//! This module defines the traits and types used for flashing operations on a
+//! target device's flash memory.
+
 use std::io::Write;
 
 use flate2::{
@@ -22,7 +27,7 @@ use crate::{
 };
 
 /// Applications running from an ESP32's (or variant's) flash
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Esp32Target {
     chip: Chip,
     spi_attach_params: SpiAttachParams,

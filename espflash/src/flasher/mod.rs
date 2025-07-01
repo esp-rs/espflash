@@ -20,6 +20,8 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
+use crate::connection::Port;
+#[cfg(feature = "serialport")]
 use crate::target::{DefaultProgressCallback, ProgressCallbacks};
 use crate::{
     Error,
@@ -52,7 +54,7 @@ pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
 
 /// Security Info Response containing
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct SecurityInfo {
     /// 32 bits flags
     pub flags: u32,
@@ -284,7 +286,9 @@ impl FlashFrequency {
 
 /// Supported flash modes
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Copy, Clone, Debug, Default, VariantNames, Serialize, Deserialize)]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, VariantNames, Serialize, Deserialize,
+)]
 #[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
@@ -305,17 +309,18 @@ pub enum FlashMode {
 /// Note that not all sizes are supported by each target device.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(
-    Clone,
-    Copy,
     Debug,
     Default,
-    Eq,
+    Clone,
+    Copy,
     PartialEq,
+    Eq,
+    Hash,
     Display,
     VariantNames,
     EnumIter,
-    Serialize,
     Deserialize,
+    Serialize,
 )]
 #[non_exhaustive]
 #[repr(u8)]
@@ -436,7 +441,7 @@ impl FromStr for FlashSize {
 }
 
 /// Flash settings to use when flashing a device.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct FlashSettings {
     /// Flash mode.
@@ -470,7 +475,7 @@ impl FlashSettings {
 }
 
 /// Flash data and configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct FlashData {
     /// Flash settings.
@@ -507,7 +512,7 @@ impl FlashData {
 /// Parameters of the attached SPI flash chip (sizes, etc).
 ///
 /// See: <https://github.com/espressif/esptool/blob/da31d9d/esptool.py#L655>
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[repr(C)]
 pub struct SpiSetParams {
     /// Flash chip ID
@@ -551,7 +556,7 @@ impl SpiSetParams {
 }
 
 /// Parameters for attaching to a target devices SPI flash
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[repr(C)]
 pub struct SpiAttachParams {
     clk: u8,
@@ -603,7 +608,7 @@ impl SpiAttachParams {
 }
 
 /// Information about the connected device
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct DeviceInfo {
     /// The chip being used
     pub chip: Chip,
@@ -1377,5 +1382,21 @@ fn detect_sdm(connection: &mut Connection) {
     if connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR).is_err() {
         log::warn!("Secure Download Mode is enabled on this chip");
         connection.secure_download_mode = true;
+    }
+}
+
+#[cfg(feature = "serialport")]
+impl From<Flasher> for Connection {
+    fn from(flasher: Flasher) -> Self {
+        flasher.into_connection()
+    }
+}
+
+#[cfg(feature = "serialport")]
+impl From<Flasher> for Port {
+    fn from(flasher: Flasher) -> Self {
+        // Enables `monitor(flasher.into(), …)`
+        let connection: Connection = flasher.into();
+        connection.into()
     }
 }

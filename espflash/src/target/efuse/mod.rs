@@ -30,7 +30,8 @@ pub struct EfuseField {
 }
 
 impl EfuseField {
-    const fn new(block: u32, word: u32, bit_start: u32, bit_count: u32) -> Self {
+    /// Creates a new eFuse field definition.
+    pub const fn new(block: u32, word: u32, bit_start: u32, bit_count: u32) -> Self {
         Self {
             block,
             word,

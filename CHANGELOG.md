@@ -31,11 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a `check-app-descriptor` bool option to `ImageArgs` and add the flag to `flash` command (#872)
 - `Connection::into_serial` to get the underlying port from the connection (#882)
 - All methods on the now removed `Target` & `ReadEFuse`, `UsbOtg` and `RtcWdtReset` traits have been implemented directly on (#891)
-- Update checks can now be skipped by setting the the `ESPFLASH_SKIP_UPDATE_CHECK` environment variable (#900)
+- Update checks can now be skipped by setting the `ESPFLASH_SKIP_UPDATE_CHECK` environment variable (#900)
 - `flash_write_size` and `max_ram_block_size` functions no longer take a connection parameter and return a Result type (#903)
 - `DefaultProgressCallback` which implements `ProgressCallbacks` but all methods are no-ops (#904)
-- Update checks can now be skipped by setting the `ESPFLASH_SKIP_UPDATE_CHECK` environment variable (#900)
 - `ProgressCallbacks` now has a `verifying` method to notify when post-flash checksum checking has begun (#908)
+- Implement `From<Connection> for Port` and both `From<Flasher> for Connection` and `Port` conversions (#915)
 
 ### Changed
 
@@ -79,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed typos in error variant names (#782)
 - Fix `read-flash` which didn't work with some lengths (#804)
 - espflash can now flash an ESP32-S2 in download mode over USB (#813)
-- Fixed a case where esplash transformed the firmware elf in a way that made it unbootable (#831)
+- Fixed a case where espflash transformed the firmware ELF in a way that made it unbootable (#831)
 - The app descriptor is now correctly placed in the front of the binary (#835)
 - espflash now extracts the MMU page size from the app descriptor (#835)
 - `ResetBeforeOperation` & `ResetAfterOperation` are now public, to allow the creation of a `Connection` (#895)

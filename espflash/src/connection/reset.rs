@@ -1,3 +1,7 @@
+//! Reset strategies for resetting a target device.
+//!
+//! This module defines the traits and types used for resetting a target device.
+
 // Most of this module is copied from `esptool.py`:
 // https://github.com/espressif/esptool/blob/a8586d0/esptool/reset.py
 
@@ -8,6 +12,7 @@ use std::{thread::sleep, time::Duration};
 #[cfg(unix)]
 use libc::ioctl;
 use log::debug;
+use serde::{Deserialize, Serialize};
 use serialport::SerialPort;
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
@@ -18,12 +23,12 @@ use crate::{
     flasher::FLASH_WRITE_SIZE,
 };
 
-/// Default time to wait before releasing the boot pin after a reset
+/// Default time to wait before releasing the boot pin after a reset.
 const DEFAULT_RESET_DELAY: u64 = 50; // ms
-/// Amount of time to wait if the default reset delay does not work
+/// Amount of time to wait if the default reset delay does not work.
 const EXTRA_RESET_DELAY: u64 = 500; // ms
 
-/// Some strategy for resting a target device
+/// Reset strategies for resetting a target device.
 pub trait ResetStrategy {
     fn reset(&self, serial_port: &mut Port) -> Result<(), Error>;
 
@@ -74,7 +79,7 @@ pub trait ResetStrategy {
 }
 
 /// Classic reset sequence, sets DTR and RTS sequentially.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Hash, Deserialize)]
 pub struct ClassicReset {
     delay: u64,
 }
@@ -124,7 +129,7 @@ impl ResetStrategy for ClassicReset {
 /// UNIX-only reset sequence with custom implementation, which allows setting
 /// DTR and RTS lines at the same time.
 #[cfg(unix)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Hash, Deserialize)]
 pub struct UnixTightReset {
     delay: u64,
 }
@@ -170,7 +175,7 @@ impl ResetStrategy for UnixTightReset {
 
 /// Custom reset sequence, which is required when the device is connecting via
 /// its USB-JTAG-Serial peripheral.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Hash, Deserialize)]
 pub struct UsbJtagSerialReset;
 
 impl ResetStrategy for UsbJtagSerialReset {
@@ -200,7 +205,7 @@ impl ResetStrategy for UsbJtagSerialReset {
     }
 }
 
-/// Reset the target device
+/// Resets the target device.
 pub fn reset_after_flash(serial: &mut Port, pid: u16) -> Result<(), serialport::Error> {
     sleep(Duration::from_millis(100));
 
@@ -227,7 +232,7 @@ pub fn reset_after_flash(serial: &mut Port, pid: u16) -> Result<(), serialport::
     Ok(())
 }
 
-/// Reset sequence for hard resetting the chip.
+/// Performs a hard reset of the chip.
 pub fn hard_reset(serial_port: &mut Port, pid: u16) -> Result<(), Error> {
     debug!("Using HardReset reset strategy");
 
@@ -239,7 +244,7 @@ pub fn hard_reset(serial_port: &mut Port, pid: u16) -> Result<(), Error> {
     Ok(())
 }
 
-/// Perform a soft reset of the device.
+/// Performs a soft reset of the device.
 pub fn soft_reset(
     connection: &mut Connection,
     stay_in_bootloader: bool,
@@ -295,7 +300,7 @@ pub fn soft_reset(
     Ok(())
 }
 
-/// Construct a sequence of reset strategies based on the OS and chip.
+/// Constructs a sequence of reset strategies based on the OS and chip.
 ///
 /// Returns a [Vec] containing one or more reset strategies to be attempted
 /// sequentially.
@@ -331,7 +336,19 @@ pub fn construct_reset_strategy_sequence(
 /// Enum to represent different reset behaviors before an operation.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Display,
+    EnumIter,
+    EnumString,
+    VariantNames,
+    Hash,
+    Serialize,
+    Deserialize,
 )]
 #[non_exhaustive]
 #[strum(serialize_all = "lowercase")]
@@ -346,14 +363,26 @@ pub enum ResetBeforeOperation {
     /// Skips DTR/RTS control signal assignments and also skips the serial
     /// synchronization command.
     NoResetNoSync,
-    /// Reset sequence for USB-JTAG-Serial peripheral
+    /// Reset sequence for USB-JTAG-Serial peripheral.
     UsbReset,
 }
 
 /// Enum to represent different reset behaviors after an operation.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Display,
+    EnumIter,
+    EnumString,
+    VariantNames,
+    Hash,
+    Serialize,
+    Deserialize,
 )]
 #[non_exhaustive]
 pub enum ResetAfterOperation {

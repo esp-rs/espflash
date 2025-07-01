@@ -62,8 +62,22 @@ pub enum XtalFrequency {
 
 /// All supported devices
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    Display,
+    EnumIter,
+    EnumString,
+    VariantNames,
+    Deserialize,
+    Serialize,
+)]
 #[non_exhaustive]
+#[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum Chip {
     /// ESP32
@@ -305,7 +319,7 @@ impl Chip {
         }
     }
 
-    /// Returns the default flash frequency for the [Chip]
+    /// Returns the default flash frequency for the [Chip].
     pub fn default_flash_frequency(&self) -> FlashFrequency {
         match self {
             Chip::Esp32
@@ -320,7 +334,7 @@ impl Chip {
         }
     }
 
-    /// Returns the default crystal frequency for the [Chip]
+    /// Returns the default crystal frequency for the [Chip].
     pub fn default_xtal_frequency(&self) -> XtalFrequency {
         match self {
             Chip::Esp32c5 => XtalFrequency::_48Mhz,
@@ -367,7 +381,8 @@ impl Chip {
         }
     }
 
-    /// Returns the offset of BLOCK0 relative to the eFuse base register address
+    /// Returns the offset of BLOCK0 relative to the eFuse base register
+    /// address.
     pub fn block0_offset(&self) -> u32 {
         match self {
             Chip::Esp32 => 0x0,
@@ -382,7 +397,7 @@ impl Chip {
         }
     }
 
-    /// Returns the size of the specified block for the implementing target
+    /// Returns the size of the specified block for the implementing target.
     /// device
     pub fn block_size(&self, block: usize) -> u32 {
         match self {
@@ -398,7 +413,8 @@ impl Chip {
         }
     }
 
-    /// Given an active connection, read the specified field of the eFuse region
+    /// Given an active connection, read the specified field of the eFuse
+    /// region.
     #[cfg(feature = "serialport")]
     pub fn read_efuse(&self, connection: &mut Connection, field: EfuseField) -> Result<u32, Error> {
         let mask = if field.bit_count == 32 {
@@ -416,7 +432,7 @@ impl Chip {
     }
 
     /// Read the raw word in the specified eFuse block, without performing any
-    /// bit-shifting or masking of the read value
+    /// bit-shifting or masking of the read value.
     #[cfg(feature = "serialport")]
     pub fn read_efuse_raw(
         &self,
@@ -436,7 +452,7 @@ impl Chip {
         connection.read_reg(addr)
     }
 
-    /// Is the provided address `addr` in flash?
+    /// Returns whether the provided address `addr` in flash.
     pub fn addr_is_flash(&self, addr: u32) -> bool {
         match self {
             Chip::Esp32 => {
@@ -505,7 +521,7 @@ impl Chip {
         }
     }
 
-    /// Enumerate the chip's features, read from eFuse
+    /// Enumerate the chip's features.
     #[cfg(feature = "serialport")]
     pub fn chip_features(&self, connection: &mut Connection) -> Result<Vec<&str>, Error> {
         match self {
@@ -828,43 +844,12 @@ impl Chip {
                 mosi_length_offset: Some(0x28),
                 miso_length_offset: Some(0x2c),
             },
-            Chip::Esp32c2 => SpiRegisters {
-                base: 0x6000_3000,
-                usr_offset: 0x18,
-                usr1_offset: 0x1c,
-                usr2_offset: 0x20,
-                w0_offset: 0x58,
-                mosi_length_offset: Some(0x24),
-                miso_length_offset: Some(0x28),
-            },
-            Chip::Esp32c3 => SpiRegisters {
-                base: 0x6000_3000,
-                usr_offset: 0x18,
-                usr1_offset: 0x1c,
-                usr2_offset: 0x20,
-                w0_offset: 0x58,
-                mosi_length_offset: Some(0x24),
-                miso_length_offset: Some(0x28),
-            },
-            Chip::Esp32c5 => SpiRegisters {
-                base: 0x6000_3000,
-                usr_offset: 0x18,
-                usr1_offset: 0x1c,
-                usr2_offset: 0x20,
-                w0_offset: 0x58,
-                mosi_length_offset: Some(0x24),
-                miso_length_offset: Some(0x28),
-            },
-            Chip::Esp32c6 => SpiRegisters {
-                base: 0x6000_3000,
-                usr_offset: 0x18,
-                usr1_offset: 0x1c,
-                usr2_offset: 0x20,
-                w0_offset: 0x58,
-                mosi_length_offset: Some(0x24),
-                miso_length_offset: Some(0x28),
-            },
-            Chip::Esp32h2 => SpiRegisters {
+            Chip::Esp32c2
+            | Chip::Esp32c3
+            | Chip::Esp32c5
+            | Chip::Esp32c6
+            | Chip::Esp32h2
+            | Chip::Esp32s3 => SpiRegisters {
                 base: 0x6000_3000,
                 usr_offset: 0x18,
                 usr1_offset: 0x1c,
@@ -884,15 +869,6 @@ impl Chip {
             },
             Chip::Esp32s2 => SpiRegisters {
                 base: 0x3f40_3000,
-                usr_offset: 0x18,
-                usr1_offset: 0x1c,
-                usr2_offset: 0x20,
-                w0_offset: 0x58,
-                mosi_length_offset: Some(0x24),
-                miso_length_offset: Some(0x28),
-            },
-            Chip::Esp32s3 => SpiRegisters {
-                base: 0x6000_3000,
                 usr_offset: 0x18,
                 usr1_offset: 0x1c,
                 usr2_offset: 0x20,
@@ -923,10 +899,8 @@ impl Chip {
         self.supported_build_targets().contains(&target)
     }
 
-    // Helper methods for chip-specific functionality
-
     #[cfg(feature = "serialport")]
-    /// Return the package version based on the eFuses for ESP32
+    /// Returns the package version based on the eFuses for ESP32
     fn esp32_package_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         let word3 = self.read_efuse_raw(connection, 0, 3)?;
 
@@ -937,31 +911,31 @@ impl Chip {
     }
 
     #[cfg(feature = "serialport")]
-    /// Return the block2 version based on eFuses for ESP32-S2
+    /// Returns the block2 version based on eFuses for ESP32-S2
     fn esp32s2_block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         self.read_efuse(connection, efuse::esp32s2::BLK_VERSION_MINOR)
     }
 
     #[cfg(feature = "serialport")]
-    /// Return the flash version based on eFuses for ESP32-S2
+    /// Returns the flash version based on eFuses for ESP32-S2
     fn esp32s2_flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         self.read_efuse(connection, efuse::esp32s2::FLASH_VERSION)
     }
 
     #[cfg(feature = "serialport")]
-    /// Return the PSRAM version based on eFuses for ESP32-S2
+    /// Returns the PSRAM version based on eFuses for ESP32-S2
     fn esp32s2_psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         self.read_efuse(connection, efuse::esp32s2::PSRAM_VERSION)
     }
 
     #[cfg(feature = "serialport")]
-    /// Return the major BLK version based on eFuses for ESP32-S3
+    /// Returns the major BLK version based on eFuses for ESP32-S3
     fn esp32s3_blk_version_major(&self, connection: &mut Connection) -> Result<u32, Error> {
         self.read_efuse(connection, efuse::esp32s3::BLK_VERSION_MAJOR)
     }
 
     #[cfg(feature = "serialport")]
-    /// Return the minor BLK version based on eFuses for ESP32-S3
+    /// Returns the minor BLK version based on eFuses for ESP32-S3
     fn esp32s3_blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
         self.read_efuse(connection, efuse::esp32s3::BLK_VERSION_MINOR)
     }
@@ -989,7 +963,7 @@ impl TryFrom<u16> for Chip {
 }
 
 /// SPI register addresses
-#[derive(Debug)]
+#[derive(Copy, Clone, Hash, Debug, PartialEq, Eq)]
 pub struct SpiRegisters {
     base: u32,
     usr_offset: u32,

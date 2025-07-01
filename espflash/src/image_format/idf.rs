@@ -23,6 +23,7 @@ use object::{
     ObjectSymbol,
     read::elf::ElfFile32 as ElfFile,
 };
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use super::{Segment, ram_segments, rom_segments};
@@ -242,7 +243,7 @@ impl AppDescriptor {
 
 /// Image format for ESP32 family chips using the second-stage bootloader from
 /// ESP-IDF
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct IdfBootloaderFormat<'a> {
     boot_addr: u32,
     bootloader: Cow<'a, [u8]>,
@@ -266,7 +267,9 @@ impl<'a> IdfBootloaderFormat<'a> {
         let elf = ElfFile::parse(elf_data)?;
 
         let partition_table = if let Some(partition_table_path) = partition_table_path {
-            parse_partition_table(partition_table_path)?
+            let data = fs::read(partition_table_path)
+                .map_err(|e| Error::FileOpenError(partition_table_path.display().to_string(), e))?;
+            PartitionTable::try_from(data)?
         } else {
             default_partition_table(
                 flash_data.chip,
@@ -785,13 +788,6 @@ fn update_checksum(data: &[u8], mut checksum: u8) -> u8 {
     }
 
     checksum
-}
-
-/// Parse a [PartitionTable] from the provided path
-pub fn parse_partition_table(path: &Path) -> Result<PartitionTable, Error> {
-    let data = fs::read(path).map_err(|e| Error::FileOpenError(path.display().to_string(), e))?;
-
-    Ok(PartitionTable::try_from(data)?)
 }
 
 fn encode_hex<T>(data: T) -> String

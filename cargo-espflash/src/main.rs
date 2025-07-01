@@ -15,11 +15,7 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
-    image_format::{
-        ImageFormat,
-        ImageFormatKind,
-        idf::{check_idf_bootloader, parse_partition_table},
-    },
+    image_format::{ImageFormat, ImageFormatKind, idf::check_idf_bootloader},
     logging::initialize_logger,
     target::{Chip, XtalFrequency},
     update::check_for_update,
@@ -419,7 +415,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         monitor_args.elf = Some(build_ctx.artifact_path);
 
         monitor(
-            flasher.into_connection().into_serial(),
+            flasher.into(),
             Some(&elf_data),
             pid,
             monitor_args,
