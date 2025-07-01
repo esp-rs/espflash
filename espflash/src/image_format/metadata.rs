@@ -1,3 +1,5 @@
+//! Image format metadata.
+
 use std::{collections::HashMap, error::Error};
 
 use object::{File, Object, ObjectSection, ObjectSymbol};

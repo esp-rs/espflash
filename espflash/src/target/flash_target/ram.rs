@@ -1,3 +1,8 @@
+//! RAM target module.
+//!
+//! This module defines the traits and types used for flashing operations on a
+//! target device's RAM.
+
 use crate::{Error, image_format::Segment, target::MAX_RAM_BLOCK_SIZE};
 #[cfg(feature = "serialport")]
 use crate::{

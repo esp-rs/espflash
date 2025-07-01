@@ -1,3 +1,5 @@
+//! Stub loader module.
+
 use std::time::Duration;
 
 use base64::{Engine as _, engine::general_purpose};

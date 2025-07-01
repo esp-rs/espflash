@@ -1,3 +1,8 @@
+//! ESP32 flash target module.
+//!
+//! This module defines the traits and types used for flashing operations on a
+//! target device's flash memory.
+
 use std::io::Write;
 
 use flate2::{

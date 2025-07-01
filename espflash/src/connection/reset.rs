@@ -1,3 +1,7 @@
+//! Reset strategies for resetting a target device.
+//!
+//! This module defines the traits and types used for resetting a target device.
+
 // Most of this module is copied from `esptool.py`:
 // https://github.com/espressif/esptool/blob/a8586d0/esptool/reset.py
 
