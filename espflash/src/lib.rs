@@ -14,7 +14,7 @@
 //! [espflash] can also be used as a library:
 //!
 //! ```toml
-//! espflash = { version = "4.0.0-dev", default-features = false }
+//! espflash = { version = "4.0.0", default-features = false }
 //! ```
 //!
 //! We add `default-features` here to disable the `cli` feature, which is

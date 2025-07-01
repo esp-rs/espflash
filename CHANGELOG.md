@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [4.0.0] - 2025-07-01
+
+### Added
+
 - Add `non-interactive` flag to `flash` subcommand (#737)
 - Add `no-reset` flag to `monitor` subcommands (#737)
 - Add an environment variable to set monitoring baudrate (`MONITOR_BAUD`) (#737)
@@ -17,10 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `--monitor` option to `write-bin`. (#783)
 - Add `watchdog-reset` strategy to `--after` subcommand (#779)
 - Add `ROM` version of `read-flash` command (#812)
-- `espflash` can detect the log format automatically from ESP-HAL metadata. Requires `esp-println` 0.14 (presumably, yet to be released) (#809)
+- `espflash` can detect the log format automatically from ESP-HAL metadata. Requires `esp-println` 0.14 (#809)
 - Add `--output-format` option to monitor (#818)
 - Added chip detection based on security info, where supported (#814)
-- `espflash` can detect the chip from ESP-HAL metadata to prevent flashing firmware built for a different device. Requires `esp-hal` 1.0.0-beta.0 (presumably, yet to be released) (#816)
+- `espflash` can detect the chip from ESP-HAL metadata to prevent flashing firmware built for a different device. Requires `esp-hal` 1.0.0-beta.0 (#816)
 - `espflash` no longer allows flashing a too-big partition table (#830)
 - Allow specifying a partition label for `write-bin`, add `--partition-table`. (#828)
 - `--mmu-page-size` parameter for `flash` and `save-image` (#835)
@@ -385,7 +395,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-09-21
 
-[Unreleased]: https://github.com/esp-rs/espflash/compare/v3.3.0...HEAD
+[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/esp-rs/espflash/compare/v3.3.0...v4.0.0
 [3.3.0]: https://github.com/esp-rs/espflash/compare/v3.2.0...v3.3.0
 [3.2.0]: https://github.com/esp-rs/espflash/compare/v3.1.1...v3.2.0
 [3.1.1]: https://github.com/esp-rs/espflash/compare/v3.1.0...v3.1.1

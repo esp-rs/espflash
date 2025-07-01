@@ -1,6 +1,6 @@
 [package]
 name         = "cargo-espflash"
-version      = "4.0.0-dev"
+version      = "4.0.0"
 edition      = "2024"
 rust-version = "1.85"
 description  = "Cargo subcommand for interacting with Espressif devices"
@@ -23,7 +23,7 @@ pkg-fmt = "zip"
 [dependencies]
 cargo_metadata = "0.20.0"
 clap           = { version = "4.5.40", features = ["derive", "wrap_help"] }
-espflash       = { version = "4.0.0-dev", path = "../espflash" }
+espflash       = { version = "4.0.0", path = "../espflash" }
 log            = "0.4.27"
 miette         = { version = "7.6.0", features = ["fancy"] }
 serde          = { version = "1.0.219", features = ["derive"] }
