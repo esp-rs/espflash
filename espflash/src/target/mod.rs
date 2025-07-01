@@ -844,13 +844,17 @@ impl Chip {
                 mosi_length_offset: Some(0x28),
                 miso_length_offset: Some(0x2c),
             },
-            Chip::Esp32c2
-            | Chip::Esp32c3
-            | Chip::Esp32c5
-            | Chip::Esp32c6
-            | Chip::Esp32h2
-            | Chip::Esp32s3 => SpiRegisters {
+            Chip::Esp32c5 | Chip::Esp32c6 | Chip::Esp32h2 => SpiRegisters {
                 base: 0x6000_3000,
+                usr_offset: 0x18,
+                usr1_offset: 0x1c,
+                usr2_offset: 0x20,
+                w0_offset: 0x58,
+                mosi_length_offset: Some(0x24),
+                miso_length_offset: Some(0x28),
+            },
+            Chip::Esp32c2 | Chip::Esp32c3 | Chip::Esp32s3 => SpiRegisters {
+                base: 0x6000_2000,
                 usr_offset: 0x18,
                 usr1_offset: 0x1c,
                 usr2_offset: 0x20,
