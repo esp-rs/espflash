@@ -67,14 +67,14 @@ impl TestRunner {
             .stderr(Stdio::inherit());
     }
 
-    fn terminate_process(child_id: u32, child: &mut Option<&mut Child>) {
-        unsafe {
-            libc::kill(child_id as i32, libc::SIGTERM);
-        }
-
-        // Wait for the process to terminate
+    fn terminate_process(child: &mut Option<&mut Child>) {
         if let Some(child_proc) = child {
-            let _ = child_proc.wait();
+            let _ = child_proc.kill();
+
+            // Wait for the process to terminate
+            if let Some(child_proc) = child {
+                let _ = child_proc.wait();
+            }
         }
     }
 
@@ -139,7 +139,7 @@ impl TestRunner {
             }
 
             log::warn!("Command timed out after {timeout:?}, killing process {child_id}");
-            Self::terminate_process(child_id, &mut None);
+            Self::terminate_process(&mut None);
         });
 
         let status = match child.wait() {
@@ -183,7 +183,7 @@ impl TestRunner {
                 start_time.elapsed(),
                 child.id()
             );
-            Self::terminate_process(child.id(), &mut Some(&mut child));
+            Self::terminate_process(&mut Some(&mut child));
         }
 
         Self::restore_terminal();
