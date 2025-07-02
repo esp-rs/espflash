@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `save-image` now checks if the ELF contains the app descriptor (#920)
 
 ### Changed
 
