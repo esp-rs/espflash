@@ -10,7 +10,7 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
-    image_format::{ImageFormat, ImageFormatKind, idf::check_idf_bootloader},
+    image_format::{ImageFormat, ImageFormatKind, idf::check_app_descriptor},
     logging::initialize_logger,
     target::{Chip, XtalFrequency},
     update::check_for_update,
@@ -263,9 +263,8 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(&args.image).into_diagnostic()?;
 
-    // Check if the ELF contains the app descriptor, if required.
-    if args.flash_args.image.check_app_descriptor {
-        check_idf_bootloader(&elf_data)?;
+    if args.flash_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
+        check_app_descriptor(&elf_data)?;
     }
 
     print_board_info(&mut flasher)?;
@@ -344,9 +343,8 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .into_diagnostic()
         .wrap_err_with(|| format!("Failed to open image {}", args.image.display()))?;
 
-    // Check if the ELF contains the app descriptor, if required.
-    if args.save_image_args.image.check_app_descriptor {
-        check_idf_bootloader(&elf_data)?;
+    if args.save_image_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
+        check_app_descriptor(&elf_data)?;
     }
 
     // Since we have no `Flasher` instance and as such cannot print the board

@@ -15,7 +15,7 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
-    image_format::{ImageFormat, ImageFormatKind, idf::check_idf_bootloader},
+    image_format::{ImageFormat, ImageFormatKind, idf::check_app_descriptor},
     logging::initialize_logger,
     target::{Chip, XtalFrequency},
     update::check_for_update,
@@ -336,9 +336,8 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(build_ctx.artifact_path.clone()).into_diagnostic()?;
 
-    // Check if the ELF contains the app descriptor, if required.
-    if args.flash_args.image.check_app_descriptor {
-        check_idf_bootloader(&elf_data)?;
+    if args.flash_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
+        check_app_descriptor(&elf_data)?;
     }
 
     let mut monitor_args = args.flash_args.monitor_args;
@@ -617,9 +616,8 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     let build_ctx = build(&args.build_args, &cargo_config, args.save_image_args.chip)?;
     let elf_data = fs::read(&build_ctx.artifact_path).into_diagnostic()?;
 
-    // Check if the ELF contains the app descriptor, if required.
-    if args.save_image_args.image.check_app_descriptor {
-        check_idf_bootloader(&elf_data)?;
+    if args.save_image_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
+        check_app_descriptor(&elf_data)?;
     }
 
     // Since we have no `Flasher` instance and as such cannot print the board
