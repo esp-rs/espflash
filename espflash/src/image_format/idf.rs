@@ -806,7 +806,7 @@ where
 }
 
 /// Check if the provided ELF contains the app descriptor required by [the IDF bootloader](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/bootloader.html).
-pub fn check_app_descriptor(elf_data: &Vec<u8>) -> Result<()> {
+pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
     let object = File::parse(elf_data.as_slice()).into_diagnostic()?;
 
     let has_app_desc = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"));

@@ -10,7 +10,7 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
-    image_format::{ImageFormat, ImageFormatKind, idf::check_app_descriptor},
+    image_format::{ImageFormat, ImageFormatKind, idf::check_idf_bootloader},
     logging::initialize_logger,
     target::{Chip, XtalFrequency},
     update::check_for_update,
@@ -264,7 +264,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let elf_data = fs::read(&args.image).into_diagnostic()?;
 
     if args.flash_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
-        check_app_descriptor(&elf_data)?;
+        check_idf_bootloader(&elf_data)?;
     }
 
     print_board_info(&mut flasher)?;
@@ -344,7 +344,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .wrap_err_with(|| format!("Failed to open image {}", args.image.display()))?;
 
     if args.save_image_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
-        check_app_descriptor(&elf_data)?;
+        check_idf_bootloader(&elf_data)?;
     }
 
     // Since we have no `Flasher` instance and as such cannot print the board
