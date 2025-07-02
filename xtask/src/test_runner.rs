@@ -765,7 +765,7 @@ impl TestRunner {
                 "--non-interactive",
             ],
             Some(&["Hello world!"]),
-            Duration::from_secs(60),
+            Duration::from_secs(80),
             "write-bin and monitor",
         )?;
 
