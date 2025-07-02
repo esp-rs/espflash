@@ -337,7 +337,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let elf_data = fs::read(build_ctx.artifact_path.clone()).into_diagnostic()?;
 
     // Check if the ELF contains the app descriptor, if required.
-    if args.flash_args.image.check_app_descriptor.unwrap_or(true) {
+    if args.flash_args.image.check_app_descriptor {
         check_idf_bootloader(&elf_data)?;
     }
 
@@ -616,6 +616,11 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
 
     let build_ctx = build(&args.build_args, &cargo_config, args.save_image_args.chip)?;
     let elf_data = fs::read(&build_ctx.artifact_path).into_diagnostic()?;
+
+    // Check if the ELF contains the app descriptor, if required.
+    if args.save_image_args.image.check_app_descriptor {
+        check_idf_bootloader(&elf_data)?;
+    }
 
     // Since we have no `Flasher` instance and as such cannot print the board
     // information, we will print whatever information we _do_ have.
