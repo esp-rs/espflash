@@ -259,7 +259,7 @@ pub struct ImageArgs {
     pub mmu_page_size: Option<u32>,
     /// Flag to check the app descriptor in bootloader
     #[arg(long, default_value = "true", value_parser = clap::value_parser!(bool))]
-    pub check_app_descriptor: Option<bool>,
+    pub check_app_descriptor: bool,
 }
 
 /// ESP-IDF image format arguments

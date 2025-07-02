@@ -263,8 +263,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(&args.image).into_diagnostic()?;
 
-    // Check if the ELF contains the app descriptor, if required.
-    if args.flash_args.image.check_app_descriptor.unwrap_or(true) {
+    if args.flash_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
         check_idf_bootloader(&elf_data)?;
     }
 
@@ -343,6 +342,10 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     let elf_data = fs::read(&args.image)
         .into_diagnostic()
         .wrap_err_with(|| format!("Failed to open image {}", args.image.display()))?;
+
+    if args.save_image_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
+        check_idf_bootloader(&elf_data)?;
+    }
 
     // Since we have no `Flasher` instance and as such cannot print the board
     // information, we will print whatever information we _do_ have.
