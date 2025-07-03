@@ -13,6 +13,7 @@ use std::{
 };
 
 use clap::Args;
+use log::info;
 
 use crate::Result;
 
@@ -193,7 +194,38 @@ impl TestRunner {
     }
 
     fn create_espflash_command(&self, args: &[&str]) -> Command {
-        let mut cmd = Command::new("espflash");
+        let debug_path = PathBuf::from("target/debug/espflash");
+        let release_path = PathBuf::from("target/release/espflash");
+
+        // Determine which binary to use
+        let espflash_path = if release_path.exists() {
+            release_path
+        } else if debug_path.exists() {
+            debug_path
+        } else {
+            // Neither exists — build release
+            info!("espflash binary not found, building in release mode...");
+            let status = Command::new("cargo")
+                .args(["build", "--release", "-p", "espflash"])
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .status()
+                .expect("Failed to run cargo build for espflash");
+
+            if !status.success() {
+                panic!("Failed to build espflash (release)");
+            }
+
+            // Confirm it was built
+            if release_path.exists() {
+                release_path
+            } else {
+                panic!("espflash binary still not found after build");
+            }
+        };
+
+        // Create the command
+        let mut cmd = Command::new(espflash_path);
         cmd.args(args);
         cmd
     }

@@ -8,15 +8,38 @@ use std::{
     process::Command,
 };
 
-use clap::Args;
+use clap::{Args, Parser};
 
-use crate::Result;
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+// ----------------------------------------------------------------------------
+// Command-line Interface
+
+#[derive(Debug, Parser)]
+enum Cli {
+    /// Generate eFuse field definitions
+    GenerateEfuseFields(GenerateEfuseFieldsArgs),
+}
 
 #[derive(Debug, Args)]
-pub struct GenerateEfuseFieldsArgs {
+pub(crate) struct GenerateEfuseFieldsArgs {
     /// Local path to the `esptool` repository
-    pub esptool_path: PathBuf,
+    esptool_path: PathBuf,
 }
+
+const HEADER: &str = r#"
+//! eFuse field definitions for the $CHIP
+//!
+//! This file was automatically generated, please do not edit it manually!
+//! 
+//! Generated: $DATE
+//! Version:   $VERSION
+
+#![allow(unused)]
+
+use super::EfuseField;
+
+"#;
 
 type EfuseFields = HashMap<String, EfuseYaml>;
 
@@ -61,19 +84,7 @@ impl Ord for EfuseAttrs {
     }
 }
 
-const HEADER: &str = r#"
-//! This file was automatically generated, please do not edit it manually!
-//!
-//! Generated: $DATE
-//! Version:   $VERSION
-
-#![allow(unused)]
-
-use super::EfuseField;
-
-"#;
-
-pub fn generate_efuse_fields(workspace: &Path, args: GenerateEfuseFieldsArgs) -> Result<()> {
+pub(crate) fn generate_efuse_fields(workspace: &Path, args: GenerateEfuseFieldsArgs) -> Result<()> {
     let efuse_yaml_path = args
         .esptool_path
         .join("espefuse")
@@ -98,7 +109,8 @@ fn parse_efuse_fields(efuse_yaml_path: &Path) -> Result<EfuseFields> {
     // TODO: We can probably handle this better, e.g. by defining a `Chip` enum
     //       which can be iterated over, but for now this is good enough.
     const CHIPS: &[&str] = &[
-        "esp32", "esp32c2", "esp32c3", "esp32c6", "esp32h2", "esp32p4", "esp32s2", "esp32s3",
+        "esp32", "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32h2", "esp32p4", "esp32s2",
+        "esp32s3",
     ];
 
     let mut efuse_fields = EfuseFields::new();
@@ -131,12 +143,11 @@ fn process_efuse_definitions(efuse_fields: &mut EfuseFields) -> Result<()> {
         let mac_attrs = yaml.fields.get("MAC").unwrap();
 
         let mut mac0_attrs = mac_attrs.clone();
-        mac0_attrs.start = 0;
         mac0_attrs.len = 32;
 
         let mut mac1_attrs = mac_attrs.clone();
-        mac1_attrs.word += 1;
-        mac1_attrs.start = 32;
+        mac1_attrs.start = mac0_attrs.start + 32;
+        mac1_attrs.word = mac1_attrs.start / 32;
         mac1_attrs.len = 16;
 
         yaml.fields.remove("MAC").unwrap();
@@ -158,7 +169,7 @@ fn process_efuse_definitions(efuse_fields: &mut EfuseFields) -> Result<()> {
 fn generate_efuse_definitions(espflash_path: &Path, efuse_fields: EfuseFields) -> Result<()> {
     let targets_efuse_path = espflash_path
         .join("src")
-        .join("targets")
+        .join("target")
         .join("efuse")
         .canonicalize()?;
 
@@ -175,6 +186,7 @@ fn generate_efuse_definitions(espflash_path: &Path, efuse_fields: EfuseFields) -
             writer,
             "{}",
             HEADER
+                .replace("$CHIP", &chip)
                 .replace(
                     "$DATE",
                     &chrono::Utc::now().format("%Y-%m-%d %H:%M").to_string()
@@ -239,10 +251,12 @@ fn generate_efuse_constants(
             description,
         } = attrs;
 
+        let description = description.replace('[', "\\[").replace(']', "\\]");
+
         writeln!(writer, "/// {description}")?;
         writeln!(
             writer,
-            "pub(crate) const {name}: EfuseField = EfuseField::new({block}, {word}, {start}, {len});",
+            "pub const {name}: EfuseField = EfuseField::new({block}, {word}, {start}, {len});"
         )?;
     }
 
