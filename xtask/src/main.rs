@@ -17,7 +17,7 @@ enum Cli {
     /// Generate eFuse field definitions
     GenerateEfuseFields(efuse_generator::GenerateEfuseFieldsArgs),
 
-    /// Run espflash tests (replacing bash scripts)
+    /// Run espflash tests
     RunTests(test_runner::RunTestsArgs),
 }
 
