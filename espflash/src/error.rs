@@ -341,10 +341,24 @@ pub enum Error {
     )]
     PartitionTableDoesNotFit(FlashSize),
 
-    /// App descriptor not present in binary
-    #[error("{0}")]
-    #[diagnostic(code(espflash::app_desc::app_descriptor_not_present))]
-    AppDescriptorNotPresent(String),
+    /// App descriptor not present in a esp-hal binary
+    #[error(
+        "ESP-IDF App Descriptor (https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description) missing in your`esp-hal` application."
+    )]
+    #[diagnostic(
+        code(espflash::app_desc::esp_hal),
+        help(
+            "You may need to add the `esp_bootloader_esp_idf::esp_app_desc!()` macro to your application, see https://docs.espressif.com/projects/rust/esp-bootloader-esp-idf/latest for more information."
+        )
+    )]
+    EspHalAppDescriptorNotPresent,
+
+    /// App descriptor not present in a esp-idf binary
+    #[error(
+        "ESP-IDF App Descriptor (https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description) missing in your`esp-idf` application."
+    )]
+    #[diagnostic(code(espflash::app_desc::esp_idf))]
+    EspIdfAppDescriptorNotPresent,
 }
 
 #[cfg(feature = "serialport")]
