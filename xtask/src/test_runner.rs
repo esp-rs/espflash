@@ -12,7 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use clap::Args;
+use clap::{ArgAction, Args};
 use log::info;
 
 use crate::Result;
@@ -39,8 +39,8 @@ pub struct RunTestsArgs {
     pub timeout: u64,
 
     /// Whether to build espflash before running tests, true by default
-    #[arg(long, value_parser = clap::value_parser!(bool))]
-    pub local_espflash: Option<bool>,
+    #[arg(long = "no-build", action = ArgAction::SetFalse, default_value_t = true)]
+    pub build_espflash: bool,
 }
 
 /// A struct to manage and run tests for the espflash
@@ -54,7 +54,7 @@ pub struct TestRunner {
     /// Optional chip target for tests
     pub chip: Option<String>,
     /// Build espflash before running tests
-    pub local_espflash: Option<bool>,
+    pub build_espflash: bool,
 }
 
 impl TestRunner {
@@ -63,14 +63,14 @@ impl TestRunner {
         workspace: &Path,
         tests_dir: PathBuf,
         timeout_secs: u64,
-        local_espflash: bool,
+        build_espflash: bool,
     ) -> Self {
         Self {
             workspace: workspace.to_path_buf(),
             tests_dir,
             timeout: Duration::from_secs(timeout_secs),
             chip: None,
-            local_espflash: Some(local_espflash),
+            build_espflash,
         }
     }
 
@@ -223,12 +223,12 @@ impl TestRunner {
 
         // we need to distinguish between local and CI runs, on CI we are building
         // espflash and then copying the binary, so we can use just `espflash`
-        match self.local_espflash {
-            None | Some(true) => {
+        match self.build_espflash {
+            true => {
                 log::info!("Running cargo run...");
                 cmd.args(["run", "-p", "espflash", "--release", "--quiet", "--"]);
             }
-            Some(false) => {
+            false => {
                 log::info!("Using system espflash");
                 let mut cmd = Command::new("espflash");
                 cmd.args(args);
@@ -926,16 +926,11 @@ pub fn run_tests(workspace: &Path, args: RunTestsArgs) -> Result<()> {
     log::info!("Running espflash tests");
 
     let tests_dir = workspace.join("espflash").join("tests");
-    let test_runner = TestRunner::new(
-        workspace,
-        tests_dir,
-        args.timeout,
-        args.local_espflash.unwrap_or(true),
-    );
+    let test_runner = TestRunner::new(workspace, tests_dir, args.timeout, args.build_espflash);
 
     // Build espflash before running test(s) so we are not "waisting" test's
     // duration or timeout
-    if args.local_espflash.unwrap_or(true) {
+    if args.build_espflash {
         test_runner.build_espflash();
     }
 
