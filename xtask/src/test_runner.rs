@@ -13,6 +13,7 @@ use std::{
 };
 
 use clap::Args;
+use log::info;
 
 use crate::Result;
 
@@ -36,6 +37,10 @@ pub struct RunTestsArgs {
     /// Timeout for test commands in seconds
     #[clap(short, long, default_value = "15")]
     pub timeout: u64,
+
+    /// Whether to build espflash before running tests, true by default
+    #[arg(long, value_parser = clap::value_parser!(bool))]
+    pub local_espflash: Option<bool>,
 }
 
 /// A struct to manage and run tests for the espflash
@@ -48,16 +53,24 @@ pub struct TestRunner {
     pub timeout: Duration,
     /// Optional chip target for tests
     pub chip: Option<String>,
+    /// Build espflash before running tests
+    pub local_espflash: Option<bool>,
 }
 
 impl TestRunner {
     /// Creates a new [TestRunner] instance
-    pub fn new(workspace: &Path, tests_dir: PathBuf, timeout_secs: u64) -> Self {
+    pub fn new(
+        workspace: &Path,
+        tests_dir: PathBuf,
+        timeout_secs: u64,
+        local_espflash: bool,
+    ) -> Self {
         Self {
             workspace: workspace.to_path_buf(),
             tests_dir,
             timeout: Duration::from_secs(timeout_secs),
             chip: None,
+            local_espflash: Some(local_espflash),
         }
     }
 
@@ -85,7 +98,8 @@ impl TestRunner {
         }
     }
 
-    fn spawn_and_capture_output(mut cmd: Command) -> Result<SpawnedCommandOutput> {
+    fn spawn_and_capture_output(cmd: &mut Command) -> Result<SpawnedCommandOutput> {
+        info!("Spawning command: {cmd:?}");
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
         let mut child = cmd.spawn()?;
         let stdout = child.stdout.take().expect("Failed to capture stdout");
@@ -192,9 +206,36 @@ impl TestRunner {
         Ok(naturally_terminated)
     }
 
+    fn build_espflash(&self) {
+        let mut cmd = Command::new("cargo");
+
+        log::info!("Building espflash...");
+        cmd.args(["build", "-p", "espflash", "--release", "--"]);
+
+        let status = cmd.status().expect("Failed to build espflash");
+        if !status.success() {
+            panic!("espflash build failed with status: {status}");
+        }
+    }
+
     fn create_espflash_command(&self, args: &[&str]) -> Command {
         let mut cmd = Command::new("cargo");
-        cmd.args(["run", "-p", "espflash", "--release", "--"]);
+
+        // we need to distinguish between local and CI runs, on CI we are building
+        // espflash and then copying the binary, so we can use just `espflash`
+        match self.local_espflash {
+            None | Some(true) => {
+                log::info!("Running cargo run...");
+                cmd.args(["run", "-p", "espflash", "--release", "--quiet", "--"]);
+            }
+            Some(false) => {
+                log::info!("Using system espflash");
+                let mut cmd = Command::new("espflash");
+                cmd.args(args);
+                return cmd;
+            }
+        }
+
         cmd.args(args);
 
         cmd
@@ -213,7 +254,7 @@ impl TestRunner {
         let mut cmd = self.create_espflash_command(args);
 
         if let Some(expected) = expected_contains {
-            let (mut child, output, h1, h2) = Self::spawn_and_capture_output(cmd)?;
+            let (mut child, output, h1, h2) = Self::spawn_and_capture_output(&mut cmd)?;
             let start_time = Instant::now();
             let mut terminated_naturally = false;
 
@@ -270,7 +311,7 @@ impl TestRunner {
         let mut cmd = self.create_espflash_command(args);
 
         if let Some(expected) = expected_contains {
-            let (mut child, output, h1, h2) = Self::spawn_and_capture_output(cmd)?;
+            let (mut child, output, h1, h2) = Self::spawn_and_capture_output(&mut cmd)?;
             thread::sleep(duration);
             let _ = child.kill();
             let _ = child.wait();
@@ -885,7 +926,18 @@ pub fn run_tests(workspace: &Path, args: RunTestsArgs) -> Result<()> {
     log::info!("Running espflash tests");
 
     let tests_dir = workspace.join("espflash").join("tests");
-    let test_runner = TestRunner::new(workspace, tests_dir, args.timeout);
+    let test_runner = TestRunner::new(
+        workspace,
+        tests_dir,
+        args.timeout,
+        args.local_espflash.unwrap_or(true),
+    );
+
+    // Build espflash before running test(s) so we are not "waisting" test's
+    // duration or timeout
+    if args.local_espflash.unwrap_or(true) {
+        test_runner.build_espflash();
+    }
 
     match args.test.as_str() {
         "all" => {
