@@ -815,15 +815,14 @@ pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
     if !has_app_desc {
         if is_esp_hal {
             return Err(Error::AppDescriptorNotPresent(
-                "The app descriptor is not present in the `esp-hal` based project.\n\
-                        You need to add the https://crates.io/crates/esp-bootloader-esp-idf \
-                        to your project."
+                "ESP-IDF App Descriptor (https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description) missing in your`esp-hal` application.\n
+                You may need to add the `esp_bootloader_esp_idf::esp_app_desc!()` macro to your application, see https://docs.espressif.com/projects/rust/esp-bootloader-esp-idf/latest for more information."
                     .to_string(),
             ))
             .into_diagnostic();
         } else {
             return Err(Error::AppDescriptorNotPresent(
-                "The app descriptor is not present in the `esp-idf` based project.".to_string(),
+                "ESP-IDF App Descriptor (https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description) missing in your`esp-idf` application.".to_string(),
             ))
             .into_diagnostic();
         }

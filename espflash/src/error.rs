@@ -341,7 +341,7 @@ pub enum Error {
     )]
     PartitionTableDoesNotFit(FlashSize),
 
-    /// App descriptor not present in binary
+    /// App descriptor not present in the binary
     #[error("{0}")]
     #[diagnostic(code(espflash::app_desc::app_descriptor_not_present))]
     AppDescriptorNotPresent(String),
