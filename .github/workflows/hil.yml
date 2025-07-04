@@ -119,4 +119,4 @@ jobs:
           echo "$PWD/xtask_app" >> "$GITHUB_PATH"
 
       - name: Run all tests
-        run: xtask run-tests --chip ${{ matrix.board.mcu }} -t 60 --local-espflash=false
+        run: xtask run-tests --chip ${{ matrix.board.mcu }} -t 60 --no-build
