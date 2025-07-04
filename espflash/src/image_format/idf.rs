@@ -814,9 +814,17 @@ pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
 
     if !has_app_desc {
         if is_esp_hal {
-            return Err(Error::EspHalAppDescriptorNotPresent.into());
+            return Err(Error::AppDescriptorNotPresent(
+                "ESP-IDF App Descriptor (https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description) missing in your`esp-hal` application.\n
+                You may need to add the `esp_bootloader_esp_idf::esp_app_desc!()` macro to your application, see https://docs.espressif.com/projects/rust/esp-bootloader-esp-idf/latest for more information."
+                    .to_string(),
+            ))
+            .into_diagnostic();
         } else {
-            return Err(Error::EspIdfAppDescriptorNotPresent.into());
+            return Err(Error::AppDescriptorNotPresent(
+                "ESP-IDF App Descriptor (https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description) missing in your`esp-idf` application.".to_string(),
+            ))
+            .into_diagnostic();
         }
     }
 
