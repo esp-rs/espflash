@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `save-image` now checks if the ELF contains the app descriptor (#920)
+- Add support for secure padding for save-image (#876)
 
 ### Changed
 
@@ -57,7 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ProgressCallbacks` now has a `verifying` method to notify when post-flash checksum checking has begun (#908)
 - Implement `From<Connection> for Port` and both `From<Flasher> for Connection` and `Port` conversions (#915)
 - Add support for serial port configuration files. (#777)
-- Add support for secure padding for save-image (#876)
 
 ### Changed
 

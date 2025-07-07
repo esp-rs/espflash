@@ -30,20 +30,25 @@ const EXTRA_RESET_DELAY: u64 = 500; // ms
 
 /// Reset strategies for resetting a target device.
 pub trait ResetStrategy {
+    /// Resets the target device.
     fn reset(&self, serial_port: &mut Port) -> Result<(), Error>;
 
+    /// Sets DTR (data terminal ready) to a specified level.
     fn set_dtr(&self, serial_port: &mut Port, level: bool) -> Result<(), Error> {
         serial_port.write_data_terminal_ready(level)?;
 
         Ok(())
     }
 
+    /// Sets RTS (request to send) to a specified level.
     fn set_rts(&self, serial_port: &mut Port, level: bool) -> Result<(), Error> {
         serial_port.write_request_to_send(level)?;
 
         Ok(())
     }
 
+    /// Sets RTS (request to send) and DTS (data termina lready) to specified
+    /// levels.
     #[cfg(unix)]
     fn set_dtr_rts(
         &self,
