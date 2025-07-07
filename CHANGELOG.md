@@ -8,15 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- `save-image` now checks if the ELF contains the app descriptor (#920)
 
 ### Changed
-
-- `espflash` now allows wider version ranges on its dependencies(#924)
 
 ### Fixed
 
 ### Removed
+
+## [4.0.1] - 2025-07-07
+
+### Changed
+- `espflash` now allows wider version ranges on its dependencies(#924)
+
+### Fixed
+- `save-image` now checks if the ELF contains the app descriptor (#920)
 
 ## [4.0.0] - 2025-07-01
 
@@ -398,7 +403,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-09-21
 
-[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.0.1...HEAD
+[4.0.1]: https://github.com/esp-rs/espflash/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/esp-rs/espflash/compare/v3.3.0...v4.0.0
 [3.3.0]: https://github.com/esp-rs/espflash/compare/v3.2.0...v3.3.0
 [3.2.0]: https://github.com/esp-rs/espflash/compare/v3.1.1...v3.2.0
