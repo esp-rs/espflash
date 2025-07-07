@@ -60,7 +60,7 @@ toml            = { version = "0.8", optional = true }
 update-informer = { version = "1.2", optional = true }
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"
+libc = "0.2.174"
 
 [features]
 default = ["cli"]
