@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `save-image` now checks if the ELF contains the app descriptor (#920)
+- Add support for secure padding for save-image (#876)
 
 ### Changed
 
