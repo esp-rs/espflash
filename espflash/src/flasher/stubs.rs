@@ -1,13 +1,17 @@
+use alloc::{string::String, vec::Vec};
+#[cfg(feature = "std")]
 use std::time::Duration;
 
 use base64::{engine::general_purpose, Engine as _};
+#[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
 use crate::targets::Chip;
 
 /// Flash stub object (deserialized from TOML, converted from JSON as used by
 /// `esptool.py`)
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct FlashStub {
     /// Entry point (address)
     entry: u32,
@@ -21,12 +25,13 @@ pub struct FlashStub {
     data_start: u32,
 }
 
-pub(crate) const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
-pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
-pub(crate) const EXPECTED_STUB_HANDSHAKE: &str = "OHAI";
+pub const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
+#[cfg(feature = "std")]
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
+pub const EXPECTED_STUB_HANDSHAKE: &str = "OHAI";
 
-pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
-pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
+pub const FLASH_SECTOR_SIZE: usize = 0x1000;
+pub const FLASH_WRITE_SIZE: usize = 0x400;
 
 // Include stub objects in binary
 const STUB_32: &str = include_str!("../../resources/stubs/esp32.toml");
@@ -38,6 +43,7 @@ const STUB_32P4: &str = include_str!("../../resources/stubs/esp32p4.toml");
 const STUB_32S2: &str = include_str!("../../resources/stubs/esp32s2.toml");
 const STUB_32S3: &str = include_str!("../../resources/stubs/esp32s3.toml");
 
+#[cfg(feature = "std")]
 impl FlashStub {
     /// Fetch flash stub for the provided chip
     pub fn get(chip: Chip) -> FlashStub {

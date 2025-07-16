@@ -4,18 +4,18 @@
 //! application to a target device. It additionally provides some operations to
 //! read information from the target device.
 
+use alloc::{
+    collections::BTreeMap,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use core::{fmt, str::FromStr};
 #[cfg(feature = "serialport")]
 use std::{borrow::Cow, io::Write, path::PathBuf, thread::sleep, time::Duration};
-
 #[cfg(feature = "std")]
 use std::{fs, path::Path};
-
-use alloc::collections::BTreeMap;
-use alloc::format;
-use alloc::string::{String, ToString};
-use alloc::{vec, vec::Vec};
-use core::fmt;
-use core::str::FromStr;
 
 use esp_idf_part::PartitionTable;
 #[cfg(feature = "serialport")]
@@ -24,15 +24,20 @@ use log::{debug, info, warn};
 use md5::{Digest, Md5};
 #[cfg(feature = "serialport")]
 use object::{read::elf::ElfFile32 as ElfFile, Endianness};
-
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serialport")]
 use serialport::UsbPortInfo;
 use strum::{Display, EnumIter, IntoEnumIterator, VariantNames};
 
-#[cfg(feature = "serialport")]
-pub(crate) use self::stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
+// #[cfg(feature = "serialport")]
+pub use self::stubs::{
+    FlashStub,
+    CHIP_DETECT_MAGIC_REG_ADDR,
+    EXPECTED_STUB_HANDSHAKE,
+    FLASH_SECTOR_SIZE,
+    FLASH_WRITE_SIZE,
+};
 #[cfg(feature = "serialport")]
 pub use crate::targets::flash_target::ProgressCallbacks;
 #[cfg(feature = "serialport")]
@@ -40,12 +45,11 @@ use crate::{
     command::{Command, CommandType},
     connection::{
         reset::{ResetAfterOperation, ResetBeforeOperation},
-        Connection, Port,
+        Connection,
+        Port,
     },
     error::{ConnectionError, ResultExt as _},
-    flasher::stubs::{
-        FlashStub, CHIP_DETECT_MAGIC_REG_ADDR, DEFAULT_TIMEOUT, EXPECTED_STUB_HANDSHAKE,
-    },
+    flasher::stubs::DEFAULT_TIMEOUT,
     image_format::{ram_segments, rom_segments, Segment},
 };
 use crate::{
@@ -53,7 +57,7 @@ use crate::{
     Error,
 };
 
-#[cfg(feature = "serialport")]
+// #[cfg(feature = "serialport")]
 pub(crate) mod stubs;
 
 /// List of SPI parameters to try while detecting flash size

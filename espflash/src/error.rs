@@ -472,7 +472,6 @@ impl From<CommandType> for TimedOutCommand {
 #[cfg_attr(feature = "std", derive(Diagnostic))]
 #[non_exhaustive]
 #[repr(u8)]
-#[cfg(feature = "serialport")]
 pub enum RomErrorKind {
     #[error("Invalid message received")]
     #[cfg_attr(feature = "std", diagnostic(code(espflash::rom::invalid_message)))]
@@ -548,7 +547,6 @@ pub enum RomErrorKind {
     Other = 0xff,
 }
 
-#[cfg(feature = "serialport")]
 impl From<u8> for RomErrorKind {
     fn from(raw: u8) -> Self {
         Self::from_repr(raw).unwrap_or_default()

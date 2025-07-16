@@ -41,7 +41,7 @@ pub mod image_format;
 pub mod slip;
 pub mod targets;
 
-mod error;
+pub mod error;
 
 extern crate alloc;
 

@@ -1,5 +1,6 @@
 pub mod encoder {
     use core::fmt::Debug;
+
     use embedded_io::Write;
 
     const END: u8 = 0xC0;
@@ -75,6 +76,7 @@ pub mod decoder {
     #[allow(dead_code)]
     const MAX_PACKET_SIZE: usize = 1006;
     use core::convert::Infallible;
+
     use embedded_io::{Read, Write};
 
     /// SLIP decoder error type
@@ -148,11 +150,10 @@ pub mod decoder {
         /// # Arguments
         ///
         /// * `source` - Encoded SLIP data source implementing the std::io::Read
-        ///              trait
+        ///   trait
         ///
-        /// Returns a Vec<u8> containing a decoded message or an empty Vec<u8> if
-        /// of the source data was reached.
-        ///
+        /// Returns a Vec<u8> containing a decoded message or an empty Vec<u8>
+        /// if of the source data was reached.
         pub fn decode<W: Write, R: Read>(
             &mut self,
             source: &mut R,
