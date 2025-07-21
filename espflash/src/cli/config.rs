@@ -10,7 +10,7 @@
 use std::{
     ffi::OsStr,
     fs::{create_dir_all, read_to_string, write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use directories::ProjectDirs;
@@ -91,7 +91,7 @@ pub struct ProjectConfig {
     #[serde(default)]
     pub format: ImageFormatKind,
     /// ESP-IDF format arguments
-    #[serde(default)]
+    #[serde(default, alias = "idf")]
     pub idf_format_args: cli::IdfFormatArgs,
     /// Flash settings
     #[serde(default)]
@@ -113,52 +113,29 @@ pub struct PortConfig {
 }
 
 impl Config {
-    /// Load configuration from the configuration files
+    /// Load configuration from the configuration files.
     pub fn load() -> Result<Self> {
         let project_config_file = Self::project_config_path()?;
         let port_config_file = Self::port_config_path()?;
 
-        let project_config = if let Ok(data) = read_to_string(&project_config_file) {
-            toml::from_str(&data).into_diagnostic()?
-        } else {
-            ProjectConfig::default()
-        };
+        let raw_data = read_to_string(&project_config_file).unwrap_or_default();
+        let toml_value = toml::from_str::<toml::Value>(&raw_data)
+            .unwrap_or_else(|_| toml::Value::Table(Default::default()));
 
-        if let Some(table) = &project_config.idf_format_args.partition_table {
-            match table.extension() {
-                Some(ext) if ext == "bin" || ext == "csv" => {}
-                _ => return Err(Error::InvalidPartitionTablePath.into()),
-            }
+        if let toml::Value::Table(top_level) = &toml_value {
+            Self::validate_keys(top_level)?;
         }
 
-        if let Some(bootloader) = &project_config.idf_format_args.bootloader {
-            if bootloader.extension() != Some(OsStr::new("bin")) {
-                return Err(Error::InvalidBootloaderPath.into());
-            }
-        }
+        let project_config: ProjectConfig =
+            toml::from_str(&raw_data).unwrap_or_else(|_| ProjectConfig::default());
+
+        Self::validate_partition_table_path(&project_config)?;
+        Self::validate_bootloader_path(&project_config)?;
 
         debug!("Config: {:#?}", &project_config);
 
-        let mut port_config = if let Ok(data) = read_to_string(&port_config_file) {
-            toml::from_str(&data).into_diagnostic()?
-        } else if let Ok(data) = read_to_string(&project_config_file) {
-            if data.contains("[connection]") || data.contains("[[usb_device]]") {
-                log::info!(
-                    "espflash@3 configuration detected. Migrating port config to port_config_file: {:#?}",
-                    &port_config_file
-                );
-                // Write the updated configs
-                let port_config = toml::from_str(&data).into_diagnostic()?;
-                Self::write_config(&port_config, &port_config_file)?;
-                Self::write_config(&project_config, &project_config_file)?;
-
-                port_config
-            } else {
-                PortConfig::default()
-            }
-        } else {
-            PortConfig::default()
-        };
+        let mut port_config =
+            Self::load_port_config(&port_config_file, &project_config_file, &raw_data)?;
         port_config.save_path = port_config_file;
         debug!("Port Config: {:#?}", &port_config);
 
@@ -168,7 +145,96 @@ impl Config {
         })
     }
 
-    fn write_config<T: Serialize>(config: &T, path: &PathBuf) -> Result<()> {
+    fn validate_keys(top_level: &toml::map::Map<String, toml::Value>) -> Result<()> {
+        let forbidden_keys: &[&[&str]] = &[
+            &[
+                "bootloader",
+                "partition_table",
+                "partition_table_offset",
+                "target_app_partition",
+            ],
+            &["size", "mode", "frequency"],
+        ];
+        let allowed_sections: &[&[&str]] = &[&["idf_format_args", "idf"], &["flash"]];
+
+        let mut misplaced_keys = Vec::new();
+
+        for (section_keys, allowed) in forbidden_keys.iter().zip(allowed_sections.iter()) {
+            for &key in *section_keys {
+                for (section_name, value) in top_level {
+                    if let toml::Value::Table(table) = value {
+                        if table.contains_key(key) && !allowed.contains(&section_name.as_str()) {
+                            misplaced_keys.push((key, allowed[0]));
+                        }
+                    }
+                }
+                if top_level.contains_key(key) {
+                    misplaced_keys.push((key, allowed[0]));
+                }
+            }
+        }
+
+        if misplaced_keys.is_empty() {
+            Ok(())
+        } else {
+            let msg = misplaced_keys
+                .into_iter()
+                .map(|(key, section)| format!("'{key}' should be under [{section}]!"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            Err(Error::MisplacedKey(msg).into())
+        }
+    }
+
+    fn validate_partition_table_path(config: &ProjectConfig) -> Result<()> {
+        if let Some(path) = &config.idf_format_args.partition_table {
+            match path.extension() {
+                Some(ext) if ext == "bin" || ext == "csv" => Ok(()),
+                _ => Err(Error::InvalidPartitionTablePath.into()),
+            }
+        } else {
+            Ok(())
+        }
+    }
+
+    fn validate_bootloader_path(config: &ProjectConfig) -> Result<()> {
+        if let Some(path) = &config.idf_format_args.bootloader {
+            if path.extension() != Some(OsStr::new("bin")) {
+                return Err(Error::InvalidBootloaderPath.into());
+            }
+        }
+        Ok(())
+    }
+
+    fn load_port_config(
+        port_config_file: &Path,
+        project_config_file: &Path,
+        raw_data: &str,
+    ) -> Result<PortConfig> {
+        if let Ok(data) = read_to_string(port_config_file) {
+            toml::from_str(&data).into_diagnostic()
+        } else if let Ok(data) = read_to_string(project_config_file) {
+            if data.contains("[connection]") || data.contains("[[usb_device]]") {
+                log::info!(
+                    "espflash@3 configuration detected. Migrating port config to port_config_file: {:#?}",
+                    &port_config_file
+                );
+
+                let port_config: PortConfig = toml::from_str(&data).into_diagnostic()?;
+                let project_config: ProjectConfig = toml::from_str(raw_data).unwrap_or_default();
+
+                Self::write_config(&port_config, port_config_file)?;
+                Self::write_config(&project_config, project_config_file)?;
+                Ok(port_config)
+            } else {
+                Ok(PortConfig::default())
+            }
+        } else {
+            Ok(PortConfig::default())
+        }
+    }
+
+    fn write_config<T: Serialize>(config: &T, path: &Path) -> Result<()> {
         let serialized = toml::to_string(config)
             .into_diagnostic()
             .wrap_err("Failed to serialize config")?;
