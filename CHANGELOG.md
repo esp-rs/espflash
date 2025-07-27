@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- Make it possible to actually turn off the `--check-app-descriptor` flag
 
 ### Removed
 

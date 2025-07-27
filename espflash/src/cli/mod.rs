@@ -20,7 +20,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::{Args, ValueEnum};
+use clap::{ArgAction, Args, ValueEnum};
 use clap_complete::Shell;
 use comfy_table::{Attribute, Cell, Color, Table, modifiers, presets::UTF8_FULL};
 use config::PortConfig;
@@ -257,8 +257,18 @@ pub struct ImageArgs {
     /// MMU page size.
     #[arg(long, value_name = "MMU_PAGE_SIZE", value_parser = parse_u32)]
     pub mmu_page_size: Option<u32>,
-    /// Flag to check the app descriptor in bootloader
-    #[arg(long, default_value = "true", value_parser = clap::value_parser!(bool))]
+    /// Check the image for the presence of the app descriptor struct that newer
+    /// ESP-IDF bootloaders (V5.4+) require
+    // See https://github.com/clap-rs/clap/issues/1649#issuecomment-2144879038
+    #[arg(
+        long,
+        action = ArgAction::Set,
+        default_value_t = true,
+        // somehow clap has this option not properly supported in derive, so it needs to be a string
+        default_missing_value = "true",
+        num_args = 0..=1,
+        require_equals = false,
+    )]
     pub check_app_descriptor: bool,
 }
 
