@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Renamed `--check-app-descriptor` to `--ignore-app-descriptor` (#833)
+
 ### Fixed
 
 ### Removed
