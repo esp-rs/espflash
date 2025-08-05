@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- `espflash` enables interface feature on serialport allowing tools to build with this dependency (#937)
 
 ### Fixed
 
