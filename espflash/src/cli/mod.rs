@@ -433,6 +433,7 @@ pub fn connect(
                 serial_number: None,
                 manufacturer: None,
                 product: None,
+                interface: None,
             }
         }
         _ => unreachable!(),
