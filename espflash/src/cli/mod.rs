@@ -279,6 +279,9 @@ pub struct IdfFormatArgs {
     /// Label of target app partition
     #[arg(long, value_name = "LABEL")]
     pub target_app_partition: Option<String>,
+    /// Whether to apply padding for secure boot v2
+    #[arg(long)]
+    pub secure_pad_v2: bool,
 }
 
 /// Arguments for connection and monitoring
@@ -1100,6 +1103,7 @@ pub fn make_flash_data(
     config: &Config,
     chip: Chip,
     xtal_freq: XtalFrequency,
+    secure_pad_v2: bool,
 ) -> FlashData {
     // Create flash settings with precedence
     let mode = flash_config_args
@@ -1121,6 +1125,7 @@ pub fn make_flash_data(
         image_args.mmu_page_size,
         chip,
         xtal_freq,
+        secure_pad_v2,
     )
 }
 
