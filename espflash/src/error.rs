@@ -345,6 +345,10 @@ pub enum Error {
     #[error("{0}")]
     #[diagnostic(code(espflash::app_desc::app_descriptor_not_present))]
     AppDescriptorNotPresent(String),
+
+    /// Key is not in the expected section
+    #[error("Misplaced key, check your configuration file. Key: {0}")]
+    MisplacedKey(String),
 }
 
 #[cfg(feature = "serialport")]

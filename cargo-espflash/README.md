@@ -147,13 +147,15 @@ baudrate = 460800
 ```
 - Bootloader:
 ```toml
+[idf]
 bootloader = "path/to/custom/bootloader.bin"
 ```
-- Partition table
+- Partition table:
 ```toml
+[idf]
 partition_table = "path/to/custom/partition-table.bin"
 ```
-- Flash settings
+- Flash settings:
 ```toml
 [flash]
 mode = "qio"
