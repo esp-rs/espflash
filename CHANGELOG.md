@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Add `--no-addresses` flag to `monitor` subcommand (#942)
 
 ### Changed
 
