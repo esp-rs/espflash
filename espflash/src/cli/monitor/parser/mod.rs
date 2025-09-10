@@ -111,6 +111,7 @@ pub struct ResolvingPrinter<'ctx, W: Write> {
     symbols: Option<Symbols<'ctx>>,
     merger: Utf8Merger,
     line_fragment: String,
+    disable_address_resolution: bool,
 }
 
 impl<'ctx, W: Write> ResolvingPrinter<'ctx, W> {
@@ -121,6 +122,18 @@ impl<'ctx, W: Write> ResolvingPrinter<'ctx, W> {
             symbols: elf.and_then(|elf| Symbols::try_from(elf).ok()),
             merger: Utf8Merger::new(),
             line_fragment: String::new(),
+            disable_address_resolution: false,
+        }
+    }
+
+    /// Creates a new `ResolvingPrinter` with address resolution disabled.
+    pub fn new_no_addresses(_elf: Option<&'ctx [u8]>, writer: W) -> Self {
+        Self {
+            writer,
+            symbols: None, // Don't load symbols when address resolution is disabled
+            merger: Utf8Merger::new(),
+            line_fragment: String::new(),
+            disable_address_resolution: true,
         }
     }
 }
@@ -158,10 +171,12 @@ impl<W: Write> Write for ResolvingPrinter<'_, W> {
             // Remember to begin a new line after we have printed this one!
             self.writer.queue(Print("\r\n"))?;
 
-            // If we have loaded some symbols...
-            if let Some(symbols) = self.symbols.as_ref() {
-                // Try to print the names of addresses in the current line.
-                resolve_addresses(symbols, &line, &mut self.writer)?;
+            // If we have loaded some symbols and address resolution is not disabled...
+            if !self.disable_address_resolution {
+                if let Some(symbols) = self.symbols.as_ref() {
+                    // Try to print the names of addresses in the current line.
+                    resolve_addresses(symbols, &line, &mut self.writer)?;
+                }
             }
         }
 

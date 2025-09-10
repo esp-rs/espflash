@@ -321,6 +321,9 @@ pub struct MonitorConfigArgs {
     /// External log processors to use (comma separated executables)
     #[arg(long)]
     processors: Option<String>,
+    /// Disable address resolution for a smaller log output
+    #[arg(long)]
+    pub no_addresses: bool,
 }
 
 /// Arguments for MD5 checksum calculation

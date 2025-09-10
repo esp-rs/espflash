@@ -104,7 +104,11 @@ pub fn monitor(
     let _raw_mode = RawModeGuard::new();
 
     let stdout = stdout();
-    let mut stdout = ResolvingPrinter::new(elf, stdout.lock());
+    let mut stdout = if monitor_args.no_addresses {
+        ResolvingPrinter::new_no_addresses(elf, stdout.lock())
+    } else {
+        ResolvingPrinter::new(elf, stdout.lock())
+    };
 
     let mut parser: Box<dyn InputParser> = match monitor_args
         .log_format
@@ -277,6 +281,7 @@ pub fn check_monitor_args(
             || monitor_args.processors.is_some()
             || non_interactive
             || monitor_args.no_reset
+            || monitor_args.no_addresses
             || monitor_args.monitor_baud != 115_200)
     {
         warn!(
