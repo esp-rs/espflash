@@ -11,7 +11,7 @@
 //! in our monitor the output is displayed immediately upon reading.
 
 use std::{
-    io::{ErrorKind, Read, Write, stdout},
+    io::{self, ErrorKind, Read, Write, stdout},
     time::Duration,
 };
 
@@ -173,12 +173,29 @@ fn handle_user_input(serial: &mut Port, pid: u16, non_interactive: bool) -> Resu
         }
 
         if let Some(bytes) = handle_key_event(key) {
-            serial.write_all(&bytes).into_diagnostic()?;
-            serial.flush().into_diagnostic()?;
+            serial
+                .write_all(&bytes)
+                .ignore_timeout()
+                .into_diagnostic()?;
+            serial.flush().ignore_timeout().into_diagnostic()?;
         }
     }
 
     Ok(true)
+}
+
+trait ErrorExt {
+    fn ignore_timeout(self) -> Self;
+}
+
+impl ErrorExt for Result<(), io::Error> {
+    fn ignore_timeout(self) -> Self {
+        match self {
+            Ok(_) => Ok(()),
+            Err(e) if e.kind() == ErrorKind::TimedOut => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
 }
 
 fn key_event() -> std::io::Result<Option<KeyEvent>> {
