@@ -29,7 +29,7 @@ path              = "./src/bin/espflash.rs"
 required-features = ["cli", "serialport"]
 
 [dependencies]
-addr2line       = { version = "=0.22.0", optional = true }
+addr2line       = { version = "0.25", optional = true }
 base64          = "0.22"
 bitflags        = "2.9"
 bytemuck        = { version = "1.23", features = ["derive"] }
