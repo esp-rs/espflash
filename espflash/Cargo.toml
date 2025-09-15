@@ -62,6 +62,9 @@ update-informer = { version = "1.2", optional = true }
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.174"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+nix = { version = "0.30", features = ["time"] }
+
 [features]
 default = ["cli"]
 cli = [

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - [Windows] Fixed a crash in monitor when espflash is connected via USB Serial/JTAG, and the user is typing into the monitor but the device is not reading serial input. (#943)
+- [Linux] Fixed espflash hanging when espflash is connected via USB Serial/JTAG, and the user is typing into the monitor but the device is not reading serial input. (#944)
 
 ### Removed
 

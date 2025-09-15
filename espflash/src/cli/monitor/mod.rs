@@ -12,7 +12,7 @@
 
 use std::{
     io::{self, ErrorKind, Read, Write, stdout},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crossterm::{
@@ -130,6 +130,7 @@ pub fn monitor(
         ExternalProcessors::new(monitor_args.processors, monitor_args.elf)?;
 
     let mut buff = [0; 1024];
+    let mut user_input_handler = InputHandler::new(pid, non_interactive);
     loop {
         let read_count = match serial.read(&mut buff) {
             Ok(count) => Ok(count),
@@ -144,7 +145,7 @@ pub fn monitor(
         // Don't forget to flush the writer!
         stdout.flush().ok();
 
-        if !handle_user_input(&mut serial, pid, non_interactive)? {
+        if !user_input_handler.handle(&mut serial)? {
             break;
         }
     }
@@ -152,40 +153,143 @@ pub fn monitor(
     Ok(())
 }
 
-/// Handle user input from the terminal.
-///
-/// Returns `true` if the program should continue running, `false` if it should
-/// exit.
-fn handle_user_input(serial: &mut Port, pid: u16, non_interactive: bool) -> Result<bool> {
-    let key = match key_event().into_diagnostic() {
-        Ok(Some(event)) => event,
-        Ok(None) => return Ok(true),
-        Err(_) if non_interactive => return Ok(true),
-        Err(err) => return Err(err),
-    };
+struct InputHandler {
+    pid: u16,
+    non_interactive: bool,
+    flush_deadline: Option<Instant>,
+}
 
-    if key.kind == KeyEventKind::Press {
-        if key.modifiers.contains(KeyModifiers::CONTROL) {
-            match key.code {
-                KeyCode::Char('c') => return Ok(false),
-                KeyCode::Char('r') => {
-                    reset_after_flash(serial, pid).into_diagnostic()?;
-                    return Ok(true);
-                }
-                _ => {}
-            }
-        }
-
-        if let Some(bytes) = handle_key_event(key) {
-            serial
-                .write_all(&bytes)
-                .ignore_timeout()
-                .into_diagnostic()?;
-            serial.flush().ignore_timeout().into_diagnostic()?;
+impl InputHandler {
+    fn new(pid: u16, non_interactive: bool) -> Self {
+        Self {
+            pid,
+            non_interactive,
+            flush_deadline: None,
         }
     }
 
-    Ok(true)
+    fn flush_if_needed(&mut self, serial: &mut Port) -> Result<()> {
+        let Some(deadline) = self.flush_deadline else {
+            return Ok(());
+        };
+
+        if deadline <= Instant::now() {
+            self.flush_deadline = None;
+            #[cfg(target_os = "linux")]
+            let _timer = linux::arm_timeout_workaround(Duration::from_millis(100));
+            serial.flush().ignore_timeout().into_diagnostic()?;
+        }
+
+        Ok(())
+    }
+
+    /// Handle user input from the terminal.
+    ///
+    /// Returns `true` if the program should continue running, `false` if it
+    /// should exit.
+    fn handle(&mut self, serial: &mut Port) -> Result<bool> {
+        let key = match key_event().into_diagnostic() {
+            Ok(Some(event)) => event,
+            Ok(None) => {
+                self.flush_if_needed(serial)?;
+                return Ok(true);
+            }
+            Err(_) if self.non_interactive => return Ok(true),
+            Err(err) => return Err(err),
+        };
+
+        if key.kind == KeyEventKind::Press {
+            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                match key.code {
+                    KeyCode::Char('c') => return Ok(false),
+                    KeyCode::Char('r') => {
+                        reset_after_flash(serial, self.pid).into_diagnostic()?;
+                        return Ok(true);
+                    }
+                    _ => {}
+                }
+            }
+
+            self.flush_if_needed(serial)?;
+            if let Some(bytes) = handle_key_event(key) {
+                serial
+                    .write_all(&bytes)
+                    .ignore_timeout()
+                    .into_diagnostic()?;
+                if self.flush_deadline.is_none() {
+                    self.flush_deadline = Some(Instant::now() + Duration::from_millis(50));
+                }
+            }
+        }
+
+        Ok(true)
+    }
+}
+
+#[cfg(target_os = "linux")]
+mod linux {
+    use std::time::Duration;
+
+    use nix::{
+        sys::{
+            signal::{self, SaFlags, SigAction, SigEvent, SigHandler, SigSet, SigevNotify, Signal},
+            timer::{Expiration, Timer, TimerSetTimeFlags},
+        },
+        time::ClockId,
+    };
+    pub struct Workaround {
+        _timer: Timer,
+        previous_handler: SigHandler,
+    }
+
+    const SIGNAL: Signal = Signal::SIGALRM;
+
+    impl Drop for Workaround {
+        fn drop(&mut self) {
+            unsafe { signal::signal(SIGNAL, self.previous_handler) }.unwrap();
+        }
+    }
+
+    /// Sets a timer that will send a signal to interrupt the IO drain if it
+    /// doesn't complete in the given amount of time.
+    ///
+    /// The timer is cancelled if the returned object is dropped (which happens
+    /// after the IO operation returns). Implementation based on the second idea
+    /// in https://stackoverflow.com/a/29307379 - as setting the O_NONBLOCK flag
+    /// doesn't seem to work for us.
+    pub fn arm_timeout_workaround(timeout: Duration) -> Workaround {
+        extern "C" fn handle_signal(_signal: libc::c_int) {}
+
+        // Register signal handler to prevent killing the program. The original handler
+        // will be restored during cleanup.
+        let handler = SigHandler::Handler(handle_signal);
+        unsafe {
+            signal::sigaction(
+                SIGNAL,
+                &SigAction::new(handler, SaFlags::empty(), SigSet::all()),
+            )
+            .unwrap()
+        };
+        let previous_handler = unsafe { signal::signal(SIGNAL, handler) }.unwrap();
+
+        // Start a one-shot timer to raise our signal.
+        let mut timer = Timer::new(
+            ClockId::CLOCK_MONOTONIC,
+            SigEvent::new(SigevNotify::SigevSignal {
+                signal: SIGNAL,
+                si_value: 0,
+            }),
+        )
+        .unwrap();
+        let expiration = Expiration::OneShot(timeout.into());
+        let flags = TimerSetTimeFlags::empty();
+        timer.set(expiration, flags).expect("could not set timer");
+
+        Workaround {
+            _timer: timer,
+            previous_handler,
+        }
+    }
 }
 
 trait ErrorExt {
