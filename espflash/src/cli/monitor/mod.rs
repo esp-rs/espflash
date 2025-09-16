@@ -177,6 +177,8 @@ impl InputHandler {
             self.flush_deadline = None;
             #[cfg(target_os = "linux")]
             let _timer = linux::arm_timeout_workaround(Duration::from_millis(100));
+            #[cfg(target_os = "macos")]
+            let _timer = macos::arm_timeout_workaround(Duration::from_millis(100));
             serial.flush().ignore_timeout().into_diagnostic()?;
         }
 
@@ -288,6 +290,74 @@ mod linux {
         Workaround {
             _timer: timer,
             previous_handler,
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+mod macos {
+    use std::time::Duration;
+
+    use libc::{self, ITIMER_REAL, SIGALRM, c_int, itimerval, sigaction, sigemptyset, timeval};
+
+    pub struct Workaround {
+        previous_action: sigaction,
+        previous_timer: itimerval,
+    }
+
+    impl Drop for Workaround {
+        fn drop(&mut self) {
+            unsafe {
+                // Restore previous signal action
+                libc::sigaction(SIGALRM, &self.previous_action, std::ptr::null_mut());
+
+                // Restore previous timer (or cancel if none was set)
+                libc::setitimer(ITIMER_REAL, &self.previous_timer, std::ptr::null_mut());
+            }
+        }
+    }
+
+    /// Sets a one-shot interval timer that will deliver SIGALRM after
+    /// `timeout`. The timer and signal handler are restored when the
+    /// returned object is dropped.
+    pub fn arm_timeout_workaround(timeout: Duration) -> Workaround {
+        unsafe extern "C" fn handle_signal(_signal: c_int) {}
+
+        unsafe {
+            // Install a simple handler for SIGALRM and capture the previous one
+            let mut new_action: sigaction = std::mem::zeroed();
+            sigemptyset(&mut new_action.sa_mask);
+            new_action.sa_flags = 0;
+            // On macOS, `sa_sigaction` is a function pointer stored as usize
+            new_action.sa_sigaction = handle_signal as usize;
+
+            let mut old_action: sigaction = std::mem::zeroed();
+            libc::sigaction(SIGALRM, &new_action, &mut old_action);
+
+            // Arm a one-shot real-time interval timer (ITIMER_REAL → SIGALRM)
+            let timeout_tv = duration_to_timeval(timeout);
+            let new_timer = itimerval {
+                it_interval: timeval {
+                    tv_sec: 0,
+                    tv_usec: 0,
+                },
+                it_value: timeout_tv,
+            };
+
+            let mut old_timer: itimerval = std::mem::zeroed();
+            libc::setitimer(ITIMER_REAL, &new_timer, &mut old_timer);
+
+            Workaround {
+                previous_action: old_action,
+                previous_timer: old_timer,
+            }
+        }
+    }
+
+    fn duration_to_timeval(d: Duration) -> timeval {
+        timeval {
+            tv_sec: d.as_secs() as libc::time_t,
+            tv_usec: d.subsec_micros() as libc::suseconds_t,
         }
     }
 }
