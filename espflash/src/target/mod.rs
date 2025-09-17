@@ -872,7 +872,7 @@ impl Chip {
                 miso_length_offset: Some(0x28),
             },
             Chip::Esp32s2 => SpiRegisters {
-                base: 0x3f40_3000,
+                base: 0x3f40_2000,
                 usr_offset: 0x18,
                 usr1_offset: 0x1c,
                 usr2_offset: 0x20,
