@@ -1139,15 +1139,9 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     // Load the file to be flashed
     let mut f = File::open(&args.file).into_diagnostic()?;
 
-    // If the file size is not divisible by 4, we need to pad `FF` bytes to the end
     let size = f.metadata().into_diagnostic()?.len();
-    let mut padded_bytes = 0;
-    if size % 4 != 0 {
-        padded_bytes = 4 - (size % 4);
-    }
     let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
     f.read_to_end(&mut buffer).into_diagnostic()?;
-    buffer.extend(std::iter::repeat_n(0xFF, padded_bytes as usize));
 
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;

@@ -1076,10 +1076,21 @@ impl Flasher {
         data: &[u8],
         progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
-        let segment = Segment {
+        let mut segment = Segment {
             addr,
             data: Cow::from(data),
         };
+
+        // If the file size is not divisible by 4, we need to pad `FF` bytes to the end
+        let size = segment.data.len();
+        if size % 4 != 0 {
+            let padded_bytes = 4 - (size % 4);
+            segment
+                .data
+                .to_mut()
+                .extend(std::iter::repeat_n(0xFF, padded_bytes));
+        }
+
         self.write_bins_to_flash(&[segment], progress)?;
 
         info!("Binary successfully written to flash!");
