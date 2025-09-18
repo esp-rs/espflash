@@ -975,6 +975,7 @@ impl Flasher {
     }
 
     /// Get security info.
+    // TODO: Deprecate this method in the next major release
     pub fn security_info(&mut self) -> Result<SecurityInfo, Error> {
         self.connection.security_info(self.use_stub)
     }

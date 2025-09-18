@@ -753,7 +753,7 @@ impl Connection {
         // First try to detect chip using security_info when possible
         if let Ok(security_info) = self.security_info(use_stub) {
             if let Some(chip_id) = security_info.chip_id {
-                info!("Detected chip using security info chip_id: {chip_id}");
+                debug!("Detected chip using security info chip_id: {chip_id}");
                 // Convert u32 chip_id to u16 for compatibility with Chip::try_from
                 match Chip::try_from(chip_id as u16) {
                     Ok(chip) => return Ok(chip),
