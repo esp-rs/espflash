@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Windows] Fixed a crash in monitor when espflash is connected via USB Serial/JTAG, and the user is typing into the monitor but the device is not reading serial input. (#943)
 - [Linux/MacOS] Fixed espflash hanging when espflash is connected via USB Serial/JTAG, and the user is typing into the monitor but the device is not reading serial input. (#944, #945)
 - Fixed ESP32-S2 flash size detection issues (#950)
+- Images are now automatically padded to 4 bytes before writing by the library (previously this was done in the CLI) (#951)
 
 ### Removed
 
