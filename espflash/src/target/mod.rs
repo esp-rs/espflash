@@ -130,7 +130,7 @@ impl Chip {
                 0x4361_606f, // ECO7
             ]
             .contains(&value),
-            Chip::Esp32c5 => [].contains(&value), // Empty array
+            Chip::Esp32c5 => [0x1101_406f, 0x63e1_406f, 0x5fd1_406f].contains(&value),
             Chip::Esp32c6 => [0x2CE0_806F].contains(&value),
             Chip::Esp32h2 => [0xD7B7_3E80].contains(&value),
             Chip::Esp32p4 => [0x0, 0x0ADDBAD0].contains(&value),
