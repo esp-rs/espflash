@@ -8,27 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Add `--no-addresses` flag to `monitor` subcommand (#942)
 
 ### Changed
 
-- Renamed `--check-app-descriptor` to `--ignore-app-descriptor` (#833)
+### Fixed
+
+### Removed
+
+## [4.1.0] - 2025-09-18
+
+### Added
+
+- Add `--no-addresses` flag to `monitor` subcommand (#942)
+- Add new ESP32-C5 magic values (#940)
+
+### Changed
+
+- Rename `--check-app-descriptor` to `--ignore-app-descriptor` (#833)
 
 ### Fixed
 
-- [Windows] Fixed a crash in monitor when espflash is connected via USB Serial/JTAG, and the user is typing into the monitor but the device is not reading serial input. (#943)
-- [Linux/MacOS] Fixed espflash hanging when espflash is connected via USB Serial/JTAG, and the user is typing into the monitor but the device is not reading serial input. (#944, #945)
-- Fixed ESP32-S2 flash size detection issues (#950)
+- Fix a crash in monitor when espflash is connected via USB Serial/JTAG, and the user is typing into the monitor but the device is not reading serial input. (#943, #944, #945)
+- Fix ESP32-S2 flash size detection issues (#950)
 - Images are now automatically padded to 4 bytes before writing by the library (previously this was done in the CLI) (#951)
-
-### Removed
 
 ## [4.0.1] - 2025-07-07
 
 ### Changed
+
 - `espflash` now allows wider version ranges on its dependencies(#924)
 
 ### Fixed
+
 - `save-image` now checks if the ELF contains the app descriptor (#920)
 
 ## [4.0.0] - 2025-07-01
@@ -411,7 +422,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-09-21
 
-[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.0.1...HEAD
+[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.1.0...HEAD
+[4.1.0]: https://github.com/esp-rs/espflash/compare/v4.0.1...v4.1.0
 [4.0.1]: https://github.com/esp-rs/espflash/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/esp-rs/espflash/compare/v3.3.0...v4.0.0
 [3.3.0]: https://github.com/esp-rs/espflash/compare/v3.2.0...v3.3.0
