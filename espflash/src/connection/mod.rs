@@ -552,12 +552,51 @@ impl Connection {
         self.before_operation
     }
 
+    /// Gets security information from the chip.
+    #[cfg(feature = "serialport")]
+    pub fn security_info(
+        &mut self,
+        use_stub: bool,
+    ) -> Result<crate::flasher::SecurityInfo, crate::error::Error> {
+        self.with_timeout(CommandType::GetSecurityInfo.timeout(), |connection| {
+            let response = connection.command(Command::GetSecurityInfo)?;
+            // Extract raw bytes and convert them into `SecurityInfo`
+            if let crate::command::CommandResponseValue::Vector(data) = response {
+                // HACK: Not quite sure why there seem to be 4 extra bytes at the end of the
+                //       response when the stub is not being used...
+                let end = if use_stub { data.len() } else { data.len() - 4 };
+                crate::flasher::SecurityInfo::try_from(&data[..end])
+            } else {
+                Err(Error::InvalidResponse(
+                    "response was not a vector of bytes".into(),
+                ))
+            }
+        })
+    }
+
     /// Detects which chip is connected to this connection.
+    #[cfg(feature = "serialport")]
     pub fn detect_chip(
         &mut self,
         use_stub: bool,
     ) -> Result<crate::target::Chip, crate::error::Error> {
-        // Try to read the magic value from the chip
+        // First try to detect chip using security_info when possible
+        if let Ok(security_info) = self.security_info(use_stub) {
+            if let Some(chip_id) = security_info.chip_id {
+                info!("Detected chip using security info chip_id: {chip_id}");
+                // Convert u32 chip_id to u16 for compatibility with Chip::try_from
+                match Chip::try_from(chip_id as u16) {
+                    Ok(chip) => return Ok(chip),
+                    Err(_) => {
+                        debug!(
+                            "Unknown chip_id from security_info: {chip_id}, falling back to magic register"
+                        );
+                    }
+                }
+            }
+        }
+
+        // Fall back to reading the magic value from the chip
         let magic = if use_stub {
             self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
                 connection.command(Command::ReadReg {

@@ -1143,7 +1143,7 @@ impl Flasher {
 
     /// Get security info.
     pub fn security_info(&mut self) -> Result<SecurityInfo, Error> {
-        security_info(&mut self.connection, self.use_stub)
+        self.connection.security_info(self.use_stub)
     }
 
     /// Change the baud rate of the connection.
@@ -1368,24 +1368,6 @@ impl Flasher {
     pub fn into_connection(self) -> Connection {
         self.connection
     }
-}
-
-#[cfg(feature = "serialport")]
-fn security_info(connection: &mut Connection, use_stub: bool) -> Result<SecurityInfo, Error> {
-    connection.with_timeout(CommandType::GetSecurityInfo.timeout(), |connection| {
-        let response = connection.command(Command::GetSecurityInfo)?;
-        // Extract raw bytes and convert them into `SecurityInfo`
-        if let crate::command::CommandResponseValue::Vector(data) = response {
-            // HACK: Not quite sure why there seem to be 4 extra bytes at the end of the
-            //       response when the stub is not being used...
-            let end = if use_stub { data.len() } else { data.len() - 4 };
-            SecurityInfo::try_from(&data[..end])
-        } else {
-            Err(Error::InvalidResponse(
-                "response was not a vector of bytes".into(),
-            ))
-        }
-    })
 }
 
 #[cfg(feature = "serialport")]
