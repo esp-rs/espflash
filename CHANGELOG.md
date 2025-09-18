@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Renamed `--check-app-descriptor` to `--ignore-app-descriptor` (#833)
+- Add support for secure padding for save-image (#876)
 
 ### Fixed
 
