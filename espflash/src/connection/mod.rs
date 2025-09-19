@@ -5,6 +5,8 @@
 //! device.
 
 use std::{
+    collections::HashMap,
+    fmt,
     io::{BufWriter, Read, Write},
     iter::zip,
     thread::sleep,
@@ -13,6 +15,7 @@ use std::{
 
 use log::{debug, info};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use serialport::{SerialPort, UsbPortInfo};
 use slip_codec::SlipDecoder;
 
@@ -33,7 +36,7 @@ use self::{
 use crate::{
     command::{Command, CommandResponse, CommandResponseValue, CommandType},
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
-    flasher::{SecurityInfo, stubs::CHIP_DETECT_MAGIC_REG_ADDR},
+    flasher::stubs::CHIP_DETECT_MAGIC_REG_ADDR,
     target::Chip,
 };
 
@@ -51,6 +54,176 @@ pub type Port = serialport::TTYPort;
 #[cfg(windows)]
 /// Alias for the serial COMPort.
 pub type Port = serialport::COMPort;
+
+/// Security Info Response containing chip security information
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct SecurityInfo {
+    /// 32 bits flags
+    pub flags: u32,
+    /// 1 byte flash_crypt_cnt
+    pub flash_crypt_cnt: u8,
+    /// 7 bytes key purposes
+    pub key_purposes: [u8; 7],
+    /// 32-bit word chip id
+    pub chip_id: Option<u32>,
+    /// 32-bit word eco version
+    pub eco_version: Option<u32>,
+}
+
+impl SecurityInfo {
+    fn security_flag_map() -> HashMap<&'static str, u32> {
+        HashMap::from([
+            ("SECURE_BOOT_EN", 1 << 0),
+            ("SECURE_BOOT_AGGRESSIVE_REVOKE", 1 << 1),
+            ("SECURE_DOWNLOAD_ENABLE", 1 << 2),
+            ("SECURE_BOOT_KEY_REVOKE0", 1 << 3),
+            ("SECURE_BOOT_KEY_REVOKE1", 1 << 4),
+            ("SECURE_BOOT_KEY_REVOKE2", 1 << 5),
+            ("SOFT_DIS_JTAG", 1 << 6),
+            ("HARD_DIS_JTAG", 1 << 7),
+            ("DIS_USB", 1 << 8),
+            ("DIS_DOWNLOAD_DCACHE", 1 << 9),
+            ("DIS_DOWNLOAD_ICACHE", 1 << 10),
+        ])
+    }
+
+    fn security_flag_status(&self, flag_name: &str) -> bool {
+        if let Some(&flag) = Self::security_flag_map().get(flag_name) {
+            (self.flags & flag) != 0
+        } else {
+            false
+        }
+    }
+}
+
+impl TryFrom<&[u8]> for SecurityInfo {
+    type Error = Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let esp32s2 = bytes.len() == 12;
+
+        if bytes.len() < 12 {
+            return Err(Error::InvalidResponse(format!(
+                "expected response of at least 12 bytes, received {} bytes",
+                bytes.len()
+            )));
+        }
+
+        // Parse response bytes
+        let flags = u32::from_le_bytes(bytes[0..4].try_into()?);
+        let flash_crypt_cnt = bytes[4];
+        let key_purposes: [u8; 7] = bytes[5..12].try_into()?;
+
+        let (chip_id, eco_version) = if esp32s2 {
+            (None, None) // ESP32-S2 doesn't have these values
+        } else {
+            if bytes.len() < 20 {
+                return Err(Error::InvalidResponse(format!(
+                    "expected response of at least 20 bytes, received {} bytes",
+                    bytes.len()
+                )));
+            }
+            let chip_id = u32::from_le_bytes(bytes[12..16].try_into()?);
+            let eco_version = u32::from_le_bytes(bytes[16..20].try_into()?);
+            (Some(chip_id), Some(eco_version))
+        };
+
+        Ok(SecurityInfo {
+            flags,
+            flash_crypt_cnt,
+            key_purposes,
+            chip_id,
+            eco_version,
+        })
+    }
+}
+
+impl fmt::Display for SecurityInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let key_purposes_str = self
+            .key_purposes
+            .iter()
+            .map(|b| format!("{b}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        writeln!(f, "\nSecurity Information:")?;
+        writeln!(f, "=====================")?;
+        writeln!(f, "Flags: {:#010x} ({:b})", self.flags, self.flags)?;
+        writeln!(f, "Key Purposes: [{key_purposes_str}]")?;
+
+        // Only print Chip ID if it's Some(value)
+        if let Some(chip_id) = self.chip_id {
+            writeln!(f, "Chip ID: {chip_id}")?;
+        }
+
+        // Only print API Version if it's Some(value)
+        if let Some(api_version) = self.eco_version {
+            writeln!(f, "API Version: {api_version}")?;
+        }
+
+        // Secure Boot
+        if self.security_flag_status("SECURE_BOOT_EN") {
+            writeln!(f, "Secure Boot: Enabled")?;
+            if self.security_flag_status("SECURE_BOOT_AGGRESSIVE_REVOKE") {
+                writeln!(f, "Secure Boot Aggressive key revocation: Enabled")?;
+            }
+
+            let revoked_keys: Vec<_> = [
+                "SECURE_BOOT_KEY_REVOKE0",
+                "SECURE_BOOT_KEY_REVOKE1",
+                "SECURE_BOOT_KEY_REVOKE2",
+            ]
+            .iter()
+            .enumerate()
+            .filter(|(_, key)| self.security_flag_status(key))
+            .map(|(i, _)| format!("Secure Boot Key{i} is Revoked"))
+            .collect();
+
+            if !revoked_keys.is_empty() {
+                writeln!(
+                    f,
+                    "Secure Boot Key Revocation Status:\n  {}",
+                    revoked_keys.join("\n  ")
+                )?;
+            }
+        } else {
+            writeln!(f, "Secure Boot: Disabled")?;
+        }
+
+        // Flash Encryption
+        if self.flash_crypt_cnt.count_ones() % 2 != 0 {
+            writeln!(f, "Flash Encryption: Enabled")?;
+        } else {
+            writeln!(f, "Flash Encryption: Disabled")?;
+        }
+
+        let crypt_cnt_str = "SPI Boot Crypt Count (SPI_BOOT_CRYPT_CNT)";
+        writeln!(f, "{}: 0x{:x}", crypt_cnt_str, self.flash_crypt_cnt)?;
+
+        // Cache Disabling
+        if self.security_flag_status("DIS_DOWNLOAD_DCACHE") {
+            writeln!(f, "Dcache in UART download mode: Disabled")?;
+        }
+        if self.security_flag_status("DIS_DOWNLOAD_ICACHE") {
+            writeln!(f, "Icache in UART download mode: Disabled")?;
+        }
+
+        // JTAG Status
+        if self.security_flag_status("HARD_DIS_JTAG") {
+            writeln!(f, "JTAG: Permanently Disabled")?;
+        } else if self.security_flag_status("SOFT_DIS_JTAG") {
+            writeln!(f, "JTAG: Software Access Disabled")?;
+        }
+
+        // USB Access
+        if self.security_flag_status("DIS_USB") {
+            writeln!(f, "USB Access: Disabled")?;
+        }
+
+        Ok(())
+    }
+}
 
 /// An established connection with a target device.
 #[derive(Debug)]
