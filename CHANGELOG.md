@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix a crash with Connection module when connecting to a loopback serial port (#954)
+
 ### Removed
 
 ## [4.1.0] - 2025-09-18
