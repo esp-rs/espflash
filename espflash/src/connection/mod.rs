@@ -399,17 +399,15 @@ impl Connection {
                     10 | 12 => CommandResponseValue::ValueU32(u32::from_le_bytes(
                         response[4..][..4].try_into()?,
                     )),
-                        // MD5 is in ASCII
+                    // MD5 is in ASCII
                     44 => CommandResponseValue::ValueU128(u128::from_str_radix(
                         std::str::from_utf8(&response[8..][..32])?,
                         16,
                     )?),
-                    26 => {
-                        // MD5 is BE bytes
-                        CommandResponseValue::ValueU128(u128::from_be_bytes(
-                            response[8..][..16].try_into()?,
-                        ))
-                    }
+                    // MD5 is BE bytes
+                    26 => CommandResponseValue::ValueU128(u128::from_be_bytes(
+                        response[8..][..16].try_into()?,
+                    )),
                     _ => CommandResponseValue::Vector(response.clone()),
                 };
 
