@@ -750,35 +750,29 @@ impl Connection {
         &mut self,
         use_stub: bool,
     ) -> Result<crate::target::Chip, crate::error::Error> {
-        // First try to detect chip using security_info when possible
-        if let Ok(security_info) = self.security_info(use_stub) {
-            if let Some(chip_id) = security_info.chip_id {
-                debug!("Detected chip using security info chip_id: {chip_id}");
-                // Convert u32 chip_id to u16 for compatibility with Chip::try_from
-                match Chip::try_from(chip_id as u16) {
-                    Ok(chip) => return Ok(chip),
-                    Err(_) => {
-                        debug!(
-                            "Unknown chip_id from security_info: {chip_id}, falling back to magic register"
-                        );
-                    }
-                }
+        match self.security_info(use_stub) {
+            Ok(info) if info.chip_id.is_some() => {
+                let chip_id = info.chip_id.unwrap() as u16;
+                let chip = Chip::try_from(chip_id)?;
+
+                Ok(chip)
+            }
+            _ => {
+                // Fall back to reading the magic value from the chip
+                let magic = if use_stub {
+                    self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
+                        connection.command(Command::ReadReg {
+                            address: CHIP_DETECT_MAGIC_REG_ADDR,
+                        })
+                    })?
+                    .try_into()?
+                } else {
+                    self.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?
+                };
+                debug!("Read chip magic value: 0x{magic:08x}");
+                Chip::from_magic(magic)
             }
         }
-
-        // Fall back to reading the magic value from the chip
-        let magic = if use_stub {
-            self.with_timeout(CommandType::ReadReg.timeout(), |connection| {
-                connection.command(Command::ReadReg {
-                    address: CHIP_DETECT_MAGIC_REG_ADDR,
-                })
-            })?
-            .try_into()?
-        } else {
-            self.read_reg(CHIP_DETECT_MAGIC_REG_ADDR)?
-        };
-        debug!("Read chip magic value: 0x{magic:08x}");
-        Chip::from_magic(magic)
     }
 }
 
