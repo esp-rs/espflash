@@ -1051,8 +1051,8 @@ impl Flasher {
         {
             let metadata = image_format.metadata();
             if metadata.contains_key("app_size") && metadata.contains_key("part_size") {
-                let app_size = metadata["app_size"].parse::<u32>().unwrap();
-                let part_size = metadata["part_size"].parse::<u32>().unwrap();
+                let app_size = metadata["app_size"].parse::<u32>()?;
+                let part_size = metadata["part_size"].parse::<u32>()?;
 
                 crate::cli::display_image_size(app_size, Some(part_size));
             }

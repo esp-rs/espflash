@@ -2,7 +2,7 @@
 
 #[cfg(feature = "serialport")]
 use std::fmt::{Display, Formatter};
-use std::{array::TryFromSliceError, io};
+use std::{array::TryFromSliceError, io, num::ParseIntError, str::Utf8Error};
 
 use miette::Diagnostic;
 #[cfg(feature = "serialport")]
@@ -294,6 +294,14 @@ pub enum Error {
     #[error(transparent)]
     TryFromSlice(CoreError),
 
+    /// Error while trying to parse int from text
+    #[error(transparent)]
+    ParseIntError(CoreError),
+
+    /// Error while trying to parse UTF-8 from bytes
+    #[error(transparent)]
+    Utf8Error(CoreError),
+
     /// Failed to open file
     #[error("Failed to open file: {0}")]
     FileOpenError(String, #[source] io::Error),
@@ -377,6 +385,18 @@ impl From<serialport::Error> for Error {
 impl From<TryFromSliceError> for Error {
     fn from(err: TryFromSliceError) -> Self {
         Self::TryFromSlice(Box::new(err))
+    }
+}
+
+impl From<ParseIntError> for Error {
+    fn from(err: ParseIntError) -> Self {
+        Self::ParseIntError(Box::new(err))
+    }
+}
+
+impl From<Utf8Error> for Error {
+    fn from(err: Utf8Error) -> Self {
+        Self::Utf8Error(Box::new(err))
     }
 }
 

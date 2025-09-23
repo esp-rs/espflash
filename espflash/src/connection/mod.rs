@@ -397,31 +397,24 @@ impl Connection {
 
                 let value = match response.len() {
                     10 | 12 => CommandResponseValue::ValueU32(u32::from_le_bytes(
-                        response[4..][..4].try_into().unwrap(),
+                        response[4..][..4].try_into()?,
                     )),
-                    44 => {
-                        // MD5 is in ASCII
-                        CommandResponseValue::ValueU128(
-                            u128::from_str_radix(
-                                std::str::from_utf8(&response[8..][..32]).unwrap(),
-                                16,
-                            )
-                            .unwrap(),
-                        )
-                    }
-                    26 => {
-                        // MD5 is BE bytes
-                        CommandResponseValue::ValueU128(u128::from_be_bytes(
-                            response[8..][..16].try_into().unwrap(),
-                        ))
-                    }
+                    // MD5 is in ASCII
+                    44 => CommandResponseValue::ValueU128(u128::from_str_radix(
+                        std::str::from_utf8(&response[8..][..32])?,
+                        16,
+                    )?),
+                    // MD5 is BE bytes
+                    26 => CommandResponseValue::ValueU128(u128::from_be_bytes(
+                        response[8..][..16].try_into()?,
+                    )),
                     _ => CommandResponseValue::Vector(response.clone()),
                 };
 
                 let header = CommandResponse {
                     resp: response[0],
                     return_op: response[1],
-                    return_length: u16::from_le_bytes(response[2..][..2].try_into().unwrap()),
+                    return_length: u16::from_le_bytes(response[2..][..2].try_into()?),
                     value,
                     error: response[response.len() - status_len + 1],
                     status: response[response.len() - status_len],
