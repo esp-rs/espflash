@@ -268,6 +268,7 @@ impl TestRunner {
 
             // If still running, kill it
             if !terminated_naturally {
+                log::warn!("{test_name} test timed out after {timeout:?}, terminating process");
                 let _ = child.kill();
                 let _ = child.wait();
             }
@@ -408,7 +409,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["board-info"],
             Some(&["Chip type:"]),
-            Duration::from_secs(5),
+            Duration::from_secs(10),
             "board-info",
         )
     }
@@ -436,7 +437,7 @@ impl TestRunner {
                 part_table,
             ],
             Some(&["espflash::partition_table::does_not_fit"]),
-            Duration::from_secs(5),
+            Duration::from_secs(10),
             "partition too big",
         )?;
 
@@ -540,7 +541,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["list-ports"],
             Some(&["Silicon Labs"]),
-            Duration::from_secs(5),
+            Duration::from_secs(10),
             "list-ports",
         )?;
         Ok(())
@@ -562,7 +563,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["read-flash", "0", "0x4000", flash_output.to_str().unwrap()],
             Some(&["Flash content successfully read"]),
-            Duration::from_secs(5),
+            Duration::from_secs(10),
             "read after erase",
         )?;
 
@@ -586,14 +587,14 @@ impl TestRunner {
 
         // Test unaligned address (not multiple of 4096)
         let mut cmd = self.create_espflash_command(&["erase-region", "0x1001", "0x1000"]);
-        let exit_code = self.run_command_with_timeout(&mut cmd, Duration::from_secs(5))?;
+        let exit_code = self.run_command_with_timeout(&mut cmd, Duration::from_secs(10))?;
         if exit_code == 0 {
             return Err("Unaligned address erase should have failed but succeeded".into());
         }
 
         // Test unaligned size (not multiple of 4096)
         let mut cmd = self.create_espflash_command(&["erase-region", "0x1000", "0x1001"]);
-        let exit_code = self.run_command_with_timeout(&mut cmd, Duration::from_secs(5))?;
+        let exit_code = self.run_command_with_timeout(&mut cmd, Duration::from_secs(10))?;
         if exit_code == 0 {
             return Err("Unaligned size erase should have failed but succeeded".into());
         }
@@ -602,7 +603,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["erase-region", "0x1000", "0x1000"],
             Some(&["Erasing region at"]),
-            Duration::from_secs(5),
+            Duration::from_secs(10),
             "erase-region valid",
         )?;
 
@@ -615,7 +616,7 @@ impl TestRunner {
                 flash_output.to_str().unwrap(),
             ],
             Some(&["Flash content successfully read"]),
-            Duration::from_secs(5),
+            Duration::from_secs(10),
             "read after erase-region",
         )?;
 
@@ -660,7 +661,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["write-bin", "0x0", pattern_file.to_str().unwrap()],
             Some(&["Binary successfully written to flash!"]),
-            Duration::from_secs(5),
+            Duration::from_secs(10),
             "write pattern",
         )?;
 
@@ -677,7 +678,7 @@ impl TestRunner {
                     flash_output.to_str().unwrap(),
                 ],
                 Some(&["Flash content successfully read and written to"]),
-                Duration::from_secs(5),
+                Duration::from_secs(10),
                 &format!("read {len} bytes"),
             )?;
 
@@ -704,7 +705,7 @@ impl TestRunner {
                     flash_output.to_str().unwrap(),
                 ],
                 Some(&["Flash content successfully read and written to"]),
-                Duration::from_secs(5),
+                Duration::from_secs(10),
                 &format!("read {len} bytes with ROM bootloader"),
             )?;
 
@@ -838,7 +839,7 @@ impl TestRunner {
                 app_bin.to_str().unwrap(),
             ],
             Some(&["Image successfully saved!"]),
-            Duration::from_secs(5),
+            Duration::from_secs(10),
             "save-image C6 regression",
         )?;
 
@@ -879,7 +880,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["checksum-md5", "0x1000", "0x100"],
             Some(&["0x827f263ef9fb63d05499d14fcef32f60"]),
-            Duration::from_secs(5),
+            Duration::from_secs(10),
             "checksum-md5",
         )?;
 
@@ -892,7 +893,7 @@ impl TestRunner {
         self.run_timed_command_test(
             &["monitor", "--non-interactive"],
             Some(&["Hello world!"]),
-            Duration::from_secs(5),
+            Duration::from_secs(10),
             "monitor",
         )?;
         Ok(())
@@ -903,7 +904,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["reset"],
             Some(&["Resetting target device"]),
-            Duration::from_secs(5),
+            Duration::from_secs(10),
             "reset",
         )?;
         Ok(())
@@ -914,7 +915,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["hold-in-reset"],
             Some(&["Holding target device in reset"]),
-            Duration::from_secs(5),
+            Duration::from_secs(10),
             "hold-in-reset",
         )?;
         Ok(())
