@@ -8,8 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Add chip detection based on security info, where supported (#953)
 
 ### Changed
+- Moved `SecurityInfo` to the `connection` module from the `flasher` module (#953)
 
 ### Fixed
 
