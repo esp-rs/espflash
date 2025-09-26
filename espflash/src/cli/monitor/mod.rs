@@ -39,6 +39,7 @@ pub mod external_processors;
 pub mod parser;
 
 mod line_endings;
+mod stack_dump;
 mod symbols;
 
 /// Log format to use when parsing incoming data.
