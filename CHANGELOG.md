@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Add chip detection based on security info, where supported (#953)
+- Support for decoding `esp-backtrace`'s RISC-V stack-dump output (#955)
 
 ### Changed
 - Moved `SecurityInfo` to the `connection` module from the `flasher` module (#953)

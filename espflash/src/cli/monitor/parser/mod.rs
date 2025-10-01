@@ -6,7 +6,7 @@ use crossterm::{
 };
 use regex::Regex;
 
-use crate::cli::monitor::{line_endings::normalized, symbols::Symbols};
+use crate::cli::monitor::{line_endings::normalized, stack_dump, symbols::Symbols};
 
 pub mod esp_defmt;
 pub mod serial;
@@ -109,6 +109,7 @@ impl Utf8Merger {
 pub struct ResolvingPrinter<'ctx, W: Write> {
     writer: W,
     symbols: Option<Symbols<'ctx>>,
+    elf: Option<&'ctx [u8]>,
     merger: Utf8Merger,
     line_fragment: String,
     disable_address_resolution: bool,
@@ -120,6 +121,7 @@ impl<'ctx, W: Write> ResolvingPrinter<'ctx, W> {
         Self {
             writer,
             symbols: elf.and_then(|elf| Symbols::try_from(elf).ok()),
+            elf,
             merger: Utf8Merger::new(),
             line_fragment: String::new(),
             disable_address_resolution: false,
@@ -131,6 +133,7 @@ impl<'ctx, W: Write> ResolvingPrinter<'ctx, W> {
         Self {
             writer,
             symbols: None, // Don't load symbols when address resolution is disabled
+            elf: None,
             merger: Utf8Merger::new(),
             line_fragment: String::new(),
             disable_address_resolution: true,
@@ -176,6 +179,21 @@ impl<W: Write> Write for ResolvingPrinter<'_, W> {
                 if let Some(symbols) = self.symbols.as_ref() {
                     // Try to print the names of addresses in the current line.
                     resolve_addresses(symbols, &line, &mut self.writer)?;
+                }
+
+                if line.starts_with(stack_dump::MARKER) {
+                    if let Some(symbols) = self.symbols.as_ref() {
+                        if stack_dump::backtrace_from_stack_dump(
+                            &line,
+                            &mut self.writer,
+                            self.elf,
+                            symbols,
+                        )
+                        .is_err()
+                        {
+                            self.writer.queue(Print("\nUnable to decode stack-dump. Double check `-Cforce-unwind-tables` is used.\n"))?;
+                        }
+                    }
                 }
             }
         }
