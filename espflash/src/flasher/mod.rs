@@ -1165,11 +1165,8 @@ impl Flasher {
         md5_hasher.update(&data);
         let checksum_md5 = md5_hasher.finalize();
 
-        if digest != checksum_md5.as_slice() {
-            return Err(Error::DigestMismatch(
-                digest,
-                checksum_md5.as_slice().to_vec(),
-            ));
+        if digest != checksum_md5[..] {
+            return Err(Error::DigestMismatch(digest, checksum_md5.to_vec()));
         }
 
         file.write_all(&data)?;
