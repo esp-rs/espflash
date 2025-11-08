@@ -386,14 +386,14 @@ impl Chip {
     pub fn block0_offset(&self) -> u32 {
         match self {
             Chip::Esp32 => 0x0,
-            Chip::Esp32c2 => 0x35,
-            Chip::Esp32c3 => 0x2D,
+            Chip::Esp32c2 => 0x2C,
+            Chip::Esp32c3 => 0x2C,
             Chip::Esp32c5 => 0x2C,
             Chip::Esp32c6 => 0x2C,
             Chip::Esp32h2 => 0x2C,
             Chip::Esp32p4 => 0x2C,
             Chip::Esp32s2 => 0x2C,
-            Chip::Esp32s3 => 0x2D,
+            Chip::Esp32s3 => 0x2C,
         }
     }
 

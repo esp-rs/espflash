@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Corrected eFuse BLOCK0 definitions for ESP32-C2, ESP32-C3, and ESP32-S3 (#961)
+
 ### Removed
 
 ## [4.2.0] - 2025-10-13
