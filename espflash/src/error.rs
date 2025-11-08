@@ -357,6 +357,10 @@ pub enum Error {
     /// Key is not in the expected section
     #[error("Misplaced key, check your configuration file. Key: {0}")]
     MisplacedKey(String),
+
+    /// Failed to write eFuse
+    #[error("Failed to write eFuse: {0}")]
+    WritingEfuseFailed(String),
 }
 
 #[cfg(feature = "serialport")]

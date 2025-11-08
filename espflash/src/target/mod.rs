@@ -11,11 +11,7 @@ use strum::{Display, EnumIter, EnumString, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
 pub use self::flash_target::{
-    DefaultProgressCallback,
-    Esp32Target,
-    FlashTarget,
-    ProgressCallbacks,
-    RamTarget,
+    DefaultProgressCallback, Esp32Target, FlashTarget, ProgressCallbacks, RamTarget,
 };
 use crate::{
     Error,
@@ -942,6 +938,459 @@ impl Chip {
     /// Returns the minor BLK version based on eFuses for ESP32-S3
     fn esp32s3_blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
         self.read_efuse(connection, efuse::esp32s3::BLK_VERSION_MINOR)
+    }
+}
+
+/// Writable eFuse blocks.
+///
+/// `BLOCK0` uses the "none" coding scheme and can therefore be written to multiple times.  All
+/// other blocks use Reed-Solomon coding which means that they can only be written to once.  Trying
+/// to write additional data to a block using Reed-Solomon coding would corrupt the entire eFuse
+/// block.
+///
+/// `BLOCK1` is written during manufacturing and is therefore not user-writable.
+#[derive(Clone, Copy, Debug, PartialEq)]
+// TODO: Add variant docs
+#[allow(missing_docs)]
+pub enum EfuseBlock {
+    /// `BLOCK0` uses the "none" coding scheme and is therefore the only eFuse block which can be
+    /// written to multiple times.
+    ///
+    /// This eFuse also has fields for various config fuses.
+    Block0 = 0,
+    Block2 = 2,
+    Block3 = 3,
+    Block4 = 4,
+    Block5 = 5,
+    Block6 = 6,
+    Block7 = 7,
+    Block8 = 8,
+    Block9 = 9,
+    Block10 = 10,
+}
+
+impl Chip {
+    /// Returns the offset of `EFUSE_RD_REPEAT_ERR0_REG` relative to the eFuse base register address.
+    const fn efuse_rd_repeat_err0_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => 0x017C,
+        }
+    }
+
+    /// Returns the offset of `EFUSE_RD_REPEAT_ERR1_REG` relative to the eFuse base register address.
+    const fn efuse_rd_repeat_err1_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => 0x0180,
+        }
+    }
+
+    /// Returns the offset of `EFUSE_RD_REPEAT_ERR2_REG` relative to the eFuse base register address.
+    const fn efuse_rd_repeat_err2_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => 0x0184,
+        }
+    }
+
+    /// Returns the offset of `EFUSE_RD_REPEAT_ERR3_REG` relative to the eFuse base register address.
+    const fn efuse_rd_repeat_err3_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => 0x0188,
+        }
+    }
+
+    /// Returns the offset of `EFUSE_RD_REPEAT_ERR4_REG` relative to the eFuse base register address.
+    const fn efuse_rd_repeat_err4_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => 0x018C,
+        }
+    }
+
+    /// Returns the offset of `EFUSE_RD_RS_ERR0_REG` relative to the eFuse base register address.
+    const fn efuse_rd_rs_err0_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => 0x01C0,
+        }
+    }
+
+    /// Returns the offset of `EFUSE_RD_RS_ERR1_REG` relative to the eFuse base register address.
+    const fn efuse_rd_rs_err1_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => 0x01C4,
+        }
+    }
+
+    /// Returns the offset of `EFUSE_CONF_REG` relative to the eFuse base register address.
+    const fn efuse_conf_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => 0x01CC,
+        }
+    }
+
+    /// Returns the offset of `EFUSE_CMD_REG` relative to the eFuse base register address.
+    const fn efuse_cmd_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => 0x01D4,
+        }
+    }
+
+    /// Returns the offset of `EFUSE_DAC_CONF_REG` relative to the eFuse base register address.
+    const fn efuse_dac_conf_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => 0x01E8,
+        }
+    }
+
+    /// Returns the offset of `EFUSE_WR_TIME_CONF1_REG` relative to the eFuse base register
+    /// address.
+    const fn efuse_wr_time_conf1_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => 0x01F4,
+        }
+    }
+
+    /// Returns the offset of `EFUSE_WR_TIME_CONF1_REG` relative to the eFuse base register
+    /// address.
+    const fn efuse_wr_time_conf2_reg(&self) -> u32 {
+        match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => 0x01F8,
+        }
+    }
+
+    /// Set up the timing registers necessary for burning eFuses.
+    #[cfg(feature = "serialport")]
+    fn set_efuse_timing(&self, connection: &mut Connection) -> Result<(), Error> {
+        let xtal_freq = self.xtal_frequency(connection)?;
+
+        match self {
+            Self::Esp32s3 => {
+                assert_eq!(xtal_freq, XtalFrequency::_40Mhz, "Only 40 MHz is supported");
+
+                connection.update_reg(
+                    self.efuse_reg() + self.efuse_dac_conf_reg(),
+                    0xFF << 0,
+                    0xFF,
+                )?;
+                connection.update_reg(
+                    self.efuse_reg() + self.efuse_dac_conf_reg(),
+                    0xFF << 9,
+                    0x28,
+                )?;
+                connection.update_reg(
+                    self.efuse_reg() + self.efuse_wr_time_conf1_reg(),
+                    0xFFFF << 9,
+                    0x3000,
+                )?;
+                connection.update_reg(
+                    self.efuse_reg() + self.efuse_wr_time_conf2_reg(),
+                    0xFFFF << 0,
+                    0x190,
+                )?;
+            }
+
+            _ => unimplemented!(),
+        }
+
+        Ok(())
+    }
+
+    // Poll the eFuse controller status until it's idle.
+    fn wait_efuse_idle(&self, connection: &mut Connection) -> Result<(), Error> {
+        let efuse_cmd_reg = self.efuse_reg() + self.efuse_cmd_reg();
+
+        loop {
+            // Wait until `EFUSE_CMD_REG` reads as zero twice in a row.  `esptool.py` says that
+            // "due to a hardware error, we have to read READ_CMD again to make sure the efuse
+            // clock is normal" but doesn't provide any references.  See if this is documented in
+            // the errata.
+            if (connection.read_reg(efuse_cmd_reg)? & 0x3) != 0 {
+                continue;
+            }
+            if (connection.read_reg(efuse_cmd_reg)? & 0x3) != 0 {
+                continue;
+            }
+            break;
+        }
+
+        Ok(())
+    }
+
+    /// Trigger the eFuse controller to update its internal registers.
+    #[cfg(feature = "serialport")]
+    fn trigger_efuse_register_read(&self, connection: &mut Connection) -> Result<(), Error> {
+        self.wait_efuse_idle(connection)?;
+
+        // Write `0x5AA5` (read) to `EFUSE_CONF_REG.EFUSE_OP_CODE` and set
+        // `EFUSE_CMD_REG.EFUSE_READ_CMD`.
+        connection.update_reg(
+            self.efuse_reg() + self.efuse_conf_reg(),
+            0xFFFF << 0,
+            0x5AA5,
+        )?;
+        connection.update_reg(self.efuse_reg() + self.efuse_cmd_reg(), 0x1 << 0, 1)?;
+
+        // TODO: `esptool.py` says that if `EFUSE_ENABLE_SECURITY_DOWNLOAD` or `DIS_DOWNLOAD_MODE`
+        // was just set then we need to reconnect.  It also uses `dlay_after_us=1000` on the
+        // `EFUSE_READ_CMD` write.
+
+        self.wait_efuse_idle(connection)?;
+
+        Ok(())
+    }
+
+    /// Check whether any errors occurred while writing the eFuse.
+    ///
+    /// Returns `Ok(true)` if write errors did occur.  Returns `Err(_)` if we failed to communicate
+    /// with the chip.
+    fn efuse_write_errors(
+        self,
+        connection: &mut Connection,
+        block: EfuseBlock,
+    ) -> Result<bool, Error> {
+        let errors = match self {
+            Chip::Esp32 => todo!(),
+            Chip::Esp32c2 => todo!(),
+            Chip::Esp32c3 => todo!(),
+            Chip::Esp32c5 => todo!(),
+            Chip::Esp32c6 => todo!(),
+            Chip::Esp32h2 => todo!(),
+            Chip::Esp32p4 => todo!(),
+            Chip::Esp32s2 => todo!(),
+            Chip::Esp32s3 => {
+                let efuse_reg = self.efuse_reg();
+                let efuse_rd_rs_err0_reg = efuse_reg + self.efuse_rd_rs_err0_reg();
+                let efuse_rd_rs_err1_reg = efuse_reg + self.efuse_rd_rs_err1_reg();
+
+                match block {
+                    EfuseBlock::Block0 => {
+                        connection.read_reg(efuse_reg + self.efuse_rd_repeat_err0_reg())?
+                            | connection.read_reg(efuse_reg + self.efuse_rd_repeat_err1_reg())?
+                            | connection.read_reg(efuse_reg + self.efuse_rd_repeat_err2_reg())?
+                            | connection.read_reg(efuse_reg + self.efuse_rd_repeat_err3_reg())?
+                            | connection.read_reg(efuse_reg + self.efuse_rd_repeat_err4_reg())?
+                    }
+                    EfuseBlock::Block2 => {
+                        connection.read_reg(efuse_rd_rs_err0_reg)? & (0b1 << 11 | 0b111 << 4)
+                    }
+                    EfuseBlock::Block3 => {
+                        connection.read_reg(efuse_rd_rs_err0_reg)? & (0b1 << 15 | 0b111 << 8)
+                    }
+                    EfuseBlock::Block4 => {
+                        connection.read_reg(efuse_rd_rs_err0_reg)? & (0b1 << 19 | 0b111 << 12)
+                    }
+                    EfuseBlock::Block5 => {
+                        connection.read_reg(efuse_rd_rs_err0_reg)? & (0b1 << 23 | 0b111 << 16)
+                    }
+                    EfuseBlock::Block6 => {
+                        connection.read_reg(efuse_rd_rs_err0_reg)? & (0b1 << 27 | 0b111 << 20)
+                    }
+                    EfuseBlock::Block7 => {
+                        connection.read_reg(efuse_rd_rs_err0_reg)? & (0b1 << 31 | 0b111 << 24)
+                    }
+                    EfuseBlock::Block8 => {
+                        connection.read_reg(efuse_rd_rs_err0_reg)? & (0b111 << 28)
+                            | connection.read_reg(efuse_rd_rs_err1_reg)? & (0b1 << 3)
+                    }
+                    EfuseBlock::Block9 => {
+                        connection.read_reg(efuse_rd_rs_err1_reg)? & (0b1 << 7 | 0b111 << 0)
+                    }
+                    EfuseBlock::Block10 => {
+                        connection.read_reg(efuse_rd_rs_err1_reg)? & (0b1 << 7 | 0b111 << 4)
+                    }
+                }
+            }
+        };
+
+        Ok(errors != 0)
+    }
+
+    /// Write an eFuse
+    #[allow(missing_docs)]
+    #[cfg(feature = "serialport")]
+    pub fn write_efuse(
+        &self,
+        connection: &mut Connection,
+        block: EfuseBlock,
+        data: &[u32; 8],
+    ) -> Result<(), Error> {
+        // Make sure that the correct timing settings are configured.
+        self.set_efuse_timing(connection)?;
+
+        let encoded_data: [u32; 8 + 3] = {
+            let mut encoded_data = [0u32; 8 + 3];
+            let (data_slice, parity_slice) = encoded_data.split_at_mut(data.len());
+
+            data_slice.copy_from_slice(data);
+
+            // Block 0 uses the "none" coding scheme so we don't need to do anything here, instead
+            // the hardware will make take care of writing multiple copies of the data instead.
+            if block != EfuseBlock::Block0 {
+                let encoded = reed_solomon::Encoder::new(12).encode(
+                    &data
+                        .into_iter()
+                        .map(|b| b.to_ne_bytes())
+                        .flatten()
+                        .collect::<Vec<_>>(),
+                );
+
+                for (idx, chunk) in encoded.chunks(4).skip(data.len()).enumerate() {
+                    parity_slice[idx] = u32::from_ne_bytes(chunk.try_into().unwrap());
+                }
+            }
+
+            encoded_data
+        };
+
+        let efuse_reg = self.efuse_reg();
+        let efuse_conf_reg = efuse_reg + self.efuse_conf_reg();
+        let efuse_cmd_reg = efuse_reg + self.efuse_cmd_reg();
+        let mut err = None;
+        for _ in 0..3 {
+            self.wait_efuse_idle(connection)?;
+
+            // Write the block to `EFUSE_BLK_NUM`.
+            connection.update_reg(efuse_cmd_reg, 0xF << 2, block as u32)?;
+
+            // Write the encoded data to `EFUSE_PGM_DATA[0..7]_REG` and
+            // `EFUSE_CHECK_VALUE[0..2]_REG`.
+            //
+            // The unused registers are ignored for writes to `BLOCK0` so it's fine to
+            // unconditionally write to them.
+            for (idx, word) in encoded_data.iter().enumerate() {
+                connection.write_reg(efuse_reg + (idx as u32 * 4), *word, None)?;
+            }
+
+            // Write `0x5A5A` (program) to `EFUSE_CONF_REG.EFUSE_OP_CODE` and set
+            // `EFUSE_CMD_REG.EFUSE_PGM_CMD` and wait until the programming process finishes.
+            connection.update_reg(efuse_conf_reg, 0xFFFF << 0, 0x5A5A)?;
+            connection.update_reg(efuse_cmd_reg, 0x1 << 1, 1)?;
+            self.wait_efuse_idle(connection)?;
+
+            // Clear the parameter registers to avoid leaking the programmed contents.
+            for (idx, _word) in encoded_data.iter().enumerate() {
+                connection.write_reg(efuse_reg + (idx as u32 * 4), 0x00, None)?;
+            }
+
+            // Trigger eFuse controller to update its internal registers.
+            self.trigger_efuse_register_read(connection)?;
+
+            // Got at least one error, try burning the eFuse again.
+            if self.efuse_write_errors(connection, block)? {
+                let _ = err.insert("eFuse controller returned unreliable burn");
+                continue;
+            }
+
+            // Check that the bits we wrote are actually set.  If there ary differences, perform
+            // the burn again.
+            for word in 0..4u8 {
+                let rd_word = self.read_efuse_raw(connection, block as u32, word as u32)?;
+                let wr_word = data[word as usize];
+                if (rd_word & wr_word) != wr_word {
+                    let _ = err.insert("Not all bits were set after burning");
+                    continue;
+                }
+            }
+
+            return Ok(());
+        }
+
+        // Reaching this point means that we failed to burn the eFuse 3 times in a row.
+        Err(Error::WritingEfuseFailed(err.unwrap().to_string()))
     }
 }
 
