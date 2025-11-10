@@ -184,17 +184,16 @@ impl<W: Write> Write for ResolvingPrinter<'_, W> {
                     resolve_addresses(symbols, &line, &mut self.writer)?;
                 }
 
-                if line.starts_with(stack_dump::MARKER) {
-                    if stack_dump::backtrace_from_stack_dump(
+                if line.starts_with(stack_dump::MARKER)
+                    && stack_dump::backtrace_from_stack_dump(
                         &line,
                         &mut self.writer,
                         &self.elfs,
                         &self.symbols,
                     )
                     .is_err()
-                    {
-                        self.writer.queue(Print("\nUnable to decode stack-dump. Double check `-Cforce-unwind-tables` is used.\n"))?;
-                    }
+                {
+                    self.writer.queue(Print("\nUnable to decode stack-dump. Double check `-Cforce-unwind-tables` is used.\n"))?;
                 }
             }
         }
