@@ -42,6 +42,7 @@ use crate::{
     },
     error::{Error, MissingPartition, MissingPartitionTable},
     flasher::{
+        DeviceInfo,
         FLASH_SECTOR_SIZE,
         FlashData,
         FlashFrequency,
@@ -303,7 +304,8 @@ pub struct MonitorConfigArgs {
     /// ELF image to load the symbols from
     #[arg(long, value_name = "FILE")]
     pub elf: Option<PathBuf>,
-    /// Optional ELF image to load ROM symbols from
+    /// Optional ELF image to load ROM symbols from - if not given espflash will
+    /// try to use a matching built-in ROM
     #[arg(long, value_name = "FILE")]
     pub rom_elf: Option<PathBuf>,
     /// Avoids restarting the device before monitoring
@@ -610,7 +612,7 @@ pub fn parse_chip_rev(chip_rev: &str) -> Result<u16> {
 }
 
 /// Print information about a chip
-pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
+pub fn print_board_info(flasher: &mut Flasher) -> Result<DeviceInfo> {
     let info = flasher.device_info()?;
     print!("Chip type:         {}", info.chip);
 
@@ -624,11 +626,11 @@ pub fn print_board_info(flasher: &mut Flasher) -> Result<()> {
     println!("Flash size:        {}", info.flash_size);
     println!("Features:          {}", info.features.join(", "));
 
-    if let Some(mac) = info.mac_address {
+    if let Some(ref mac) = info.mac_address {
         println!("MAC address:       {mac}");
     }
 
-    Ok(())
+    Ok(info)
 }
 
 /// Open a serial monitor
@@ -646,6 +648,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     };
 
     let chip = flasher.chip();
+    let dev_info = flasher.device_info()?;
 
     ensure_chip_compatibility(chip, firmware_elf.as_deref())?;
 
@@ -669,6 +672,9 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     if let Some(ref rom) = monitor_args.rom_elf {
         rom_elf = std::fs::read(rom).unwrap();
         elfs.push(rom_elf.as_ref());
+    } else if let Some(rom) = dev_info.rom() {
+        rom_elf = rom;
+        elfs.push(rom_elf.as_ref())
     }
 
     monitor(

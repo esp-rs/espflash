@@ -458,6 +458,55 @@ pub struct DeviceInfo {
     pub mac_address: Option<String>,
 }
 
+impl DeviceInfo {
+    #[doc(hidden)]
+    pub fn rom(&self) -> Option<Vec<u8>> {
+        match self.chip {
+            Chip::Esp32 => {
+                if let Some((major, _)) = self.revision {
+                    if major >= 3 {
+                        Some(include_bytes!("../../resources/roms/esp32_rev300_rom.elf").into())
+                    } else {
+                        Some(include_bytes!("../../resources/roms/esp32_rev0_rom.elf").into())
+                    }
+                } else {
+                    None
+                }
+            }
+            Chip::Esp32c2 => {
+                Some(include_bytes!("../../resources/roms/esp32c2_rev100_rom.elf").into())
+            }
+            Chip::Esp32c3 => {
+                if let Some((major, _)) = self.revision {
+                    if major >= 3 {
+                        Some(include_bytes!("../../resources/roms/esp32c3_rev3_rom.elf").into())
+                    } else {
+                        Some(include_bytes!("../../resources/roms/esp32c3_rev0_rom.elf").into())
+                    }
+                } else {
+                    None
+                }
+            }
+            Chip::Esp32c5 => None,
+            Chip::Esp32c6 => {
+                Some(include_bytes!("../../resources/roms/esp32c6_rev0_rom.elf").into())
+            }
+            Chip::Esp32h2 => {
+                Some(include_bytes!("../../resources/roms/esp32h2_rev0_rom.elf").into())
+            }
+            Chip::Esp32p4 => {
+                Some(include_bytes!("../../resources/roms/esp32p4_rev0_rom.elf").into())
+            }
+            Chip::Esp32s2 => {
+                Some(include_bytes!("../../resources/roms/esp32s2_rev0_rom.elf").into())
+            }
+            Chip::Esp32s3 => {
+                Some(include_bytes!("../../resources/roms/esp32s3_rev0_rom.elf").into())
+            }
+        }
+    }
+}
+
 /// Connect to and flash a target device
 #[cfg(feature = "serialport")]
 #[derive(Debug)]
