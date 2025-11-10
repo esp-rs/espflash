@@ -303,6 +303,9 @@ pub struct MonitorConfigArgs {
     /// ELF image to load the symbols from
     #[arg(long, value_name = "FILE")]
     pub elf: Option<PathBuf>,
+    /// Optional ELF image to load ROM symbols from
+    #[arg(long, value_name = "FILE")]
+    pub rom_elf: Option<PathBuf>,
     /// Avoids restarting the device before monitoring
     ///
     /// Only valid when `non_interactive` is also set.
@@ -633,7 +636,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
     let pid = flasher.connection().usb_pid();
 
-    let elf = if let Some(elf_path) = args.monitor_args.elf.clone() {
+    let firmware_elf = if let Some(elf_path) = args.monitor_args.elf.clone() {
         let path = fs::canonicalize(elf_path).into_diagnostic()?;
         let data = fs::read(path).into_diagnostic()?;
 
@@ -644,7 +647,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
 
     let chip = flasher.chip();
 
-    ensure_chip_compatibility(chip, elf.as_deref())?;
+    ensure_chip_compatibility(chip, firmware_elf.as_deref())?;
 
     let mut monitor_args = args.monitor_args;
 
@@ -657,9 +660,20 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
         monitor_args.monitor_baud = 74_880;
     }
 
+    let mut elfs: Vec<&[u8]> = Vec::new();
+    if let Some(firmware_elf) = firmware_elf.as_ref() {
+        elfs.push(firmware_elf);
+    }
+
+    let rom_elf;
+    if let Some(ref rom) = monitor_args.rom_elf {
+        rom_elf = std::fs::read(rom).unwrap();
+        elfs.push(rom_elf.as_ref());
+    }
+
     monitor(
         flasher.into(),
-        elf.as_deref(),
+        elfs,
         pid,
         monitor_args,
         args.connect_args.non_interactive,
@@ -1162,7 +1176,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
         }
         monitor(
             flasher.into(),
-            None,
+            Vec::new(),
             pid,
             monitor_args,
             args.connect_args.non_interactive,

@@ -326,9 +326,18 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
         monitor_args.elf = Some(args.image);
 
+        let mut elfs = Vec::new();
+        elfs.push(elf_data.as_ref());
+
+        let rom_elf;
+        if let Some(rom) = &monitor_args.rom_elf {
+            rom_elf = std::fs::read(rom).unwrap();
+            elfs.push(rom_elf.as_ref());
+        }
+
         monitor(
             flasher.into(),
-            Some(&elf_data),
+            elfs,
             pid,
             monitor_args,
             args.connect_args.non_interactive,
