@@ -413,8 +413,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
         monitor_args.elf = Some(build_ctx.artifact_path);
 
-        let mut elfs = Vec::new();
-        elfs.push(elf_data.as_ref());
+        let elfs = vec![elf_data.as_ref()];
 
         monitor(
             flasher.into(),
