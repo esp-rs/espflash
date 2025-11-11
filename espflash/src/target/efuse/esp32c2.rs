@@ -10,7 +10,7 @@
 use super::EfuseField;
 
 /// Total size in bytes of each block
-pub(crate) const BLOCK_SIZES: &[u32] = &[8, 11, 32, 32];
+pub(crate) const BLOCK_SIZES: &[u32] = &[12, 12, 32, 32];
 
 /// Disable programming of individual eFuses
 pub const WR_DIS: EfuseField = EfuseField::new(0, 0, 0, 8);
