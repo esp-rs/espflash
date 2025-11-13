@@ -10,9 +10,7 @@ use std::{
 };
 
 use object::{
-    Endianness,
-    Object as _,
-    ObjectSection as _,
+    Endianness, Object as _, ObjectSection as _,
     elf::SHT_PROGBITS,
     read::elf::{ElfFile32 as ElfFile, SectionHeader},
 };

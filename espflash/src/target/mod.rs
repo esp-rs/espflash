@@ -11,11 +11,7 @@ use strum::{Display, EnumIter, EnumString, IntoEnumIterator, VariantNames};
 
 #[cfg(feature = "serialport")]
 pub use self::flash_target::{
-    DefaultProgressCallback,
-    Esp32Target,
-    FlashTarget,
-    ProgressCallbacks,
-    RamTarget,
+    DefaultProgressCallback, Esp32Target, FlashTarget, ProgressCallbacks, RamTarget,
 };
 use crate::{
     Error,
@@ -417,16 +413,41 @@ impl Chip {
     /// region.
     #[cfg(feature = "serialport")]
     pub fn read_efuse(&self, connection: &mut Connection, field: EfuseField) -> Result<u32, Error> {
-        let mask = if field.bit_count == 32 {
-            u32::MAX
-        } else {
-            (1u32 << field.bit_count) - 1
+        // TODO: Figure out how to fix this.  (esp-rs/espflash#960)
+        if field.bit_count > 32 {
+            panic!("Tried to read an eFuse field of more than 32 bits");
+        }
+
+        // Calculate the number of bits per word in case the field spans two eFuse words.
+        let bit_count_first = 32 - (field.bit_start % 32);
+        let bit_count_second = field.bit_count - bit_count_first;
+
+        let value = {
+            let mask = ((1u32 << bit_count_first) - 1) << bit_count_second;
+            let shift = (field.bit_start % 32) - bit_count_second;
+
+            let value = self.read_efuse_raw(connection, field.block, field.word)?;
+            let value = (value >> shift) & mask;
+            value
         };
 
-        let shift = field.bit_start % 32;
+        let value = if bit_count_second == 0 {
+            value
+        } else {
+            // The second half doesn't need to be shifted since it will always start at bit 0.
+            let mask = (1u32 << bit_count_second) - 1;
 
-        let value = self.read_efuse_raw(connection, field.block, field.word)?;
-        let value = (value >> shift) & mask;
+            // Potentially wrap around to the next eFuse block.
+            let (block, word) = if (field.word + 1) > self.block_size(field.block as usize) {
+                (field.block + 1, 0)
+            } else {
+                (field.block, field.word + 1)
+            };
+
+            let second_value = self.read_efuse_raw(connection, block, word)?;
+
+            value | (second_value & mask)
+        };
 
         Ok(value)
     }
