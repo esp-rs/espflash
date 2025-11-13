@@ -2,15 +2,60 @@
 //!
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-11-19 12:31
+//! Generated: 2025-11-26 21:42
 //! Version:   f7765f0ac3faf4b54f8c1f064307522c
 
 #![allow(unused)]
 
-use super::EfuseField;
+use super::{EfuseBlock, EfuseField};
 
-/// Total size in bytes of each block
-pub(crate) const BLOCK_SIZES: &[u32] = &[24, 24, 32, 32, 32, 32, 32, 32, 32, 32, 32];
+/// All eFuse blocks available on this device.
+pub(crate) const BLOCKS: &[EfuseBlock] = &[
+    EfuseBlock {
+        length: 6u8,
+        read_address: 1343410220u32,
+    },
+    EfuseBlock {
+        length: 6u8,
+        read_address: 1343410244u32,
+    },
+    EfuseBlock {
+        length: 8u8,
+        read_address: 1343410268u32,
+    },
+    EfuseBlock {
+        length: 8u8,
+        read_address: 1343410300u32,
+    },
+    EfuseBlock {
+        length: 8u8,
+        read_address: 1343410332u32,
+    },
+    EfuseBlock {
+        length: 8u8,
+        read_address: 1343410364u32,
+    },
+    EfuseBlock {
+        length: 8u8,
+        read_address: 1343410396u32,
+    },
+    EfuseBlock {
+        length: 8u8,
+        read_address: 1343410428u32,
+    },
+    EfuseBlock {
+        length: 8u8,
+        read_address: 1343410460u32,
+    },
+    EfuseBlock {
+        length: 8u8,
+        read_address: 1343410492u32,
+    },
+    EfuseBlock {
+        length: 8u8,
+        read_address: 1343410524u32,
+    },
+];
 
 /// Disable programming of individual eFuses
 pub const WR_DIS: EfuseField = EfuseField::new(0, 0, 0, 32);
