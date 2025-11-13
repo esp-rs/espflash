@@ -20,6 +20,7 @@ pub use self::flash_target::{
 use crate::{
     Error,
     flasher::{FLASH_WRITE_SIZE, FlashFrequency},
+    target::efuse::EfuseBlock,
 };
 #[cfg(feature = "serialport")]
 use crate::{connection::Connection, flasher::SpiAttachParams, target::efuse::EfuseField};
@@ -397,20 +398,32 @@ impl Chip {
         }
     }
 
+    /// Returns the eFuse block definition of the specified block.
+    fn block(&self, block: u8) -> Result<EfuseBlock, Error> {
+        let blocks = match self {
+            Chip::Esp32 => efuse::esp32::BLOCKS,
+            Chip::Esp32c2 => efuse::esp32c2::BLOCKS,
+            Chip::Esp32c3 => efuse::esp32c3::BLOCKS,
+            Chip::Esp32c5 => efuse::esp32c5::BLOCKS,
+            Chip::Esp32c6 => efuse::esp32c6::BLOCKS,
+            Chip::Esp32h2 => efuse::esp32h2::BLOCKS,
+            Chip::Esp32p4 => efuse::esp32p4::BLOCKS,
+            Chip::Esp32s2 => efuse::esp32s2::BLOCKS,
+            Chip::Esp32s3 => efuse::esp32s3::BLOCKS,
+        };
+
+        if block as usize >= blocks.len() {
+            return Err(Error::InvalidEfuseBlock(block));
+        }
+
+        Ok(blocks[block as usize])
+    }
+
     /// Returns the size of the specified block for the implementing target.
     /// device
     pub fn block_size(&self, block: usize) -> u32 {
-        match self {
-            Chip::Esp32 => efuse::esp32::BLOCK_SIZES[block],
-            Chip::Esp32c2 => efuse::esp32c2::BLOCK_SIZES[block],
-            Chip::Esp32c3 => efuse::esp32c3::BLOCK_SIZES[block],
-            Chip::Esp32c5 => efuse::esp32c5::BLOCK_SIZES[block],
-            Chip::Esp32c6 => efuse::esp32c6::BLOCK_SIZES[block],
-            Chip::Esp32h2 => efuse::esp32h2::BLOCK_SIZES[block],
-            Chip::Esp32p4 => efuse::esp32p4::BLOCK_SIZES[block],
-            Chip::Esp32s2 => efuse::esp32s2::BLOCK_SIZES[block],
-            Chip::Esp32s3 => efuse::esp32s3::BLOCK_SIZES[block],
-        }
+        let block = self.block(block as u8).unwrap();
+        block.length as u32 * 4
     }
 
     /// Given an active connection, read the specified field of the eFuse
@@ -440,14 +453,8 @@ impl Chip {
         block: u32,
         word: u32,
     ) -> Result<u32, Error> {
-        let block0_addr = self.efuse_reg() + self.block0_offset();
-
-        let mut block_offset = 0;
-        for b in 0..block {
-            block_offset += self.block_size(b as usize);
-        }
-
-        let addr = block0_addr + block_offset + (word * 0x4);
+        let block = self.block(block as u8)?;
+        let addr = block.read_address + (word * 0x4);
 
         connection.read_reg(addr)
     }

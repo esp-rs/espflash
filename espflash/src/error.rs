@@ -357,6 +357,10 @@ pub enum Error {
     /// Key is not in the expected section
     #[error("Misplaced key, check your configuration file. Key: {0}")]
     MisplacedKey(String),
+
+    /// Specified eFuse block does not exist
+    #[error("specified eFuse block does not exist: {0}")]
+    InvalidEfuseBlock(u8),
 }
 
 #[cfg(feature = "serialport")]
