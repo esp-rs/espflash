@@ -77,7 +77,7 @@ impl Drop for RawModeGuard {
 /// parser.
 pub fn monitor(
     mut serial: Port,
-    elf: Option<&[u8]>,
+    elfs: Vec<&[u8]>,
     pid: u16,
     monitor_args: MonitorConfigArgs,
     non_interactive: bool,
@@ -104,19 +104,20 @@ pub fn monitor(
     // We are in raw mode until `_raw_mode` is dropped (ie. this function returns).
     let _raw_mode = RawModeGuard::new();
 
+    let firmware_elf = elfs.first().map(|v| &**v);
     let stdout = stdout();
     let mut stdout = if monitor_args.no_addresses {
-        ResolvingPrinter::new_no_addresses(elf, stdout.lock())
+        ResolvingPrinter::new_no_addresses(firmware_elf, stdout.lock())
     } else {
-        ResolvingPrinter::new(elf, stdout.lock())
+        ResolvingPrinter::new(elfs, stdout.lock())
     };
 
     let mut parser: Box<dyn InputParser> = match monitor_args
         .log_format
-        .unwrap_or_else(|| deduce_log_format(elf))
+        .unwrap_or_else(|| deduce_log_format(firmware_elf))
     {
         LogFormat::Defmt => Box::new(parser::esp_defmt::EspDefmt::new(
-            elf,
+            firmware_elf,
             monitor_args.output_format,
         )?),
         LogFormat::Serial => {

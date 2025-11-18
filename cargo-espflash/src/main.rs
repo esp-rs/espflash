@@ -413,9 +413,11 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
         monitor_args.elf = Some(build_ctx.artifact_path);
 
+        let elfs = vec![elf_data.as_ref()];
+
         monitor(
             flasher.into(),
-            Some(&elf_data),
+            elfs,
             pid,
             monitor_args,
             args.connect_args.non_interactive,

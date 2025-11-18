@@ -108,8 +108,8 @@ impl Utf8Merger {
 #[allow(missing_debug_implementations)]
 pub struct ResolvingPrinter<'ctx, W: Write> {
     writer: W,
-    symbols: Option<Symbols<'ctx>>,
-    elf: Option<&'ctx [u8]>,
+    symbols: Vec<Symbols<'ctx>>,
+    elfs: Vec<&'ctx [u8]>,
     merger: Utf8Merger,
     line_fragment: String,
     disable_address_resolution: bool,
@@ -117,11 +117,14 @@ pub struct ResolvingPrinter<'ctx, W: Write> {
 
 impl<'ctx, W: Write> ResolvingPrinter<'ctx, W> {
     /// Creates a new `ResolvingPrinter` with the given ELF file and writer.
-    pub fn new(elf: Option<&'ctx [u8]>, writer: W) -> Self {
+    pub fn new(elf: Vec<&'ctx [u8]>, writer: W) -> Self {
         Self {
             writer,
-            symbols: elf.and_then(|elf| Symbols::try_from(elf).ok()),
-            elf,
+            symbols: elf
+                .iter()
+                .filter_map(|elf| Symbols::try_from(elf).ok())
+                .collect(),
+            elfs: elf,
             merger: Utf8Merger::new(),
             line_fragment: String::new(),
             disable_address_resolution: false,
@@ -132,8 +135,8 @@ impl<'ctx, W: Write> ResolvingPrinter<'ctx, W> {
     pub fn new_no_addresses(_elf: Option<&'ctx [u8]>, writer: W) -> Self {
         Self {
             writer,
-            symbols: None, // Don't load symbols when address resolution is disabled
-            elf: None,
+            symbols: Vec::new(), // Don't load symbols when address resolution is disabled
+            elfs: Vec::new(),
             merger: Utf8Merger::new(),
             line_fragment: String::new(),
             disable_address_resolution: true,
@@ -176,24 +179,21 @@ impl<W: Write> Write for ResolvingPrinter<'_, W> {
 
             // If we have loaded some symbols and address resolution is not disabled...
             if !self.disable_address_resolution {
-                if let Some(symbols) = self.symbols.as_ref() {
+                for symbols in &self.symbols {
                     // Try to print the names of addresses in the current line.
                     resolve_addresses(symbols, &line, &mut self.writer)?;
                 }
 
-                if line.starts_with(stack_dump::MARKER) {
-                    if let Some(symbols) = self.symbols.as_ref() {
-                        if stack_dump::backtrace_from_stack_dump(
-                            &line,
-                            &mut self.writer,
-                            self.elf,
-                            symbols,
-                        )
-                        .is_err()
-                        {
-                            self.writer.queue(Print("\nUnable to decode stack-dump. Double check `-Cforce-unwind-tables` is used.\n"))?;
-                        }
-                    }
+                if line.starts_with(stack_dump::MARKER)
+                    && stack_dump::backtrace_from_stack_dump(
+                        &line,
+                        &mut self.writer,
+                        &self.elfs,
+                        &self.symbols,
+                    )
+                    .is_err()
+                {
+                    self.writer.queue(Print("\nUnable to decode stack-dump. Double check `-Cforce-unwind-tables` is used.\n"))?;
                 }
             }
         }

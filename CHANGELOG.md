@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A new CLI argument `rom-elf` was added which will be used for backtraces (#963)
+
 ### Changed
 
 ### Fixed
