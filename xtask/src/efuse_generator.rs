@@ -217,7 +217,11 @@ fn generate_efuse_block_sizes(
             let size_bits = last.start + last.len;
             assert!(size_bits % 8 == 0);
 
-            (block, size_bits / 8)
+            // not all bits for all blocks are defined, this is to avoid
+            // ending up with block sizes like 23 or 11
+            //
+            // while this fixes the problem, it's not ideal to rely on this
+            (block, ((size_bits / 8).div_ceil(4)) * 4)
         })
         .collect::<BTreeMap<_, _>>();
 
