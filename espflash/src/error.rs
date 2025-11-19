@@ -319,7 +319,7 @@ pub enum Error {
     #[error("Invalid `address`({address})  and/or `size`({size}) argument(s)")]
     #[diagnostic(
         code(espflash::erase_region::invalid_argument),
-        help("`address` and `size` must be multiples of 0x1000 (4096)")
+        help("`address` ({address}) and `size` ({size}) must be multiples of 0x1000 (4096)")
     )]
     InvalidEraseRegionArgument {
         /// Address argument
@@ -332,7 +332,9 @@ pub enum Error {
     #[error("The firmware was built for {elf}, but the detected chip is {detected}")]
     #[diagnostic(
         code(espflash::chip_mismatch),
-        help("Ensure that the device is connected and your host recognizes the serial adapter")
+        help(
+            "Ensure that the device is connected and your host recognizes the serial adapter. (File {elf}, detected chip is {detected})"
+        )
     )]
     FirmwareChipMismatch {
         /// Chip which the ELF file was built for
