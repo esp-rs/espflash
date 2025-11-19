@@ -416,19 +416,104 @@ impl Chip {
     /// Given an active connection, read the specified field of the eFuse
     /// region.
     #[cfg(feature = "serialport")]
+    #[deprecated(note = "This only support u32. Use read_efuse_le instead.")]
     pub fn read_efuse(&self, connection: &mut Connection, field: EfuseField) -> Result<u32, Error> {
-        let mask = if field.bit_count == 32 {
-            u32::MAX
-        } else {
-            (1u32 << field.bit_count) - 1
+        if field.bit_count > 32 {
+            return Err(Error::EfuseFieldTooLarge);
+        }
+
+        self.read_efuse_le::<u32>(connection, field)
+    }
+
+    /// Given an active connection, read the specified field of the eFuse
+    /// in little endian order.
+    #[cfg(feature = "serialport")]
+    pub fn read_efuse_le<T: bytemuck::AnyBitPattern>(
+        &self,
+        connection: &mut Connection,
+        field: EfuseField,
+    ) -> Result<T, Error> {
+        // this is a port of the corresponding function in esp-hal
+        // see <https://github.com/esp-rs/esp-hal/blob/b992e944a61b19f6096af5958fd88bb05b02eec2/esp-hal/src/efuse/mod.rs#L119-L183>
+        let EfuseField {
+            block,
+            bit_start,
+            bit_count,
+            ..
+        } = field;
+
+        fn block_address(chip: &Chip, block: u32) -> u32 {
+            let block0_addr = chip.efuse_reg() + chip.block0_offset();
+
+            let mut block_offset = 0;
+            for b in 0..block {
+                block_offset += chip.block_size(b as usize);
+            }
+
+            block0_addr + block_offset
+        }
+
+        fn read_raw(connection: &mut Connection, addr: u32) -> Result<u32, Error> {
+            connection.read_reg(addr)
+        }
+
+        // Represent output value as a bytes slice:
+        let mut output = std::mem::MaybeUninit::<T>::uninit();
+        let mut bytes = unsafe {
+            std::slice::from_raw_parts_mut(output.as_mut_ptr() as *mut u8, std::mem::size_of::<T>())
         };
 
-        let shift = field.bit_start % 32;
+        let bit_off = bit_start as u32;
+        let bit_end = std::cmp::min(bit_count as u32, (bytes.len() * 8) as u32) + bit_off;
 
-        let value = self.read_efuse_raw(connection, field.block, field.word)?;
-        let value = (value >> shift) & mask;
+        let mut last_word_off = bit_off / 32;
+        let mut last_word = read_raw(connection, block_address(self, block) + last_word_off * 4)?;
 
-        Ok(value)
+        let word_bit_off = bit_off % 32;
+        let word_bit_ext = 32 - word_bit_off;
+
+        let mut word_off = last_word_off;
+        for bit_off in (bit_off..bit_end).step_by(32) {
+            if word_off != last_word_off {
+                // Read a new word:
+                last_word_off = word_off;
+                last_word = read_raw(connection, block_address(self, block) + last_word_off * 4)?;
+            }
+
+            let mut word = last_word >> word_bit_off;
+            word_off += 1;
+
+            let word_bit_len = std::cmp::min(bit_end - bit_off, 32);
+            if word_bit_len > word_bit_ext {
+                // Read the next word:
+                last_word_off = word_off;
+                last_word = read_raw(connection, block_address(self, block) + last_word_off * 4)?;
+                // Append bits from a beginning of the next word:
+                word |= last_word.wrapping_shl((32 - word_bit_off) as u32);
+            };
+
+            if word_bit_len < 32 {
+                // Mask only needed bits of a word:
+                word &= u32::MAX >> (32 - word_bit_len);
+            }
+
+            // Represent word as a byte slice:
+            let byte_len = word_bit_len.div_ceil(8);
+            let word_bytes = unsafe {
+                std::slice::from_raw_parts(&word as *const u32 as *const u8, byte_len as usize)
+            };
+
+            // Copy word bytes to output value bytes:
+            bytes[..byte_len as usize].copy_from_slice(word_bytes);
+
+            // Move read window forward:
+            bytes = &mut bytes[(byte_len as usize)..];
+        }
+
+        // Fill untouched bytes with zeros:
+        bytes.fill(0);
+
+        Ok(unsafe { output.assume_init() })
     }
 
     /// Read the raw word in the specified eFuse block, without performing any

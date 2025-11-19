@@ -357,6 +357,10 @@ pub enum Error {
     /// Key is not in the expected section
     #[error("Misplaced key, check your configuration file. Key: {0}")]
     MisplacedKey(String),
+
+    /// The efuse field is larger than 32 bit.
+    #[error("Requested efuse field is larger than 32 bit. Use `read_efuse_le`.")]
+    EfuseFieldTooLarge,
 }
 
 #[cfg(feature = "serialport")]
