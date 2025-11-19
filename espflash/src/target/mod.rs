@@ -613,12 +613,12 @@ impl Chip {
             Chip::Esp32 => {
                 let mut features = vec!["WiFi"];
 
-                let disable_bt = self.read_efuse(connection, efuse::esp32::DISABLE_BT)?;
+                let disable_bt = self.read_efuse_le::<u32>(connection, efuse::esp32::DISABLE_BT)?;
                 if disable_bt == 0 {
                     features.push("BT");
                 }
 
-                let disable_app_cpu = self.read_efuse(connection, efuse::esp32::DISABLE_APP_CPU)?;
+                let disable_app_cpu = self.read_efuse_le::<u32>(connection, efuse::esp32::DISABLE_APP_CPU)?;
                 if disable_app_cpu == 0 {
                     features.push("Dual Core");
                 } else {
@@ -626,10 +626,10 @@ impl Chip {
                 }
 
                 let chip_cpu_freq_rated =
-                    self.read_efuse(connection, efuse::esp32::CHIP_CPU_FREQ_RATED)?;
+                    self.read_efuse_le::<u32>(connection, efuse::esp32::CHIP_CPU_FREQ_RATED)?;
                 if chip_cpu_freq_rated != 0 {
                     let chip_cpu_freq_low =
-                        self.read_efuse(connection, efuse::esp32::CHIP_CPU_FREQ_LOW)?;
+                        self.read_efuse_le::<u32>(connection, efuse::esp32::CHIP_CPU_FREQ_LOW)?;
                     if chip_cpu_freq_low != 0 {
                         features.push("160MHz");
                     } else {
@@ -646,18 +646,18 @@ impl Chip {
                     features.push("Embedded PSRAM");
                 }
 
-                let adc_vref = self.read_efuse(connection, efuse::esp32::ADC_VREF)?;
+                let adc_vref = self.read_efuse_le::<u32>(connection, efuse::esp32::ADC_VREF)?;
                 if adc_vref != 0 {
                     features.push("VRef calibration in efuse");
                 }
 
                 let blk3_part_reserve =
-                    self.read_efuse(connection, efuse::esp32::BLK3_PART_RESERVE)?;
+                    self.read_efuse_le::<u32>(connection, efuse::esp32::BLK3_PART_RESERVE)?;
                 if blk3_part_reserve != 0 {
                     features.push("BLK3 partially reserved");
                 }
 
-                let coding_scheme = self.read_efuse(connection, efuse::esp32::CODING_SCHEME)?;
+                let coding_scheme = self.read_efuse_le::<u32>(connection, efuse::esp32::CODING_SCHEME)?;
                 features.push(match coding_scheme {
                     0 => "Coding Scheme None",
                     1 => "Coding Scheme 3/4",
@@ -751,27 +751,27 @@ impl Chip {
                     _ => Ok(0),
                 }
             }
-            Chip::Esp32c2 => self.read_efuse(connection, efuse::esp32c2::WAFER_VERSION_MAJOR),
-            Chip::Esp32c3 => self.read_efuse(connection, efuse::esp32c3::WAFER_VERSION_MAJOR),
-            Chip::Esp32c5 => self.read_efuse(connection, efuse::esp32c5::WAFER_VERSION_MAJOR),
-            Chip::Esp32c6 => self.read_efuse(connection, efuse::esp32c6::WAFER_VERSION_MAJOR),
-            Chip::Esp32h2 => self.read_efuse(connection, efuse::esp32h2::WAFER_VERSION_MAJOR),
+            Chip::Esp32c2 => self.read_efuse_le::<u32>(connection, efuse::esp32c2::WAFER_VERSION_MAJOR),
+            Chip::Esp32c3 => self.read_efuse_le::<u32>(connection, efuse::esp32c3::WAFER_VERSION_MAJOR),
+            Chip::Esp32c5 => self.read_efuse_le::<u32>(connection, efuse::esp32c5::WAFER_VERSION_MAJOR),
+            Chip::Esp32c6 => self.read_efuse_le::<u32>(connection, efuse::esp32c6::WAFER_VERSION_MAJOR),
+            Chip::Esp32h2 => self.read_efuse_le::<u32>(connection, efuse::esp32h2::WAFER_VERSION_MAJOR),
             Chip::Esp32p4 => {
-                let hi = self.read_efuse(connection, efuse::esp32p4::WAFER_VERSION_MAJOR_HI)?;
-                let lo = self.read_efuse(connection, efuse::esp32p4::WAFER_VERSION_MAJOR_LO)?;
+                let hi = self.read_efuse_le::<u32>(connection, efuse::esp32p4::WAFER_VERSION_MAJOR_HI)?;
+                let lo = self.read_efuse_le::<u32>(connection, efuse::esp32p4::WAFER_VERSION_MAJOR_LO)?;
 
                 let version = (hi << 2) | lo;
 
                 Ok(version)
             }
-            Chip::Esp32s2 => self.read_efuse(connection, efuse::esp32s2::WAFER_VERSION_MAJOR),
+            Chip::Esp32s2 => self.read_efuse_le::<u32>(connection, efuse::esp32s2::WAFER_VERSION_MAJOR),
             Chip::Esp32s3 => {
                 if self.esp32s3_blk_version_major(connection)? == 1
                     && self.esp32s3_blk_version_minor(connection)? == 1
                 {
                     Ok(0)
                 } else {
-                    self.read_efuse(connection, efuse::esp32s3::WAFER_VERSION_MAJOR)
+                    self.read_efuse_le::<u32>(connection, efuse::esp32s3::WAFER_VERSION_MAJOR)
                 }
             }
         }
@@ -781,27 +781,27 @@ impl Chip {
     #[cfg(feature = "serialport")]
     pub fn minor_version(&self, connection: &mut Connection) -> Result<u32, Error> {
         match self {
-            Chip::Esp32 => self.read_efuse(connection, efuse::esp32::WAFER_VERSION_MINOR),
-            Chip::Esp32c2 => self.read_efuse(connection, efuse::esp32c2::WAFER_VERSION_MINOR),
+            Chip::Esp32 => self.read_efuse_le::<u32>(connection, efuse::esp32::WAFER_VERSION_MINOR),
+            Chip::Esp32c2 => self.read_efuse_le::<u32>(connection, efuse::esp32c2::WAFER_VERSION_MINOR),
             Chip::Esp32c3 => {
-                let hi = self.read_efuse(connection, efuse::esp32c3::WAFER_VERSION_MINOR_HI)?;
-                let lo = self.read_efuse(connection, efuse::esp32c3::WAFER_VERSION_MINOR_LO)?;
+                let hi = self.read_efuse_le::<u32>(connection, efuse::esp32c3::WAFER_VERSION_MINOR_HI)?;
+                let lo = self.read_efuse_le::<u32>(connection, efuse::esp32c3::WAFER_VERSION_MINOR_LO)?;
 
                 Ok((hi << 3) + lo)
             }
-            Chip::Esp32c5 => self.read_efuse(connection, efuse::esp32c5::WAFER_VERSION_MINOR),
-            Chip::Esp32c6 => self.read_efuse(connection, efuse::esp32c6::WAFER_VERSION_MINOR),
-            Chip::Esp32h2 => self.read_efuse(connection, efuse::esp32h2::WAFER_VERSION_MINOR),
-            Chip::Esp32p4 => self.read_efuse(connection, efuse::esp32p4::WAFER_VERSION_MINOR),
+            Chip::Esp32c5 => self.read_efuse_le::<u32>(connection, efuse::esp32c5::WAFER_VERSION_MINOR),
+            Chip::Esp32c6 => self.read_efuse_le::<u32>(connection, efuse::esp32c6::WAFER_VERSION_MINOR),
+            Chip::Esp32h2 => self.read_efuse_le::<u32>(connection, efuse::esp32h2::WAFER_VERSION_MINOR),
+            Chip::Esp32p4 => self.read_efuse_le::<u32>(connection, efuse::esp32p4::WAFER_VERSION_MINOR),
             Chip::Esp32s2 => {
-                let hi = self.read_efuse(connection, efuse::esp32s2::WAFER_VERSION_MINOR_HI)?;
-                let lo = self.read_efuse(connection, efuse::esp32s2::WAFER_VERSION_MINOR_LO)?;
+                let hi = self.read_efuse_le::<u32>(connection, efuse::esp32s2::WAFER_VERSION_MINOR_HI)?;
+                let lo = self.read_efuse_le::<u32>(connection, efuse::esp32s2::WAFER_VERSION_MINOR_LO)?;
 
                 Ok((hi << 3) + lo)
             }
             Chip::Esp32s3 => {
-                let hi = self.read_efuse(connection, efuse::esp32s3::WAFER_VERSION_MINOR_HI)?;
-                let lo = self.read_efuse(connection, efuse::esp32s3::WAFER_VERSION_MINOR_LO)?;
+                let hi = self.read_efuse_le::<u32>(connection, efuse::esp32s3::WAFER_VERSION_MINOR_HI)?;
+                let lo = self.read_efuse_le::<u32>(connection, efuse::esp32s3::WAFER_VERSION_MINOR_LO)?;
 
                 Ok((hi << 3) + lo)
             }
@@ -896,8 +896,8 @@ impl Chip {
             Chip::Esp32s3 => (self::efuse::esp32s3::MAC0, self::efuse::esp32s3::MAC1),
         };
 
-        let mac0 = self.read_efuse(connection, mac0_field)?;
-        let mac1 = self.read_efuse(connection, mac1_field)?;
+        let mac0 = self.read_efuse_le::<u32>(connection, mac0_field)?;
+        let mac1 = self.read_efuse_le::<u32>(connection, mac1_field)?;
 
         let bytes = ((mac1 as u64) << 32) | mac0 as u64;
         let bytes = bytes.to_be_bytes();
@@ -1002,31 +1002,31 @@ impl Chip {
     #[cfg(feature = "serialport")]
     /// Returns the block2 version based on eFuses for ESP32-S2
     fn esp32s2_block2_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        self.read_efuse(connection, efuse::esp32s2::BLK_VERSION_MINOR)
+        self.read_efuse_le::<u32>(connection, efuse::esp32s2::BLK_VERSION_MINOR)
     }
 
     #[cfg(feature = "serialport")]
     /// Returns the flash version based on eFuses for ESP32-S2
     fn esp32s2_flash_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        self.read_efuse(connection, efuse::esp32s2::FLASH_VERSION)
+        self.read_efuse_le::<u32>(connection, efuse::esp32s2::FLASH_VERSION)
     }
 
     #[cfg(feature = "serialport")]
     /// Returns the PSRAM version based on eFuses for ESP32-S2
     fn esp32s2_psram_version(&self, connection: &mut Connection) -> Result<u32, Error> {
-        self.read_efuse(connection, efuse::esp32s2::PSRAM_VERSION)
+        self.read_efuse_le::<u32>(connection, efuse::esp32s2::PSRAM_VERSION)
     }
 
     #[cfg(feature = "serialport")]
     /// Returns the major BLK version based on eFuses for ESP32-S3
     fn esp32s3_blk_version_major(&self, connection: &mut Connection) -> Result<u32, Error> {
-        self.read_efuse(connection, efuse::esp32s3::BLK_VERSION_MAJOR)
+        self.read_efuse_le::<u32>(connection, efuse::esp32s3::BLK_VERSION_MAJOR)
     }
 
     #[cfg(feature = "serialport")]
     /// Returns the minor BLK version based on eFuses for ESP32-S3
     fn esp32s3_blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
-        self.read_efuse(connection, efuse::esp32s3::BLK_VERSION_MINOR)
+        self.read_efuse_le::<u32>(connection, efuse::esp32s3::BLK_VERSION_MINOR)
     }
 }
 
