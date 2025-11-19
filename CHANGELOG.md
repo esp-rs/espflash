@@ -8,15 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `read_efuse_le` should be preferred over `read_efuse`
 
 - A new CLI argument `rom-elf` was added which will be used for backtraces (#963)
 
 ### Changed
+- `read_efuse` is deprecated
 
 ### Fixed
 
 - Corrected eFuse BLOCK0 definitions for ESP32-C2, ESP32-C3, and ESP32-S3 (#961)
 - Fixed Secure Download Mode detection on ESP32-P4 (#972)
+- Several fixes in `read_efuse`
 
 ### Removed
 
