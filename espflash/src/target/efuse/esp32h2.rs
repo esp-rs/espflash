@@ -2,7 +2,7 @@
 //!
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-06-25 11:06
+//! Generated: 2025-11-19 12:31
 //! Version:   44563d2af4ebdba4db6c0a34a50c94f9
 
 #![allow(unused)]
