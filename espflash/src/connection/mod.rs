@@ -87,7 +87,7 @@ impl SecurityInfo {
         ])
     }
 
-    fn security_flag_status(&self, flag_name: &str) -> bool {
+    pub(crate) fn security_flag_status(&self, flag_name: &str) -> bool {
         if let Some(&flag) = Self::security_flag_map().get(flag_name) {
             (self.flags & flag) != 0
         } else {

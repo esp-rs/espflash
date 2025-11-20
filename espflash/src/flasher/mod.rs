@@ -1253,7 +1253,13 @@ impl Flasher {
 
 #[cfg(feature = "serialport")]
 fn detect_sdm(connection: &mut Connection) {
-    if connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR).is_err() {
+    if let Ok(security_info) = connection.security_info(false) {
+        // Newer chips tell us if SDM is enabled.
+        connection.secure_download_mode =
+            security_info.security_flag_status("SECURE_DOWNLOAD_ENABLE");
+    } else if connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR).is_err() {
+        // On older chips, we have to guess by reading something. On these chips, there
+        // is always something readable at 0x40001000.
         log::warn!("Secure Download Mode is enabled on this chip");
         connection.secure_download_mode = true;
     }
