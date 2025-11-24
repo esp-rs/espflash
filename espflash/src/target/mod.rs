@@ -507,6 +507,7 @@ impl Chip {
         Ok(unsafe { output.assume_init() })
     }
 
+    #[cfg(feature = "serialport")]
     fn block_address(&self, block: u32) -> u32 {
         let block0_addr = self.efuse_reg() + self.block0_offset();
 
