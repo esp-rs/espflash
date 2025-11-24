@@ -442,17 +442,6 @@ impl Chip {
             ..
         } = field;
 
-        fn block_address(chip: &Chip, block: u32) -> u32 {
-            let block0_addr = chip.efuse_reg() + chip.block0_offset();
-
-            let mut block_offset = 0;
-            for b in 0..block {
-                block_offset += chip.block_size(b as usize);
-            }
-
-            block0_addr + block_offset
-        }
-
         fn read_raw(connection: &mut Connection, addr: u32) -> Result<u32, Error> {
             connection.read_reg(addr)
         }
@@ -460,6 +449,8 @@ impl Chip {
         // Represent output value as a bytes slice:
         let mut output = std::mem::MaybeUninit::<T>::uninit();
         let mut bytes = unsafe {
+            // see https://docs.rs/bytemuck/1.24.0/bytemuck/trait.AnyBitPattern.html
+            // and https://docs.rs/bytemuck/1.24.0/bytemuck/trait.Pod.html
             std::slice::from_raw_parts_mut(output.as_mut_ptr() as *mut u8, std::mem::size_of::<T>())
         };
 
@@ -467,7 +458,7 @@ impl Chip {
         let bit_end = std::cmp::min(bit_count, (bytes.len() * 8) as u32) + bit_off;
 
         let mut last_word_off = bit_off / 32;
-        let mut last_word = read_raw(connection, block_address(self, block) + last_word_off * 4)?;
+        let mut last_word = read_raw(connection, self.block_address(block) + last_word_off * 4)?;
 
         let word_bit_off = bit_off % 32;
         let word_bit_ext = 32 - word_bit_off;
@@ -477,7 +468,7 @@ impl Chip {
             if word_off != last_word_off {
                 // Read a new word:
                 last_word_off = word_off;
-                last_word = read_raw(connection, block_address(self, block) + last_word_off * 4)?;
+                last_word = read_raw(connection, self.block_address(block) + last_word_off * 4)?;
             }
 
             let mut word = last_word >> word_bit_off;
@@ -487,7 +478,7 @@ impl Chip {
             if word_bit_len > word_bit_ext {
                 // Read the next word:
                 last_word_off = word_off;
-                last_word = read_raw(connection, block_address(self, block) + last_word_off * 4)?;
+                last_word = read_raw(connection, self.block_address(block) + last_word_off * 4)?;
                 // Append bits from a beginning of the next word:
                 word |= last_word.wrapping_shl(32 - word_bit_off);
             };
@@ -516,6 +507,17 @@ impl Chip {
         Ok(unsafe { output.assume_init() })
     }
 
+    fn block_address(&self, block: u32) -> u32 {
+        let block0_addr = self.efuse_reg() + self.block0_offset();
+
+        let mut block_offset = 0;
+        for b in 0..block {
+            block_offset += self.block_size(b as usize);
+        }
+
+        block0_addr + block_offset
+    }
+
     /// Read the raw word in the specified eFuse block, without performing any
     /// bit-shifting or masking of the read value.
     #[cfg(feature = "serialport")]
@@ -525,14 +527,7 @@ impl Chip {
         block: u32,
         word: u32,
     ) -> Result<u32, Error> {
-        let block0_addr = self.efuse_reg() + self.block0_offset();
-
-        let mut block_offset = 0;
-        for b in 0..block {
-            block_offset += self.block_size(b as usize);
-        }
-
-        let addr = block0_addr + block_offset + (word * 0x4);
+        let addr = self.block_address(block) + (word * 0x4);
 
         connection.read_reg(addr)
     }
