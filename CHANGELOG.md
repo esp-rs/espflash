@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Several fixes in `read_efuse` (#969)
 - Fixed a problem in detecting the app-descriptor for a Rust-std project if `strip = true` is used
 - Fixed a problem in detecting the app-descriptor for a Rust-std project if `strip = true` is used (#975)
+- Fixed a problem in detecting the app-descriptor for a project if `strip = true` is used (#975)
 
 ### Removed
 
