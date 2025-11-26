@@ -809,7 +809,10 @@ where
 pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
     let object = File::parse(elf_data.as_slice()).into_diagnostic()?;
 
-    let has_app_desc = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"));
+    // for unknown reasons a Rust-std project with `strip = true` will discard the
+    // symbol we are looking for but the section is kept
+    let has_app_desc = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"))
+        || object.section_by_name(".flash.appdesc").is_some();
     let is_esp_hal = object.section_by_name(".espressif.metadata").is_some();
 
     if !has_app_desc {
