@@ -43,7 +43,7 @@ jobs:
       - name: Install dependencies
         env:
           DEBIAN_FRONTEND: noninteractive
-        run: apt-get update && apt-get -y install curl musl-tools pkg-config
+        run: apt-get update && apt-get -y install curl musl-tools pkg-config python3-dev python3-intelhex python3-reedsolo python3-rich-click
 
       - name: Install toolchain
         run: |

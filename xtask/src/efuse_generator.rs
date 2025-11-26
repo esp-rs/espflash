@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     ffi::OsStr,
     fs::{self, OpenOptions},
     io::{BufWriter, Write},
@@ -9,6 +9,10 @@ use std::{
 };
 
 use clap::{Args, Parser};
+use pyo3::{
+    prelude::{PyResult, Python},
+    types::{PyAnyMethods as _, PyList, PyTuple},
+};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -37,7 +41,7 @@ const HEADER: &str = r#"
 
 #![allow(unused)]
 
-use super::EfuseField;
+use super::{EfuseBlock, EfuseField};
 
 "#;
 
@@ -95,7 +99,7 @@ pub(crate) fn generate_efuse_fields(workspace: &Path, args: GenerateEfuseFieldsA
 
     let mut efuse_fields = parse_efuse_fields(&efuse_yaml_path)?;
     process_efuse_definitions(&mut efuse_fields)?;
-    generate_efuse_definitions(&espflash_path, efuse_fields)?;
+    generate_efuse_definitions(&espflash_path, &args.esptool_path, efuse_fields)?;
 
     Command::new("cargo")
         .args(["+nightly", "fmt"])
@@ -166,7 +170,11 @@ fn process_efuse_definitions(efuse_fields: &mut EfuseFields) -> Result<()> {
     Ok(())
 }
 
-fn generate_efuse_definitions(espflash_path: &Path, efuse_fields: EfuseFields) -> Result<()> {
+fn generate_efuse_definitions(
+    espflash_path: &Path,
+    esptool_path: &Path,
+    efuse_fields: EfuseFields,
+) -> Result<()> {
     let targets_efuse_path = espflash_path
         .join("src")
         .join("target")
@@ -195,46 +203,74 @@ fn generate_efuse_definitions(espflash_path: &Path, efuse_fields: EfuseFields) -
                 .trim_start()
         )?;
 
-        generate_efuse_block_sizes(&mut writer, &yaml.fields)?;
+        generate_efuse_blocks(&mut writer, esptool_path, &chip)?;
         generate_efuse_constants(&mut writer, &yaml.fields)?;
     }
 
     Ok(())
 }
 
-fn generate_efuse_block_sizes(
+pub(crate) fn generate_efuse_blocks(
     writer: &mut dyn Write,
-    fields: &HashMap<String, EfuseAttrs>,
+    esptool_path: &Path,
+    chip: &str,
 ) -> Result<()> {
-    let mut field_attrs = fields.values().collect::<Vec<_>>();
-    field_attrs.sort();
+    println!("Processing {chip}");
 
-    let block_sizes = field_attrs
-        .chunk_by(|a, b| a.block == b.block)
-        .enumerate()
-        .map(|(block, attrs)| {
-            let last = attrs.last().unwrap();
-            let size_bits = last.start + last.len;
-            assert!(size_bits % 8 == 0);
-
-            // not all bits for all blocks are defined, this is to avoid
-            // ending up with block sizes like 23 or 11
-            //
-            // while this fixes the problem, it's not ideal to rely on this
-            (block, ((size_bits / 8).div_ceil(4)) * 4)
-        })
-        .collect::<BTreeMap<_, _>>();
-
-    writeln!(writer, "/// Total size in bytes of each block")?;
-    writeln!(
+    write!(
         writer,
-        "pub(crate) const BLOCK_SIZES: &[u32] = &[{}];\n",
-        block_sizes
-            .values()
-            .map(|v| v.to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
+        r#"/// All eFuse blocks available on this device.
+pub(crate) const BLOCKS: &[EfuseBlock] = &["#
     )?;
+
+    Python::attach(|py| {
+        let sys = py.import("sys")?;
+
+        let path = sys.getattr("path")?;
+        path.call_method1("append", (esptool_path.as_os_str(),))?;
+
+        let mem_definition = py.import(format!("espefuse.efuse.{chip}.mem_definition"))?;
+
+        let blocks = mem_definition
+            .getattr("EfuseDefineBlocks")?
+            .call0()?
+            .getattr("BLOCKS")?;
+        let blocks = blocks.cast::<PyList>()?;
+
+        let mut previous_index = None;
+        for block in blocks {
+            let block = block.cast::<PyTuple>()?;
+
+            let index: u8 = block.get_item(2)?.extract()?;
+            let length: u8 = block.get_item(7)?.extract()?;
+            let read_address: u32 = block.get_item(3)?.extract()?;
+
+            if let Some(previous_index) = previous_index {
+                assert!(
+                    (previous_index + 1) == index,
+                    "Block indices should be sequential"
+                );
+            } else {
+                assert!(index == 0, "Block indices should start at 0");
+            }
+            previous_index.replace(index);
+
+            write!(
+                writer,
+                r#"
+    EfuseBlock {{
+        length: {length}u8,
+        read_address: {read_address}u32,
+    }},
+"#,
+            )?;
+        }
+
+        PyResult::Ok(())
+    })
+    .unwrap();
+
+    writeln!(writer, r#"];"#)?;
 
     Ok(())
 }
@@ -246,6 +282,7 @@ fn generate_efuse_constants(
     let mut sorted = fields.iter().collect::<Vec<_>>();
     sorted.sort_by(|a, b| (a.1).cmp(b.1));
 
+    writeln!(writer)?;
     for (name, attrs) in sorted {
         let EfuseAttrs {
             block,
