@@ -2,7 +2,7 @@
 //!
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-06-26 09:47
+//! Generated: 2025-11-19 12:31
 //! Version:   897499b0349a608b895d467abbcf006b
 
 #![allow(unused)]
@@ -10,7 +10,7 @@
 use super::EfuseField;
 
 /// Total size in bytes of each block
-pub(crate) const BLOCK_SIZES: &[u32] = &[8, 11, 32, 32];
+pub(crate) const BLOCK_SIZES: &[u32] = &[8, 12, 32, 32];
 
 /// Disable programming of individual eFuses
 pub const WR_DIS: EfuseField = EfuseField::new(0, 0, 0, 8);
