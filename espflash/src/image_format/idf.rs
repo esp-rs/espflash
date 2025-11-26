@@ -809,13 +809,17 @@ where
 pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
     let object = File::parse(elf_data.as_slice()).into_diagnostic()?;
 
-    // for unknown reasons a Rust-std project with `strip = true` will discard the
+    // A project with `strip = true` will discard the
     // symbol we are looking for but the section is kept
     let has_app_desc = object.symbols().any(|sym| sym.name() == Ok("esp_app_desc"))
-        || object.section_by_name(".flash.appdesc").is_some();
-    let is_esp_hal = object.section_by_name(".espressif.metadata").is_some();
+        || object.section_by_name(".flash.appdesc").is_some()
+        || object.section_by_name(".rodata_desc").is_some();
 
     if !has_app_desc {
+        // when using `strip = true` we will (maybe wrongly) assume ESP-IDF
+        // but at least it should still guide the user into the right direction
+        let is_esp_hal = object.section_by_name(".espressif.metadata").is_some();
+
         if is_esp_hal {
             return Err(Error::AppDescriptorNotPresent(
                 "ESP-IDF App Descriptor (https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description) missing in your`esp-hal` application.\n
