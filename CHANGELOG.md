@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `read_efuse` is deprecated (#969)
 
+- Updated bootloaders with `release/v5.5` ones from IDF (#976)
+
 ### Fixed
 
 - Corrected eFuse BLOCK0 definitions for ESP32-C2, ESP32-C3, and ESP32-S3 (#961)
