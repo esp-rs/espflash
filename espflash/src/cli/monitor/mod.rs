@@ -108,7 +108,7 @@ pub fn monitor(
     let stdout = stdout();
     let mut stdout = if monitor_args.no_addresses {
         if monitor_args.all_addresses {
-            log::warn!("Suppressing address resolution with `--all-addresses` given");
+            log::warn!("Using ` --no-addresses` disables address resolution, making `--all-addresses` ineffective. Consider using only one of these flags."
         }
 
         ResolvingPrinter::new_no_addresses(firmware_elf, stdout.lock())
