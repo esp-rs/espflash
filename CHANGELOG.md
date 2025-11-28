@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A new CLI argument `rom-elf` was added which will be used for backtraces (#963)
 
+- A new monitor CLI argument `--all-addresses` was added, by default well known misleading addresses printed by the first stage bootloader are suppressed
+
 ### Changed
 - `read_efuse` is deprecated (#969)
 

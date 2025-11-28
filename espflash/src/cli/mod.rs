@@ -329,6 +329,9 @@ pub struct MonitorConfigArgs {
     /// Disable address resolution for a smaller log output
     #[arg(long)]
     pub no_addresses: bool,
+    /// Try to resolve all addresses, even well-known misleading ones
+    #[arg(long)]
+    pub all_addresses: bool,
 }
 
 /// Arguments for MD5 checksum calculation

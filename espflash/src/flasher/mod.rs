@@ -463,8 +463,8 @@ impl DeviceInfo {
     pub fn rom(&self) -> Option<Vec<u8>> {
         match self.chip {
             Chip::Esp32 => {
-                if let Some((major, _)) = self.revision {
-                    if major >= 3 {
+                if let Some((_, minor)) = self.revision {
+                    if minor >= 3 {
                         Some(include_bytes!("../../resources/roms/esp32_rev300_rom.elf").into())
                     } else {
                         Some(include_bytes!("../../resources/roms/esp32_rev0_rom.elf").into())
@@ -477,8 +477,8 @@ impl DeviceInfo {
                 Some(include_bytes!("../../resources/roms/esp32c2_rev100_rom.elf").into())
             }
             Chip::Esp32c3 => {
-                if let Some((major, _)) = self.revision {
-                    if major >= 3 {
+                if let Some((_, minor)) = self.revision {
+                    if minor >= 3 {
                         Some(include_bytes!("../../resources/roms/esp32c3_rev3_rom.elf").into())
                     } else {
                         Some(include_bytes!("../../resources/roms/esp32c3_rev0_rom.elf").into())
