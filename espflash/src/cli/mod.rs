@@ -259,7 +259,7 @@ pub struct ImageArgs {
     #[arg(long, value_name = "MMU_PAGE_SIZE", value_parser = parse_u32)]
     pub mmu_page_size: Option<u32>,
     /// Skip checking whether the app descriptor is present in the image.
-    #[arg(long = "ignore_app_descriptor", default_value_t = true, action = clap::ArgAction::SetFalse)]
+    #[arg(long = "ignore-app-descriptor", default_value_t = true, action = clap::ArgAction::SetFalse)]
     pub check_app_descriptor: bool,
 }
 
