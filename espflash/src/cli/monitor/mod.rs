@@ -107,12 +107,6 @@ pub fn monitor(
     let firmware_elf = elfs.first().map(|v| &**v);
     let stdout = stdout();
     let mut stdout = if monitor_args.no_addresses {
-        if monitor_args.all_addresses {
-            log::warn!(
-                "Using ` --no-addresses` disables address resolution, making `--all-addresses` ineffective. Consider using only one of these flags.\r\n"
-            );
-        }
-
         ResolvingPrinter::new_no_addresses(firmware_elf, stdout.lock())
     } else {
         ResolvingPrinter::new(elfs, stdout.lock(), monitor_args.all_addresses)
@@ -481,6 +475,7 @@ pub fn check_monitor_args(
             || non_interactive
             || monitor_args.no_reset
             || monitor_args.no_addresses
+            || monitor_args.all_addresses
             || monitor_args.monitor_baud != 115_200)
     {
         warn!(
@@ -491,6 +486,12 @@ pub fn check_monitor_args(
     if !non_interactive && monitor_args.no_reset {
         warn!(
             "The `--no-reset` flag only applies when using the `--non-interactive` flag. Ignoring it."
+        );
+    }
+
+    if monitor_args.no_addresses && monitor_args.all_addresses {
+        log::warn!(
+            "Using `--no-addresses` disables address resolution, making `--all-addresses` ineffective. Consider using only one of these flags."
         );
     }
 
