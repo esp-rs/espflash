@@ -20,11 +20,27 @@ pub trait InputParser {
 // Pattern to much a function address in serial output.
 static RE_FN_ADDR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"0[xX][[:xdigit:]]{8}").unwrap());
 
+// We won't try to resolve addresses for lines starting with these prefixes.
+// Those lines are output from the first stage bootloader mostly about loading
+// the 2nd stage bootloader. The resolved addresses are not useful and mostly
+// confusing noise.
+const SUPPRESS_FOR_LINE_START: &[&str] = &[
+    "Saved PC:", // this might be useful to see in some situations
+    "load:0x",
+    "entry 0x",
+];
+
 fn resolve_addresses(
     symbols: &Symbols<'_>,
     line: &str,
     out: &mut dyn Write,
+    try_resolve_all_addresses: bool,
 ) -> std::io::Result<()> {
+    // suppress resolving well known misleading addresses
+    if !try_resolve_all_addresses && SUPPRESS_FOR_LINE_START.iter().any(|s| line.starts_with(s)) {
+        return Ok(());
+    }
+
     // Check the previous line for function addresses. For each address found,
     // attempt to look up the associated function's name and location and write both
     // to the terminal.
@@ -113,11 +129,12 @@ pub struct ResolvingPrinter<'ctx, W: Write> {
     merger: Utf8Merger,
     line_fragment: String,
     disable_address_resolution: bool,
+    try_resolve_all_addresses: bool,
 }
 
 impl<'ctx, W: Write> ResolvingPrinter<'ctx, W> {
     /// Creates a new `ResolvingPrinter` with the given ELF file and writer.
-    pub fn new(elf: Vec<&'ctx [u8]>, writer: W) -> Self {
+    pub fn new(elf: Vec<&'ctx [u8]>, writer: W, try_resolve_all_addresses: bool) -> Self {
         Self {
             writer,
             symbols: elf
@@ -128,6 +145,7 @@ impl<'ctx, W: Write> ResolvingPrinter<'ctx, W> {
             merger: Utf8Merger::new(),
             line_fragment: String::new(),
             disable_address_resolution: false,
+            try_resolve_all_addresses,
         }
     }
 
@@ -140,6 +158,7 @@ impl<'ctx, W: Write> ResolvingPrinter<'ctx, W> {
             merger: Utf8Merger::new(),
             line_fragment: String::new(),
             disable_address_resolution: true,
+            try_resolve_all_addresses: false,
         }
     }
 }
@@ -181,7 +200,12 @@ impl<W: Write> Write for ResolvingPrinter<'_, W> {
             if !self.disable_address_resolution {
                 for symbols in &self.symbols {
                     // Try to print the names of addresses in the current line.
-                    resolve_addresses(symbols, &line, &mut self.writer)?;
+                    resolve_addresses(
+                        symbols,
+                        &line,
+                        &mut self.writer,
+                        self.try_resolve_all_addresses,
+                    )?;
                 }
 
                 if line.starts_with(stack_dump::MARKER)
