@@ -2,7 +2,7 @@
 //!
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-11-26 21:42
+//! Generated: 2025-12-08 14:48
 //! Version:   f7765f0ac3faf4b54f8c1f064307522c
 
 #![allow(unused)]
@@ -12,50 +12,193 @@ use super::{EfuseBlock, EfuseField};
 /// All eFuse blocks available on this device.
 pub(crate) const BLOCKS: &[EfuseBlock] = &[
     EfuseBlock {
+        index: 0u8,
         length: 6u8,
-        read_address: 1343410220u32,
+        read_address: 0x5012d02cu32,
+        write_address: 0x5012d000u32,
     },
     EfuseBlock {
+        index: 1u8,
         length: 6u8,
-        read_address: 1343410244u32,
+        read_address: 0x5012d044u32,
+        write_address: 0x5012d000u32,
     },
     EfuseBlock {
+        index: 2u8,
         length: 8u8,
-        read_address: 1343410268u32,
+        read_address: 0x5012d05cu32,
+        write_address: 0x5012d000u32,
     },
     EfuseBlock {
+        index: 3u8,
         length: 8u8,
-        read_address: 1343410300u32,
+        read_address: 0x5012d07cu32,
+        write_address: 0x5012d000u32,
     },
     EfuseBlock {
+        index: 4u8,
         length: 8u8,
-        read_address: 1343410332u32,
+        read_address: 0x5012d09cu32,
+        write_address: 0x5012d000u32,
     },
     EfuseBlock {
+        index: 5u8,
         length: 8u8,
-        read_address: 1343410364u32,
+        read_address: 0x5012d0bcu32,
+        write_address: 0x5012d000u32,
     },
     EfuseBlock {
+        index: 6u8,
         length: 8u8,
-        read_address: 1343410396u32,
+        read_address: 0x5012d0dcu32,
+        write_address: 0x5012d000u32,
     },
     EfuseBlock {
+        index: 7u8,
         length: 8u8,
-        read_address: 1343410428u32,
+        read_address: 0x5012d0fcu32,
+        write_address: 0x5012d000u32,
     },
     EfuseBlock {
+        index: 8u8,
         length: 8u8,
-        read_address: 1343410460u32,
+        read_address: 0x5012d11cu32,
+        write_address: 0x5012d000u32,
     },
     EfuseBlock {
+        index: 9u8,
         length: 8u8,
-        read_address: 1343410492u32,
+        read_address: 0x5012d13cu32,
+        write_address: 0x5012d000u32,
     },
     EfuseBlock {
+        index: 10u8,
         length: 8u8,
-        read_address: 1343410524u32,
+        read_address: 0x5012d15cu32,
+        write_address: 0x5012d000u32,
     },
 ];
+
+/// Defined eFuse registers and commands
+pub(crate) mod defines {
+    use super::super::EfuseBlockErrors;
+    pub(crate) const BLOCK_ERRORS: &[EfuseBlockErrors] = &[
+        EfuseBlockErrors {
+            err_num_reg: 0x5012d17cu32,
+            err_num_mask: None,
+            err_num_offset: None,
+            fail_bit_reg: 0x5012d17cu32,
+            fail_bit_offset: None,
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x5012d1c0u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0x0u32),
+            fail_bit_reg: 0x5012d1c0u32,
+            fail_bit_offset: Some(0x3u32),
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x5012d1c0u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0x4u32),
+            fail_bit_reg: 0x5012d1c0u32,
+            fail_bit_offset: Some(0x7u32),
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x5012d1c0u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0x8u32),
+            fail_bit_reg: 0x5012d1c0u32,
+            fail_bit_offset: Some(0xbu32),
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x5012d1c0u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0xcu32),
+            fail_bit_reg: 0x5012d1c0u32,
+            fail_bit_offset: Some(0xfu32),
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x5012d1c0u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0x10u32),
+            fail_bit_reg: 0x5012d1c0u32,
+            fail_bit_offset: Some(0x13u32),
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x5012d1c0u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0x14u32),
+            fail_bit_reg: 0x5012d1c0u32,
+            fail_bit_offset: Some(0x17u32),
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x5012d1c0u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0x18u32),
+            fail_bit_reg: 0x5012d1c0u32,
+            fail_bit_offset: Some(0x1bu32),
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x5012d1c0u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0x1cu32),
+            fail_bit_reg: 0x5012d1c0u32,
+            fail_bit_offset: Some(0x1fu32),
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x5012d1c4u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0x0u32),
+            fail_bit_reg: 0x5012d1c4u32,
+            fail_bit_offset: Some(0x3u32),
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x5012d1c4u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0x4u32),
+            fail_bit_reg: 0x5012d1c4u32,
+            fail_bit_offset: Some(0x7u32),
+        },
+    ];
+    pub(crate) const EFUSE_READ_CMD: u32 = 0x1;
+    pub(crate) const EFUSE_WR_TIM_CONF1_REG: u32 = 0x5012d1f0;
+    pub(crate) const EFUSE_DAC_CLK_DIV_M: u32 = 0xff;
+    pub(crate) const EFUSE_PGM_DATA0_REG: u32 = 0x5012d000;
+    pub(crate) const EFUSE_CHECK_VALUE0_REG: u32 = 0x5012d020;
+    pub(crate) const EFUSE_DATE_REG: u32 = 0x5012d1fc;
+    pub(crate) const EFUSE_RD_TIM_CONF_REG: u32 = 0x5012d1ec;
+    pub(crate) const EFUSE_CMD_REG: u32 = 0x5012d1d4;
+    pub(crate) const EFUSE_RD_REPEAT_ERR0_REG: u32 = 0x5012d17c;
+    pub(crate) const EFUSE_WR_TIM_CONF2_REG: u32 = 0x5012d1f4;
+    pub(crate) const CODING_SCHEME_REPEAT: u32 = 0x2;
+    pub(crate) const EFUSE_PWR_ON_NUM_S: u32 = 0x8;
+    pub(crate) const EFUSE_DAC_CONF_REG: u32 = 0x5012d1e8;
+    pub(crate) const EFUSE_RD_RS_ERR1_REG: u32 = 0x5012d1c4;
+    pub(crate) const EFUSE_CLK_REG: u32 = 0x5012d1c8;
+    pub(crate) const EFUSE_DAC_NUM_M: u32 = 0x1fe00;
+    pub(crate) const EFUSE_PGM_CMD_MASK: u32 = 0x3;
+    pub(crate) const EFUSE_WRITE_OP_CODE: u32 = 0x5a5a;
+    pub(crate) const EFUSE_CONF_REG: u32 = 0x5012d1cc;
+    pub(crate) const CODING_SCHEME_NONE_RECOVERY: u32 = 0x3;
+    pub(crate) const CODING_SCHEME_NONE: u32 = 0x0;
+    pub(crate) const EFUSE_DAC_CLK_DIV_S: u32 = 0x0;
+    pub(crate) const CODING_SCHEME_RS: u32 = 0x4;
+    pub(crate) const EFUSE_RD_REPEAT_ERR3_REG: u32 = 0x5012d188;
+    pub(crate) const EFUSE_PWR_OFF_NUM_M: u32 = 0xffff;
+    pub(crate) const EFUSE_RD_REPEAT_ERR2_REG: u32 = 0x5012d184;
+    pub(crate) const EFUSE_DAC_NUM_S: u32 = 0x9;
+    pub(crate) const EFUSE_PGM_CMD: u32 = 0x2;
+    pub(crate) const EFUSE_RD_REPEAT_ERR1_REG: u32 = 0x5012d180;
+    pub(crate) const EFUSE_READ_OP_CODE: u32 = 0x5aa5;
+    pub(crate) const EFUSE_STATUS_REG: u32 = 0x5012d1d0;
+    pub(crate) const EFUSE_MEM_SIZE: u32 = 0x200;
+    pub(crate) const EFUSE_PWR_OFF_NUM_S: u32 = 0x0;
+    pub(crate) const EFUSE_RD_REPEAT_ERR4_REG: u32 = 0x5012d18c;
+    pub(crate) const EFUSE_PWR_ON_NUM_M: u32 = 0xffff00;
+    pub(crate) const EFUSE_RD_RS_ERR0_REG: u32 = 0x5012d1c0;
+    pub(crate) const CODING_SCHEME_34: u32 = 0x1;
+}
 
 /// Disable programming of individual eFuses
 pub const WR_DIS: EfuseField = EfuseField::new(0, 0, 0, 32);
