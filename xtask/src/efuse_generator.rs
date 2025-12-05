@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     ffi::OsStr,
     fs::{self, OpenOptions},
     io::{BufWriter, Write},
@@ -9,6 +9,12 @@ use std::{
 };
 
 use clap::{Args, Parser};
+use pyo3::{
+    Bound,
+    PyAny,
+    prelude::{PyResult, Python},
+    types::{PyAnyMethods as _, PyDict, PyList, PyModule, PyTuple},
+};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -37,7 +43,7 @@ const HEADER: &str = r#"
 
 #![allow(unused)]
 
-use super::EfuseField;
+use super::{EfuseBlock, EfuseField};
 
 "#;
 
@@ -95,7 +101,7 @@ pub(crate) fn generate_efuse_fields(workspace: &Path, args: GenerateEfuseFieldsA
 
     let mut efuse_fields = parse_efuse_fields(&efuse_yaml_path)?;
     process_efuse_definitions(&mut efuse_fields)?;
-    generate_efuse_definitions(&espflash_path, efuse_fields)?;
+    generate_efuse_definitions(&espflash_path, &args.esptool_path, efuse_fields)?;
 
     Command::new("cargo")
         .args(["+nightly", "fmt"])
@@ -166,7 +172,11 @@ fn process_efuse_definitions(efuse_fields: &mut EfuseFields) -> Result<()> {
     Ok(())
 }
 
-fn generate_efuse_definitions(espflash_path: &Path, efuse_fields: EfuseFields) -> Result<()> {
+fn generate_efuse_definitions(
+    espflash_path: &Path,
+    esptool_path: &Path,
+    efuse_fields: EfuseFields,
+) -> Result<()> {
     let targets_efuse_path = espflash_path
         .join("src")
         .join("target")
@@ -195,46 +205,189 @@ fn generate_efuse_definitions(espflash_path: &Path, efuse_fields: EfuseFields) -
                 .trim_start()
         )?;
 
-        generate_efuse_block_sizes(&mut writer, &yaml.fields)?;
+        println!("Processing {chip}");
+        generate_efuse_blocks(&mut writer, esptool_path, &chip)?;
+        generate_efuse_registers(&mut writer, esptool_path, &chip)?;
         generate_efuse_constants(&mut writer, &yaml.fields)?;
     }
 
     Ok(())
 }
 
-fn generate_efuse_block_sizes(
-    writer: &mut dyn Write,
-    fields: &HashMap<String, EfuseAttrs>,
-) -> Result<()> {
-    let mut field_attrs = fields.values().collect::<Vec<_>>();
-    field_attrs.sort();
-
-    let block_sizes = field_attrs
-        .chunk_by(|a, b| a.block == b.block)
-        .enumerate()
-        .map(|(block, attrs)| {
-            let last = attrs.last().unwrap();
-            let size_bits = last.start + last.len;
-            assert!(size_bits % 8 == 0);
-
-            // not all bits for all blocks are defined, this is to avoid
-            // ending up with block sizes like 23 or 11
-            //
-            // while this fixes the problem, it's not ideal to rely on this
-            (block, ((size_bits / 8).div_ceil(4)) * 4)
-        })
-        .collect::<BTreeMap<_, _>>();
-
-    writeln!(writer, "/// Total size in bytes of each block")?;
-    writeln!(
+fn generate_efuse_blocks(writer: &mut dyn Write, esptool_path: &Path, chip: &str) -> Result<()> {
+    write!(
         writer,
-        "pub(crate) const BLOCK_SIZES: &[u32] = &[{}];\n",
-        block_sizes
-            .values()
-            .map(|v| v.to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
+        r#"/// All eFuse blocks available on this device.
+pub(crate) const BLOCKS: &[EfuseBlock] = &["#
     )?;
+
+    python_definitions(esptool_path, chip, |_, mem_definition| {
+        let blocks = mem_definition
+            .getattr("EfuseDefineBlocks")?
+            .call0()?
+            .getattr("BLOCKS")?;
+        let blocks = blocks.cast::<PyList>()?;
+
+        let mut previous_index = None;
+        for block in blocks {
+            let block = block.cast::<PyTuple>()?;
+
+            let index: u8 = block.get_item(2)?.extract()?;
+            let length: u8 = block.get_item(7)?.extract()?;
+            let read_address: u32 = block.get_item(3)?.extract()?;
+            let write_address: u32 = block.get_item(4)?.extract()?;
+
+            if let Some(previous_index) = previous_index {
+                assert!(
+                    (previous_index + 1) == index,
+                    "Block indices should be sequential"
+                );
+            } else {
+                assert!(index == 0, "Block indices should start at 0");
+            }
+            previous_index.replace(index);
+
+            write!(
+                writer,
+                r#"
+    EfuseBlock {{
+        index: {index}u8,
+        length: {length}u8,
+        read_address: {read_address:#x}u32,
+        write_address: {write_address:#x}u32,
+    }},
+"#,
+            )?;
+        }
+
+        PyResult::Ok(())
+    })
+    .unwrap();
+
+    writeln!(writer, r#"];"#)?;
+
+    Ok(())
+}
+
+fn generate_efuse_registers(writer: &mut dyn Write, esptool_path: &Path, chip: &str) -> Result<()> {
+    write!(
+        writer,
+        r#"
+/// Defined eFuse registers and commands
+pub(crate) mod defines {{
+"#
+    )?;
+
+    python_definitions(esptool_path, chip, |inspect, mem_definition| {
+        let registers = mem_definition.getattr("EfuseDefineRegisters")?.call0()?;
+
+        let members = inspect.getattr("getmembers")?.call((&registers,), None)?;
+        let members = PyDict::from_sequence(members.cast::<PyList>()?)?;
+        let mut members: HashMap<String, Bound<'_, PyAny>> = members.extract()?;
+
+        {
+            write!(
+                writer,
+                "  use super::super::EfuseBlockErrors;
+  pub(crate) const BLOCK_ERRORS: &[EfuseBlockErrors] = &["
+            )?;
+
+            let block_error_entry = |writer: &mut dyn Write,
+                                     err_num_reg: u32,
+                                     err_num_mask,
+                                     err_num_offset,
+                                     fail_bit_reg: u32,
+                                     fail_bit_offset| {
+                let map = |v: Option<u32>| {
+                    v.map(|v| format!("Some({v:#x}u32)"))
+                        .unwrap_or_else(|| "None".to_string())
+                };
+                writeln!(
+                    writer,
+                    "
+    EfuseBlockErrors {{
+        err_num_reg: {err_num_reg:#x}u32,
+        err_num_mask: {},
+        err_num_offset: {},
+        fail_bit_reg: {fail_bit_reg:#x}u32,
+        fail_bit_offset: {},
+    }},",
+                    map(err_num_mask),
+                    map(err_num_offset),
+                    map(fail_bit_offset),
+                )
+            };
+
+            if let Some(block_errors) = members.remove("BLOCK_ERRORS") {
+                for block_error in block_errors.cast::<PyList>()? {
+                    let (err_reg, err_num_mask, err_num_offset, fail_bit_offset): (
+                        u32,
+                        Option<u32>,
+                        Option<u32>,
+                        Option<u32>,
+                    ) = block_error.extract()?;
+                    block_error_entry(
+                        writer,
+                        err_reg,
+                        err_num_mask,
+                        err_num_offset,
+                        err_reg,
+                        fail_bit_offset,
+                    )?;
+                }
+            } else if members.contains_key("BLOCK_FAIL_BIT")
+                && members.contains_key("BLOCK_NUM_ERRORS")
+            {
+                // ESP32-C3 has a design flaw where the fail bit is shifted by one block, so its
+                // memory definition differs from the rest.
+                let num_errors = members
+                    .remove("BLOCK_NUM_ERRORS")
+                    .unwrap()
+                    .cast_into::<PyList>()?;
+                let fail_bit = members
+                    .remove("BLOCK_FAIL_BIT")
+                    .unwrap()
+                    .cast_into::<PyList>()?;
+
+                for (num_errors, fail_bit) in num_errors.into_iter().zip(fail_bit.into_iter()) {
+                    let (err_num_reg, err_num_mask, err_num_offset): (
+                        u32,
+                        Option<u32>,
+                        Option<u32>,
+                    ) = num_errors.extract()?;
+                    let (fail_bit_reg, fail_bit_offset): (u32, Option<u32>) = fail_bit.extract()?;
+                    block_error_entry(
+                        writer,
+                        err_num_reg,
+                        err_num_mask,
+                        err_num_offset,
+                        fail_bit_reg,
+                        fail_bit_offset,
+                    )?;
+                }
+            }
+
+            writeln!(writer, "  ];")?;
+        }
+
+        for (name, value) in members {
+            if ["EFUSE_", "CODING_"]
+                .iter()
+                .any(|prefix| name.starts_with(prefix))
+            {
+                let Ok(value) = value.extract::<u32>() else {
+                    continue;
+                };
+
+                writeln!(writer, "  pub(crate) const {name}: u32 = {value:#x};")?;
+            }
+        }
+
+        PyResult::Ok(())
+    })
+    .unwrap();
+
+    writeln!(writer, "}}")?;
 
     Ok(())
 }
@@ -246,6 +399,7 @@ fn generate_efuse_constants(
     let mut sorted = fields.iter().collect::<Vec<_>>();
     sorted.sort_by(|a, b| (a.1).cmp(b.1));
 
+    writeln!(writer)?;
     for (name, attrs) in sorted {
         let EfuseAttrs {
             block,
@@ -265,4 +419,21 @@ fn generate_efuse_constants(
     }
 
     Ok(())
+}
+
+fn python_definitions<F>(esptool_path: &Path, chip: &str, f: F) -> PyResult<()>
+where
+    F: FnOnce(Bound<'_, PyModule>, Bound<'_, PyModule>) -> PyResult<()>,
+{
+    Python::attach(|py| {
+        let sys = py.import("sys")?;
+        let path = sys.getattr("path")?;
+        path.call_method1("append", (esptool_path.as_os_str(),))?;
+
+        let inspect = py.import("inspect")?;
+
+        let mem_definition = py.import(format!("espefuse.efuse.{chip}.mem_definition"))?;
+
+        f(inspect, mem_definition)
+    })
 }
