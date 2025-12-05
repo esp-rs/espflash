@@ -367,6 +367,22 @@ pub enum Error {
     /// Specified eFuse block does not exist
     #[error("specified eFuse block does not exist: {0}")]
     InvalidEfuseBlock(u32),
+
+    /// Unsupported crystal frequency
+    #[error("Unsupported crystal frequency: {0}")]
+    UnsupportedXtalFrequency(String),
+
+    /// Failed to write eFuse
+    #[error("Failed to write eFuse: {0}")]
+    WritingEfuseFailed(String),
+
+    /// Timed out while waiting for eFuse controller to return to idle
+    #[error("Timed out while waiting for eFuse controller to return to idle")]
+    TimedOutWaitingForEfuseController,
+
+    /// Tried to use an unsupported eFuse coding scheme
+    #[error("Tried to use an unsupported eFuse coding scheme: {0}")]
+    UnsupportedEfuseCodingScheme(String),
 }
 
 #[cfg(feature = "serialport")]
