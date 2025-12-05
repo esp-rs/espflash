@@ -15,6 +15,17 @@ pub mod esp32p4;
 pub mod esp32s2;
 pub mod esp32s3;
 
+#[derive(Clone, Copy)]
+pub(crate) struct EfuseBlock {
+    /// Number of registers that this block contains.
+    ///
+    /// Each register is a single 4-byte word.
+    pub(crate) length: u8,
+    /// Read address for this eFuse block.
+    #[allow(dead_code)]
+    pub(crate) read_address: u32,
+}
+
 /// An eFuse field which can be read from a target device.
 #[allow(unused)]
 #[derive(Debug, Clone, serde::Deserialize)]
