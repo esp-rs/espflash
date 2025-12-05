@@ -23,7 +23,11 @@ use crate::{
     target::efuse::EfuseBlock,
 };
 #[cfg(feature = "serialport")]
-use crate::{connection::Connection, flasher::SpiAttachParams, target::efuse::EfuseField};
+use crate::{
+    connection::Connection,
+    flasher::SpiAttachParams,
+    target::efuse::{EfuseBlockErrors, EfuseField},
+};
 
 pub mod efuse;
 
@@ -417,6 +421,31 @@ impl Chip {
         }
 
         Ok(blocks[block as usize])
+    }
+
+    /// Return the error definitions for a given eFuse block.
+    ///
+    /// This returns `Ok(None)` on ESP32 as it has a completely different error
+    /// handling scheme.
+    #[cfg(feature = "serialport")]
+    fn block_errors(self, block: EfuseBlock) -> Result<Option<EfuseBlockErrors>, Error> {
+        let block_errors = match self {
+            Chip::Esp32 => return Ok(None),
+            Chip::Esp32c2 => efuse::esp32c2::defines::BLOCK_ERRORS,
+            Chip::Esp32c3 => efuse::esp32c3::defines::BLOCK_ERRORS,
+            Chip::Esp32c5 => efuse::esp32c5::defines::BLOCK_ERRORS,
+            Chip::Esp32c6 => efuse::esp32c6::defines::BLOCK_ERRORS,
+            Chip::Esp32h2 => efuse::esp32h2::defines::BLOCK_ERRORS,
+            Chip::Esp32p4 => efuse::esp32p4::defines::BLOCK_ERRORS,
+            Chip::Esp32s2 => efuse::esp32s2::defines::BLOCK_ERRORS,
+            Chip::Esp32s3 => efuse::esp32s3::defines::BLOCK_ERRORS,
+        };
+
+        if block.index as usize >= block_errors.len() {
+            return Err(Error::InvalidEfuseBlock(block.index.into()));
+        }
+
+        Ok(Some(block_errors[block.index as usize]))
     }
 
     /// Returns the size of the specified block for the implementing target.
@@ -1066,6 +1095,732 @@ impl Chip {
     fn esp32s3_blk_version_minor(&self, connection: &mut Connection) -> Result<u32, Error> {
         self.read_efuse_le::<u32>(connection, efuse::esp32s3::BLK_VERSION_MINOR)
     }
+}
+
+#[cfg(feature = "serialport")]
+impl Chip {
+    /// Poll the eFuse controller status until it's idle.
+    fn wait_efuse_idle(self, connection: &mut Connection) -> Result<(), Error> {
+        let (cmd_reg, cmds) = match self {
+            Chip::Esp32 => (efuse::esp32::defines::EFUSE_REG_CMD, u32::MAX),
+            Chip::Esp32c2 => (
+                efuse::esp32c2::defines::EFUSE_CMD_REG,
+                efuse::esp32c2::defines::EFUSE_PGM_CMD | efuse::esp32c2::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32c3 => (
+                efuse::esp32c3::defines::EFUSE_CMD_REG,
+                efuse::esp32c3::defines::EFUSE_PGM_CMD | efuse::esp32c3::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32c5 => (
+                efuse::esp32c5::defines::EFUSE_CMD_REG,
+                efuse::esp32c5::defines::EFUSE_PGM_CMD | efuse::esp32c5::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32c6 => (
+                efuse::esp32c6::defines::EFUSE_CMD_REG,
+                efuse::esp32c6::defines::EFUSE_PGM_CMD | efuse::esp32c6::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32h2 => (
+                efuse::esp32h2::defines::EFUSE_CMD_REG,
+                efuse::esp32h2::defines::EFUSE_PGM_CMD | efuse::esp32h2::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32p4 => (
+                efuse::esp32p4::defines::EFUSE_CMD_REG,
+                efuse::esp32p4::defines::EFUSE_PGM_CMD | efuse::esp32p4::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32s2 => (
+                efuse::esp32s2::defines::EFUSE_CMD_REG,
+                efuse::esp32s2::defines::EFUSE_PGM_CMD | efuse::esp32s2::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32s3 => (
+                efuse::esp32s3::defines::EFUSE_CMD_REG,
+                efuse::esp32s3::defines::EFUSE_PGM_CMD | efuse::esp32s3::defines::EFUSE_READ_CMD,
+            ),
+        };
+
+        // `esptool` has a 0.25 second timeout.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(250);
+        while std::time::Instant::now() < deadline {
+            // Wait until `EFUSE_CMD_REG` reads as zero twice in a row.  `esptool.py` says
+            // that "due to a hardware error, we have to read READ_CMD again to
+            // make sure the efuse clock is normal" but doesn't provide any
+            // references.  See if this is documented in the errata.
+            if (connection.read_reg(cmd_reg)? & cmds) != 0 {
+                continue;
+            }
+            if (connection.read_reg(cmd_reg)? & cmds) != 0 {
+                continue;
+            }
+
+            return Ok(());
+        }
+
+        Err(Error::TimedOutWaitingForEfuseController)
+    }
+
+    /// Configure the eFuse controller for writing.
+    fn configure_efuse_write_timing(&self, connection: &mut Connection) -> Result<(), Error> {
+        self.wait_efuse_idle(connection)?;
+        let xtal_freq = self.xtal_frequency(connection)?;
+
+        match self {
+            Chip::Esp32 => {
+                let (clk_sel0, clk_sel1, dac_clk_div) = match xtal_freq {
+                    XtalFrequency::_26Mhz => (250, 255, 52),
+                    XtalFrequency::_40Mhz => (160, 255, 80),
+                    other => {
+                        return Err(Error::UnsupportedXtalFrequency(format!(
+                            "Only 26 MHz and 40 MHz is supported (xtal was {other})"
+                        )));
+                    }
+                };
+
+                connection.update_reg(
+                    efuse::esp32::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32::defines::EFUSE_DAC_CLK_DIV_MASK,
+                    dac_clk_div,
+                )?;
+                connection.update_reg(
+                    efuse::esp32::defines::EFUSE_CLK_REG,
+                    efuse::esp32::defines::EFUSE_CLK_SEL0_MASK,
+                    clk_sel0,
+                )?;
+                connection.update_reg(
+                    efuse::esp32::defines::EFUSE_CLK_REG,
+                    efuse::esp32::defines::EFUSE_CLK_SEL1_MASK,
+                    clk_sel1,
+                )?;
+            }
+
+            Chip::Esp32c2 => {
+                if ![XtalFrequency::_26Mhz, XtalFrequency::_40Mhz].contains(&xtal_freq) {
+                    return Err(Error::UnsupportedXtalFrequency(format!(
+                        "Only 26 MHz and 40 MHz is supported (xtal was {xtal_freq})"
+                    )));
+                }
+
+                connection.update_reg(
+                    efuse::esp32c2::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32c2::defines::EFUSE_DAC_NUM_M,
+                    0xFF,
+                )?;
+                connection.update_reg(
+                    efuse::esp32c2::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32c2::defines::EFUSE_DAC_CLK_DIV_M,
+                    0x28,
+                )?;
+                connection.update_reg(
+                    efuse::esp32c2::defines::EFUSE_WR_TIM_CONF1_REG,
+                    efuse::esp32c2::defines::EFUSE_PWR_ON_NUM_M,
+                    0x3000,
+                )?;
+                connection.update_reg(
+                    efuse::esp32c2::defines::EFUSE_WR_TIM_CONF2_REG,
+                    efuse::esp32c2::defines::EFUSE_PWR_OFF_NUM_M,
+                    0x190,
+                )?;
+
+                let tpgm_inactive_val = if xtal_freq == XtalFrequency::_40Mhz {
+                    200
+                } else {
+                    130
+                };
+                connection.update_reg(
+                    efuse::esp32c2::defines::EFUSE_WR_TIM_CONF0_REG,
+                    efuse::esp32c2::defines::EFUSE_TPGM_INACTIVE_M,
+                    tpgm_inactive_val,
+                )?;
+            }
+
+            Chip::Esp32c3 => {
+                if xtal_freq != XtalFrequency::_40Mhz {
+                    return Err(Error::UnsupportedXtalFrequency(format!(
+                        "Only 40 MHz is supported (xtal was {xtal_freq})"
+                    )));
+                }
+
+                connection.update_reg(
+                    efuse::esp32c3::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32c3::defines::EFUSE_DAC_NUM_M,
+                    0xFF,
+                )?;
+                connection.update_reg(
+                    efuse::esp32c3::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32c3::defines::EFUSE_DAC_CLK_DIV_M,
+                    0x28,
+                )?;
+                connection.update_reg(
+                    efuse::esp32c3::defines::EFUSE_WR_TIM_CONF1_REG,
+                    efuse::esp32c3::defines::EFUSE_PWR_ON_NUM_M,
+                    0x3000,
+                )?;
+                connection.update_reg(
+                    efuse::esp32c3::defines::EFUSE_WR_TIM_CONF2_REG,
+                    efuse::esp32c3::defines::EFUSE_PWR_OFF_NUM_M,
+                    0x190,
+                )?;
+            }
+
+            Chip::Esp32c5 => {
+                if ![XtalFrequency::_40Mhz, XtalFrequency::_48Mhz].contains(&xtal_freq) {
+                    return Err(Error::UnsupportedXtalFrequency(format!(
+                        "Only 40 MHz and 48 MHz is supported (xtal was {xtal_freq})"
+                    )));
+                }
+
+                connection.update_reg(
+                    efuse::esp32c5::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32c5::defines::EFUSE_DAC_NUM_M,
+                    0xFF,
+                )?;
+                connection.update_reg(
+                    efuse::esp32c5::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32c5::defines::EFUSE_DAC_CLK_DIV_M,
+                    0x28,
+                )?;
+                connection.update_reg(
+                    efuse::esp32c5::defines::EFUSE_WR_TIM_CONF1_REG,
+                    efuse::esp32c5::defines::EFUSE_PWR_ON_NUM_M,
+                    0x3000,
+                )?;
+                connection.update_reg(
+                    efuse::esp32c5::defines::EFUSE_WR_TIM_CONF2_REG,
+                    efuse::esp32c5::defines::EFUSE_PWR_OFF_NUM_M,
+                    0x190,
+                )?;
+            }
+
+            Chip::Esp32c6 => {
+                if xtal_freq != XtalFrequency::_40Mhz {
+                    return Err(Error::UnsupportedXtalFrequency(format!(
+                        "Only 40 MHz is supported (xtal was {xtal_freq})"
+                    )));
+                }
+
+                connection.update_reg(
+                    efuse::esp32c6::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32c6::defines::EFUSE_DAC_NUM_M,
+                    0xFF,
+                )?;
+                connection.update_reg(
+                    efuse::esp32c6::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32c6::defines::EFUSE_DAC_CLK_DIV_M,
+                    0x28,
+                )?;
+                connection.update_reg(
+                    efuse::esp32c6::defines::EFUSE_WR_TIM_CONF1_REG,
+                    efuse::esp32c6::defines::EFUSE_PWR_ON_NUM_M,
+                    0x3000,
+                )?;
+                connection.update_reg(
+                    efuse::esp32c6::defines::EFUSE_WR_TIM_CONF2_REG,
+                    efuse::esp32c6::defines::EFUSE_PWR_OFF_NUM_M,
+                    0x190,
+                )?;
+            }
+
+            Chip::Esp32h2 => {
+                if xtal_freq != XtalFrequency::_32Mhz {
+                    return Err(Error::UnsupportedXtalFrequency(format!(
+                        "Only 32 MHz is supported (xtal was {xtal_freq})"
+                    )));
+                }
+
+                connection.update_reg(
+                    efuse::esp32s3::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32s3::defines::EFUSE_DAC_NUM_M,
+                    0xFF,
+                )?;
+                connection.update_reg(
+                    efuse::esp32s3::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32s3::defines::EFUSE_DAC_CLK_DIV_M,
+                    0x28,
+                )?;
+                connection.update_reg(
+                    efuse::esp32s3::defines::EFUSE_WR_TIM_CONF1_REG,
+                    efuse::esp32s3::defines::EFUSE_PWR_ON_NUM_M,
+                    0x3000,
+                )?;
+                connection.update_reg(
+                    efuse::esp32s3::defines::EFUSE_WR_TIM_CONF2_REG,
+                    efuse::esp32s3::defines::EFUSE_PWR_OFF_NUM_M,
+                    0x190,
+                )?;
+            }
+
+            Chip::Esp32p4 => {
+                if xtal_freq != XtalFrequency::_40Mhz {
+                    return Err(Error::UnsupportedXtalFrequency(format!(
+                        "Only 40 MHz is supported (xtal was {xtal_freq})"
+                    )));
+                }
+            }
+
+            Chip::Esp32s2 => {
+                // The datasheet lists parameters for 80 MHz and 20 MHz as well, but `esptool`
+                // doesn't support detecting either of those frequencies, so it seems like we
+                // only need to support 40 MHz here?
+                if xtal_freq != XtalFrequency::_40Mhz {
+                    return Err(Error::UnsupportedXtalFrequency(format!(
+                        "Only 40 MHz is supported (xtal was {xtal_freq})"
+                    )));
+                }
+
+                // From `EFUSE_PROGRAMMING_TIMING_PARAMETERS` in
+                // `espefuse/efuse/esp32s2/mem_definition.py`
+                let (efuse_tsup_a, efuse_tpgm, efuse_thp_a, efuse_tpgm_inactive) =
+                    (0x1, 0x190, 0x1, 0x2);
+                connection.update_reg(
+                    efuse::esp32s2::defines::EFUSE_WR_TIM_CONF1_REG,
+                    efuse::esp32s2::defines::EFUSE_TSUP_A_M,
+                    efuse_tsup_a,
+                )?;
+                connection.update_reg(
+                    efuse::esp32s2::defines::EFUSE_WR_TIM_CONF0_REG,
+                    efuse::esp32s2::defines::EFUSE_TPGM_M,
+                    efuse_tpgm,
+                )?;
+                connection.update_reg(
+                    efuse::esp32s2::defines::EFUSE_WR_TIM_CONF0_REG,
+                    efuse::esp32s2::defines::EFUSE_THP_A_M,
+                    efuse_thp_a,
+                )?;
+                connection.update_reg(
+                    efuse::esp32s2::defines::EFUSE_WR_TIM_CONF0_REG,
+                    efuse::esp32s2::defines::EFUSE_TPGM_INACTIVE_M,
+                    efuse_tpgm_inactive,
+                )?;
+
+                // From `VDDQ_TIMING_PARAMETERS` in `espefuse/efuse/esp32s2/mem_definition.py`
+                let (efuse_dac_clk_div, efuse_pwr_on_num, efuse_pwr_off_num) = (0x50, 0x5100, 0x80);
+                connection.update_reg(
+                    efuse::esp32s2::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32s2::defines::EFUSE_DAC_CLK_DIV_M,
+                    efuse_dac_clk_div,
+                )?;
+                connection.update_reg(
+                    efuse::esp32s2::defines::EFUSE_WR_TIM_CONF1_REG,
+                    efuse::esp32s2::defines::EFUSE_PWR_ON_NUM_M,
+                    efuse_pwr_on_num,
+                )?;
+                connection.update_reg(
+                    efuse::esp32s2::defines::EFUSE_WR_TIM_CONF2_REG,
+                    efuse::esp32s2::defines::EFUSE_PWR_OFF_NUM_M,
+                    efuse_pwr_off_num,
+                )?;
+
+                // From `EFUSE_READING_PARAMETERS` in `espefuse/efuse/esp32s2/mem_definition.py`
+                let (_efuse_tsur_a, efuse_trd, efuse_thr_a) = (0x1, 0x2, 0x1);
+                // This is commented out in `esptool` for some reason.
+                // TODO: Check TRM and ask `esptool` devs whether this is correct, and
+                // preferably why.
+                //
+                // connection.update_reg(
+                //     efuse::esp32s2::defines::EFUSE_RD_TIM_CONF_REG,
+                //     efuse::esp32s2::defines::EFUSE_TSUR_A_M,
+                //     efuse_tsur_a,
+                // )?;
+                connection.update_reg(
+                    efuse::esp32s2::defines::EFUSE_RD_TIM_CONF_REG,
+                    efuse::esp32s2::defines::EFUSE_TRD_M,
+                    efuse_trd,
+                )?;
+                connection.update_reg(
+                    efuse::esp32s2::defines::EFUSE_RD_TIM_CONF_REG,
+                    efuse::esp32s2::defines::EFUSE_THR_A_M,
+                    efuse_thr_a,
+                )?;
+            }
+
+            Chip::Esp32s3 => {
+                if xtal_freq != XtalFrequency::_40Mhz {
+                    return Err(Error::UnsupportedXtalFrequency(format!(
+                        "Only 40 MHz is supported (xtal was {xtal_freq})"
+                    )));
+                }
+
+                connection.update_reg(
+                    efuse::esp32s3::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32s3::defines::EFUSE_DAC_NUM_M,
+                    0xFF,
+                )?;
+                connection.update_reg(
+                    efuse::esp32s3::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32s3::defines::EFUSE_DAC_CLK_DIV_M,
+                    0x28,
+                )?;
+                connection.update_reg(
+                    efuse::esp32s3::defines::EFUSE_WR_TIM_CONF1_REG,
+                    efuse::esp32s3::defines::EFUSE_PWR_ON_NUM_M,
+                    0x3000,
+                )?;
+                connection.update_reg(
+                    efuse::esp32s3::defines::EFUSE_WR_TIM_CONF2_REG,
+                    efuse::esp32s3::defines::EFUSE_PWR_OFF_NUM_M,
+                    0x190,
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn efuse_coding_scheme(
+        self,
+        connection: &mut Connection,
+        block: EfuseBlock,
+    ) -> Result<CodingScheme, Error> {
+        // Block 0 always has coding scheme `None`.
+        if block.index == 0 {
+            return Ok(CodingScheme::None);
+        }
+
+        match self {
+            Chip::Esp32 => {
+                match self.read_efuse_le::<u32>(connection, efuse::esp32::CODING_SCHEME)? {
+                    efuse::esp32::defines::CODING_SCHEME_NONE => Ok(CodingScheme::None),
+                    efuse::esp32::defines::CODING_SCHEME_NONE_RECOVERY => Ok(CodingScheme::None),
+                    efuse::esp32::defines::CODING_SCHEME_34 => Ok(CodingScheme::_34),
+                    efuse::esp32::defines::CODING_SCHEME_REPEAT => {
+                        Err(Error::UnsupportedEfuseCodingScheme("Repeat".to_owned()))
+                    }
+                    invalid => Err(Error::UnsupportedEfuseCodingScheme(format!(
+                        "Invalid scheme: {invalid}"
+                    ))),
+                }
+            }
+            Chip::Esp32c2
+            | Chip::Esp32c3
+            | Chip::Esp32c5
+            | Chip::Esp32c6
+            | Chip::Esp32h2
+            | Chip::Esp32p4
+            | Chip::Esp32s2
+            | Chip::Esp32s3 => Ok(CodingScheme::ReedSolomon),
+        }
+    }
+
+    /// Trigger the eFuse controller to update its internal registers.
+    fn trigger_efuse_register_read(&self, connection: &mut Connection) -> Result<(), Error> {
+        self.wait_efuse_idle(connection)?;
+
+        let (conf_reg, conf_val, cmd_reg, cmd_val) = match self {
+            Chip::Esp32 => (
+                efuse::esp32::defines::EFUSE_REG_CONF,
+                efuse::esp32::defines::EFUSE_CONF_READ,
+                efuse::esp32::defines::EFUSE_REG_CMD,
+                efuse::esp32::defines::EFUSE_CMD_READ,
+            ),
+            Chip::Esp32c2 => (
+                efuse::esp32c2::defines::EFUSE_CONF_REG,
+                efuse::esp32c2::defines::EFUSE_READ_OP_CODE,
+                efuse::esp32c2::defines::EFUSE_CMD_REG,
+                efuse::esp32c2::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32c3 => (
+                efuse::esp32c3::defines::EFUSE_CONF_REG,
+                efuse::esp32c3::defines::EFUSE_READ_OP_CODE,
+                efuse::esp32c3::defines::EFUSE_CMD_REG,
+                efuse::esp32c3::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32c5 => (
+                efuse::esp32c5::defines::EFUSE_CONF_REG,
+                efuse::esp32c5::defines::EFUSE_READ_OP_CODE,
+                efuse::esp32c5::defines::EFUSE_CMD_REG,
+                efuse::esp32c5::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32c6 => (
+                efuse::esp32c6::defines::EFUSE_CONF_REG,
+                efuse::esp32c6::defines::EFUSE_READ_OP_CODE,
+                efuse::esp32c6::defines::EFUSE_CMD_REG,
+                efuse::esp32c6::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32h2 => (
+                efuse::esp32h2::defines::EFUSE_CONF_REG,
+                efuse::esp32h2::defines::EFUSE_READ_OP_CODE,
+                efuse::esp32h2::defines::EFUSE_CMD_REG,
+                efuse::esp32h2::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32p4 => (
+                efuse::esp32p4::defines::EFUSE_CONF_REG,
+                efuse::esp32p4::defines::EFUSE_READ_OP_CODE,
+                efuse::esp32p4::defines::EFUSE_CMD_REG,
+                efuse::esp32p4::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32s2 => (
+                efuse::esp32s2::defines::EFUSE_CONF_REG,
+                efuse::esp32s2::defines::EFUSE_READ_OP_CODE,
+                efuse::esp32s2::defines::EFUSE_CMD_REG,
+                efuse::esp32s2::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32s3 => (
+                efuse::esp32s3::defines::EFUSE_CONF_REG,
+                efuse::esp32s3::defines::EFUSE_READ_OP_CODE,
+                efuse::esp32s3::defines::EFUSE_CMD_REG,
+                efuse::esp32s3::defines::EFUSE_READ_CMD,
+            ),
+        };
+
+        connection.write_reg(conf_reg, conf_val, None)?;
+        connection.write_reg(cmd_reg, cmd_val, None)?;
+
+        // TODO: `esptool.py` says that if `EFUSE_ENABLE_SECURITY_DOWNLOAD` or
+        // `DIS_DOWNLOAD_MODE` was just set then we need to reconnect.  It also
+        // uses `dlay_after_us=1000` on the `EFUSE_READ_CMD` write.
+
+        self.wait_efuse_idle(connection)?;
+
+        Ok(())
+    }
+
+    /// Check whether any errors occurred while writing the eFuse.
+    ///
+    /// Returns `Ok(true)` if write errors did occur.  Returns `Err(_)` if we
+    /// failed to communicate with the chip.
+    fn efuse_write_failed(
+        self,
+        connection: &mut Connection,
+        block: EfuseBlock,
+    ) -> Result<bool, Error> {
+        let Some(block_errors) = self.block_errors(block)? else {
+            // ESP32 chips can only detect write errors while using the 3/4 encoding scheme,
+            // in other cases the return value is meaningless.
+            if self.efuse_coding_scheme(connection, block)? != CodingScheme::_34 {
+                return Ok(true);
+            }
+
+            let errors = connection.read_reg(efuse::esp32::defines::EFUSE_REG_DEC_STATUS)?
+                & efuse::esp32::defines::EFUSE_REG_DEC_STATUS_MASK;
+
+            return Ok(errors != 0);
+        };
+
+        if block.index == 0 {
+            let (reg, count) = match self {
+                Chip::Esp32 => unreachable!(),
+                Chip::Esp32c2 => (efuse::esp32c2::defines::EFUSE_RD_REPEAT_ERR_REG, 1),
+                Chip::Esp32c3 => (efuse::esp32c3::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
+                Chip::Esp32c5 => (efuse::esp32c5::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
+                Chip::Esp32c6 => (efuse::esp32c6::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
+                Chip::Esp32h2 => (efuse::esp32h2::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
+                Chip::Esp32p4 => (efuse::esp32p4::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
+                Chip::Esp32s2 => (efuse::esp32s2::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
+                Chip::Esp32s3 => (efuse::esp32s3::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
+            };
+
+            let errors = (0..count)
+                .map(|idx| connection.read_reg(reg + (idx * 4)))
+                .collect::<Result<Vec<_>, _>>()?;
+            let any_errors = errors.into_iter().reduce(|a, b| a | b).unwrap() != 0;
+
+            return Ok(any_errors);
+        }
+
+        let EfuseBlockErrors {
+            err_num_reg,
+            err_num_mask: Some(err_num_mask),
+            err_num_offset: Some(err_num_offset),
+            fail_bit_reg,
+            fail_bit_offset: Some(fail_bit_offset),
+        } = block_errors
+        else {
+            unreachable!("eFuse block errors weren't set for a non-BLOCK0 block");
+        };
+
+        let any_errors = connection.read_reg(err_num_reg)? & (err_num_mask << err_num_offset)
+            | connection.read_reg(fail_bit_reg)? & (1 << fail_bit_offset);
+
+        Ok(any_errors != 0)
+    }
+
+    fn clear_efuse_programming_registers(
+        self,
+        connection: &mut Connection,
+        block: EfuseBlock,
+    ) -> Result<(), Error> {
+        self.wait_efuse_idle(connection)?;
+
+        let words: u32 = if self == Chip::Esp32 {
+            // All ESP32 eFuse blocks have 8 data registers with no separate check
+            // registers.
+            8
+        } else {
+            // All other chips a shared set of 8 data registers and 3 check registers.
+            8 + 3
+        };
+        for word in 0..words {
+            connection.write_reg(block.write_address + (word * 4), 0x00, None)?;
+        }
+
+        Ok(())
+    }
+
+    /// Write a value to an eFuse.
+    pub fn write_efuse(
+        self,
+        connection: &mut Connection,
+        block: u32,
+        data: &[u8],
+    ) -> Result<(), Error> {
+        let block = self.block(block)?;
+        if data.len() > (block.length as usize * 4) {
+            return Err(Error::WritingEfuseFailed(format!(
+                "Tried to write {} bytes to an eFuse of {} bytes",
+                data.len(),
+                block.length as usize * 4
+            )));
+        }
+
+        self.configure_efuse_write_timing(connection)?;
+        self.clear_efuse_programming_registers(connection, block)?;
+
+        // Apply the coding scheme and convert the data into a vector of 4-byte words.
+        let coded_data: Vec<u32> = {
+            // Make sure that the data is padded with zeroes to the full size of the eFuse
+            // block.
+            let data = {
+                let mut buf = vec![0u8; block.length as usize * 4];
+                buf[0..data.len()].copy_from_slice(data);
+                buf
+            };
+
+            let bytes = match self.efuse_coding_scheme(connection, block)? {
+                CodingScheme::None => data,
+                CodingScheme::_34 => {
+                    return Err(Error::UnsupportedEfuseCodingScheme(
+                        "3/4 coding is unimplemented".to_owned(),
+                    ));
+                }
+                CodingScheme::ReedSolomon => reed_solomon::Encoder::new(12)
+                    .encode(&data)
+                    .iter()
+                    .copied()
+                    .collect(),
+            };
+
+            // Turn the vector of bytes into a vector of words.
+            //
+            // We know that the vector contains an even number of bytes because of how we
+            // allocated this vector at the beginning of this block.
+            bytes
+                .chunks(4)
+                .map(|bytes| u32::from_le_bytes(bytes.try_into().unwrap()))
+                .collect()
+        };
+
+        // Figure out the correct programming commands to flash the eFuse.
+        let (conf_reg, conf_val, cmd_reg, cmd_val) = match self {
+            Chip::Esp32 => (
+                efuse::esp32::defines::EFUSE_REG_CONF,
+                efuse::esp32::defines::EFUSE_CONF_WRITE,
+                efuse::esp32::defines::EFUSE_REG_CMD,
+                efuse::esp32::defines::EFUSE_CMD_WRITE,
+            ),
+            Chip::Esp32c2 => (
+                efuse::esp32c2::defines::EFUSE_CONF_REG,
+                efuse::esp32c2::defines::EFUSE_WRITE_OP_CODE,
+                efuse::esp32c2::defines::EFUSE_CMD_REG,
+                efuse::esp32c2::defines::EFUSE_PGM_CMD | ((block.index as u32) << 2),
+            ),
+            Chip::Esp32c3 => (
+                efuse::esp32c3::defines::EFUSE_CONF_REG,
+                efuse::esp32c3::defines::EFUSE_WRITE_OP_CODE,
+                efuse::esp32c3::defines::EFUSE_CMD_REG,
+                efuse::esp32c3::defines::EFUSE_PGM_CMD | ((block.index as u32) << 2),
+            ),
+            Chip::Esp32c5 => (
+                efuse::esp32c5::defines::EFUSE_CONF_REG,
+                efuse::esp32c5::defines::EFUSE_WRITE_OP_CODE,
+                efuse::esp32c5::defines::EFUSE_CMD_REG,
+                efuse::esp32c5::defines::EFUSE_PGM_CMD | ((block.index as u32) << 2),
+            ),
+            Chip::Esp32c6 => (
+                efuse::esp32c6::defines::EFUSE_CONF_REG,
+                efuse::esp32c6::defines::EFUSE_WRITE_OP_CODE,
+                efuse::esp32c6::defines::EFUSE_CMD_REG,
+                efuse::esp32c6::defines::EFUSE_PGM_CMD | ((block.index as u32) << 2),
+            ),
+            Chip::Esp32h2 => (
+                efuse::esp32h2::defines::EFUSE_CONF_REG,
+                efuse::esp32h2::defines::EFUSE_WRITE_OP_CODE,
+                efuse::esp32h2::defines::EFUSE_CMD_REG,
+                efuse::esp32h2::defines::EFUSE_PGM_CMD | ((block.index as u32) << 2),
+            ),
+            Chip::Esp32p4 => (
+                efuse::esp32p4::defines::EFUSE_CONF_REG,
+                efuse::esp32p4::defines::EFUSE_WRITE_OP_CODE,
+                efuse::esp32p4::defines::EFUSE_CMD_REG,
+                efuse::esp32p4::defines::EFUSE_PGM_CMD | ((block.index as u32) << 2),
+            ),
+            Chip::Esp32s2 => (
+                efuse::esp32s2::defines::EFUSE_CONF_REG,
+                efuse::esp32s2::defines::EFUSE_WRITE_OP_CODE,
+                efuse::esp32s2::defines::EFUSE_CMD_REG,
+                efuse::esp32s2::defines::EFUSE_PGM_CMD | ((block.index as u32) << 2),
+            ),
+            Chip::Esp32s3 => (
+                efuse::esp32s3::defines::EFUSE_CONF_REG,
+                efuse::esp32s3::defines::EFUSE_WRITE_OP_CODE,
+                efuse::esp32s3::defines::EFUSE_CMD_REG,
+                efuse::esp32s3::defines::EFUSE_PGM_CMD | ((block.index as u32) << 2),
+            ),
+        };
+
+        // Try to flash the eFuse up to 3 times in case not all bits ended up being
+        // burned.
+        let mut err = None;
+        for _ in 0..3 {
+            self.wait_efuse_idle(connection)?;
+
+            // Write the encoded data to the block's write address.
+            //
+            // The check value registers for the Reed-Solomon follow after the data
+            // registers.
+            for (idx, word) in coded_data.iter().enumerate() {
+                connection.write_reg(block.write_address + (idx as u32 * 4), *word, None)?;
+            }
+
+            // Trigger the eFuse write and wait for the burning process to finish.
+            connection.write_reg(conf_reg, conf_val, None)?;
+            connection.write_reg(cmd_reg, cmd_val, None)?;
+            self.wait_efuse_idle(connection)?;
+
+            // Clear the parameter registers to avoid leaking the programmed contents.
+            self.clear_efuse_programming_registers(connection, block)?;
+
+            // Trigger eFuse controller to update its internal registers.
+            self.trigger_efuse_register_read(connection)?;
+
+            // Got at least one error, try burning the eFuse again.
+            if self.efuse_write_failed(connection, block)? {
+                let _ = err.insert("eFuse controller returned unreliable burn");
+                continue;
+            }
+
+            // Check that the bits we wrote are actually set.  If there are any differences
+            // we perform the burn again.
+            for word in 0..block.length {
+                let rd_word = self.read_efuse_raw(connection, block.index.into(), word.into())?;
+                let wr_word = coded_data[word as usize];
+                if (rd_word & wr_word) != wr_word {
+                    let _ = err.insert("Not all bits were set after burning");
+                    continue;
+                }
+            }
+
+            return Ok(());
+        }
+
+        // Reaching this point means that we failed to burn the eFuse 3 times in a row.
+        Err(Error::WritingEfuseFailed(err.unwrap().to_string()))
+    }
+}
+
+#[cfg(feature = "serialport")]
+#[derive(PartialEq)]
+enum CodingScheme {
+    None,
+    _34,
+    ReedSolomon,
 }
 
 impl TryFrom<u16> for Chip {

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `read_efuse_le` should be preferred over `read_efuse` (#969)
 - A new CLI argument `rom-elf` was added which will be used for backtraces (#963)
 - A new monitor CLI argument `--all-addresses` was added, by default well known misleading addresses printed by the first stage bootloader are suppressed (#979)
+- eFuse write support (#962)
 
 ### Changed
 
