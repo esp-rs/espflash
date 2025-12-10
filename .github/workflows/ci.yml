@@ -123,7 +123,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
 
-      - run: cargo check -p xtask
+      - run: cargo check -p xtask --all-features
 
   # --------------------------------------------------------------------------
   # Test
