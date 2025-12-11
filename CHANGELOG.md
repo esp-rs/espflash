@@ -8,18 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - `read_efuse_le` should be preferred over `read_efuse` (#969)
-
 - A new CLI argument `rom-elf` was added which will be used for backtraces (#963)
-
 - A new monitor CLI argument `--all-addresses` was added, by default well known misleading addresses printed by the first stage bootloader are suppressed (#979)
 
 ### Changed
+
 - `read_efuse` is deprecated (#969)
-
 - Updated bootloaders with `release/v5.5` ones from IDF (#976)
-
 - The CLI argument `save-image`, `ignore-app-descriptor` is now consistent with other args (#974)
+- Update ESP32, ESP32-C2, ESP32-C3, ESP32-C6, ESP32-H2, ESP32-P4, ESP32-S2, ESP32-S3 stub (#983)
+
 
 ### Fixed
 
