@@ -683,6 +683,16 @@ impl Connection {
         Ok(())
     }
 
+    /// Updates a register by applying the new value to the masked out portion
+    /// of the old value.
+    pub(crate) fn update_reg(&mut self, addr: u32, mask: u32, new_value: u32) -> Result<(), Error> {
+        let masked_new_value = new_value.checked_shl(mask.trailing_zeros()).unwrap_or(0) & mask;
+
+        let masked_old_value = self.read_reg(addr)? & !mask;
+
+        self.write_reg(addr, masked_old_value | masked_new_value, None)
+    }
+
     /// Reads a register command with a timeout.
     pub(crate) fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
         let mut tmp = Vec::with_capacity(1024);

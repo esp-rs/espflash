@@ -2,7 +2,7 @@
 //!
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-11-26 21:42
+//! Generated: 2025-12-08 14:48
 //! Version:   369d2d860d34e777c0f7d545a7dfc3c4
 
 #![allow(unused)]
@@ -12,22 +12,62 @@ use super::{EfuseBlock, EfuseField};
 /// All eFuse blocks available on this device.
 pub(crate) const BLOCKS: &[EfuseBlock] = &[
     EfuseBlock {
+        index: 0u8,
         length: 7u8,
-        read_address: 1073061888u32,
+        read_address: 0x3ff5a000u32,
+        write_address: 0x3ff5a01cu32,
     },
     EfuseBlock {
+        index: 1u8,
         length: 8u8,
-        read_address: 1073061944u32,
+        read_address: 0x3ff5a038u32,
+        write_address: 0x3ff5a098u32,
     },
     EfuseBlock {
+        index: 2u8,
         length: 8u8,
-        read_address: 1073061976u32,
+        read_address: 0x3ff5a058u32,
+        write_address: 0x3ff5a0b8u32,
     },
     EfuseBlock {
+        index: 3u8,
         length: 8u8,
-        read_address: 1073062008u32,
+        read_address: 0x3ff5a078u32,
+        write_address: 0x3ff5a0d8u32,
     },
 ];
+
+/// Defined eFuse registers and commands
+pub(crate) mod defines {
+    use super::super::EfuseBlockErrors;
+    pub(crate) const BLOCK_ERRORS: &[EfuseBlockErrors] = &[];
+    pub(crate) const CODING_SCHEME_NONE: u32 = 0x0;
+    pub(crate) const EFUSE_CLK_SEL1_MASK: u32 = 0xff00;
+    pub(crate) const EFUSE_BLK0_RDATA3_REG: u32 = 0x3ff5a00c;
+    pub(crate) const EFUSE_REG_CMD: u32 = 0x3ff5a104;
+    pub(crate) const CODING_SCHEME_NONE_RECOVERY: u32 = 0x3;
+    pub(crate) const EFUSE_CMD_WRITE: u32 = 0x2;
+    pub(crate) const CODING_SCHEME_RS: u32 = 0x4;
+    pub(crate) const EFUSE_REG_CONF: u32 = 0x3ff5a0fc;
+    pub(crate) const CODING_SCHEME_REPEAT: u32 = 0x2;
+    pub(crate) const EFUSE_MEM_SIZE: u32 = 0x120;
+    pub(crate) const EFUSE_RD_CHIP_VER_REV2: u32 = 0x100000;
+    pub(crate) const EFUSE_DAC_CONF_REG: u32 = 0x3ff5a118;
+    pub(crate) const EFUSE_CLK_REG: u32 = 0x3ff5a0f8;
+    pub(crate) const EFUSE_CODING_SCHEME_MASK: u32 = 0x3;
+    pub(crate) const EFUSE_CLK_SEL0_MASK: u32 = 0xff;
+    pub(crate) const EFUSE_REG_DEC_STATUS: u32 = 0x3ff5a11c;
+    pub(crate) const EFUSE_RD_CHIP_VER_REV1: u32 = 0x8000;
+    pub(crate) const EFUSE_DAC_CLK_DIV_MASK: u32 = 0xff;
+    pub(crate) const EFUSE_BLK0_RDATA5_REG: u32 = 0x3ff5a014;
+    pub(crate) const CODING_SCHEME_34: u32 = 0x1;
+    pub(crate) const EFUSE_REG_DEC_STATUS_MASK: u32 = 0xfff;
+    pub(crate) const EFUSE_CODING_SCHEME_WORD: u32 = 0x6;
+    pub(crate) const EFUSE_CONF_WRITE: u32 = 0x5a5a;
+    pub(crate) const EFUSE_CMD_OP_MASK: u32 = 0x3;
+    pub(crate) const EFUSE_CONF_READ: u32 = 0x5aa5;
+    pub(crate) const EFUSE_CMD_READ: u32 = 0x1;
+}
 
 /// Efuse write disable mask
 pub const WR_DIS: EfuseField = EfuseField::new(0, 0, 0, 16);
