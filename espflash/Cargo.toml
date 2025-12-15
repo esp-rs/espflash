@@ -1,6 +1,6 @@
 [package]
 name         = "espflash"
-version      = "4.2.0"
+version      = "4.3.0"
 edition      = "2024"
 rust-version = "1.85"
 description  = "A command-line tool for interacting with Espressif devices"
@@ -49,7 +49,7 @@ indicatif       = { version = "0.18", optional = true }
 log             = "0.4"
 md-5            = "0.10"
 miette          = "7.6"
-object          = "0.37"
+object          = "0.38"
 regex           = { version = "1.11", optional = true }
 serde           = { version = "1.0", features = ["derive"] }
 serialport      = { version = "4.7", default-features = false, optional = true }

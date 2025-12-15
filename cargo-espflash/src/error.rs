@@ -1,3 +1,5 @@
+#![expect(unused_assignments)]
+
 use std::{
     fmt::{Display, Formatter},
     iter::once,

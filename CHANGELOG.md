@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [4.3.0] - 2025-12-15
+
+### Added
+
 - `read_efuse_le` should be preferred over `read_efuse` (#969)
 - A new CLI argument `rom-elf` was added which will be used for backtraces (#963)
 - A new monitor CLI argument `--all-addresses` was added, by default well known misleading addresses printed by the first stage bootloader are suppressed (#979)
@@ -20,15 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The CLI argument `save-image`, `ignore-app-descriptor` is now consistent with other args (#974)
 - Update ESP32, ESP32-C2, ESP32-C3, ESP32-C6, ESP32-H2, ESP32-P4, ESP32-S2, ESP32-S3 stub (#983)
 
-
 ### Fixed
 
-- Corrected eFuse block address calculations. (#971)
-- Fixed Secure Download Mode detection on ESP32-P4 (#972)
+- Fix eFuse block address calculations. (#971)
+- Fix Secure Download Mode detection on ESP32-P4 (#972)
 - Several fixes in `read_efuse` (#969)
-- Fixed a problem in detecting the app-descriptor for a project if `strip = true` is used (#975)
-
-### Removed
+- Fix a problem in detecting the app-descriptor for a project if `strip = true` is used (#975)
 
 ## [4.2.0] - 2025-10-13
 
@@ -452,7 +459,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-09-21
 
-[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.2.0...HEAD
+[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.3.0...HEAD
+[4.3.0]: https://github.com/esp-rs/espflash/compare/v4.2.0...v4.3.0
 [4.2.0]: https://github.com/esp-rs/espflash/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/esp-rs/espflash/compare/v4.0.1...v4.1.0
 [4.0.1]: https://github.com/esp-rs/espflash/compare/v4.0.0...v4.0.1
