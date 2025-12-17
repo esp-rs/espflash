@@ -2,7 +2,7 @@
 //!
 //! This file was automatically generated, please do not edit it manually!
 //!
-//! Generated: 2025-11-26 21:42
+//! Generated: 2025-12-08 14:48
 //! Version:   897499b0349a608b895d467abbcf006b
 
 #![allow(unused)]
@@ -12,22 +12,98 @@ use super::{EfuseBlock, EfuseField};
 /// All eFuse blocks available on this device.
 pub(crate) const BLOCKS: &[EfuseBlock] = &[
     EfuseBlock {
+        index: 0u8,
         length: 2u8,
-        read_address: 1610647596u32,
+        read_address: 0x6000882cu32,
+        write_address: 0x60008800u32,
     },
     EfuseBlock {
+        index: 1u8,
         length: 3u8,
-        read_address: 1610647604u32,
+        read_address: 0x60008834u32,
+        write_address: 0x60008800u32,
     },
     EfuseBlock {
+        index: 2u8,
         length: 8u8,
-        read_address: 1610647616u32,
+        read_address: 0x60008840u32,
+        write_address: 0x60008800u32,
     },
     EfuseBlock {
+        index: 3u8,
         length: 8u8,
-        read_address: 1610647648u32,
+        read_address: 0x60008860u32,
+        write_address: 0x60008800u32,
     },
 ];
+
+/// Defined eFuse registers and commands
+pub(crate) mod defines {
+    use super::super::EfuseBlockErrors;
+    pub(crate) const BLOCK_ERRORS: &[EfuseBlockErrors] = &[
+        EfuseBlockErrors {
+            err_num_reg: 0x60008880u32,
+            err_num_mask: None,
+            err_num_offset: None,
+            fail_bit_reg: 0x60008880u32,
+            fail_bit_offset: None,
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x60008884u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0x0u32),
+            fail_bit_reg: 0x60008884u32,
+            fail_bit_offset: Some(0x3u32),
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x60008884u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0x4u32),
+            fail_bit_reg: 0x60008884u32,
+            fail_bit_offset: Some(0x7u32),
+        },
+        EfuseBlockErrors {
+            err_num_reg: 0x60008884u32,
+            err_num_mask: Some(0x7u32),
+            err_num_offset: Some(0x8u32),
+            fail_bit_reg: 0x60008884u32,
+            fail_bit_offset: Some(0xbu32),
+        },
+    ];
+    pub(crate) const EFUSE_PGM_CMD_MASK: u32 = 0x3;
+    pub(crate) const EFUSE_WRITE_OP_CODE: u32 = 0x5a5a;
+    pub(crate) const EFUSE_READ_CMD: u32 = 0x1;
+    pub(crate) const EFUSE_DAC_NUM_M: u32 = 0x1fe00;
+    pub(crate) const EFUSE_DAC_CONF_REG: u32 = 0x60008908;
+    pub(crate) const EFUSE_MEM_SIZE: u32 = 0x200;
+    pub(crate) const EFUSE_WR_TIM_CONF2_REG: u32 = 0x60008918;
+    pub(crate) const CODING_SCHEME_NONE_RECOVERY: u32 = 0x3;
+    pub(crate) const EFUSE_PWR_OFF_NUM_M: u32 = 0xffff;
+    pub(crate) const CODING_SCHEME_RS: u32 = 0x4;
+    pub(crate) const EFUSE_PGM_DATA0_REG: u32 = 0x60008800;
+    pub(crate) const EFUSE_PWR_OFF_NUM_S: u32 = 0x0;
+    pub(crate) const EFUSE_TPGM_INACTIVE_S: u32 = 0x8;
+    pub(crate) const EFUSE_DAC_CLK_DIV_S: u32 = 0x0;
+    pub(crate) const EFUSE_CLK_REG: u32 = 0x60008888;
+    pub(crate) const EFUSE_PWR_ON_NUM_M: u32 = 0xffff00;
+    pub(crate) const EFUSE_TPGM_INACTIVE_M: u32 = 0xff00;
+    pub(crate) const EFUSE_PGM_CHECK_VALUE0_REG: u32 = 0x60008820;
+    pub(crate) const EFUSE_READ_OP_CODE: u32 = 0x5aa5;
+    pub(crate) const EFUSE_PWR_ON_NUM_S: u32 = 0x8;
+    pub(crate) const EFUSE_RD_RS_ERR_REG: u32 = 0x60008884;
+    pub(crate) const CODING_SCHEME_REPEAT: u32 = 0x2;
+    pub(crate) const EFUSE_STATUS_REG: u32 = 0x60008890;
+    pub(crate) const EFUSE_CONF_REG: u32 = 0x6000888c;
+    pub(crate) const EFUSE_WR_TIM_CONF0_REG: u32 = 0x60008910;
+    pub(crate) const EFUSE_DAC_NUM_S: u32 = 0x9;
+    pub(crate) const CODING_SCHEME_34: u32 = 0x1;
+    pub(crate) const EFUSE_DAC_CLK_DIV_M: u32 = 0xff;
+    pub(crate) const EFUSE_PGM_CMD: u32 = 0x2;
+    pub(crate) const EFUSE_WR_TIM_CONF1_REG: u32 = 0x60008914;
+    pub(crate) const CODING_SCHEME_NONE: u32 = 0x0;
+    pub(crate) const EFUSE_RD_REPEAT_ERR_REG: u32 = 0x60008880;
+    pub(crate) const EFUSE_CMD_REG: u32 = 0x60008894;
+}
 
 /// Disable programming of individual eFuses
 pub const WR_DIS: EfuseField = EfuseField::new(0, 0, 0, 8);

@@ -15,15 +15,28 @@ pub mod esp32p4;
 pub mod esp32s2;
 pub mod esp32s3;
 
+#[allow(unused)]
 #[derive(Clone, Copy)]
 pub(crate) struct EfuseBlock {
+    pub(crate) index: u8,
     /// Number of registers that this block contains.
     ///
     /// Each register is a single 4-byte word.
     pub(crate) length: u8,
     /// Read address for this eFuse block.
-    #[allow(dead_code)]
     pub(crate) read_address: u32,
+    /// Write address for this eFuse block.
+    pub(crate) write_address: u32,
+}
+
+#[allow(unused)]
+#[derive(Clone, Copy)]
+pub(crate) struct EfuseBlockErrors {
+    pub(crate) err_num_reg: u32,
+    pub(crate) err_num_mask: Option<u32>,
+    pub(crate) err_num_offset: Option<u32>,
+    pub(crate) fail_bit_reg: u32,
+    pub(crate) fail_bit_offset: Option<u32>,
 }
 
 /// An eFuse field which can be read from a target device.

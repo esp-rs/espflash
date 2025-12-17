@@ -50,6 +50,7 @@ log             = "0.4"
 md-5            = "0.10"
 miette          = "7.6"
 object          = "0.38"
+reed-solomon    = { version = "0.2.1", optional = true }
 regex           = { version = "1.11", optional = true }
 serde           = { version = "1.0", features = ["derive"] }
 serialport      = { version = "4.7", default-features = false, optional = true }
@@ -86,4 +87,4 @@ cli = [
 ]
 
 # Enables connecting to a device via serial port
-serialport = ["dep:regex", "dep:serialport", "dep:slip-codec", "dep:toml"]
+serialport = ["dep:reed-solomon", "dep:regex", "dep:serialport", "dep:slip-codec", "dep:toml"]
