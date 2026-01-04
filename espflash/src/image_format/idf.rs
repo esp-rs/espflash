@@ -370,10 +370,10 @@ impl<'a> IdfBootloaderFormat<'a> {
         // need to merge adjacent segments first to avoid the possibility of them
         // overlapping, and then do the padding.
         let mut flash_segments: Vec<_> = pad_align_segments(merge_adjacent_segments(
-            rom_segments(flash_data.chip, &elf).collect(),
+            rom_segments(flash_data.chip, &elf, elf_data).collect(),
         ));
         let mut ram_segments: Vec<_> = pad_align_segments(merge_adjacent_segments(
-            ram_segments(flash_data.chip, &elf).collect(),
+            ram_segments(flash_data.chip, &elf, elf_data).collect(),
         ));
 
         let mut checksum = ESP_CHECKSUM_MAGIC;
@@ -470,6 +470,22 @@ impl<'a> IdfBootloaderFormat<'a> {
             );
             return Err(AppDescriptorError::IncorrectDescriptorAlignment.into());
         };
+
+        // Calculate SHA256 of the entire ELF file and update the app descriptor
+        if let Some(address) = app_desc_addr {
+            let segment = &mut flash_segments[0];
+            let offset = (address - segment.addr) as usize;
+            let app_descriptor_size = size_of::<AppDescriptor>();
+
+            let mut hasher = Sha256::new();
+            hasher.update(elf_data);
+            let elf_sha256 = hasher.finalize();
+
+            let segment_data = segment.data_mut();
+            let app_descriptor_bytes = &mut segment_data[offset..][..app_descriptor_size];
+            let app_descriptor: &mut AppDescriptor = bytemuck::from_bytes_mut(app_descriptor_bytes);
+            app_descriptor.app_elf_sha256.copy_from_slice(&elf_sha256);
+        }
 
         for segment in flash_segments {
             loop {
