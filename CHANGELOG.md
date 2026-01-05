@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-Adjusted default chunk size for esp32p4 for faster flashing
+Adjusted default chunk size and baud rate for esp32p4 for faster flashing
 
 ### Fixed
 
