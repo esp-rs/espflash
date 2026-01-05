@@ -597,8 +597,9 @@ impl Flasher {
 
         // Now that we have established a connection and detected the chip and flash
         // size, we can set the baud rate of the connection to the configured value.
-        if let Some(baud) = flasher.baud_to_use(baud) {
+        if let Some(baud) = baud {
             if baud > 115_200 {
+                warn!("Setting baud rate higher than 115,200 can cause issues");
                 flasher.change_baud(baud)?;
             }
         }
@@ -618,19 +619,6 @@ impl Flasher {
             .flash_target(self.spi_params, self.use_stub, false, false);
         target.begin(&mut self.connection).flashing()?;
         Ok(())
-    }
-
-    /// Determine the baud rate to use based on the chip and the provided baud
-    /// rate.
-    fn baud_to_use(&self, baud: Option<u32>) -> Option<u32> {
-        if let Some(baud) = baud {
-            return Some(baud);
-        }
-
-        match self.chip {
-            Chip::Esp32p4 => Some(921_600), // USB-OTG uses 921,600 baud for better performance
-            _ => None,
-        }
     }
 
     fn load_stub(&mut self) -> Result<(), Error> {
