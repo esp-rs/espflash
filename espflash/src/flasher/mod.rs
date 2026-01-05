@@ -599,9 +599,6 @@ impl Flasher {
         // size, we can set the baud rate of the connection to the configured value.
         if let Some(baud) = flasher.baud_to_use(baud) {
             if baud > 115_200 {
-                if detected_chip != Chip::Esp32p4 {
-                    warn!("Setting baud rate higher than 115,200 can cause issues");
-                }
                 flasher.change_baud(baud)?;
             }
         }
