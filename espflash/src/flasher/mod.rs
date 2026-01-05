@@ -57,6 +57,9 @@ pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
 
+#[cfg(feature = "serialport")]
+pub(crate) const BOOTLOADER_PROTECTION_ADDR: u32 = 0x8000;
+
 /// Supported flash frequencies
 ///
 /// Note that not all frequencies are supported by each target device.
@@ -924,9 +927,26 @@ impl Flasher {
         progress: &mut dyn ProgressCallbacks,
         image_format: ImageFormat<'a>,
     ) -> Result<(), Error> {
-        let mut target =
-            self.chip
-                .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
+        let (mut verify, mut skip) = (self.verify, self.skip);
+        if self.connection.secure_download_mode {
+            for segment in image_format.clone().flash_segments() {
+                if segment.addr < BOOTLOADER_PROTECTION_ADDR {
+                    return Err(Error::SecureDownloadBootloaderProtection);
+                }
+            }
+
+            if self.verify || self.skip {
+                warn!(
+                    "Secure Download Mode enabled: --verify and --skip options are not available \
+                     (flash read operations are restricted)"
+                );
+            }
+            (verify, skip) = (false, false);
+        }
+
+        let mut target = self
+            .chip
+            .flash_target(self.spi_params, self.use_stub, verify, skip);
         target.begin(&mut self.connection).flashing()?;
 
         // When the `cli` feature is enabled, display the image size information.
@@ -987,16 +1007,26 @@ impl Flasher {
         segments: &[Segment<'_>],
         progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
+        let (mut verify, mut skip) = (self.verify, self.skip);
         if self.connection.secure_download_mode {
-            return Err(Error::UnsupportedFeature {
-                chip: self.chip,
-                feature: "writing binaries in Secure Download Mode currently".into(),
-            });
+            for segment in segments {
+                if segment.addr < BOOTLOADER_PROTECTION_ADDR {
+                    return Err(Error::SecureDownloadBootloaderProtection);
+                }
+            }
+
+            if self.verify || self.skip {
+                warn!(
+                    "Secure Download Mode enabled: --verify and --skip options are not available \
+                     (flash read operations are restricted)"
+                );
+            }
+            (verify, skip) = (false, false);
         }
 
-        let mut target =
-            self.chip
-                .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
+        let mut target = self
+            .chip
+            .flash_target(self.spi_params, self.use_stub, verify, skip);
 
         target.begin(&mut self.connection).flashing()?;
 
