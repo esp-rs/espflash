@@ -35,12 +35,16 @@ const STUB_32C5: &str = include_str!("../../resources/stubs/esp32c5.toml");
 const STUB_32C6: &str = include_str!("../../resources/stubs/esp32c6.toml");
 const STUB_32H2: &str = include_str!("../../resources/stubs/esp32h2.toml");
 const STUB_32P4: &str = include_str!("../../resources/stubs/esp32p4.toml");
+const STUB_32P4RC1: &str = include_str!("../../resources/stubs/esp32p4rc1.toml");
 const STUB_32S2: &str = include_str!("../../resources/stubs/esp32s2.toml");
 const STUB_32S3: &str = include_str!("../../resources/stubs/esp32s3.toml");
 
 impl FlashStub {
     /// Fetch flash stub for the provided chip
-    pub fn get(chip: Chip) -> FlashStub {
+    ///
+    /// For ESP32-P4, if `revision` is provided and < 300, uses the RC1 stub.
+    /// Otherwise uses the default stub for the chip.
+    pub fn get(chip: Chip, revision: Option<u32>) -> FlashStub {
         let s = match chip {
             Chip::Esp32 => STUB_32,
             Chip::Esp32c2 => STUB_32C2,
@@ -48,7 +52,14 @@ impl FlashStub {
             Chip::Esp32c5 => STUB_32C5,
             Chip::Esp32c6 => STUB_32C6,
             Chip::Esp32h2 => STUB_32H2,
-            Chip::Esp32p4 => STUB_32P4,
+            Chip::Esp32p4 => {
+                // For ESP32-P4, use RC1 stub if revision < 300 (matching esptool behavior)
+                if let Some(rev) = revision {
+                    if rev < 300 { STUB_32P4RC1 } else { STUB_32P4 }
+                } else {
+                    STUB_32P4
+                }
+            }
             Chip::Esp32s2 => STUB_32S2,
             Chip::Esp32s3 => STUB_32S3,
         };
@@ -86,12 +97,20 @@ mod tests {
     #[test]
     fn check_stub_encodings() {
         for c in Chip::iter() {
-            // Stub must be valid JSON:
-            let s = FlashStub::get(c);
+            // Stub must be valid TOML:
+            let s = FlashStub::get(c, None);
 
             // Data decoded from b64
             let _ = s.text();
             let _ = s.data();
         }
+    }
+
+    #[test]
+    fn check_esp32p4_rc1_stub() {
+        // Test RC1 stub for ESP32-P4
+        let s = FlashStub::get(Chip::Esp32p4, Some(200));
+        let _ = s.text();
+        let _ = s.data();
     }
 }

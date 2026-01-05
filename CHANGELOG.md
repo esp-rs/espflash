@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - eFuse write support (#962)
+- esp32p4rc1 support for esp32p4 chips with revision < 3.0
 
 ### Changed
 

@@ -624,8 +624,26 @@ impl Flasher {
     fn load_stub(&mut self) -> Result<(), Error> {
         debug!("Loading flash stub for chip: {:?}", self.chip);
 
+        // Get chip revision for ESP32-P4 (needed to select correct stub)
+        let revision = if matches!(self.chip, Chip::Esp32p4) {
+            match self.chip.revision(&mut self.connection) {
+                Ok((major, minor)) => {
+                    // Calculate revision as major * 100 + minor (matching esptool format)
+                    let rev = major * 100 + minor;
+                    debug!("ESP32-P4 revision: v{major}.{minor} (calculated: {rev})");
+                    Some(rev)
+                }
+                Err(e) => {
+                    debug!("Failed to get ESP32-P4 revision: {e:?}, using default stub");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // Load flash stub
-        let stub = FlashStub::get(self.chip);
+        let stub = FlashStub::get(self.chip, revision);
 
         let mut ram_target = self
             .chip
