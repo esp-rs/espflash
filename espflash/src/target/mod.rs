@@ -945,7 +945,10 @@ impl Chip {
 
     /// Write size for flashing operations
     pub fn flash_write_size(&self) -> usize {
-        FLASH_WRITE_SIZE
+        match self {
+            Chip::Esp32p4 => 0x800, // USB-OTG uses 2KB blocks for better performance
+            _ => FLASH_WRITE_SIZE,
+        }
     }
 
     #[cfg(feature = "serialport")]
