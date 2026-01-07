@@ -643,7 +643,7 @@ impl Flasher {
         };
 
         // Load flash stub
-        let stub = FlashStub::get(self.chip, revision);
+        let stub = FlashStub::get_with_rev(self.chip, revision);
 
         let mut ram_target = self
             .chip

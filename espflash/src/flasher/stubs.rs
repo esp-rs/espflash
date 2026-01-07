@@ -41,10 +41,17 @@ const STUB_32S3: &str = include_str!("../../resources/stubs/esp32s3.toml");
 
 impl FlashStub {
     /// Fetch flash stub for the provided chip
+    #[allow(dead_code)]
+    #[deprecated(note = "Use get_with_rev instead.")]
+    pub fn get(chip: Chip) -> FlashStub {
+        Self::get_with_rev(chip, None)
+    }
+
+    /// Fetch flash stub for the provided chip and revision
     ///
     /// For ESP32-P4, if `revision` is provided and < 300, uses the RC1 stub.
     /// Otherwise uses the default stub for the chip.
-    pub fn get(chip: Chip, revision: Option<u32>) -> FlashStub {
+    pub fn get_with_rev(chip: Chip, revision: Option<u32>) -> FlashStub {
         let s = match chip {
             Chip::Esp32 => STUB_32,
             Chip::Esp32c2 => STUB_32C2,
@@ -54,8 +61,8 @@ impl FlashStub {
             Chip::Esp32h2 => STUB_32H2,
             Chip::Esp32p4 => {
                 // For ESP32-P4, use RC1 stub if revision < 300 (matching esptool behavior)
-                if let Some(rev) = revision {
-                    if rev < 300 { STUB_32P4RC1 } else { STUB_32P4 }
+                if revision.unwrap_or(300) < 300 {
+                    STUB_32P4RC1
                 } else {
                     STUB_32P4
                 }
@@ -98,7 +105,7 @@ mod tests {
     fn check_stub_encodings() {
         for c in Chip::iter() {
             // Stub must be valid TOML:
-            let s = FlashStub::get(c, None);
+            let s = FlashStub::get_with_rev(c, None);
 
             // Data decoded from b64
             let _ = s.text();
@@ -109,7 +116,7 @@ mod tests {
     #[test]
     fn check_esp32p4_rc1_stub() {
         // Test RC1 stub for ESP32-P4
-        let s = FlashStub::get(Chip::Esp32p4, Some(200));
+        let s = FlashStub::get_with_rev(Chip::Esp32p4, Some(200));
         let _ = s.text();
         let _ = s.data();
     }
