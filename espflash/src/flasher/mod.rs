@@ -917,7 +917,7 @@ impl Flasher {
         progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
         let elf = ElfFile::parse(elf_data)?;
-        if rom_segments(self.chip, &elf, elf_data).next().is_some() {
+        if rom_segments(self.chip, &elf).next().is_some() {
             return Err(Error::ElfNotRamLoadable);
         }
 
@@ -927,7 +927,7 @@ impl Flasher {
         );
         target.begin(&mut self.connection).flashing()?;
 
-        for segment in ram_segments(self.chip, &elf, elf_data) {
+        for segment in ram_segments(self.chip, &elf) {
             target
                 .write_segment(&mut self.connection, segment, progress)
                 .flashing()?;

@@ -211,21 +211,19 @@ impl Ord for Segment<'_> {
 pub(crate) fn ram_segments<'a>(
     chip: Chip,
     elf: &'a ElfFile<'a>,
-    elf_data: &'a [u8],
 ) -> impl Iterator<Item = Segment<'a>> {
-    segments(elf, elf_data).filter(move |segment| !chip.addr_is_flash(segment.addr))
+    segments(elf).filter(move |segment| !chip.addr_is_flash(segment.addr))
 }
 
 /// Returns an iterator over all ROM segments for a given chip and ELF file.
 pub(crate) fn rom_segments<'a>(
     chip: Chip,
     elf: &'a ElfFile<'a>,
-    elf_data: &'a [u8],
 ) -> impl Iterator<Item = Segment<'a>> {
-    segments(elf, elf_data).filter(move |segment| chip.addr_is_flash(segment.addr))
+    segments(elf).filter(move |segment| chip.addr_is_flash(segment.addr))
 }
 
-fn segments<'a>(elf: &'a ElfFile<'a>, elf_data: &'a [u8]) -> impl Iterator<Item = Segment<'a>> {
+fn segments<'a>(elf: &'a ElfFile<'a>) -> impl Iterator<Item = Segment<'a>> {
     elf.sections()
         .filter(|section| {
             let header = section.elf_section_header();
@@ -237,28 +235,9 @@ fn segments<'a>(elf: &'a ElfFile<'a>, elf_data: &'a [u8]) -> impl Iterator<Item 
                 && section.address() > 0
                 && !is_empty(section.flags())
         })
-        .flat_map(move |section| {
-            // Try section.data() first (works for PROGBITS and most sections)
-            if let Ok(data) = section.data() {
-                Some(Segment::new(section.address() as u32, data))
-            } else {
-                // For INIT_ARRAY sections that fail data(), read directly from ELF file
-                let header = section.elf_section_header();
-                if header.sh_type(Endianness::Little) == SHT_INIT_ARRAY {
-                    let offset = header.sh_offset.get(Endianness::Little) as usize;
-                    let size = section.size() as usize;
-                    if offset + size <= elf_data.len() {
-                        Some(Segment::new(
-                            section.address() as u32,
-                            &elf_data[offset..offset + size],
-                        ))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }
+        .flat_map(move |section| match section.data() {
+            Ok(data) => Some(Segment::new(section.address() as u32, data)),
+            _ => None,
         })
 }
 
@@ -284,7 +263,7 @@ mod test {
         .unwrap();
 
         let elf = ElfFile::parse(elf_data.as_slice()).unwrap();
-        let segments = segments(&elf, &elf_data).collect::<Vec<_>>();
+        let segments = segments(&elf).collect::<Vec<_>>();
 
         let expected = [
             // (address, size)

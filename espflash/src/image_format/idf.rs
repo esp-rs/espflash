@@ -370,10 +370,10 @@ impl<'a> IdfBootloaderFormat<'a> {
         // need to merge adjacent segments first to avoid the possibility of them
         // overlapping, and then do the padding.
         let mut flash_segments: Vec<_> = pad_align_segments(merge_adjacent_segments(
-            rom_segments(flash_data.chip, &elf, elf_data).collect(),
+            rom_segments(flash_data.chip, &elf).collect(),
         ));
         let mut ram_segments: Vec<_> = pad_align_segments(merge_adjacent_segments(
-            ram_segments(flash_data.chip, &elf, elf_data).collect(),
+            ram_segments(flash_data.chip, &elf).collect(),
         ));
 
         let mut checksum = ESP_CHECKSUM_MAGIC;
