@@ -13,7 +13,7 @@ use object::{
     Endianness,
     Object as _,
     ObjectSection as _,
-    elf::SHT_PROGBITS,
+    elf::{SHT_INIT_ARRAY, SHT_PROGBITS},
     read::elf::{ElfFile32 as ElfFile, SectionHeader},
 };
 use serde::{Deserialize, Serialize};
@@ -134,6 +134,11 @@ impl<'a> Segment<'a> {
         self.data.as_ref()
     }
 
+    /// Return mutable access to the data of the segment
+    pub fn data_mut(&mut self) -> &mut [u8] {
+        self.data.to_mut()
+    }
+
     /// Pad the segment to the given alignment
     pub fn pad_align(&mut self, align: usize) {
         let padding = (align - self.data.len() % align) % align;
@@ -222,9 +227,10 @@ fn segments<'a>(elf: &'a ElfFile<'a>) -> impl Iterator<Item = Segment<'a>> {
     elf.sections()
         .filter(|section| {
             let header = section.elf_section_header();
+            let sh_type = header.sh_type(Endianness::Little);
 
             section.size() > 0
-                && header.sh_type(Endianness::Little) == SHT_PROGBITS
+                && (sh_type == SHT_PROGBITS || sh_type == SHT_INIT_ARRAY)
                 && header.sh_offset.get(Endianness::Little) > 0
                 && section.address() > 0
                 && !is_empty(section.flags())
