@@ -29,8 +29,16 @@ concurrency:
 
 jobs:
   build-packages:
-    name: Build packages
+    name: Build packages | (${{ matrix.target.host }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - host: aarch64
+            target: aarch64-unknown-linux-gnu
+          - host: armv7
+            target: armv7-unknown-linux-gnueabihf
 
     steps:
       - uses: actions/checkout@v6
@@ -46,94 +54,83 @@ jobs:
       - name: Cache Dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Build espflash
-        run: |
-          cross build --release --target armv7-unknown-linux-gnueabihf
-          cross build --release --target aarch64-unknown-linux-gnu
-        working-directory: espflash
+      - name: Build binaries
+        run: cross build --release --target ${{ matrix.target.target }} -p espflash -p xtask
 
-      - name: Build xtask
-        run: |
-          cross build --release --target armv7-unknown-linux-gnueabihf
-          cross build --release --target aarch64-unknown-linux-gnu
-        working-directory: xtask
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload espflash-${{ matrix.target.host }}
+        uses: actions/upload-artifact@v4
         with:
-          name: espflash-armv7
-          path: target/armv7-unknown-linux-gnueabihf/release/espflash
+          name: espflash-${{ matrix.target.host }}
+          path: target/${{ matrix.target.target }}/release/espflash
           if-no-files-found: error
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload xtask-${{ matrix.target.host }}
+        uses: actions/upload-artifact@v4
         with:
-          name: espflash-aarch64
-          path: target/aarch64-unknown-linux-gnu/release/espflash
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: xtask-armv7
-          path: target/armv7-unknown-linux-gnueabihf/release/xtask
+          name: xtask-${{ matrix.target.host }}
+          path: target/${{ matrix.target.target }}/release/xtask
           if-no-files-found: error
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: xtask-aarch64
-          path: target/aarch64-unknown-linux-gnu/release/xtask
-          if-no-files-found: error
   run-packages:
     if: github.repository_owner == 'esp-rs'
-    name: ${{ matrix.target.soc }} esp-hal
+    name: HIL | ${{ matrix.target.soc }}
     needs: build-packages
     runs-on: [self-hosted, "${{ matrix.target.runner }}"]
+    env:
+      ESPFLASH_PORT: ${{ matrix.target.port }}
 
     strategy:
       fail-fast: false
       matrix:
         target:
-          # - soc: esp32c2
-          #   runner: esp32c2-jtag
-          #   host: aarch64
-          # - soc: esp32c3
-          #   runner: esp32c3-usb
-          #   host: armv7
+          - soc: esp32c2
+            runner: esp32c2-jtag
+            port: /dev/ttyUSB2
+            host: aarch64
+          - soc: esp32c3
+            runner: esp32c3-usb
+            port: /dev/ttyACM0
+            host: armv7
           - soc: esp32c6
             runner: esp32c6-usb
+            port: /dev/ttyACM0
             host: armv7
-          # - soc: esp32h2
-          #   runner: esp32h2-usb
-          #   host: armv7
-          # - soc: esp32
-          #   runner: esp32-jtag
-          #   host: aarch64
-          - soc: esp32s2
-            runner: esp32s2-jtag
+          - soc: esp32h2
+            runner: esp32h2-usb
+            port: /dev/ttyUSB0
             host: armv7
-          # - soc: esp32s3
-          #   runner: esp32s3-usb
+          - soc: esp32
+            runner: esp32-jtag
+            port: /dev/ttyUSB2
+            host: aarch64
+          # - soc: esp32s2
+          #   runner: esp32s2-jtag
+          #   port: /dev/ttyUSB0
           #   host: armv7
+          - soc: esp32s3
+            runner: esp32s3-usb
+            port: /dev/ttyUSB0
+            host: armv7
 
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/download-artifact@v7
         with:
-          name: espflash-armv7
+          name: espflash-${{ matrix.target.host }}
           path: espflash_app
 
       - uses: actions/download-artifact@v7
         with:
-          name: xtask-armv7
+          name: xtask-${{ matrix.target.host }}
           path: xtask_app
 
-      - name: Set up espflash binary
+      - name: Set up binaries
         run: |
           chmod +x espflash_app/espflash
           chmod +x xtask_app/xtask
           echo "$PWD/espflash_app" >> "$GITHUB_PATH"
           echo "$PWD/xtask_app" >> "$GITHUB_PATH"
-
-      - name: Check connections
-        run: lsusb
 
       - name: Run all tests
         run: xtask_app/xtask run-tests --chip ${{ matrix.target.soc }} -t 60 --no-build
