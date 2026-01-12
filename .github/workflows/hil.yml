@@ -131,11 +131,6 @@ jobs:
           repository: ${{ github.event.inputs.repository || github.repository }}
           ref: ${{ github.event.inputs.branch || github.ref }}
 
-      # - name: Install dependencies
-      #   env:
-      #     DEBIAN_FRONTEND: noninteractive
-      #   run: apt-get update && apt-get -y install curl musl-tools pkg-config
-
       - name: Install target for cross-compilation
         run: rustup target add aarch64-unknown-linux-gnu
 
@@ -146,6 +141,7 @@ jobs:
 
       - name: Cache Dependencies
         uses: Swatinem/rust-cache@v2
+
       - name: Build espflash
         run: cross build --release --target armv7-unknown-linux-gnueabihf
         working-directory: espflash
@@ -170,27 +166,39 @@ jobs:
     name: ${{ matrix.target.soc }} esp-hal
     needs: build-packages
     runs-on: [self-hosted, "${{ matrix.target.runner }}"]
-    # env:
-    # ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
 
     strategy:
       fail-fast: false
       matrix:
         target:
+          # - soc: esp32c2
+          #   rust-target: riscv32imc-unknown-none-elf
+          #   runner: esp32c2-jtag
+          #   host: aarch64
+          # - soc: esp32c3
+          #   rust-target: riscv32imc-unknown-none-elf
+          #   runner: esp32c3-usb
+          #   host: armv7
           - soc: esp32c6
-            rust-target: riscv32imac-unknown-none-elf
+            # rust-target: riscv32imac-unknown-none-elf
             runner: esp32c6-usb
             host: armv7
-        # board:
-        #     - mcu: esp32
-        #     - mcu: esp32c2
-        #       freq: -26mhz
-        #       flag: -x 26mhz
-        #     - mcu: esp32c3
-        #     - mcu: esp32c6
-        #     - mcu: esp32h2
-        #     - mcu: esp32s2
-        #     - mcu: esp32s3
+          # - soc: esp32h2
+          #   rust-target: riscv32imac-unknown-none-elf
+          #   runner: esp32h2-usb
+          #   host: armv7
+          # - soc: esp32
+          #   rust-target: xtensa-esp32-none-elf
+          #   runner: esp32-jtag
+          #   host: aarch64
+          - soc: esp32s2
+            # rust-target: xtensa-esp32s2-none-elf
+            runner: esp32s2-jtag
+            host: armv7
+          # - soc: esp32s3
+          #   rust-target: xtensa-esp32s3-none-elf
+          #   runner: esp32s3-usb
+          #   host: armv7
 
     steps:
       - uses: actions/checkout@v6
