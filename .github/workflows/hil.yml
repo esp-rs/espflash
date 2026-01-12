@@ -28,99 +28,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 
 jobs:
-  build-espflash:
-    name: Build espflash and xtask
-    runs-on: ubuntu-22.04
-    container:
-      image: ubuntu:20.04
-
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          repository: ${{ github.event.inputs.repository || github.repository }}
-          ref: ${{ github.event.inputs.branch || github.ref }}
-
-      - name: Install dependencies
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: apt-get update && apt-get -y install curl musl-tools pkg-config sudo
-
-      - name: Install toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-
-      - name: Build espflash
-        run: $HOME/.cargo/bin/cargo build --release
-        working-directory: espflash
-
-      - name: Build xtask
-        run: $HOME/.cargo/bin/cargo build --release --locked
-        working-directory: xtask
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: espflash
-          path: target/release/espflash
-          if-no-files-found: error
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: xtask
-          path: target/release/xtask
-          if-no-files-found: error
-
-  run-target:
-    if: github.repository_owner == 'esp-rs'
-    name: ${{ matrix.board.mcu }}${{ matrix.board.freq }}
-    needs: build-espflash
-    runs-on:
-      [
-        self-hosted,
-        linux,
-        x64,
-        "${{ matrix.board.mcu }}${{ matrix.board.freq }}",
-      ]
-
-    env:
-      ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        board:
-          - mcu: esp32
-          - mcu: esp32c2
-            freq: -26mhz
-            flag: -x 26mhz
-          - mcu: esp32c3
-          - mcu: esp32c6
-          - mcu: esp32h2
-          - mcu: esp32s2
-          - mcu: esp32s3
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/download-artifact@v7
-        with:
-          name: espflash
-          path: espflash_app
-
-      - uses: actions/download-artifact@v7
-        with:
-          name: xtask
-          path: xtask_app
-
-      - name: Set up espflash binary
-        run: |
-          chmod +x espflash_app/espflash
-          echo "$PWD/espflash_app" >> "$GITHUB_PATH"
-          chmod +x xtask_app/xtask
-          echo "$PWD/xtask_app" >> "$GITHUB_PATH"
-
-      - name: Run all tests
-        run: xtask run-tests --chip ${{ matrix.board.mcu }} -t 60 --no-build
-
   build-packages:
     name: Build packages
     runs-on: ubuntu-latest
@@ -131,9 +38,6 @@ jobs:
           repository: ${{ github.event.inputs.repository || github.repository }}
           ref: ${{ github.event.inputs.branch || github.ref }}
 
-      - name: Install target for cross-compilation
-        run: rustup target add aarch64-unknown-linux-gnu
-
       - name: Install cross
         uses: taiki-e/install-action@v2
         with:
@@ -143,11 +47,15 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build espflash
-        run: cross build --release --target armv7-unknown-linux-gnueabihf
+        run: |
+          cross build --release --target armv7-unknown-linux-gnueabihf
+          cross build --release --target aarch64-unknown-linux-gnu
         working-directory: espflash
 
       - name: Build xtask
-        run: cross build --release --target armv7-unknown-linux-gnueabihf
+        run: |
+          cross build --release --target armv7-unknown-linux-gnueabihf
+          cross build --release --target aarch64-unknown-linux-gnu
         working-directory: xtask
 
       - uses: actions/upload-artifact@v4
@@ -158,8 +66,19 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: espflash-aarch64
+          path: target/aarch64-unknown-linux-gnu/release/espflash
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
           name: xtask-armv7
           path: target/armv7-unknown-linux-gnueabihf/release/xtask
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtask-aarch64
+          path: target/aarch64-unknown-linux-gnu/release/xtask
           if-no-files-found: error
   run-packages:
     if: github.repository_owner == 'esp-rs'
@@ -172,31 +91,24 @@ jobs:
       matrix:
         target:
           # - soc: esp32c2
-          #   rust-target: riscv32imc-unknown-none-elf
           #   runner: esp32c2-jtag
           #   host: aarch64
           # - soc: esp32c3
-          #   rust-target: riscv32imc-unknown-none-elf
           #   runner: esp32c3-usb
           #   host: armv7
           - soc: esp32c6
-            # rust-target: riscv32imac-unknown-none-elf
             runner: esp32c6-usb
             host: armv7
           # - soc: esp32h2
-          #   rust-target: riscv32imac-unknown-none-elf
           #   runner: esp32h2-usb
           #   host: armv7
           # - soc: esp32
-          #   rust-target: xtensa-esp32-none-elf
           #   runner: esp32-jtag
           #   host: aarch64
           - soc: esp32s2
-            # rust-target: xtensa-esp32s2-none-elf
             runner: esp32s2-jtag
             host: armv7
           # - soc: esp32s3
-          #   rust-target: xtensa-esp32s3-none-elf
           #   runner: esp32s3-usb
           #   host: armv7
 
@@ -219,6 +131,9 @@ jobs:
           chmod +x xtask_app/xtask
           echo "$PWD/espflash_app" >> "$GITHUB_PATH"
           echo "$PWD/xtask_app" >> "$GITHUB_PATH"
+
+      - name: Check connections
+        run: lsusb
 
       - name: Run all tests
         run: xtask_app/xtask run-tests --chip ${{ matrix.target.soc }} -t 60 --no-build
