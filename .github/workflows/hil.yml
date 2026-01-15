@@ -76,8 +76,6 @@ jobs:
     name: HIL | ${{ matrix.target.soc }}
     needs: build-packages
     runs-on: [self-hosted, "${{ matrix.target.runner }}"]
-    env:
-      ESPFLASH_PORT: ${{ matrix.target.port }}
 
     strategy:
       fail-fast: false
@@ -85,39 +83,40 @@ jobs:
         target:
           - soc: esp32c2
             runner: esp32c2-jtag
-            port: /dev/ttyUSB2
+            ports: [/dev/ttyUSB2]
             host: aarch64
           - soc: esp32c3
             runner: esp32c3-usb
-            port: /dev/ttyACM0
+            ports: [/dev/ttyACM0]
             host: armv7
           - soc: esp32c5
             runner: esp32c5-usb
-            port: /dev/ttyACM0
+            ports: [/dev/ttyACM0, /dev/ttyUSB0]
             host: aarch64
           - soc: esp32c6
             runner: esp32c6-usb
-            port: /dev/ttyACM0
+            ports: [/dev/ttyACM0]
+            # ports: [/dev/ttyACM0, /dev/ttyUSB0]
             host: armv7
           - soc: esp32h2
             runner: esp32h2-usb
-            port: /dev/ttyUSB0
+            ports: [/dev/ttyACM0, /dev/ttyUSB0]
             host: armv7
           - soc: esp32p4
             runner: esp32p4
-            port: /dev/ttyACM0
+            ports: [/dev/ttyACM0, /dev/ttyUSB0]
             host: aarch64
           - soc: esp32
             runner: esp32-jtag
-            port: /dev/ttyUSB2
+            ports: [/dev/ttyUSB2]
             host: aarch64
           # - soc: esp32s2
           #   runner: esp32s2-jtag
-          #   port: /dev/ttyUSB0
+          #   ports: [/dev/ttyUSB0]
           #   host: armv7
           - soc: esp32s3
             runner: esp32s3-usb
-            port: /dev/ttyUSB0
+            ports: [/dev/ttyACM0, /dev/ttyUSB0]
             host: armv7
 
     steps:
@@ -141,4 +140,8 @@ jobs:
           echo "$PWD/xtask_app" >> "$GITHUB_PATH"
 
       - name: Run all tests
-        run: xtask_app/xtask run-tests --chip ${{ matrix.target.soc }} -t 60 --no-build
+        run: |
+          for port in ${{ join(matrix.target.ports, ' ') }}; do
+            echo "Running tests on ${port}"
+            ESPFLASH_PORT="${port}" xtask run-tests --chip ${{ matrix.target.soc }} -t 60 --no-build
+          done
