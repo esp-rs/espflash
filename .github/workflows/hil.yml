@@ -91,14 +91,14 @@ jobs:
             runner: esp32c3-usb
             port: /dev/ttyACM0
             host: armv7
-          - soc: esp32c5
-            runner: esp32c5-usb
-            port: /dev/ttyACM0
-            host: aarch64
-          - soc: esp32c5
-            runner: esp32c5-usb
-            port: /dev/ttyUSB0
-            host: aarch64
+          # - soc: esp32c5
+          #   runner: esp32c5-usb
+          #   port: /dev/ttyACM0
+          #   host: aarch64
+          # - soc: esp32c5
+          #   runner: esp32c5-usb
+          #   port: /dev/ttyUSB0
+          #   host: aarch64
           - soc: esp32c6
             runner: esp32c6-usb
             port: /dev/ttyACM0
@@ -115,22 +115,22 @@ jobs:
             runner: esp32h2-usb
             port: /dev/ttyUSB0
             host: armv7
-          - soc: esp32p4
-            runner: esp32p4
-            port: /dev/ttyACM0
-            host: aarch64
-          - soc: esp32p4
-            runner: esp32p4
-            port: /dev/ttyUSB0
-            host: aarch64
+          # - soc: esp32p4
+          #   runner: esp32p4
+          #   port: /dev/ttyACM0
+          #   host: aarch64
+          # - soc: esp32p4
+          #   runner: esp32p4
+          #   port: /dev/ttyUSB0
+          #   host: aarch64
           - soc: esp32
             runner: esp32-jtag
             port: /dev/ttyUSB2
             host: aarch64
-          # - soc: esp32s2
-          #   runner: esp32s2-jtag
-          #   port: /dev/ttyUSB0
-          #   host: armv7
+          - soc: esp32s2
+            runner: esp32s2-jtag
+            port: /dev/ttyUSB2
+            host: armv7
           - soc: esp32s3
             runner: esp32s3-usb
             port: /dev/ttyACM0
