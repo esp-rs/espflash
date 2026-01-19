@@ -16,7 +16,6 @@ SUBSYSTEM!="usb|tty|hidraw", GOTO="espflash_rules_end"
 # Please keep this list sorted by VID:PID
 
 # Espressif USB JTAG/serial debug unit and USB Bridge
-# SUBSYSTEMS=="usb", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="00??", GROUP="plugdev", MODE="660", TAG+="uaccess", SYMLINK+="serial_ports/usb"
 ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE="660", GROUP="plugdev", TAG+="uaccess", SYMLINK+="serial_ports/usb"
 ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1002", MODE="660", GROUP="plugdev", TAG+="uaccess", SYMLINK+="serial_ports/usb"
 # Silicon Labs CP210x UART Bridge

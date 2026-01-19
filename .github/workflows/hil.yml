@@ -77,7 +77,7 @@ jobs:
     needs: build-packages
     runs-on: [self-hosted, "${{ matrix.target.runner }}"]
     env:
-      ESPFLASH_PORT: ${{ matrix.target.port }}
+      ESPFLASH_PORT: /dev/serial_ports/${{ matrix.target.port }}
 
     strategy:
       fail-fast: false
@@ -85,59 +85,59 @@ jobs:
         target:
           - soc: esp32c2
             runner: esp32c2-jtag
-            port: /dev/ttyUSB2
+            port: uart
             host: aarch64
           - soc: esp32c3
             runner: esp32c3-usb
-            port: /dev/ttyACM0
+            port: usb
             host: armv7
           # - soc: esp32c5
           #   runner: esp32c5-usb
-          #   port: /dev/ttyACM0
+          #   port: usb
           #   host: aarch64
           # - soc: esp32c5
           #   runner: esp32c5-usb
-          #   port: /dev/ttyUSB0
+          #   port: uart
           #   host: aarch64
           - soc: esp32c6
             runner: esp32c6-usb
-            port: /dev/ttyACM0
+            port: usb
             host: armv7
           - soc: esp32c6
             runner: esp32c6-usb
-            port: /dev/ttyUSB0
+            port: uart
             host: armv7
           - soc: esp32h2
             runner: esp32h2-usb
-            port: /dev/ttyACM0
+            port: usb
             host: armv7
           - soc: esp32h2
             runner: esp32h2-usb
-            port: /dev/ttyUSB0
+            port: uart
             host: armv7
           # - soc: esp32p4
           #   runner: esp32p4
-          #   port: /dev/ttyACM0
+          #   port: usb
           #   host: aarch64
           # - soc: esp32p4
           #   runner: esp32p4
-          #   port: /dev/ttyUSB0
+          #   port: uart
           #   host: aarch64
           - soc: esp32
             runner: esp32-jtag
-            port: /dev/ttyUSB2
+            port: uart
             host: aarch64
           - soc: esp32s2
             runner: esp32s2-jtag
-            port: /dev/ttyUSB2
+            port: uart
             host: armv7
           - soc: esp32s3
             runner: esp32s3-usb
-            port: /dev/ttyACM0
+            port: usb
             host: armv7
           - soc: esp32s3
             runner: esp32s3-usb
-            port: /dev/ttyUSB0
+            port: uart
             host: armv7
 
     steps:
