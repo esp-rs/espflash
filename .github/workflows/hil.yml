@@ -119,10 +119,6 @@ jobs:
             runner: esp32p4
             port: usb
             host: aarch64
-          - soc: esp32p4
-            runner: esp32p4
-            port: uart
-            host: aarch64
           - soc: esp32
             runner: esp32-jtag
             port: uart
