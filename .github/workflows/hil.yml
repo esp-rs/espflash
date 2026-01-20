@@ -91,10 +91,10 @@ jobs:
             runner: esp32c3-usb
             port: usb
             host: armv7
-          # - soc: esp32c5
-          #   runner: esp32c5-usb
-          #   port: usb
-          #   host: aarch64
+          - soc: esp32c5
+            runner: esp32c5-usb
+            port: usb
+            host: aarch64
           - soc: esp32c5
             runner: esp32c5-usb
             port: uart
@@ -115,14 +115,14 @@ jobs:
             runner: esp32h2-usb
             port: uart
             host: armv7
-          # - soc: esp32p4
-          #   runner: esp32p4
-          #   port: usb
-          #   host: aarch64
-          # - soc: esp32p4
-          #   runner: esp32p4
-          #   port: uart
-          #   host: aarch64
+          - soc: esp32p4
+            runner: esp32p4
+            port: usb
+            host: aarch64
+          - soc: esp32p4
+            runner: esp32p4
+            port: uart
+            host: aarch64
           - soc: esp32
             runner: esp32-jtag
             port: uart
