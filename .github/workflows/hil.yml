@@ -95,10 +95,10 @@ jobs:
           #   runner: esp32c5-usb
           #   port: usb
           #   host: aarch64
-          # - soc: esp32c5
-          #   runner: esp32c5-usb
-          #   port: uart
-          #   host: aarch64
+          - soc: esp32c5
+            runner: esp32c5-usb
+            port: uart
+            host: aarch64
           - soc: esp32c6
             runner: esp32c6-usb
             port: usb
