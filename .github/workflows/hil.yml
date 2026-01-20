@@ -156,5 +156,10 @@ jobs:
           echo "$PWD/espflash_app" >> "$GITHUB_PATH"
           echo "$PWD/xtask_app" >> "$GITHUB_PATH"
 
+      - name: Reset device
+        run: |
+          espflash reset
+          sleep 5
+
       - name: Run all tests
         run: xtask run-tests --chip ${{ matrix.target.soc }} -t 60 --no-build
