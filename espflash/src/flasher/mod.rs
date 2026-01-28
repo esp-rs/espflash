@@ -57,6 +57,9 @@ pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
 
+#[cfg(feature = "serialport")]
+pub(crate) const BOOTLOADER_PROTECTION_ADDR: u32 = 0x8000;
+
 /// Supported flash frequencies
 ///
 /// Note that not all frequencies are supported by each target device.
@@ -936,15 +939,41 @@ impl Flasher {
         target.finish(&mut self.connection, true).flashing()
     }
 
+    /// Validate flash arguments when in secure download mode.
+    /// Prevent a user from accidentally flashing over a secure boot enabled
+    /// bootloader and bricking their device.
+    fn validate_secure_download_args(&self, segments: &[Segment<'_>]) -> Result<(), Error> {
+        for segment in segments {
+            if segment.addr < BOOTLOADER_PROTECTION_ADDR {
+                return Err(Error::SecureDownloadBootloaderProtection);
+            }
+        }
+
+        if self.verify || self.skip {
+            warn!(
+                "Secure Download Mode enabled: --verify and --skip options are not available \
+                (flash read operations are restricted)"
+            );
+        }
+        Ok(())
+    }
+
     /// Load an ELF image to flash and execute it
     pub fn load_image_to_flash<'a>(
         &mut self,
         progress: &mut dyn ProgressCallbacks,
         image_format: ImageFormat<'a>,
     ) -> Result<(), Error> {
-        let mut target =
-            self.chip
-                .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
+        let (mut verify, mut skip) = (self.verify, self.skip);
+
+        if self.connection.secure_download_mode {
+            self.validate_secure_download_args(&image_format.clone().flash_segments())?;
+            (verify, skip) = (false, false);
+        }
+
+        let mut target = self
+            .chip
+            .flash_target(self.spi_params, self.use_stub, verify, skip);
         target.begin(&mut self.connection).flashing()?;
 
         // When the `cli` feature is enabled, display the image size information.
@@ -1005,16 +1034,16 @@ impl Flasher {
         segments: &[Segment<'_>],
         progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
+        let (mut verify, mut skip) = (self.verify, self.skip);
+
         if self.connection.secure_download_mode {
-            return Err(Error::UnsupportedFeature {
-                chip: self.chip,
-                feature: "writing binaries in Secure Download Mode currently".into(),
-            });
+            self.validate_secure_download_args(segments)?;
+            (verify, skip) = (false, false);
         }
 
-        let mut target =
-            self.chip
-                .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
+        let mut target = self
+            .chip
+            .flash_target(self.spi_params, self.use_stub, verify, skip);
 
         target.begin(&mut self.connection).flashing()?;
 

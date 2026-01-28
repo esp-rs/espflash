@@ -34,7 +34,7 @@ pub struct Esp32Target {
     use_stub: bool,
     verify: bool,
     skip: bool,
-    need_deflate_end: bool,
+    need_flash_end: bool,
 }
 
 impl Esp32Target {
@@ -52,7 +52,7 @@ impl Esp32Target {
             use_stub,
             verify,
             skip,
-            need_deflate_end: false,
+            need_flash_end: false,
         }
     }
 }
@@ -79,7 +79,10 @@ impl FlashTarget for Esp32Target {
         //
         // TODO: the stub doesn't appear to disable the watchdog on ESP32-S3, so we
         //       explicitly disable the watchdog here.
-        if connection.is_using_usb_serial_jtag() {
+        //
+        // NOTE: In Secure Download Mode, WRITE_REG commands are not allowed, so we
+        // must skip the watchdog disable.
+        if connection.is_using_usb_serial_jtag() && !connection.secure_download_mode {
             if let (Some(wdt_wprotect), Some(wdt_config0)) =
                 (self.chip.wdt_wprotect(), self.chip.wdt_config0())
             {
@@ -116,21 +119,14 @@ impl FlashTarget for Esp32Target {
         md5_hasher.update(&segment.data);
         let checksum_md5 = md5_hasher.finalize();
 
-        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
-        encoder.write_all(&segment.data)?;
-        let compressed = encoder.finish()?;
+        // use compression only when stub is loaded.
+        let use_compression = self.use_stub;
 
         let flash_write_size = self.chip.flash_write_size();
-        let block_count = compressed.len().div_ceil(flash_write_size);
         let erase_count = segment.data.len().div_ceil(FLASH_SECTOR_SIZE);
 
         // round up to sector size
         let erase_size = (erase_count * FLASH_SECTOR_SIZE) as u32;
-
-        let chunks = compressed.chunks(flash_write_size);
-        let num_chunks = chunks.len();
-
-        progress.init(addr, num_chunks);
 
         if self.skip {
             let flash_checksum_md5: u128 = connection.with_timeout(
@@ -153,43 +149,88 @@ impl FlashTarget for Esp32Target {
             }
         }
 
-        connection.with_timeout(
-            CommandType::FlashDeflBegin.timeout_for_size(erase_size),
-            |connection| {
-                connection.command(Command::FlashDeflBegin {
-                    size: segment.data.len() as u32,
-                    blocks: block_count as u32,
-                    block_size: flash_write_size as u32,
-                    offset: addr,
-                    supports_encryption: self.chip != Chip::Esp32 && !self.use_stub,
-                })?;
-                Ok(())
-            },
-        )?;
-        self.need_deflate_end = true;
+        let data = if use_compression {
+            let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
+            encoder.write_all(&segment.data)?;
+            encoder.finish()?
+        } else {
+            segment.data.to_vec()
+        };
+
+        let block_count = data.len().div_ceil(flash_write_size);
+        let chunks = data.chunks(flash_write_size);
+        let num_chunks = chunks.len();
+
+        progress.init(addr, num_chunks);
+
+        if use_compression {
+            connection.with_timeout(
+                CommandType::FlashDeflBegin.timeout_for_size(erase_size),
+                |connection| {
+                    connection.command(Command::FlashDeflBegin {
+                        size: segment.data.len() as u32,
+                        blocks: block_count as u32,
+                        block_size: flash_write_size as u32,
+                        offset: addr,
+                        supports_encryption: self.chip != Chip::Esp32 && !self.use_stub,
+                    })?;
+                    Ok(())
+                },
+            )?;
+        } else {
+            connection.with_timeout(
+                CommandType::FlashBegin.timeout_for_size(erase_size),
+                |connection| {
+                    connection.command(Command::FlashBegin {
+                        size: erase_size,
+                        blocks: block_count as u32,
+                        block_size: flash_write_size as u32,
+                        offset: addr,
+                        supports_encryption: self.chip != Chip::Esp32,
+                    })?;
+                    Ok(())
+                },
+            )?;
+        }
+        self.need_flash_end = true;
 
         // decode the chunks to see how much data the device will have to save
         let mut decoder = ZlibDecoder::new(Vec::new());
         let mut decoded_size = 0;
 
         for (i, block) in chunks.enumerate() {
-            decoder.write_all(block)?;
-            decoder.flush()?;
-            let size = decoder.get_ref().len() - decoded_size;
-            decoded_size = decoder.get_ref().len();
+            if use_compression {
+                decoder.write_all(block)?;
+                decoder.flush()?;
+                let size = decoder.get_ref().len() - decoded_size;
+                decoded_size = decoder.get_ref().len();
 
-            connection.with_timeout(
-                CommandType::FlashDeflData.timeout_for_size(size as u32),
-                |connection| {
-                    connection.command(Command::FlashDeflData {
-                        sequence: i as u32,
-                        pad_to: 0,
-                        pad_byte: 0xff,
-                        data: block,
-                    })?;
-                    Ok(())
-                },
-            )?;
+                connection.with_timeout(
+                    CommandType::FlashDeflData.timeout_for_size(size as u32),
+                    |connection| {
+                        connection.command(Command::FlashDeflData {
+                            sequence: i as u32,
+                            pad_to: 0,
+                            pad_byte: 0xff,
+                            data: block,
+                        })?;
+                        Ok(())
+                    },
+                )?;
+            } else {
+                connection.with_timeout(
+                    CommandType::FlashData.timeout_for_size(block.len() as u32),
+                    |connection| {
+                        connection.command(Command::FlashData {
+                            sequence: i as u32,
+                            pad_to: flash_write_size,
+                            pad_byte: 0xff,
+                            data: block,
+                        })?;
+                        Ok(())
+                    },
+                )?;
+            }
 
             progress.update(i + 1)
         }
@@ -220,10 +261,16 @@ impl FlashTarget for Esp32Target {
     }
 
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error> {
-        if self.need_deflate_end {
-            connection.with_timeout(CommandType::FlashDeflEnd.timeout(), |connection| {
-                connection.command(Command::FlashDeflEnd { reboot: false })
-            })?;
+        if self.need_flash_end {
+            if self.use_stub {
+                connection.with_timeout(CommandType::FlashDeflEnd.timeout(), |connection| {
+                    connection.command(Command::FlashDeflEnd { reboot: false })
+                })?;
+            } else {
+                connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
+                    connection.command(Command::FlashEnd { reboot: false })
+                })?;
+            }
         }
 
         if reboot {
