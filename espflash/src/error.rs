@@ -383,6 +383,10 @@ pub enum Error {
     /// Tried to use an unsupported eFuse coding scheme
     #[error("Tried to use an unsupported eFuse coding scheme: {0}")]
     UnsupportedEfuseCodingScheme(String),
+
+    /// Tried to write to address < 0x8000 with Secure Download enabled
+    #[error("Tried to write to address < 0x8000 with Secure Download enabled")]
+    SecureDownloadBootloaderProtection,
 }
 
 #[cfg(feature = "serialport")]
