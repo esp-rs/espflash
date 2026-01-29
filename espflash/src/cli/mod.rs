@@ -546,7 +546,7 @@ pub fn list_ports(args: &ListPortsArgs, config: &PortConfig) -> Result<()> {
                     }
                     SerialPortType::UsbPort(p) => {
                         println!(
-                            "{0: <name_width$}{3:04X}:{4:04X}:{5: <25}  {1: <manufacturer_width$}{2}",
+                            "{0: <name_width$}{4:04X}:{3:04X}:{5: <25}  {1: <manufacturer_width$}{2}",
                             port.port_name,
                             p.manufacturer.unwrap_or_default(),
                             p.product.unwrap_or_default(),
