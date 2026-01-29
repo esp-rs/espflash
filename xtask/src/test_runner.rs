@@ -130,6 +130,36 @@ impl TestRunner {
         Ok((child, output, stdout_handle, stderr_handle))
     }
 
+    fn run_command_capture_output_with_timeout(
+        cmd: &mut Command,
+        timeout: Duration,
+        test_name: &str,
+    ) -> Result<String> {
+        let (mut child, output, h1, h2) = Self::spawn_and_capture_output(cmd)?;
+        let start_time = Instant::now();
+        let mut terminated_naturally = false;
+
+        while start_time.elapsed() < timeout {
+            if let Ok(Some(_)) = child.try_wait() {
+                terminated_naturally = true;
+                break;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
+
+        if !terminated_naturally {
+            log::warn!("{test_name} test timed out after {timeout:?}, terminating process");
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+
+        let _ = h1.join();
+        let _ = h2.join();
+
+        let output = output.lock().unwrap();
+        Ok(output.clone())
+    }
+
     /// Runs a command with a timeout, returning the exit code
     pub fn run_command_with_timeout(&self, cmd: &mut Command, timeout: Duration) -> Result<i32> {
         log::debug!("Running command: {cmd:?}");
@@ -254,29 +284,8 @@ impl TestRunner {
         let mut cmd = self.create_espflash_command(args);
 
         if let Some(expected) = expected_contains {
-            let (mut child, output, h1, h2) = Self::spawn_and_capture_output(&mut cmd)?;
-            let start_time = Instant::now();
-            let mut terminated_naturally = false;
-
-            while start_time.elapsed() < timeout {
-                if let Ok(Some(_)) = child.try_wait() {
-                    terminated_naturally = true;
-                    break;
-                }
-                thread::sleep(Duration::from_millis(100));
-            }
-
-            // If still running, kill it
-            if !terminated_naturally {
-                log::warn!("{test_name} test timed out after {timeout:?}, terminating process");
-                let _ = child.kill();
-                let _ = child.wait();
-            }
-
-            let _ = h1.join();
-            let _ = h2.join();
-
-            let output = output.lock().unwrap();
+            let output =
+                Self::run_command_capture_output_with_timeout(&mut cmd, timeout, test_name)?;
             for &expected in expected {
                 if !output.contains(expected) {
                     Self::restore_terminal();
@@ -538,12 +547,20 @@ impl TestRunner {
 
     /// Tests listing available ports
     pub fn test_list_ports(&self) -> Result<()> {
-        self.run_simple_command_test(
-            &["list-ports"],
-            Some(&["Silicon Labs"]),
-            Duration::from_secs(10),
-            "list-ports",
-        )?;
+        log::info!("Running list-ports test");
+        let mut cmd = self.create_espflash_command(&["list-ports"]);
+        let timeout = Duration::from_secs(10);
+        let output =
+            Self::run_command_capture_output_with_timeout(&mut cmd, timeout, "list-ports")?;
+        // Accept either "Silicon Labs" or "Espressif" in the output
+        if !output.contains("Silicon Labs") && !output.contains("Espressif") {
+            Self::restore_terminal();
+            return Err(
+                "Missing expected output: neither 'Silicon Labs' nor 'Espressif' found".into(),
+            );
+        }
+
+        log::info!("list-ports test passed and output verified");
         Ok(())
     }
 

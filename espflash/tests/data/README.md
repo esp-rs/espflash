@@ -37,3 +37,13 @@ cargo build --release
 
 `esp_hal_binary_with_overlapping_defmt_and_embedded_test_sections` is the ESP-HAL `gpio_unstable` test built for ESP32.
 This file is used in a unit test in espflash, and is not flashed as a HIL test.
+
+The `esp32c5` and `esp32p4` elf files under this folder have been generated using `esp-idf@v5.5.2`:
+```
+ git clone -b v5.5.2 --recursive https://github.com/espressif/esp-idf.git
+cd esp-idf/
+./install.sh all
+cd examples/get-started/hello_world/
+idf.py set-target $CHIP
+idf.py build
+```

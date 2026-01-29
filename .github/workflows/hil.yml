@@ -28,95 +28,138 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 
 jobs:
-  build-espflash:
-    name: Build espflash
-    runs-on: ubuntu-22.04
-    container:
-      image: ubuntu:20.04
+  build-packages:
+    name: Build packages | (${{ matrix.target.host }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - host: aarch64
+            target: aarch64-unknown-linux-gnu
+          - host: armv7
+            target: armv7-unknown-linux-gnueabihf
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: ${{ github.event.inputs.repository || github.repository }}
           ref: ${{ github.event.inputs.branch || github.ref }}
 
-      - name: Install dependencies
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: apt-get update && apt-get -y install curl musl-tools pkg-config
-
-      - name: Install toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-
-      - name: Build espflash
-        run: $HOME/.cargo/bin/cargo build --release
-        working-directory: espflash
-
-      - name: Build xtask
-        run: $HOME/.cargo/bin/cargo build --release --locked
-        working-directory: xtask
-
-      - uses: actions/upload-artifact@v4
+      - name: Install cross
+        uses: taiki-e/install-action@v2
         with:
-          name: espflash
-          path: target/release/espflash
+          tool: cross
+
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build binaries
+        run: cross build --release --target ${{ matrix.target.target }} -p espflash -p xtask
+
+      - name: Upload espflash-${{ matrix.target.host }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: espflash-${{ matrix.target.host }}
+          path: target/${{ matrix.target.target }}/release/espflash
           if-no-files-found: error
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload xtask-${{ matrix.target.host }}
+        uses: actions/upload-artifact@v4
         with:
-          name: xtask
-          path: target/release/xtask
+          name: xtask-${{ matrix.target.host }}
+          path: target/${{ matrix.target.target }}/release/xtask
           if-no-files-found: error
 
-  run-target:
+  run-packages:
     if: github.repository_owner == 'esp-rs'
-    name: ${{ matrix.board.mcu }}${{ matrix.board.freq }}
-    needs: build-espflash
-    runs-on:
-      [
-        self-hosted,
-        linux,
-        x64,
-        "${{ matrix.board.mcu }}${{ matrix.board.freq }}",
-      ]
-
+    name: HIL | ${{ matrix.target.soc }} | ${{ matrix.target.port }}
+    needs: build-packages
+    runs-on: [self-hosted, "${{ matrix.target.runner }}"]
     env:
-      ESPFLASH_PORT: /dev/serial_ports/${{ matrix.board.mcu }}
+      ESPFLASH_PORT: /dev/serial_ports/${{ matrix.target.port }}
 
     strategy:
       fail-fast: false
       matrix:
-        board:
-          - mcu: esp32
-          - mcu: esp32c2
-            freq: -26mhz
-            flag: -x 26mhz
-          - mcu: esp32c3
-          - mcu: esp32c6
-          - mcu: esp32h2
-          - mcu: esp32s2
-          - mcu: esp32s3
+        target:
+          - soc: esp32c2
+            runner: esp32c2-jtag
+            port: uart
+            host: aarch64
+          - soc: esp32c3
+            runner: esp32c3-usb
+            port: usb
+            host: armv7
+          - soc: esp32c5
+            runner: esp32c5-usb
+            port: usb
+            host: aarch64
+          - soc: esp32c5
+            runner: esp32c5-usb
+            port: uart
+            host: aarch64
+          - soc: esp32c6
+            runner: esp32c6-usb
+            port: usb
+            host: armv7
+          - soc: esp32c6
+            runner: esp32c6-usb
+            port: uart
+            host: armv7
+          - soc: esp32h2
+            runner: esp32h2-usb
+            port: usb
+            host: armv7
+          - soc: esp32h2
+            runner: esp32h2-usb
+            port: uart
+            host: armv7
+          - soc: esp32p4
+            runner: esp32p4
+            port: usb
+            host: aarch64
+          - soc: esp32
+            runner: esp32-jtag
+            port: uart
+            host: aarch64
+          - soc: esp32s2
+            runner: esp32s2-jtag
+            port: uart
+            host: armv7
+          - soc: esp32s3
+            runner: esp32s3-usb
+            port: usb
+            host: armv7
+          - soc: esp32s3
+            runner: esp32s3-usb
+            port: uart
+            host: armv7
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
-          name: espflash
+          name: espflash-${{ matrix.target.host }}
           path: espflash_app
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
-          name: xtask
+          name: xtask-${{ matrix.target.host }}
           path: xtask_app
 
-      - name: Set up espflash binary
+      - name: Set up binaries
         run: |
           chmod +x espflash_app/espflash
-          echo "$PWD/espflash_app" >> "$GITHUB_PATH"
           chmod +x xtask_app/xtask
+          echo "$PWD/espflash_app" >> "$GITHUB_PATH"
           echo "$PWD/xtask_app" >> "$GITHUB_PATH"
 
+      - name: Reset device
+        run: |
+          espflash reset
+          sleep 5
+
       - name: Run all tests
-        run: xtask run-tests --chip ${{ matrix.board.mcu }} -t 60 --no-build
+        run: xtask run-tests --chip ${{ matrix.target.soc }} -t 60 --no-build
