@@ -105,11 +105,13 @@ impl ResetStrategy for ClassicReset {
         );
         self.set_dtr(serial_port, false)?; // IO0 = HIGH
         self.set_rts(serial_port, true)?; // EN = LOW, chip in reset
+        self.set_dtr(serial_port, false)?; // Workaround
 
         sleep(Duration::from_millis(100));
 
         self.set_dtr(serial_port, true)?; // IO0 = LOW
         self.set_rts(serial_port, false)?; // EN = HIGH, chip out of reset
+        self.set_dtr(serial_port, true)?; // Workaround
 
         sleep(Duration::from_millis(self.delay));
 
