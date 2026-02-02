@@ -376,8 +376,6 @@ impl TestRunner {
         let chip = chip_override.or(self.chip.as_deref()).unwrap_or("esp32");
 
         self.test_board_info()?;
-        self.test_flash(Some(chip))?;
-        self.test_monitor()?;
         self.test_erase_flash()?;
         self.test_save_image(Some(chip))?;
         self.test_erase_region()?;
@@ -387,6 +385,8 @@ impl TestRunner {
         self.test_list_ports()?;
         self.test_write_bin()?;
         self.test_read_flash()?;
+        self.test_flash(Some(chip))?;
+        self.test_monitor()?;
 
         log::info!("All tests completed successfully");
         Ok(())
