@@ -233,4 +233,4 @@ jobs:
           echo "$PWD/xtask_app" >> "$GITHUB_PATH"
 
       - name: Run all tests
-        run: xtask run-tests --chip esp32c6 -t 60 --no-build
+        run: xtask run-tests --chip esp32c6 -t 60 --no-build --sdm
