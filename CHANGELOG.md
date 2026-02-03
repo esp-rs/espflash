@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix Windows connection issue by aligning reset sequence with `esptool` including RTS/DTR workaround (#999)
+
 ### Removed
 
 ## [4.3.0] - 2025-12-15
