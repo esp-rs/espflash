@@ -103,23 +103,18 @@ impl ResetStrategy for ClassicReset {
             "Using Classic reset strategy with delay of {}ms",
             self.delay
         );
-        self.set_rts(serial_port, false)?;
-        self.set_dtr(serial_port, false)?;
-
-        self.set_rts(serial_port, true)?;
-        self.set_dtr(serial_port, true)?;
-
-        self.set_rts(serial_port, true)?; // EN = LOW, chip in reset
         self.set_dtr(serial_port, false)?; // IO0 = HIGH
+        self.set_rts(serial_port, true)?; // EN = LOW, chip in reset
+        self.set_dtr(serial_port, false)?; // Workaround
 
         sleep(Duration::from_millis(100));
 
-        self.set_rts(serial_port, false)?; // EN = HIGH, chip out of reset
         self.set_dtr(serial_port, true)?; // IO0 = LOW
+        self.set_rts(serial_port, false)?; // EN = HIGH, chip out of reset
+        self.set_dtr(serial_port, true)?; // Workaround
 
         sleep(Duration::from_millis(self.delay));
 
-        self.set_rts(serial_port, false)?;
         self.set_dtr(serial_port, false)?; // IO0 = HIGH, done
 
         Ok(())
@@ -187,8 +182,8 @@ impl ResetStrategy for UsbJtagSerialReset {
 
         sleep(Duration::from_millis(100));
 
-        self.set_rts(serial_port, false)?;
         self.set_dtr(serial_port, true)?; // Set IO0
+        self.set_rts(serial_port, false)?;
 
         sleep(Duration::from_millis(100));
 
@@ -198,8 +193,8 @@ impl ResetStrategy for UsbJtagSerialReset {
 
         sleep(Duration::from_millis(100));
 
-        self.set_rts(serial_port, false)?;
         self.set_dtr(serial_port, false)?;
+        self.set_rts(serial_port, false)?;
 
         Ok(())
     }
