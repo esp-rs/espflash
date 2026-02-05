@@ -384,22 +384,27 @@ impl TestRunner {
 
         let chip = chip_override.or(self.chip.as_deref()).unwrap_or("esp32");
 
-        self.test_board_info()?;
-        if !sdm {
+        if sdm {
+            self.test_board_info()?;
+            self.test_save_image(Some(chip), sdm)?;
+            self.test_hold_in_reset()?;
+            self.test_reset()?;
+            self.test_list_ports()?;
+            self.test_monitor()?;
+        } else {
+            self.test_board_info()?;
             self.test_erase_flash()?;
-            self.test_save_image(Some(chip))?;
+            self.test_save_image(Some(chip), sdm)?;
             self.test_erase_region()?;
-        }
-        self.test_hold_in_reset()?;
-        self.test_reset()?;
-        self.test_list_ports()?;
-        if !sdm {
+            self.test_hold_in_reset()?;
+            self.test_reset()?;
+            self.test_list_ports()?;
             self.test_checksum_md5()?;
             self.test_write_bin()?;
             self.test_read_flash()?;
+            self.test_flash(Some(chip))?;
+            self.test_monitor()?;
         }
-        self.test_flash(Some(chip))?;
-        self.test_monitor()?;
 
         log::info!("All tests completed successfully");
         Ok(())
@@ -414,12 +419,24 @@ impl TestRunner {
     ) -> Result<()> {
         let chip = chip_override.or(self.chip.as_deref()).unwrap_or("esp32");
 
+        if sdm {
+            return match test_name {
+                "board-info" => self.test_board_info(),
+                "save-image" => self.test_save_image(Some(chip), sdm),
+                "hold-in-reset" => self.test_hold_in_reset(),
+                "reset" => self.test_reset(),
+                "list-ports" => self.test_list_ports(),
+                "monitor" => self.test_monitor(),
+                _ => Err(format!("Unknown or unsupported SDM test: {test_name}").into()),
+            };
+        }
+
         match test_name {
             "board-info" => self.test_board_info(),
             "flash" => self.test_flash(Some(chip)),
             "monitor" => self.test_monitor(),
             "erase-flash" => self.test_erase_flash(),
-            "save-image" => self.test_save_image(Some(chip)),
+            "save-image" => self.test_save_image(Some(chip), sdm),
             "erase-region" => self.test_erase_region(),
             "hold-in-reset" => self.test_hold_in_reset(),
             "reset" => self.test_reset(),
@@ -694,7 +711,7 @@ impl TestRunner {
 
         // Write the pattern to the flash
         self.run_simple_command_test(
-            &["write-bin", "0x10000", pattern_file.to_str().unwrap()],
+            &["write-bin", "0x0", pattern_file.to_str().unwrap()],
             Some(&["Binary successfully written to flash!"]),
             Duration::from_secs(10),
             "write pattern",
@@ -708,7 +725,7 @@ impl TestRunner {
             self.run_simple_command_test(
                 &[
                     "read-flash",
-                    "0x10000",
+                    "0x0",
                     &len.to_string(),
                     flash_output.to_str().unwrap(),
                 ],
@@ -735,7 +752,7 @@ impl TestRunner {
                 &[
                     "read-flash",
                     "--no-stub",
-                    "0x10000",
+                    "0x0",
                     &len.to_string(),
                     flash_output.to_str().unwrap(),
                 ],
@@ -809,14 +826,55 @@ impl TestRunner {
     }
 
     /// Tests saving an image to the flash memory
-    pub fn test_save_image(&self, chip: Option<&str>) -> Result<()> {
+    pub fn test_save_image(&self, chip: Option<&str>, sdm: bool) -> Result<()> {
         let chip = chip.unwrap_or_else(|| self.chip.as_deref().unwrap_or("esp32"));
         log::info!("Running save-image test for chip: {chip}");
 
         let app = format!("espflash/tests/data/{chip}");
         let app_bin = self.tests_dir.join("app.bin");
 
-        // Determine if frequency option is needed
+        // Only save the app image
+        let mut args = vec![
+            "save-image",
+            "--chip",
+            chip,
+            &app,
+            app_bin.to_str().unwrap(),
+        ];
+
+        // Add frequency option for esp32c2
+        if chip == "esp32c2" {
+            args.splice(2..2, ["-x", "26mhz"].iter().copied());
+        }
+
+        // Save image
+        self.run_simple_command_test(
+            &args,
+            Some(&["Image successfully saved!"]),
+            self.timeout,
+            "save-image",
+        )?;
+
+        // Write the image and monitor
+        self.run_timed_command_test(
+            &[
+                "write-bin",
+                "--monitor",
+                "0x10000",
+                app_bin.to_str().unwrap(),
+                "--non-interactive",
+            ],
+            Some(&["Hello world!"]),
+            Duration::from_secs(80),
+            "write-bin and monitor",
+        )?;
+
+        if sdm {
+            log::info!("save-image test passed");
+            return Ok(());
+        }
+
+        // Test the `--merge` option
         let mut args = vec![
             "save-image",
             "--merge",
