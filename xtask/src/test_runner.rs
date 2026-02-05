@@ -364,20 +364,6 @@ impl TestRunner {
         self.tests_dir.join("flash_content.bin")
     }
 
-    fn contains_sequence(data: &[u8], sequence: &[u8]) -> bool {
-        if sequence.len() > data.len() {
-            return false;
-        }
-
-        for i in 0..=(data.len() - sequence.len()) {
-            if &data[i..(i + sequence.len())] == sequence {
-                return true;
-            }
-        }
-
-        false
-    }
-
     /// Runs all tests in the test suite, optionally overriding the chip target
     pub fn run_all_tests(&self, chip_override: Option<&str>, sdm: bool) -> Result<()> {
         log::info!("Running all tests");
@@ -386,21 +372,21 @@ impl TestRunner {
 
         if sdm {
             self.test_board_info()?;
-            self.test_save_image(Some(chip), sdm)?;
+            self.test_save_image_write_bin(Some(chip))?;
             self.test_hold_in_reset()?;
             self.test_reset()?;
             self.test_list_ports()?;
+            self.test_flash(Some(chip))?;
             self.test_monitor()?;
         } else {
             self.test_board_info()?;
             self.test_erase_flash()?;
-            self.test_save_image(Some(chip), sdm)?;
+            self.test_save_image_write_bin(Some(chip))?;
             self.test_erase_region()?;
             self.test_hold_in_reset()?;
             self.test_reset()?;
             self.test_list_ports()?;
             self.test_checksum_md5()?;
-            self.test_write_bin()?;
             self.test_read_flash()?;
             self.test_flash(Some(chip))?;
             self.test_monitor()?;
@@ -422,7 +408,9 @@ impl TestRunner {
         if sdm {
             return match test_name {
                 "board-info" => self.test_board_info(),
-                "save-image" => self.test_save_image(Some(chip), sdm),
+                "save-image" | "write-bin" | "save-image-write-bin" => {
+                    self.test_save_image_write_bin(Some(chip))
+                }
                 "hold-in-reset" => self.test_hold_in_reset(),
                 "reset" => self.test_reset(),
                 "list-ports" => self.test_list_ports(),
@@ -436,13 +424,14 @@ impl TestRunner {
             "flash" => self.test_flash(Some(chip)),
             "monitor" => self.test_monitor(),
             "erase-flash" => self.test_erase_flash(),
-            "save-image" => self.test_save_image(Some(chip), sdm),
+            "save-image" | "write-bin" | "save-image-write-bin" => {
+                self.test_save_image_write_bin(Some(chip))
+            }
             "erase-region" => self.test_erase_region(),
             "hold-in-reset" => self.test_hold_in_reset(),
             "reset" => self.test_reset(),
             "checksum-md5" => self.test_checksum_md5(),
             "list-ports" => self.test_list_ports(),
-            "write-bin" => self.test_write_bin(),
             "read-flash" => self.test_read_flash(),
             _ => Err(format!("Unknown test: {test_name}").into()),
         }
@@ -781,103 +770,19 @@ impl TestRunner {
         Ok(())
     }
 
-    /// Tests writing a binary file to the flash memory
-    pub fn test_write_bin(&self) -> Result<()> {
-        log::info!("Running write-bin test");
-        let flash_content = self.flash_output_file();
-        let binary_file = self.tests_dir.join("binary_file.bin");
-
-        // Create a simple binary with a known pattern (regression test for issue #622)
-        let test_pattern = [0x01, 0xA0];
-        fs::write(&binary_file, test_pattern)?;
-
-        // Write the binary to a specific address
-        self.run_simple_command_test(
-            &["write-bin", "0x10000", binary_file.to_str().unwrap()],
-            Some(&["Binary successfully written to flash!"]),
-            Duration::from_secs(15),
-            "write-bin to address",
-        )?;
-
-        // Read the flash to verify
-        self.run_simple_command_test(
-            &[
-                "read-flash",
-                "0x10000",
-                "64",
-                flash_content.to_str().unwrap(),
-            ],
-            Some(&["Flash content successfully read"]),
-            Duration::from_secs(50),
-            "read after write-bin",
-        )?;
-
-        // Verify the flash content contains the test pattern
-        if let Ok(flash_data) = fs::read(&flash_content) {
-            if !Self::contains_sequence(&flash_data, &test_pattern) {
-                return Err("Failed verifying content: test pattern not found in flash".into());
-            }
-        } else {
-            return Err("Failed to read flash_content.bin file".into());
-        }
-
-        log::info!("write-bin test passed");
-        Ok(())
-    }
-
     /// Tests saving an image to the flash memory
-    pub fn test_save_image(&self, chip: Option<&str>, sdm: bool) -> Result<()> {
+    pub fn test_save_image_write_bin(&self, chip: Option<&str>) -> Result<()> {
         let chip = chip.unwrap_or_else(|| self.chip.as_deref().unwrap_or("esp32"));
-        log::info!("Running save-image test for chip: {chip}");
+        log::info!("Running save-image and write-bin test for chip: {chip}");
 
         let app = format!("espflash/tests/data/{chip}");
         let app_bin = self.tests_dir.join("app.bin");
-
-        // Only save the app image
-        let mut args = vec![
-            "save-image",
-            "--chip",
-            chip,
-            &app,
-            app_bin.to_str().unwrap(),
-        ];
-
-        // Add frequency option for esp32c2
-        if chip == "esp32c2" {
-            args.splice(2..2, ["-x", "26mhz"].iter().copied());
-        }
-
-        // Save image
-        self.run_simple_command_test(
-            &args,
-            Some(&["Image successfully saved!"]),
-            self.timeout,
-            "save-image",
-        )?;
-
-        // Write the image and monitor
-        self.run_timed_command_test(
-            &[
-                "write-bin",
-                "--monitor",
-                "0x10000",
-                app_bin.to_str().unwrap(),
-                "--non-interactive",
-            ],
-            Some(&["Hello world!"]),
-            Duration::from_secs(80),
-            "write-bin and monitor",
-        )?;
-
-        if sdm {
-            log::info!("save-image test passed");
-            return Ok(());
-        }
 
         // Test the `--merge` option
         let mut args = vec![
             "save-image",
             "--merge",
+            "--skip-padding",
             "--chip",
             chip,
             &app,
@@ -886,7 +791,7 @@ impl TestRunner {
 
         // Add frequency option for esp32c2
         if chip == "esp32c2" {
-            args.splice(2..2, ["-x", "26mhz"].iter().copied());
+            args.extend(["-x", "26mhz"]);
         }
 
         // Save image
@@ -903,6 +808,42 @@ impl TestRunner {
                 "write-bin",
                 "--monitor",
                 "0x0",
+                app_bin.to_str().unwrap(),
+                "--non-interactive",
+            ],
+            Some(&["Hello world!"]),
+            Duration::from_secs(80),
+            "write-bin and monitor",
+        )?;
+
+        // Only save the app image
+        let mut args = vec![
+            "save-image",
+            "--chip",
+            chip,
+            &app,
+            app_bin.to_str().unwrap(),
+        ];
+
+        // Add frequency option for esp32c2
+        if chip == "esp32c2" {
+            args.extend(["-x", "26mhz"]);
+        }
+
+        // Save image
+        self.run_simple_command_test(
+            &args,
+            Some(&["Image successfully saved!"]),
+            self.timeout,
+            "save-image",
+        )?;
+
+        // Write the image and monitor
+        self.run_timed_command_test(
+            &[
+                "write-bin",
+                "--monitor",
+                "0x10000",
                 app_bin.to_str().unwrap(),
                 "--non-interactive",
             ],
