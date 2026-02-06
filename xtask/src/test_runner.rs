@@ -152,10 +152,6 @@ impl TestRunner {
             thread::sleep(Duration::from_millis(100));
         }
 
-        if !terminated_naturally && let Ok(Some(_)) = child.try_wait() {
-            terminated_naturally = true;
-        }
-
         if !terminated_naturally {
             log::warn!("{test_name} test timed out after {timeout:?}, terminating process");
             let _ = child.kill();
@@ -782,6 +778,7 @@ impl TestRunner {
         let mut args = vec![
             "save-image",
             "--merge",
+            // Required for SDM HIL tests
             "--skip-padding",
             "--chip",
             chip,
