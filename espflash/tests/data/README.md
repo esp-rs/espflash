@@ -47,3 +47,13 @@ cd examples/get-started/hello_world/
 idf.py set-target $CHIP
 idf.py build
 ```
+
+
+
+## SDM HIL Setup for ESP32C6
+
+The VM running SDM HIL is connected to a ESP32C6. To enable secure download mode, the following command needs to be run:
+
+```
+espefuse --port /dev/serial_ports/esp32c6 burn_efuse ENABLE_SECURITY_DOWNLOAD 1
+```

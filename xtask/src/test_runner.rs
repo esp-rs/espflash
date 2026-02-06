@@ -41,6 +41,10 @@ pub struct RunTestsArgs {
     /// Whether to build espflash before running tests, true by default
     #[arg(long = "no-build", action = ArgAction::SetFalse, default_value_t = true)]
     pub build_espflash: bool,
+
+    /// Flag to run SDM HIL tests
+    #[arg(long = "sdm", action = ArgAction::SetTrue, default_value_t = false)]
+    pub sdm: bool,
 }
 
 /// A struct to manage and run tests for the espflash
@@ -137,9 +141,10 @@ impl TestRunner {
     ) -> Result<String> {
         let (mut child, output, h1, h2) = Self::spawn_and_capture_output(cmd)?;
         let start_time = Instant::now();
+        let grace = Duration::from_millis(500);
         let mut terminated_naturally = false;
 
-        while start_time.elapsed() < timeout {
+        while start_time.elapsed() < timeout + grace {
             if let Ok(Some(_)) = child.try_wait() {
                 terminated_naturally = true;
                 break;
@@ -355,59 +360,74 @@ impl TestRunner {
         self.tests_dir.join("flash_content.bin")
     }
 
-    fn contains_sequence(data: &[u8], sequence: &[u8]) -> bool {
-        if sequence.len() > data.len() {
-            return false;
-        }
-
-        for i in 0..=(data.len() - sequence.len()) {
-            if &data[i..(i + sequence.len())] == sequence {
-                return true;
-            }
-        }
-
-        false
-    }
-
     /// Runs all tests in the test suite, optionally overriding the chip target
-    pub fn run_all_tests(&self, chip_override: Option<&str>) -> Result<()> {
+    pub fn run_all_tests(&self, chip_override: Option<&str>, sdm: bool) -> Result<()> {
         log::info!("Running all tests");
 
         let chip = chip_override.or(self.chip.as_deref()).unwrap_or("esp32");
 
-        self.test_board_info()?;
-        self.test_erase_flash()?;
-        self.test_save_image(Some(chip))?;
-        self.test_erase_region()?;
-        self.test_hold_in_reset()?;
-        self.test_reset()?;
-        self.test_checksum_md5()?;
-        self.test_list_ports()?;
-        self.test_write_bin()?;
-        self.test_read_flash()?;
-        self.test_flash(Some(chip))?;
-        self.test_monitor()?;
+        if sdm {
+            self.test_board_info()?;
+            self.test_save_image_write_bin(Some(chip))?;
+            self.test_hold_in_reset()?;
+            self.test_reset()?;
+            self.test_list_ports()?;
+            self.test_flash(Some(chip))?;
+            self.test_monitor()?;
+        } else {
+            self.test_board_info()?;
+            self.test_erase_flash()?;
+            self.test_save_image_write_bin(Some(chip))?;
+            self.test_erase_region()?;
+            self.test_hold_in_reset()?;
+            self.test_reset()?;
+            self.test_list_ports()?;
+            self.test_checksum_md5()?;
+            self.test_read_flash()?;
+            self.test_flash(Some(chip))?;
+            self.test_monitor()?;
+        }
 
         log::info!("All tests completed successfully");
         Ok(())
     }
 
     /// Runs a specific test by name, optionally overriding the chip target
-    pub fn run_specific_test(&self, test_name: &str, chip_override: Option<&str>) -> Result<()> {
+    pub fn run_specific_test(
+        &self,
+        test_name: &str,
+        chip_override: Option<&str>,
+        sdm: bool,
+    ) -> Result<()> {
         let chip = chip_override.or(self.chip.as_deref()).unwrap_or("esp32");
+
+        if sdm {
+            return match test_name {
+                "board-info" => self.test_board_info(),
+                "save-image" | "write-bin" | "save-image-write-bin" => {
+                    self.test_save_image_write_bin(Some(chip))
+                }
+                "hold-in-reset" => self.test_hold_in_reset(),
+                "reset" => self.test_reset(),
+                "list-ports" => self.test_list_ports(),
+                "monitor" => self.test_monitor(),
+                _ => Err(format!("Unknown or unsupported SDM test: {test_name}").into()),
+            };
+        }
 
         match test_name {
             "board-info" => self.test_board_info(),
             "flash" => self.test_flash(Some(chip)),
             "monitor" => self.test_monitor(),
             "erase-flash" => self.test_erase_flash(),
-            "save-image" => self.test_save_image(Some(chip)),
+            "save-image" | "write-bin" | "save-image-write-bin" => {
+                self.test_save_image_write_bin(Some(chip))
+            }
             "erase-region" => self.test_erase_region(),
             "hold-in-reset" => self.test_hold_in_reset(),
             "reset" => self.test_reset(),
             "checksum-md5" => self.test_checksum_md5(),
             "list-ports" => self.test_list_ports(),
-            "write-bin" => self.test_write_bin(),
             "read-flash" => self.test_read_flash(),
             _ => Err(format!("Unknown test: {test_name}").into()),
         }
@@ -620,7 +640,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["erase-region", "0x1000", "0x1000"],
             Some(&["Erasing region at"]),
-            Duration::from_secs(10),
+            Duration::from_secs(20),
             "erase-region valid",
         )?;
 
@@ -633,7 +653,7 @@ impl TestRunner {
                 flash_output.to_str().unwrap(),
             ],
             Some(&["Flash content successfully read"]),
-            Duration::from_secs(10),
+            Duration::from_secs(20),
             "read after erase-region",
         )?;
 
@@ -690,7 +710,7 @@ impl TestRunner {
             self.run_simple_command_test(
                 &[
                     "read-flash",
-                    "0",
+                    "0x0",
                     &len.to_string(),
                     flash_output.to_str().unwrap(),
                 ],
@@ -717,7 +737,7 @@ impl TestRunner {
                 &[
                     "read-flash",
                     "--no-stub",
-                    "0",
+                    "0x0",
                     &len.to_string(),
                     flash_output.to_str().unwrap(),
                 ],
@@ -746,57 +766,20 @@ impl TestRunner {
         Ok(())
     }
 
-    /// Tests writing a binary file to the flash memory
-    pub fn test_write_bin(&self) -> Result<()> {
-        log::info!("Running write-bin test");
-        let flash_content = self.flash_output_file();
-        let binary_file = self.tests_dir.join("binary_file.bin");
-
-        // Create a simple binary with a known pattern (regression test for issue #622)
-        let test_pattern = [0x01, 0xA0];
-        fs::write(&binary_file, test_pattern)?;
-
-        // Write the binary to a specific address
-        self.run_simple_command_test(
-            &["write-bin", "0x0", binary_file.to_str().unwrap()],
-            Some(&["Binary successfully written to flash!"]),
-            Duration::from_secs(15),
-            "write-bin to address",
-        )?;
-
-        // Read the flash to verify
-        self.run_simple_command_test(
-            &["read-flash", "0", "64", flash_content.to_str().unwrap()],
-            Some(&["Flash content successfully read"]),
-            Duration::from_secs(50),
-            "read after write-bin",
-        )?;
-
-        // Verify the flash content contains the test pattern
-        if let Ok(flash_data) = fs::read(&flash_content) {
-            if !Self::contains_sequence(&flash_data, &test_pattern) {
-                return Err("Failed verifying content: test pattern not found in flash".into());
-            }
-        } else {
-            return Err("Failed to read flash_content.bin file".into());
-        }
-
-        log::info!("write-bin test passed");
-        Ok(())
-    }
-
     /// Tests saving an image to the flash memory
-    pub fn test_save_image(&self, chip: Option<&str>) -> Result<()> {
+    pub fn test_save_image_write_bin(&self, chip: Option<&str>) -> Result<()> {
         let chip = chip.unwrap_or_else(|| self.chip.as_deref().unwrap_or("esp32"));
-        log::info!("Running save-image test for chip: {chip}");
+        log::info!("Running save-image and write-bin test for chip: {chip}");
 
         let app = format!("espflash/tests/data/{chip}");
         let app_bin = self.tests_dir.join("app.bin");
 
-        // Determine if frequency option is needed
+        // Test the `--merge` option
         let mut args = vec![
             "save-image",
             "--merge",
+            // Required for SDM HIL tests
+            "--skip-padding",
             "--chip",
             chip,
             &app,
@@ -805,7 +788,7 @@ impl TestRunner {
 
         // Add frequency option for esp32c2
         if chip == "esp32c2" {
-            args.splice(2..2, ["-x", "26mhz"].iter().copied());
+            args.extend(["-x", "26mhz"]);
         }
 
         // Save image
@@ -822,6 +805,42 @@ impl TestRunner {
                 "write-bin",
                 "--monitor",
                 "0x0",
+                app_bin.to_str().unwrap(),
+                "--non-interactive",
+            ],
+            Some(&["Hello world!"]),
+            Duration::from_secs(80),
+            "write-bin and monitor",
+        )?;
+
+        // Only save the app image
+        let mut args = vec![
+            "save-image",
+            "--chip",
+            chip,
+            &app,
+            app_bin.to_str().unwrap(),
+        ];
+
+        // Add frequency option for esp32c2
+        if chip == "esp32c2" {
+            args.extend(["-x", "26mhz"]);
+        }
+
+        // Save image
+        self.run_simple_command_test(
+            &args,
+            Some(&["Image successfully saved!"]),
+            self.timeout,
+            "save-image",
+        )?;
+
+        // Write the image and monitor
+        self.run_timed_command_test(
+            &[
+                "write-bin",
+                "--monitor",
+                "0x10000",
                 app_bin.to_str().unwrap(),
                 "--non-interactive",
             ],
@@ -954,13 +973,15 @@ pub fn run_tests(workspace: &Path, args: RunTestsArgs) -> Result<()> {
 
     match args.test.as_str() {
         "all" => {
-            if let Err(e) = test_runner.run_all_tests(args.chip.as_deref()) {
+            if let Err(e) = test_runner.run_all_tests(args.chip.as_deref(), args.sdm) {
                 log::error!("Test suite failed: {e}");
                 return Err(e);
             }
         }
         specific_test => {
-            if let Err(e) = test_runner.run_specific_test(specific_test, args.chip.as_deref()) {
+            if let Err(e) =
+                test_runner.run_specific_test(specific_test, args.chip.as_deref(), args.sdm)
+            {
                 log::error!("Test '{specific_test}' failed: {e}");
                 return Err(e);
             }

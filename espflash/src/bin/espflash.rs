@@ -247,7 +247,9 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         args.flash_args.no_verify,
         args.flash_args.no_skip,
     )?;
-    flasher.verify_minimum_revision(args.flash_args.image.min_chip_rev)?;
+    if !flasher.secure_download_mode() {
+        flasher.verify_minimum_revision(args.flash_args.image.min_chip_rev)?;
+    }
 
     // If the user has provided a flash size via a command-line argument, we'll
     // override the detected (or default) value with this.

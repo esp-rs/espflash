@@ -57,9 +57,6 @@ pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
 
-#[cfg(feature = "serialport")]
-pub(crate) const BOOTLOADER_PROTECTION_ADDR: u32 = 0x8000;
-
 /// Supported flash frequencies
 ///
 /// Note that not all frequencies are supported by each target device.
@@ -880,6 +877,11 @@ impl Flasher {
         self.chip
     }
 
+    /// Whether the connected device is in Secure Download Mode.
+    pub fn secure_download_mode(&self) -> bool {
+        self.connection.secure_download_mode
+    }
+
     /// Read and print any information we can about the connected device
     pub fn device_info(&mut self) -> Result<DeviceInfo, Error> {
         let chip = self.chip();
@@ -942,17 +944,10 @@ impl Flasher {
     /// Validate flash arguments when in secure download mode.
     /// Prevent a user from accidentally flashing over a secure boot enabled
     /// bootloader and bricking their device.
-    fn validate_secure_download_args(&self, segments: &[Segment<'_>]) -> Result<(), Error> {
-        for segment in segments {
-            if segment.addr < BOOTLOADER_PROTECTION_ADDR {
-                return Err(Error::SecureDownloadBootloaderProtection);
-            }
-        }
-
+    fn validate_secure_download_args(&self) -> Result<(), Error> {
         if self.verify || self.skip {
             warn!(
-                "Secure Download Mode enabled: --verify and --skip options are not available \
-                (flash read operations are restricted)"
+                "Secure Download Mode enabled: `--verify` and `--skip` options are not available (flash read operations are restricted)"
             );
         }
         Ok(())
@@ -967,7 +962,7 @@ impl Flasher {
         let (mut verify, mut skip) = (self.verify, self.skip);
 
         if self.connection.secure_download_mode {
-            self.validate_secure_download_args(&image_format.clone().flash_segments())?;
+            self.validate_secure_download_args()?;
             (verify, skip) = (false, false);
         }
 
@@ -1037,7 +1032,7 @@ impl Flasher {
         let (mut verify, mut skip) = (self.verify, self.skip);
 
         if self.connection.secure_download_mode {
-            self.validate_secure_download_args(segments)?;
+            self.validate_secure_download_args()?;
             (verify, skip) = (false, false);
         }
 

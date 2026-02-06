@@ -262,18 +262,36 @@ impl FlashTarget for Esp32Target {
 
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error> {
         if self.need_flash_end {
-            if self.use_stub {
+            // In Secure Download Mode, "run user code" (reboot: false) makes the ROM
+            // verify/run the flashed image, which fails for unsigned images.
+            // "Reboot" (reboot: true) only finalizes the write and reboots,
+            // avoiding that error.
+            let flash_end_reboot = connection.secure_download_mode || reboot;
+            let result = if self.use_stub {
                 connection.with_timeout(CommandType::FlashDeflEnd.timeout(), |connection| {
-                    connection.command(Command::FlashDeflEnd { reboot: false })
-                })?;
+                    connection.command(Command::FlashDeflEnd {
+                        reboot: flash_end_reboot,
+                    })
+                })
             } else {
                 connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
-                    connection.command(Command::FlashEnd { reboot: false })
-                })?;
+                    connection.command(Command::FlashEnd {
+                        reboot: flash_end_reboot,
+                    })
+                })
+            };
+            match result {
+                Ok(_) => {}
+                Err(Error::RomError(_)) if connection.secure_download_mode => {
+                    // In SDM the ROM may still return an error for FlashEnd
+                    // (e.g. digest verification failed for
+                    // unsigned image). The data was written; treat as success.
+                }
+                Err(e) => return Err(e),
             }
         }
 
-        if reboot {
+        if reboot && !connection.secure_download_mode {
             connection.reset_after(self.use_stub, self.chip)?;
         }
 
