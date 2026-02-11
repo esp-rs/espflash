@@ -911,12 +911,14 @@ impl Chip {
             }
             Chip::Esp32c3 => Ok(XtalFrequency::_40Mhz), // Fixed frequency
             Chip::Esp32c5 => {
-                const UART_CLKDIV_REG: u32 = 0x6000_0014; // UART0_BASE_REG + 0x14
-                const UART_CLKDIV_MASK: u32 = 0xfffff;
-                const XTAL_CLK_DIVIDER: u32 = 1;
+                const PCR_SYSCLK_CONF_REG: u32 = 0x6009_6110; // PCR_BASE_REG + 0x110
+                const PCR_CLK_XTAL_FREQ_MASK: u32 = 0x7F;
+                const PCR_CLK_XTAL_FREQ_SHIFT: u32 = 24;
 
-                let uart_div = connection.read_reg(UART_CLKDIV_REG)? & UART_CLKDIV_MASK;
-                let est_xtal = (connection.baud()? * uart_div) / 1_000_000 / XTAL_CLK_DIVIDER;
+                let sysclk_conf_reg = connection.read_reg(PCR_SYSCLK_CONF_REG)?;
+                let est_xtal =
+                    (sysclk_conf_reg >> PCR_CLK_XTAL_FREQ_SHIFT) & PCR_CLK_XTAL_FREQ_MASK;
+
                 let norm_xtal = if est_xtal > 45 {
                     XtalFrequency::_48Mhz
                 } else {

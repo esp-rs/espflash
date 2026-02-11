@@ -14,6 +14,7 @@ target/
 
 # Ignore any files used by text editors or operating systems.
 .vscode/
+.zed/
 .DS_Store
 *.swp
 .idea/
