@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix ROM ELFs (#1014)
 - Fix Windows connection issue by aligning reset sequence with `esptool` including RTS/DTR workaround (#999)
 - Fix board-info misreporting the crystal frequency of ESP32-C5 (#1005)
+- Fix `esptool flash` getting stuck on `Sync` command
 
 ### Removed
 
