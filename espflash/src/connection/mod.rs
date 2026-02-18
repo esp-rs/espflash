@@ -48,8 +48,6 @@ const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
 const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
-const MAX_RESPONSE_LEN: u64 = 8 * 1024 * 1024; // 8Mi
-
 #[cfg(unix)]
 /// Alias for the serial TTYPort.
 pub type Port = serialport::TTYPort;
@@ -371,7 +369,7 @@ impl Connection {
             sleep(Duration::from_millis(10));
 
             for _ in 0..MAX_CONNECT_ATTEMPTS {
-                match connection.read_response()? {
+                match connection.read_response_for_command(CommandType::Sync)? {
                     Some(response) if response.return_op == CommandType::Sync as u8 => {
                         if response.status == 1 {
                             connection.flush().ok();
@@ -544,9 +542,21 @@ impl Connection {
         Ok(Some(header))
     }
 
+    /// Reads the response from a serial port for a [`CommandType`].
+    pub fn read_response_for_command(
+        &mut self,
+        ty: CommandType,
+    ) -> Result<Option<CommandResponse>, Error> {
+        self.read_response_bounded(ty.max_response_len())
+            .for_command(ty)
+    }
+
     /// Reads the response from a serial port.
-    pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
-        match self.read_bounded(10, MAX_RESPONSE_LEN)? {
+    pub fn read_response_bounded(
+        &mut self,
+        max_len: u64,
+    ) -> Result<Option<CommandResponse>, Error> {
+        match self.read_bounded(10, max_len)? {
             None => Ok(None),
             Some(response) => {
                 // Here is what esptool does: https://github.com/espressif/esptool/blob/81b2eaee261aed0d3d754e32c57959d6b235bfed/esptool/loader.py#L518
@@ -633,7 +643,7 @@ impl Connection {
         let ty = command.command_type();
         self.write_command(command).for_command(ty)?;
         for _ in 0..100 {
-            match self.read_response().for_command(ty)? {
+            match self.read_response_for_command(ty)? {
                 Some(response) if response.return_op == ty as u8 => {
                     return if response.status != 0 {
                         let _error = self.flush();
