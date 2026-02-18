@@ -544,7 +544,7 @@ impl Connection {
 
     /// Reads the response from a serial port.
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
-        match self.read_bounded(10, 44)? {
+        match self.read_bounded(10, 5 * 1024 * 1024)? {
             None => Ok(None),
             Some(response) => {
                 // Here is what esptool does: https://github.com/espressif/esptool/blob/81b2eaee261aed0d3d754e32c57959d6b235bfed/esptool/loader.py#L518
