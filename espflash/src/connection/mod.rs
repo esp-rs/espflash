@@ -544,7 +544,7 @@ impl Connection {
 
     /// Reads the response from a serial port.
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
-        match self.read(10)? {
+        match self.read_bounded(10, 44)? {
             None => Ok(None),
             Some(response) => {
                 // Here is what esptool does: https://github.com/espressif/esptool/blob/81b2eaee261aed0d3d754e32c57959d6b235bfed/esptool/loader.py#L518
@@ -693,11 +693,21 @@ impl Connection {
         self.write_reg(addr, masked_old_value | masked_new_value, None)
     }
 
-    /// Reads a register command with a timeout.
+    /// Reads a register command.
     pub(crate) fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
+        self.read_bounded(len, u64::MAX)
+    }
+
+    /// Reads a register command at most `max_len` bytes long.
+    pub(crate) fn read_bounded(
+        &mut self,
+        len: usize,
+        max_len: u64,
+    ) -> Result<Option<Vec<u8>>, Error> {
         let mut tmp = Vec::with_capacity(1024);
+        let mut serial = (&mut self.serial).take(max_len);
         loop {
-            self.decoder.decode(&mut self.serial, &mut tmp)?;
+            self.decoder.decode(&mut serial, &mut tmp)?;
             if tmp.len() >= len {
                 return Ok(Some(tmp));
             }
