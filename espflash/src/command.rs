@@ -20,6 +20,9 @@ const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 const FLASH_DEFLATE_END_TIMEOUT: Duration = Duration::from_secs(10);
 const FLASH_MD5_TIMEOUT_PER_MB: Duration = Duration::from_secs(8);
 
+const SYNC_MAX_LEN: u64 = 44;
+const DEFAULT_MAX_LEN: u64 = 8 * 1024 * 1024; // 8Mi by default
+
 /// Input data for SYNC command (36 bytes: 0x07 0x07 0x12 0x20, followed by
 /// 32 x 0x55)
 const SYNC_FRAME: [u8; 36] = [
@@ -209,6 +212,14 @@ impl CommandType {
             }
             CommandType::FlashMd5 => calc_timeout(FLASH_MD5_TIMEOUT_PER_MB, size),
             _ => self.timeout(),
+        }
+    }
+
+    /// Return a max response length for the given [`CommandType`]
+    pub fn max_response_len(&self) -> u64 {
+        match self {
+            CommandType::Sync => SYNC_MAX_LEN,
+            _ => DEFAULT_MAX_LEN,
         }
     }
 }
