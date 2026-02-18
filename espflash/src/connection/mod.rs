@@ -48,6 +48,8 @@ const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
 const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
+const MAX_RESPONSE_LEN: u64 = 8 * 1024 * 1024; // 8Mi
+
 #[cfg(unix)]
 /// Alias for the serial TTYPort.
 pub type Port = serialport::TTYPort;
@@ -544,7 +546,7 @@ impl Connection {
 
     /// Reads the response from a serial port.
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
-        match self.read_bounded(10, 5 * 1024 * 1024)? {
+        match self.read_bounded(10, MAX_RESPONSE_LEN)? {
             None => Ok(None),
             Some(response) => {
                 // Here is what esptool does: https://github.com/espressif/esptool/blob/81b2eaee261aed0d3d754e32c57959d6b235bfed/esptool/loader.py#L518
