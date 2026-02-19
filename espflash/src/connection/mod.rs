@@ -34,7 +34,7 @@ use self::{
     },
 };
 use crate::{
-    command::{Command, CommandResponse, CommandResponseValue, CommandType},
+    command::{Command, CommandResponse, CommandResponseValue, CommandType, DEFAULT_MAX_LEN},
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
     flasher::stubs::CHIP_DETECT_MAGIC_REG_ADDR,
     target::Chip,
@@ -552,10 +552,14 @@ impl Connection {
     }
 
     /// Reads the response from a serial port.
-    pub fn read_response_bounded(
-        &mut self,
-        max_len: u64,
-    ) -> Result<Option<CommandResponse>, Error> {
+    #[deprecated = "May halt on unexpected input from the port --please use `read_response_for_command` instead. Deprecated in https://github.com/esp-rs/espflash/pull/1007"]
+    pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
+        // don't know the command to expect a response for -- use the default max length
+        // (the entire flash size)
+        self.read_response_bounded(DEFAULT_MAX_LEN)
+    }
+
+    fn read_response_bounded(&mut self, max_len: u64) -> Result<Option<CommandResponse>, Error> {
         match self.read_bounded(10, max_len)? {
             None => Ok(None),
             Some(response) => {
