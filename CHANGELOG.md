@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for binaries with INIT_ARRAY sections, which is needed for esp32p4 support. (#991)
 - Add sha256 calculation to match esptool generated binaries (#991)
 - Support flashing in secure download mode (#990, #1002)
+- Add ESP32-C61 chip support (#1009)
 
 ### Changed
 
