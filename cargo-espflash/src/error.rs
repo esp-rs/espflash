@@ -1,4 +1,4 @@
-#![expect(unused_assignments)]
+#![allow(unused_assignments)]
 
 use std::{
     fmt::{Display, Formatter},

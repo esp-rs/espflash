@@ -331,7 +331,7 @@ mod macos {
             sigemptyset(&mut new_action.sa_mask);
             new_action.sa_flags = 0;
             // On macOS, `sa_sigaction` is a function pointer stored as usize
-            new_action.sa_sigaction = handle_signal as usize;
+            new_action.sa_sigaction = handle_signal as *const () as usize;
 
             let mut old_action: sigaction = std::mem::zeroed();
             libc::sigaction(SIGALRM, &new_action, &mut old_action);
