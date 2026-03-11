@@ -506,7 +506,17 @@ impl DeviceInfo {
                 Some(include_bytes!("../../resources/roms/esp32h2_rev0_rom.elf").into())
             }
             Chip::Esp32p4 => {
-                Some(include_bytes!("../../resources/roms/esp32p4_rev0_rom.elf").into())
+                if let Some((major, minor)) = self.revision {
+                    let revision = major * 100 + minor;
+
+                    if revision >= 300 {
+                        Some(include_bytes!("../../resources/roms/esp32p4_rev300_rom.elf").into())
+                    } else {
+                        Some(include_bytes!("../../resources/roms/esp32p4_rev0_rom.elf").into())
+                    }
+                } else {
+                    None
+                }
             }
             Chip::Esp32s2 => {
                 Some(include_bytes!("../../resources/roms/esp32s2_rev0_rom.elf").into())
