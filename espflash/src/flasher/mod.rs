@@ -477,9 +477,13 @@ impl DeviceInfo {
                 Some(include_bytes!("../../resources/roms/esp32c2_rev100_rom.elf").into())
             }
             Chip::Esp32c3 => {
-                if let Some((_, minor)) = self.revision {
-                    if minor >= 3 {
+                if let Some((major, minor)) = self.revision {
+                    let revision = major * 100 + minor;
+
+                    if revision >= 300 {
                         Some(include_bytes!("../../resources/roms/esp32c3_rev3_rom.elf").into())
+                    } else if revision >= 101 {
+                        Some(include_bytes!("../../resources/roms/esp32c3_rev101_rom.elf").into())
                     } else {
                         Some(include_bytes!("../../resources/roms/esp32c3_rev0_rom.elf").into())
                     }
