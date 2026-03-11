@@ -354,7 +354,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         &args.flash_args.erase_data_parts,
     )?;
 
-    print_board_info(&mut flasher)?;
+    let dev_info = print_board_info(&mut flasher)?;
     ensure_chip_compatibility(chip, Some(elf_data.as_slice()))?;
 
     let mut flash_config = args.build_args.flash_config_args;
@@ -413,7 +413,16 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
         monitor_args.elf = Some(build_ctx.artifact_path);
 
-        let elfs = vec![elf_data.as_ref()];
+        let mut elfs = vec![elf_data.as_ref()];
+
+        let rom_elf;
+        if let Some(rom) = &monitor_args.rom_elf {
+            rom_elf = fs::read(rom).unwrap();
+            elfs.push(rom_elf.as_ref());
+        } else if let Some(rom) = dev_info.rom() {
+            rom_elf = rom;
+            elfs.push(rom_elf.as_ref());
+        }
 
         monitor(
             flasher.into(),
