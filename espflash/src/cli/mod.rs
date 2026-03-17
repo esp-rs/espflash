@@ -673,7 +673,7 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
 
     let rom_elf;
     if let Some(ref rom) = monitor_args.rom_elf {
-        rom_elf = std::fs::read(rom).unwrap();
+        rom_elf = fs::read(rom).into_diagnostic()?;
         elfs.push(rom_elf.as_ref());
     } else if let Some(rom) = dev_info.rom() {
         rom_elf = rom;
@@ -1167,7 +1167,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     f.read_to_end(&mut buffer).into_diagnostic()?;
 
     let mut flasher = connect(&args.connect_args, config, false, false)?;
-    print_board_info(&mut flasher)?;
+    let dev_info = print_board_info(&mut flasher)?;
 
     let chip = flasher.chip();
     let target_xtal_freq = chip.xtal_frequency(flasher.connection())?;
@@ -1183,9 +1183,20 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
         {
             monitor_args.monitor_baud = 74_880;
         }
+
+        let mut elfs = Vec::new();
+        let rom_elf;
+        if let Some(ref rom) = monitor_args.rom_elf {
+            rom_elf = fs::read(rom).into_diagnostic()?;
+            elfs.push(rom_elf.as_ref());
+        } else if let Some(rom) = dev_info.rom() {
+            rom_elf = rom;
+            elfs.push(rom_elf.as_ref());
+        }
+
         monitor(
             flasher.into(),
-            Vec::new(),
+            elfs,
             pid,
             monitor_args,
             args.connect_args.non_interactive,

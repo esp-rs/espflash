@@ -417,7 +417,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
         let rom_elf;
         if let Some(rom) = &monitor_args.rom_elf {
-            rom_elf = fs::read(rom).unwrap();
+            rom_elf = fs::read(rom).into_diagnostic()?;
             elfs.push(rom_elf.as_ref());
         } else if let Some(rom) = dev_info.rom() {
             rom_elf = rom;
