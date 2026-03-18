@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix compilation on Linux when no other dependency transitively enables `nix`'s `signal` feature (#1015)
 - Fix Windows connection issue by aligning reset sequence with `esptool` including RTS/DTR workaround (#999)
 - Fix board-info misreporting the crystal frequency of ESP32-C5 (#1005)
 
