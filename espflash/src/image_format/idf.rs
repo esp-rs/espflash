@@ -59,6 +59,8 @@ const BOOTLOADER_ESP32C5: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32c5-bootloader.bin");
 const BOOTLOADER_ESP32C6: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32c6-bootloader.bin");
+const BOOTLOADER_ESP32C61: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32c61-bootloader.bin");
 const BOOTLOADER_ESP32H2: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32h2-bootloader.bin");
 const BOOTLOADER_ESP32P4: &[u8] =
@@ -99,6 +101,10 @@ pub(crate) fn default_bootloader(
         },
         Chip::Esp32c6 => match xtal_freq {
             XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32C6),
+            _ => Err(error),
+        },
+        Chip::Esp32c61 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32C61),
             _ => Err(error),
         },
         Chip::Esp32h2 => match xtal_freq {
@@ -665,6 +671,7 @@ fn default_partition_table(chip: Chip, flash_size: Option<u32>) -> PartitionTabl
         Chip::Esp32c3 => (0x1_0000, 0x3f_0000),
         Chip::Esp32c5 => (0x1_0000, 0x3f_0000),
         Chip::Esp32c6 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32c61 => (0x1_0000, 0x3f_0000),
         Chip::Esp32h2 => (0x1_0000, 0x3f_0000),
         Chip::Esp32p4 => (0x1_0000, 0x3f_0000),
         Chip::Esp32s2 => (0x1_0000, 0x10_0000),

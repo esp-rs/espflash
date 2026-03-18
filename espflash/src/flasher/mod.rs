@@ -487,7 +487,12 @@ impl DeviceInfo {
                     None
                 }
             }
-            Chip::Esp32c5 => None,
+            Chip::Esp32c5 => {
+                Some(include_bytes!("../../resources/roms/esp32c5_rev100_rom.elf").into())
+            }
+            Chip::Esp32c61 => {
+                Some(include_bytes!("../../resources/roms/esp32c61_rev100_rom.elf").into())
+            }
             Chip::Esp32c6 => {
                 Some(include_bytes!("../../resources/roms/esp32c6_rev0_rom.elf").into())
             }

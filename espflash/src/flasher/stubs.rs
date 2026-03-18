@@ -33,6 +33,7 @@ const STUB_32C2: &str = include_str!("../../resources/stubs/esp32c2.toml");
 const STUB_32C3: &str = include_str!("../../resources/stubs/esp32c3.toml");
 const STUB_32C5: &str = include_str!("../../resources/stubs/esp32c5.toml");
 const STUB_32C6: &str = include_str!("../../resources/stubs/esp32c6.toml");
+const STUB_32C61: &str = include_str!("../../resources/stubs/esp32c61.toml");
 const STUB_32H2: &str = include_str!("../../resources/stubs/esp32h2.toml");
 const STUB_32P4: &str = include_str!("../../resources/stubs/esp32p4.toml");
 const STUB_32P4RC1: &str = include_str!("../../resources/stubs/esp32p4rc1.toml");
@@ -58,6 +59,7 @@ impl FlashStub {
             Chip::Esp32c3 => STUB_32C3,
             Chip::Esp32c5 => STUB_32C5,
             Chip::Esp32c6 => STUB_32C6,
+            Chip::Esp32c61 => STUB_32C61,
             Chip::Esp32h2 => STUB_32H2,
             Chip::Esp32p4 => {
                 // For ESP32-P4, use RC1 stub if revision < 300 (matching esptool behavior)
