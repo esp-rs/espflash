@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add sha256 calculation to match esptool generated binaries (#991)
 - Support flashing in secure download mode (#990, #1002)
 - Add ESP32-C61 chip support (#1009)
-- Added ESP32-C5 and ESP32-P4 ROM ELFs (#1014)
+- Added ESP32-P4 ROM ELFs (#1014)
 
 ### Changed
 
