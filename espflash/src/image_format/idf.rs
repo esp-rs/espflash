@@ -63,17 +63,21 @@ const BOOTLOADER_ESP32C61: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32c61-bootloader.bin");
 const BOOTLOADER_ESP32H2: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32h2-bootloader.bin");
-const BOOTLOADER_ESP32P4: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32p4-bootloader.bin");
+const BOOTLOADER_ESP32P4_V0: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32p4-v0-bootloader.bin");
+const BOOTLOADER_ESP32P4_V3: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32p4-v3-bootloader.bin");
 const BOOTLOADER_ESP32S2: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin");
 const BOOTLOADER_ESP32S3: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin");
 
-/// Get the default bootloader for the given chip and crystal frequency
+/// Get the default bootloader for the given chip, crystal frequency, and
+/// minimum chip revision.
 pub(crate) fn default_bootloader(
     chip: Chip,
     xtal_freq: XtalFrequency,
+    min_chip_rev: u16,
 ) -> Result<&'static [u8], Error> {
     let error = Error::UnsupportedFeature {
         chip,
@@ -112,7 +116,13 @@ pub(crate) fn default_bootloader(
             _ => Err(error),
         },
         Chip::Esp32p4 => match xtal_freq {
-            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32P4),
+            XtalFrequency::_40Mhz => {
+                if min_chip_rev >= 300 {
+                    Ok(BOOTLOADER_ESP32P4_V3)
+                } else {
+                    Ok(BOOTLOADER_ESP32P4_V0)
+                }
+            }
             _ => Err(error),
         },
         Chip::Esp32s2 => match xtal_freq {
@@ -299,7 +309,11 @@ impl<'a> IdfBootloaderFormat<'a> {
             let bootloader = fs::read(bootloader_path)?;
             Cow::Owned(bootloader)
         } else {
-            let default_bootloader = default_bootloader(flash_data.chip, flash_data.xtal_freq)?;
+            let default_bootloader = default_bootloader(
+                flash_data.chip,
+                flash_data.xtal_freq,
+                flash_data.min_chip_rev,
+            )?;
             Cow::Borrowed(default_bootloader)
         };
 
