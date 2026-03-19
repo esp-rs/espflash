@@ -483,7 +483,7 @@ impl DeviceInfo {
                     let revision = major * 100 + minor;
 
                     if revision >= 300 {
-                        Some(include_bytes!("../../resources/roms/esp32c3_rev3_rom.elf").into())
+                        Some(include_bytes!("../../resources/roms/esp32c3_rev300_rom.elf").into())
                     } else if revision >= 101 {
                         Some(include_bytes!("../../resources/roms/esp32c3_rev101_rom.elf").into())
                     } else {
