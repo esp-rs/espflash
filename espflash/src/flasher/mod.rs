@@ -37,10 +37,7 @@ use crate::{
     connection::{Connection, reset::ResetBeforeOperation},
     error::{ConnectionError, ResultExt as _},
     flasher::stubs::{
-        CHIP_DETECT_MAGIC_REG_ADDR,
-        DEFAULT_TIMEOUT,
-        EXPECTED_STUB_HANDSHAKE,
-        FlashStub,
+        CHIP_DETECT_MAGIC_REG_ADDR, DEFAULT_TIMEOUT, EXPECTED_STUB_HANDSHAKE, FlashStub,
     },
     image_format::{ImageFormat, Segment, ram_segments, rom_segments},
 };

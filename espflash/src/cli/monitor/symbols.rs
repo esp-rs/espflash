@@ -1,8 +1,7 @@
 use std::error::Error;
 
 use addr2line::{
-    Context,
-    LookupResult,
+    Context, LookupResult,
     gimli::{self, Dwarf, EndianSlice, LittleEndian, SectionId},
 };
 use object::{Object, ObjectSection, ObjectSegment, ObjectSymbol, read::File};

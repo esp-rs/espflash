@@ -2,8 +2,7 @@ use std::io::Write;
 
 use crossterm::{QueueableCommand, style::Print};
 use defmt_decoder::{
-    Frame,
-    Table,
+    Frame, Table,
     log::format::{Formatter, FormatterConfig, FormatterFormat},
 };
 use log::warn;

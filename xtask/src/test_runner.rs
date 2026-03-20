@@ -4,8 +4,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{
-        Arc,
-        Mutex,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
     thread,
@@ -786,9 +785,12 @@ impl TestRunner {
             app_bin.to_str().unwrap(),
         ];
 
-        // Add frequency option for esp32c2
+        // Add chip-specific options.
         if chip == "esp32c2" {
             args.extend(["-x", "26mhz"]);
+        }
+        if chip == "esp32p4" {
+            args.extend(["--min-chip-rev", "3.0"]);
         }
 
         // Save image
@@ -822,9 +824,12 @@ impl TestRunner {
             app_bin.to_str().unwrap(),
         ];
 
-        // Add frequency option for esp32c2
+        // Add chip-specific options.
         if chip == "esp32c2" {
             args.extend(["-x", "26mhz"]);
+        }
+        if chip == "esp32p4" {
+            args.extend(["--min-chip-rev", "3.0"]);
         }
 
         // Save image

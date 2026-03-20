@@ -1,13 +1,7 @@
 //! ESP-IDF application binary image format
 
 use std::{
-    borrow::Cow,
-    collections::HashMap,
-    ffi::c_char,
-    fs,
-    io::Write,
-    iter::once,
-    mem::size_of,
+    borrow::Cow, collections::HashMap, ffi::c_char, fs, io::Write, iter::once, mem::size_of,
     path::Path,
 };
 
@@ -16,12 +10,7 @@ use esp_idf_part::{AppType, DataType, Flags, Partition, PartitionTable, SubType,
 use log::warn;
 use miette::{IntoDiagnostic, Result};
 use object::{
-    Endianness,
-    File,
-    Object,
-    ObjectSection,
-    ObjectSymbol,
-    read::elf::ElfFile32 as ElfFile,
+    Endianness, File, Object, ObjectSection, ObjectSymbol, read::elf::ElfFile32 as ElfFile,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -73,10 +62,11 @@ const BOOTLOADER_ESP32S3: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin");
 
 /// Get the default bootloader for the given chip, crystal frequency, and
-/// minimum chip revision.
+/// chip revision.
 pub(crate) fn default_bootloader(
     chip: Chip,
     xtal_freq: XtalFrequency,
+    chip_revision: Option<u16>,
     min_chip_rev: u16,
 ) -> Result<&'static [u8], Error> {
     let error = Error::UnsupportedFeature {
@@ -117,7 +107,9 @@ pub(crate) fn default_bootloader(
         },
         Chip::Esp32p4 => match xtal_freq {
             XtalFrequency::_40Mhz => {
-                if min_chip_rev >= 300 {
+                let revision = chip_revision.unwrap_or(min_chip_rev);
+
+                if revision >= 300 {
                     Ok(BOOTLOADER_ESP32P4_V3)
                 } else {
                     Ok(BOOTLOADER_ESP32P4_V0)
@@ -280,6 +272,26 @@ impl<'a> IdfBootloaderFormat<'a> {
         partition_table_offset: Option<u32>,
         target_app_partition: Option<&str>,
     ) -> Result<Self, Error> {
+        Self::new_with_chip_revision(
+            elf_data,
+            flash_data,
+            partition_table_path,
+            bootloader_path,
+            partition_table_offset,
+            target_app_partition,
+            None,
+        )
+    }
+
+    pub(crate) fn new_with_chip_revision(
+        elf_data: &'a [u8],
+        flash_data: &FlashData,
+        partition_table_path: Option<&Path>,
+        bootloader_path: Option<&Path>,
+        partition_table_offset: Option<u32>,
+        target_app_partition: Option<&str>,
+        chip_revision: Option<u16>,
+    ) -> Result<Self, Error> {
         let elf = ElfFile::parse(elf_data)?;
 
         let partition_table = if let Some(partition_table_path) = partition_table_path {
@@ -312,6 +324,7 @@ impl<'a> IdfBootloaderFormat<'a> {
             let default_bootloader = default_bootloader(
                 flash_data.chip,
                 flash_data.xtal_freq,
+                chip_revision,
                 flash_data.min_chip_rev,
             )?;
             Cow::Borrowed(default_bootloader)
@@ -914,5 +927,21 @@ mod tests {
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].addr, 0x1000);
         assert_eq!(merged[0].size(), 0x300);
+    }
+
+    #[test]
+    fn default_bootloader_uses_p4_revision_mapping() {
+        assert_eq!(
+            default_bootloader(Chip::Esp32p4, XtalFrequency::_40Mhz, Some(200), 0,).unwrap(),
+            BOOTLOADER_ESP32P4_V0
+        );
+        assert_eq!(
+            default_bootloader(Chip::Esp32p4, XtalFrequency::_40Mhz, Some(300), 0,).unwrap(),
+            BOOTLOADER_ESP32P4_V3
+        );
+        assert_eq!(
+            default_bootloader(Chip::Esp32p4, XtalFrequency::_40Mhz, None, 300,).unwrap(),
+            BOOTLOADER_ESP32P4_V3
+        );
     }
 }
