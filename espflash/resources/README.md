@@ -15,4 +15,4 @@ https://github.com/espressif/esptool/tree/master/esptool/targets/stub_flasher/1
 
 
 The roms are taken from the (`esp-rom-elfs`)[https://github.com/espressif/esp-rom-elfs] repository. Expect for:
-`esp32c5_rev100_rom.elf` and `esp32c61_rev100_rom.elf`: taken from release `20260313` of `esp-rom-elfs`: https://github.com/espressif/esp-rom-elfs/releases/tag/20260313
+- ESP32-P4 rev3: Was built from `esp-rom-elfs` gitlab merge request 30.

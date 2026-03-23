@@ -15,12 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add sha256 calculation to match esptool generated binaries (#991)
 - Support flashing in secure download mode (#990, #1002)
 - Add ESP32-C61 chip support (#1009)
+- Added ESP32-P4 ROM ELFs (#1014)
 
 ### Changed
 
 ### Fixed
 
 - Fix compilation on Linux when no other dependency transitively enables `nix`'s `signal` feature (#1015)
+- Fix ROM ELFs (#1014)
 - Fix Windows connection issue by aligning reset sequence with `esptool` including RTS/DTR workaround (#999)
 - Fix board-info misreporting the crystal frequency of ESP32-C5 (#1005)
 
