@@ -24,13 +24,8 @@ use self::reset::UnixTightReset;
 use self::{
     encoder::SlipEncoder,
     reset::{
-        ClassicReset,
-        ResetStrategy,
-        UsbJtagSerialReset,
-        construct_reset_strategy_sequence,
-        hard_reset,
-        reset_after_flash,
-        soft_reset,
+        construct_reset_strategy_sequence, hard_reset, reset_after_flash, soft_reset, ClassicReset,
+        ResetStrategy, UsbJtagSerialReset,
     },
 };
 use crate::{
@@ -618,7 +613,10 @@ impl Connection {
     pub fn write_raw(&mut self, data: u32) -> Result<(), Error> {
         let mut binding = Box::new(&mut self.serial);
         let serial = binding.as_mut();
-        serial.clear(serialport::ClearBuffer::Input)?;
+
+        // Unlike full commands, raw writes are used as read-flash acknowledgements.
+        // Clearing the input buffer here can discard already queued flash data when
+        // multiple packets are in flight.
         let mut writer = BufWriter::new(serial);
         let mut encoder = SlipEncoder::new(&mut writer)?;
         encoder.write_all(&data.to_le_bytes())?;
@@ -874,5 +872,66 @@ mod encoder {
         fn flush(&mut self) -> std::io::Result<()> {
             self.writer.flush()
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::{
+        io::{Read, Write},
+        sync::{Mutex, OnceLock},
+        time::Duration,
+    };
+
+    use serialport::{SerialPort, TTYPort, UsbPortInfo};
+
+    use super::*;
+
+    fn tty_pair_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    #[test]
+    fn write_raw_does_not_drop_pending_read_flash_data() {
+        let _guard = tty_pair_lock().lock().unwrap();
+
+        let (mut host, mut device) = TTYPort::pair().unwrap();
+        host.set_timeout(Duration::from_millis(100)).unwrap();
+        device.set_timeout(Duration::from_millis(100)).unwrap();
+
+        let payload = [0x01, 0x02, 0x03, 0x04];
+        host.write_all(&payload).unwrap();
+        host.flush().unwrap();
+
+        let mut host_reader = host.try_clone().unwrap();
+        let host_reader = std::thread::spawn(move || {
+            let mut ack = [0u8; 6];
+            host_reader.read_exact(&mut ack).unwrap();
+            ack
+        });
+
+        let mut connection = Connection::new(
+            device,
+            UsbPortInfo {
+                vid: 0,
+                pid: 0,
+                serial_number: None,
+                manufacturer: None,
+                product: None,
+            },
+            ResetAfterOperation::NoReset,
+            ResetBeforeOperation::NoReset,
+            115_200,
+        );
+
+        connection.write_raw(payload.len() as u32).unwrap();
+
+        let mut received = [0u8; 4];
+        connection.serial.read_exact(&mut received).unwrap();
+        assert_eq!(received, payload);
+
+        let ack = host_reader.join().unwrap();
+        assert_eq!(ack, [0xC0, 0x04, 0x00, 0x00, 0x00, 0xC0]);
     }
 }
