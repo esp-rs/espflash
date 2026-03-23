@@ -24,8 +24,13 @@ use self::reset::UnixTightReset;
 use self::{
     encoder::SlipEncoder,
     reset::{
-        ClassicReset, ResetStrategy, UsbJtagSerialReset, construct_reset_strategy_sequence,
-        hard_reset, reset_after_flash, soft_reset,
+        ClassicReset,
+        ResetStrategy,
+        UsbJtagSerialReset,
+        construct_reset_strategy_sequence,
+        hard_reset,
+        reset_after_flash,
+        soft_reset,
     },
 };
 use crate::{

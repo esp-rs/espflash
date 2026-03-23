@@ -10,7 +10,8 @@ use std::{
 
 use clap::{Args, Parser};
 use pyo3::{
-    Bound, PyAny,
+    Bound,
+    PyAny,
     prelude::{PyResult, Python},
     types::{PyAnyMethods as _, PyDict, PyList, PyModule, PyTuple},
 };

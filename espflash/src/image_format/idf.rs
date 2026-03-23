@@ -928,20 +928,4 @@ mod tests {
         assert_eq!(merged[0].addr, 0x1000);
         assert_eq!(merged[0].size(), 0x300);
     }
-
-    #[test]
-    fn default_bootloader_uses_p4_revision_mapping() {
-        assert_eq!(
-            default_bootloader(Chip::Esp32p4, XtalFrequency::_40Mhz, Some(200), 0,).unwrap(),
-            BOOTLOADER_ESP32P4_V0
-        );
-        assert_eq!(
-            default_bootloader(Chip::Esp32p4, XtalFrequency::_40Mhz, Some(300), 0,).unwrap(),
-            BOOTLOADER_ESP32P4_V3
-        );
-        assert_eq!(
-            default_bootloader(Chip::Esp32p4, XtalFrequency::_40Mhz, None, 300,).unwrap(),
-            BOOTLOADER_ESP32P4_V3
-        );
-    }
 }

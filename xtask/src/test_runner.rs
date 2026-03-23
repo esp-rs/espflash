@@ -4,7 +4,8 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{
-        Arc, Mutex,
+        Arc,
+        Mutex,
         atomic::{AtomicBool, Ordering},
     },
     thread,
