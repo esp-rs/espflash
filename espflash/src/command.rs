@@ -407,14 +407,17 @@ pub enum Command<'a> {
     /// Read flash (slow)
     ///
     /// Supported by ROM loader only.
+    ///
+    /// The ROM protocol only uses `offset` and `size`. The additional fields
+    /// are retained for API compatibility and ignored during serialization.
     ReadFlashSlow {
         /// Offset in flash to start from
         offset: u32,
         /// Size of the region to read
         size: u32,
-        /// Block size
+        /// Ignored by the ROM loader
         block_size: u32,
-        /// Maximum number of in-flight bytes
+        /// Ignored by the ROM loader
         max_in_flight: u32,
     },
     /// Exits loader and runs user code
@@ -653,21 +656,14 @@ impl Command<'_> {
                 writer.write_all(&block_size.to_le_bytes())?;
                 writer.write_all(&(max_in_flight.to_le_bytes()))?;
             }
-            Command::ReadFlashSlow {
-                offset,
-                size,
-                block_size,
-                max_in_flight,
-            } => {
-                // length
-                writer.write_all(&(16u16.to_le_bytes()))?;
-                // checksum
+            Command::ReadFlashSlow { offset, size, .. } => {
+                // The ROM READ_FLASH_SLOW command only accepts offset and size.
+                // See esptool's ROM implementation:
+                // https://github.com/espressif/esptool/blob/master/esptool/targets/esp32.py
+                writer.write_all(&(8u16.to_le_bytes()))?;
                 writer.write_all(&(0u32.to_le_bytes()))?;
-                // data
                 writer.write_all(&offset.to_le_bytes())?;
                 writer.write_all(&size.to_le_bytes())?;
-                writer.write_all(&block_size.to_le_bytes())?;
-                writer.write_all(&(max_in_flight.to_le_bytes()))?;
             }
             Command::RunUserCode => {
                 write_basic(writer, &[], 0)?;
@@ -780,4 +776,60 @@ fn checksum(data: &[u8], mut checksum: u8) -> u8 {
     }
 
     checksum
+}
+
+#[cfg(test)]
+mod test {
+    use super::Command;
+
+    #[test]
+    fn read_flash_uses_full_stub_payload() {
+        let mut encoded = Vec::new();
+        Command::ReadFlash {
+            offset: 0x1000,
+            size: 0x2000,
+            block_size: 0x1000,
+            max_in_flight: 64,
+        }
+        .write(&mut encoded)
+        .unwrap();
+
+        assert_eq!(&encoded[..2], &[0, 0xD2]);
+        assert_eq!(u16::from_le_bytes(encoded[2..4].try_into().unwrap()), 16);
+        assert_eq!(
+            u32::from_le_bytes(encoded[8..12].try_into().unwrap()),
+            0x1000
+        );
+        assert_eq!(
+            u32::from_le_bytes(encoded[12..16].try_into().unwrap()),
+            0x2000
+        );
+        assert_eq!(
+            u32::from_le_bytes(encoded[16..20].try_into().unwrap()),
+            0x1000
+        );
+        assert_eq!(u32::from_le_bytes(encoded[20..24].try_into().unwrap()), 64);
+    }
+
+    #[test]
+    fn read_flash_slow_only_serializes_offset_and_size() {
+        let mut encoded = Vec::new();
+        Command::ReadFlashSlow {
+            offset: 0x1000,
+            size: 26,
+            block_size: 0x1000,
+            max_in_flight: 64,
+        }
+        .write(&mut encoded)
+        .unwrap();
+
+        assert_eq!(&encoded[..2], &[0, 0x0E]);
+        assert_eq!(u16::from_le_bytes(encoded[2..4].try_into().unwrap()), 8);
+        assert_eq!(encoded.len(), 16);
+        assert_eq!(
+            u32::from_le_bytes(encoded[8..12].try_into().unwrap()),
+            0x1000
+        );
+        assert_eq!(u32::from_le_bytes(encoded[12..16].try_into().unwrap()), 26);
+    }
 }
