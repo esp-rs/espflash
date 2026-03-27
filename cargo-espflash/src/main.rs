@@ -355,6 +355,9 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     )?;
 
     let dev_info = print_board_info(&mut flasher)?;
+    let detected_chip_revision = dev_info
+        .revision
+        .map(|(major, minor)| (major * 100 + minor) as u16);
     ensure_chip_compatibility(chip, Some(elf_data.as_slice()))?;
 
     let mut flash_config = args.build_args.flash_config_args;
@@ -374,7 +377,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             chip,
             target_xtal_freq,
         );
-        let image_format = make_image_format(
+        let image_format = make_image_format_with_chip_revision(
             &elf_data,
             &flash_data,
             args.format,
@@ -382,6 +385,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             Some(args.idf_format_args),
             build_ctx.bootloader_path,
             build_ctx.partition_table_path,
+            detected_chip_revision,
         )?;
 
         // If using ESP-IDF image format, check if we need to erase partitions.

@@ -1112,6 +1112,29 @@ pub fn make_image_format<'a>(
     build_ctx_bootloader: Option<PathBuf>,
     build_ctx_partition_table: Option<PathBuf>,
 ) -> Result<ImageFormat<'a>, Error> {
+    make_image_format_with_chip_revision(
+        elf_data,
+        flash_data,
+        image_format_kind,
+        config,
+        idf_format_args,
+        build_ctx_bootloader,
+        build_ctx_partition_table,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn make_image_format_with_chip_revision<'a>(
+    elf_data: &'a [u8],
+    flash_data: &FlashData,
+    image_format_kind: ImageFormatKind,
+    config: &Config,
+    idf_format_args: Option<IdfFormatArgs>,
+    build_ctx_bootloader: Option<PathBuf>,
+    build_ctx_partition_table: Option<PathBuf>,
+    chip_revision: Option<u16>,
+) -> Result<ImageFormat<'a>, Error> {
     let image_format = match image_format_kind {
         ImageFormatKind::EspIdf => {
             let mut args = idf_format_args.unwrap_or_default();
@@ -1134,13 +1157,14 @@ pub fn make_image_format<'a>(
                     .clone()
                     .or(build_ctx_partition_table);
             }
-            IdfBootloaderFormat::new(
+            IdfBootloaderFormat::new_with_chip_revision(
                 elf_data,
                 flash_data,
                 args.partition_table.as_deref(),
                 args.bootloader.as_deref(),
                 args.partition_table_offset,
                 args.target_app_partition.as_deref(),
+                chip_revision,
             )?
         }
     };
