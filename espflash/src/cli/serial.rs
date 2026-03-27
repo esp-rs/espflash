@@ -154,6 +154,10 @@ const KNOWN_DEVICES: &[UsbDevice] = &[
         vid: 0x1a86,
         pid: 0x7523,
     }, // QinHeng Electronics CH340 serial converter
+    UsbDevice {
+        vid: 0x303a,
+        pid: 0x1001,
+    }, // Presented by ESP32S3FH4R2, e.g. as part of Waveshare ESP32-S3-Matrix
 ];
 
 pub(super) fn known_ports_filter(port: &SerialPortInfo, config: &PortConfig) -> bool {
