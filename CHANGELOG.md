@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added ESP32-P4 ROM ELFs (#1014)
 - Added ESP32-P4 rev < 300 bootloader (#1016)
 - USB VID/PID 303a:1001 is listed as known (#1022)
+- Add a `benchmark` command to measure connection time plus flash write, read, and skip throughput (#1026)
 
 ### Changed
 
