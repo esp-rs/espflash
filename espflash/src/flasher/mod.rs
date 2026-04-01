@@ -56,6 +56,7 @@ pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
 #[cfg(feature = "serialport")]
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
+pub(crate) const STUB_FLASH_WRITE_SIZE: usize = 0x4000;
 
 /// Supported flash frequencies
 ///

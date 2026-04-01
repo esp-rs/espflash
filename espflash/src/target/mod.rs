@@ -19,7 +19,7 @@ pub use self::flash_target::{
 };
 use crate::{
     Error,
-    flasher::{FLASH_WRITE_SIZE, FlashFrequency},
+    flasher::{FLASH_WRITE_SIZE, FlashFrequency, STUB_FLASH_WRITE_SIZE},
     target::efuse::EfuseBlock,
 };
 #[cfg(feature = "serialport")]
@@ -974,9 +974,14 @@ impl Chip {
         })
     }
 
-    /// Write size for flashing operations
+    /// Write size for flashing operations when using the ROM loader.
     pub fn flash_write_size(&self) -> usize {
         FLASH_WRITE_SIZE
+    }
+
+    /// Write size for flashing operations when using the stub loader.
+    pub fn stub_flash_write_size(&self) -> usize {
+        STUB_FLASH_WRITE_SIZE
     }
 
     #[cfg(feature = "serialport")]
