@@ -1,9 +1,16 @@
 #[cfg(not(target_os = "windows"))]
 use std::fs;
+use std::{
+    io,
+    sync::{
+        OnceLock,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 
 use crossterm::style::Stylize;
 use dialoguer::{Confirm, Select, theme::ColorfulTheme};
-use log::{error, info};
+use log::{debug, error, info};
 use miette::{IntoDiagnostic, Result};
 use serialport::{SerialPortInfo, SerialPortType, available_ports};
 
@@ -14,6 +21,10 @@ use crate::{
         config::{Config, PortConfig, UsbDevice},
     },
 };
+
+static PROMPT_CANCELLED: AtomicBool = AtomicBool::new(false);
+static PROMPT_CTRLC_HANDLER: OnceLock<()> = OnceLock::new();
+static PROMPT_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 /// Return the information of a serial port taking into account the different
 /// ways of choosing a port.
@@ -47,10 +58,12 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
         let (port, matches) = select_serial_port(ports, &config.port_config, matches.confirm_port)?;
         match &port.port_type {
             SerialPortType::UsbPort(usb_info) if !matches => {
-                let remember = Confirm::with_theme(&ColorfulTheme::default())
-                    .with_prompt("Remember this serial port for future use?")
-                    .interact_opt()?
-                    .unwrap_or_default();
+                let remember = || {
+                    Confirm::with_theme(&ColorfulTheme::default())
+                        .with_prompt("Remember this serial port for future use?")
+                        .interact_opt()
+                };
+                let remember = interact_opt_with_ctrlc(remember)?.unwrap_or_default();
 
                 if remember {
                     // Allow this operation to fail without terminating the
@@ -219,18 +232,13 @@ fn select_serial_port(
             })
             .collect::<Vec<_>>();
 
-        // https://github.com/console-rs/dialoguer/issues/77
-        ctrlc::set_handler(move || {
-            let term = dialoguer::console::Term::stdout();
-            let _ = term.show_cursor();
-        })
-        .expect("Error setting Ctrl-C handler");
-
-        let index = Select::with_theme(&ColorfulTheme::default())
-            .items(&port_names)
-            .default(0)
-            .interact_opt()?
-            .ok_or(Error::Cancelled)?;
+        let index = || {
+            Select::with_theme(&ColorfulTheme::default())
+                .items(&port_names)
+                .default(0)
+                .interact_opt()
+        };
+        let index = interact_opt_with_ctrlc(index)?.ok_or(Error::Cancelled)?;
 
         match ports.get(index) {
             Some(port_info) => Ok((port_info.to_owned(), known_ports_filter(port_info, config))),
@@ -258,14 +266,91 @@ fn select_serial_port(
 
 /// Ask the user to confirm the use of a serial port.
 fn confirm_port(port_name: &str, product: Option<&String>) -> Result<bool, Error> {
-    Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt({
-            if let Some(product) = product {
-                format!("Use serial port '{port_name}' - {product}?")
+    let confirmed = || {
+        Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt({
+                if let Some(product) = product {
+                    format!("Use serial port '{port_name}' - {product}?")
+                } else {
+                    format!("Use serial port '{port_name}'?")
+                }
+            })
+            .interact_opt()
+    };
+
+    interact_opt_with_ctrlc(confirmed)?.ok_or(Error::Cancelled)
+}
+
+fn interact_opt_with_ctrlc<T>(
+    prompt: impl FnOnce() -> dialoguer::Result<Option<T>>,
+) -> Result<Option<T>, Error> {
+    ensure_prompt_ctrlc_handler();
+    PROMPT_CANCELLED.store(false, Ordering::SeqCst);
+    let _active_prompt = PromptActiveGuard;
+    PROMPT_ACTIVE.store(true, Ordering::SeqCst);
+
+    match prompt() {
+        Ok(value) => {
+            if PROMPT_CANCELLED.swap(false, Ordering::SeqCst) {
+                Err(Error::Cancelled)
             } else {
-                format!("Use serial port '{port_name}'?")
+                Ok(value)
             }
-        })
-        .interact_opt()?
-        .ok_or(Error::Cancelled)
+        }
+        Err(err) => {
+            let was_cancelled = PROMPT_CANCELLED.swap(false, Ordering::SeqCst);
+            let interrupted = matches!(&err, dialoguer::Error::IO(io_err) if io_err.kind() == io::ErrorKind::Interrupted);
+
+            if interrupted || was_cancelled {
+                restore_prompt_cursor();
+                Err(Error::Cancelled)
+            } else {
+                Err(err.into())
+            }
+        }
+    }
+}
+
+fn ensure_prompt_ctrlc_handler() {
+    PROMPT_CTRLC_HANDLER.get_or_init(|| {
+        // https://github.com/console-rs/dialoguer/issues/77
+        if let Err(err) = ctrlc::try_set_handler(|| {
+            if PROMPT_ACTIVE.load(Ordering::SeqCst) {
+                PROMPT_CANCELLED.store(true, Ordering::SeqCst);
+                restore_prompt_cursor();
+            } else {
+                exit_with_ctrlc();
+            }
+        }) {
+            debug!("Failed to install prompt Ctrl-C handler: {err}");
+        }
+    });
+}
+
+fn restore_prompt_cursor() {
+    let term = dialoguer::console::Term::stdout();
+    let _ = term.show_cursor();
+}
+
+struct PromptActiveGuard;
+
+impl Drop for PromptActiveGuard {
+    fn drop(&mut self) {
+        PROMPT_ACTIVE.store(false, Ordering::SeqCst);
+    }
+}
+
+#[cfg(unix)]
+fn exit_with_ctrlc() -> ! {
+    unsafe {
+        libc::signal(libc::SIGINT, libc::SIG_DFL);
+        libc::raise(libc::SIGINT);
+    }
+
+    std::process::exit(130)
+}
+
+#[cfg(windows)]
+fn exit_with_ctrlc() -> ! {
+    std::process::exit(130)
 }
