@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix Windows connection issue by aligning reset sequence with `esptool` including RTS/DTR workaround (#999)
 - Fix board-info misreporting the crystal frequency of ESP32-C5 (#1005)
 - Use `0x4000` flash write blocks in stub mode for better throughput (#1021)
+- Use CARGO_BUILD_TARGET environment variable in `cargo-espflash` if `--target` is not provided before falling back to the `target` from `config.toml` (#1024)
 
 ### Removed
 
