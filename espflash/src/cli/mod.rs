@@ -32,6 +32,7 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 use serde::{Deserialize, Serialize};
 use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo};
 
+pub use self::benchmark::{BenchmarkArgs, benchmark};
 use self::{
     config::Config,
     monitor::{LogFormat, check_monitor_args, monitor},
@@ -56,6 +57,7 @@ use crate::{
     target::{Chip, ProgressCallbacks, XtalFrequency},
 };
 
+mod benchmark;
 pub mod config;
 pub mod monitor;
 

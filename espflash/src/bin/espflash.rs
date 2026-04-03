@@ -37,6 +37,10 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    /// Measure connection time and flash throughput
+    ///
+    /// This command overwrites a flash region passed via `--address`.
+    Benchmark(BenchmarkArgs),
     /// Print information about a connected target device
     ///
     /// Automatically detects and prints the chip type, crystal frequency, flash
@@ -184,6 +188,7 @@ fn main() -> Result<()> {
     // Execute the correct action based on the provided subcommand and its
     // associated arguments.
     match args {
+        Commands::Benchmark(args) => benchmark(args, &config),
         Commands::BoardInfo(args) => board_info(&args, &config),
         Commands::ChecksumMd5(args) => checksum_md5(&args, &config),
         Commands::Completions(args) => completions(&args, &mut Cli::command(), "espflash"),

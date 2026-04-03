@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added ESP32-P4 ROM ELFs (#1014)
 - Added ESP32-P4 rev < 300 bootloader (#1016)
 - USB VID/PID 303a:1001 is listed as known (#1022)
+- Add a `benchmark` command to measure connection time plus flash write, read, and skip throughput (#1026)
 
 ### Changed
 
@@ -28,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix Windows connection issue by aligning reset sequence with `esptool` including RTS/DTR workaround (#999)
 - Fix board-info misreporting the crystal frequency of ESP32-C5 (#1005)
 - Use `0x4000` flash write blocks in stub mode for better throughput (#1021)
+- Improve Ctrl-C handling during serial-port prompts and preserve interruption semantics outside prompts (#1026)
 
 ### Removed
 
