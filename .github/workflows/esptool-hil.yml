@@ -1,0 +1,68 @@
+name: HIL esptool
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: "Owner and repository to test"
+        required: true
+        default: "esp-rs/espflash"
+      branch:
+        description: "Branch, tag or SHA to checkout."
+        required: true
+        default: "main"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_LOG: debug
+
+# Cancel any currently running workflows from the same PR, branch, or
+# tag when a new workflow is triggered.
+#
+# https://stackoverflow.com/a/66336834
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+
+jobs:
+  run-tests:
+    if: github.repository_owner == 'esp-rs'
+    name: HIL | ${{ matrix.target.soc }} | ${{ matrix.target.port }}
+    runs-on: [self-hosted, "${{ matrix.target.runner }}"]
+    env:
+      ESPTOOL_PORT: /dev/serial_ports/${{ matrix.target.port }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - soc: esp32c61
+            runner: esp32c61-usb
+            port: usb
+            host: aarch64
+          - soc: esp32c61
+            runner: esp32c61-usb
+            port: uart
+            host: aarch64
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Reset device
+        run: |
+          /home/espressif/.cargo/bin/espflash reset --port ${{ env.ESPTOOL_PORT }}
+          sleep 5
+
+      - name: Run all tests (esptool)
+        run: |
+          echo "Flash id:"
+          /home/espressif/.cargo/bin/esptools tool --port ${{ env.ESPTOOL_PORT }} flash_id
+          echo "Erasing flash..."
+          /home/espressif/.cargo/bin/esptools tool --port ${{ env.ESPTOOL_PORT }} erase_flash
+          echo "Reading flash..."
+          /home/espressif/.cargo/bin/esptools tool --trace --port ${{ env.ESPTOOL_PORT }} read_flash 0x0 0x4000 flash_contents.bin
+          echo "Flash contents:"
+          cat flash_contents.bin
