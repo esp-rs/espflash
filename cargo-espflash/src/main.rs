@@ -429,9 +429,11 @@ fn build(
     cargo_config: &CargoConfig,
     chip: Chip,
 ) -> Result<BuildContext> {
+    let target_env = std::env::var("CARGO_BUILD_TARGET");
     let target = build_options
         .target
         .as_deref()
+        .or_else(|| target_env.as_deref().ok())
         .or_else(|| cargo_config.target())
         .ok_or_else(|| NoTargetError::new(Some(chip)))?;
 
