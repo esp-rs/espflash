@@ -20,8 +20,10 @@ const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 const FLASH_DEFLATE_END_TIMEOUT: Duration = Duration::from_secs(10);
 const FLASH_MD5_TIMEOUT_PER_MB: Duration = Duration::from_secs(8);
 
+// max response length for non-vector request
 const SYNC_MAX_LEN: u64 = 44;
-pub(crate) const DEFAULT_MAX_LEN: u64 = 8 * 1024 * 1024; // 8Mi by default
+// 8Mi, max response length even expected
+pub(crate) const DEFAULT_MAX_LEN: u64 = 8 * 1024 * 1024;
 
 /// Input data for SYNC command (36 bytes: 0x07 0x07 0x12 0x20, followed by
 /// 32 x 0x55)
