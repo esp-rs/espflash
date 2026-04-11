@@ -20,12 +20,14 @@ const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 const FLASH_DEFLATE_END_TIMEOUT: Duration = Duration::from_secs(10);
 const FLASH_MD5_TIMEOUT_PER_MB: Duration = Duration::from_secs(8);
 
-// max response length for a non-vector request
+// 44 is a max response length for a non-vector request.
+// doubling is performed due to possible escapes in the slip decoder
 #[cfg(feature = "serialport")]
-const SYNC_MAX_LEN: u64 = 44;
-// 1Gi, max response length ever expected
+const SYNC_MAX_LEN: u64 = 44 * 2;
+// 8Mi is a max response length ever expected
+// doubling is performed due to possible escapes in the slip decoder
 #[cfg(feature = "serialport")]
-pub(crate) const DEFAULT_MAX_LEN: u64 = 1024 * 1024 * 1024;
+pub(crate) const DEFAULT_MAX_LEN: u64 = 1024 * 1024 * 1024 * 2;
 
 /// Input data for SYNC command (36 bytes: 0x07 0x07 0x12 0x20, followed by
 /// 32 x 0x55)
