@@ -20,9 +20,11 @@ const SYNC_TIMEOUT: Duration = Duration::from_millis(100);
 const FLASH_DEFLATE_END_TIMEOUT: Duration = Duration::from_secs(10);
 const FLASH_MD5_TIMEOUT_PER_MB: Duration = Duration::from_secs(8);
 
-// max response length for non-vector request
+// max response length for a non-vector request
+#[cfg(feature = "serialport")]
 const SYNC_MAX_LEN: u64 = 44;
 // 8Mi, max response length even expected
+#[cfg(feature = "serialport")]
 pub(crate) const DEFAULT_MAX_LEN: u64 = 8 * 1024 * 1024;
 
 /// Input data for SYNC command (36 bytes: 0x07 0x07 0x12 0x20, followed by
@@ -218,6 +220,7 @@ impl CommandType {
     }
 
     /// Return a max response length for the given [`CommandType`]
+    #[cfg(feature = "serialport")]
     pub(crate) fn max_response_len(&self) -> u64 {
         match self {
             CommandType::Sync => SYNC_MAX_LEN,
