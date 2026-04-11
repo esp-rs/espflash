@@ -107,6 +107,14 @@ jobs:
             runner: esp32c6-usb
             port: uart
             host: armv7
+          - soc: esp32c61
+            runner: esp32c61-usb
+            port: usb
+            host: aarch64
+          - soc: esp32c61
+            runner: esp32c61-usb
+            port: uart
+            host: aarch64
           - soc: esp32h2
             runner: esp32h2-usb
             port: usb

@@ -56,6 +56,7 @@ pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
 #[cfg(feature = "serialport")]
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
+pub(crate) const STUB_FLASH_WRITE_SIZE: usize = 0x4000;
 
 /// Supported flash frequencies
 ///
@@ -463,8 +464,10 @@ impl DeviceInfo {
     pub fn rom(&self) -> Option<Vec<u8>> {
         match self.chip {
             Chip::Esp32 => {
-                if let Some((_, minor)) = self.revision {
-                    if minor >= 3 {
+                if let Some((major, minor)) = self.revision {
+                    let revision = major * 100 + minor;
+
+                    if revision >= 300 {
                         Some(include_bytes!("../../resources/roms/esp32_rev300_rom.elf").into())
                     } else {
                         Some(include_bytes!("../../resources/roms/esp32_rev0_rom.elf").into())
@@ -477,9 +480,13 @@ impl DeviceInfo {
                 Some(include_bytes!("../../resources/roms/esp32c2_rev100_rom.elf").into())
             }
             Chip::Esp32c3 => {
-                if let Some((_, minor)) = self.revision {
-                    if minor >= 3 {
-                        Some(include_bytes!("../../resources/roms/esp32c3_rev3_rom.elf").into())
+                if let Some((major, minor)) = self.revision {
+                    let revision = major * 100 + minor;
+
+                    if revision >= 300 {
+                        Some(include_bytes!("../../resources/roms/esp32c3_rev300_rom.elf").into())
+                    } else if revision >= 101 {
+                        Some(include_bytes!("../../resources/roms/esp32c3_rev101_rom.elf").into())
                     } else {
                         Some(include_bytes!("../../resources/roms/esp32c3_rev0_rom.elf").into())
                     }
@@ -487,7 +494,12 @@ impl DeviceInfo {
                     None
                 }
             }
-            Chip::Esp32c5 => None,
+            Chip::Esp32c5 => {
+                Some(include_bytes!("../../resources/roms/esp32c5_rev100_rom.elf").into())
+            }
+            Chip::Esp32c61 => {
+                Some(include_bytes!("../../resources/roms/esp32c61_rev100_rom.elf").into())
+            }
             Chip::Esp32c6 => {
                 Some(include_bytes!("../../resources/roms/esp32c6_rev0_rom.elf").into())
             }
@@ -495,7 +507,17 @@ impl DeviceInfo {
                 Some(include_bytes!("../../resources/roms/esp32h2_rev0_rom.elf").into())
             }
             Chip::Esp32p4 => {
-                Some(include_bytes!("../../resources/roms/esp32p4_rev0_rom.elf").into())
+                if let Some((major, minor)) = self.revision {
+                    let revision = major * 100 + minor;
+
+                    if revision >= 300 {
+                        Some(include_bytes!("../../resources/roms/esp32p4_rev300_rom.elf").into())
+                    } else {
+                        Some(include_bytes!("../../resources/roms/esp32p4_rev0_rom.elf").into())
+                    }
+                } else {
+                    None
+                }
             }
             Chip::Esp32s2 => {
                 Some(include_bytes!("../../resources/roms/esp32s2_rev0_rom.elf").into())
@@ -515,6 +537,8 @@ pub struct Flasher {
     connection: Connection,
     /// Chip ID
     chip: Chip,
+    /// Chip revision (major, minor), if known
+    chip_revision: Option<(u32, u32)>,
     /// Flash size, loaded from SPI flash
     flash_size: FlashSize,
     /// Configuration for SPI attached flash (0 to use fused values)
@@ -568,9 +592,25 @@ impl Flasher {
             return Err(Error::ChipNotProvided);
         };
 
+        let chip_revision = if !connection.secure_download_mode {
+            match detected_chip.revision(&mut connection) {
+                Ok((major, minor)) => {
+                    debug!("Detected chip revision: v{major}.{minor}");
+                    Some((major, minor))
+                }
+                Err(e) => {
+                    debug!("Failed to read chip revision after reset: {e:?}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         let mut flasher = Flasher {
             connection,
             chip: detected_chip,
+            chip_revision,
             flash_size: FlashSize::_4Mb,
             spi_params: SpiAttachParams::default(),
             use_stub,
@@ -612,6 +652,15 @@ impl Flasher {
         self.flash_size = flash_size;
     }
 
+    fn chip_revision(&mut self) -> Result<Option<(u32, u32)>, Error> {
+        if self.chip_revision.is_none() && !self.connection.secure_download_mode {
+            let chip = self.chip;
+            self.chip_revision = Some(chip.revision(self.connection())?);
+        }
+
+        Ok(self.chip_revision)
+    }
+
     /// Disable the watchdog timer.
     pub fn disable_watchdog(&mut self) -> Result<(), Error> {
         let mut target = self
@@ -626,13 +675,14 @@ impl Flasher {
 
         // Get chip revision for ESP32-P4 (needed to select correct stub)
         let revision = if matches!(self.chip, Chip::Esp32p4) {
-            match self.chip.revision(&mut self.connection) {
-                Ok((major, minor)) => {
+            match self.chip_revision() {
+                Ok(Some((major, minor))) => {
                     // Calculate revision as major * 100 + minor (matching esptool format)
                     let rev = major * 100 + minor;
                     debug!("ESP32-P4 revision: v{major}.{minor} (calculated: {rev})");
                     Some(rev)
                 }
+                Ok(None) => None,
                 Err(e) => {
                     debug!("Failed to get ESP32-P4 revision: {e:?}, using default stub");
                     None
@@ -885,10 +935,7 @@ impl Flasher {
     /// Read and print any information we can about the connected device
     pub fn device_info(&mut self) -> Result<DeviceInfo, Error> {
         let chip = self.chip();
-        // chip_revision reads from efuse, which is not possible in Secure Download Mode
-        let revision = (!self.connection.secure_download_mode)
-            .then(|| chip.revision(self.connection()))
-            .transpose()?;
+        let revision = self.chip_revision()?;
 
         let crystal_frequency = chip.xtal_frequency(self.connection())?;
         let features = chip
@@ -1273,7 +1320,10 @@ impl Flasher {
     /// Verify the minimum chip revision.
     pub fn verify_minimum_revision(&mut self, minimum: u16) -> Result<(), Error> {
         let chip = self.chip;
-        let (major, minor) = chip.revision(self.connection())?;
+        let (major, minor) = match self.chip_revision()? {
+            Some(revision) => revision,
+            None => chip.revision(self.connection())?,
+        };
         let revision = (major * 100 + minor) as u16;
         if revision < minimum {
             return Err(Error::UnsupportedChipRevision {

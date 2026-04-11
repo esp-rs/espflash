@@ -12,7 +12,6 @@ use espflash::{
     flasher::FlashSize,
     image_format::{ImageFormat, ImageFormatKind, idf::check_idf_bootloader},
     logging::initialize_logger,
-    target::{Chip, XtalFrequency},
     update::check_for_update,
 };
 use log::{LevelFilter, debug, info};
@@ -270,6 +269,9 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     }
 
     let dev_info = print_board_info(&mut flasher)?;
+    let detected_chip_revision = dev_info
+        .revision
+        .map(|(major, minor)| (major * 100 + minor) as u16);
     ensure_chip_compatibility(chip, Some(elf_data.as_slice()))?;
 
     let mut flash_config = args.flash_config_args;
@@ -289,7 +291,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             chip,
             target_xtal_freq,
         );
-        let image_format = make_image_format(
+        let image_format = make_image_format_with_chip_revision(
             &elf_data,
             &flash_data,
             args.format,
@@ -297,6 +299,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             Some(args.idf_format_args),
             None,
             None,
+            detected_chip_revision,
         )?;
 
         // If using ESP-IDF image format, check if we need to erase partitions.
@@ -317,32 +320,15 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     if args.flash_args.monitor {
         let pid = flasher.connection().usb_pid();
 
-        // The 26MHz ESP32-C2's need to be treated as a special case.
-        if chip == Chip::Esp32c2
-            && target_xtal_freq == XtalFrequency::_26Mhz
-            && monitor_args.monitor_baud == 115_200
-        {
-            // 115_200 * 26 MHz / 40 MHz = 74_880
-            monitor_args.monitor_baud = 74_880;
-        }
-
+        preprocess_monitor_args(chip, target_xtal_freq, &mut monitor_args);
         monitor_args.elf = Some(args.image);
 
-        let mut elfs = Vec::new();
-        elfs.push(elf_data.as_ref());
-
-        let rom_elf;
-        if let Some(rom) = &monitor_args.rom_elf {
-            rom_elf = std::fs::read(rom).unwrap();
-            elfs.push(rom_elf.as_ref());
-        } else if let Some(rom) = dev_info.rom() {
-            rom_elf = rom;
-            elfs.push(rom_elf.as_ref())
-        }
+        let elfs = load_monitor_elfs(Some(elf_data.as_ref()), &monitor_args, &dev_info)?;
+        let elf_refs = elfs.refs();
 
         monitor(
             flasher.into(),
-            elfs,
+            elf_refs,
             pid,
             monitor_args,
             args.connect_args.non_interactive,

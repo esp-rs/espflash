@@ -13,6 +13,7 @@
 #![allow(missing_docs)]
 
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fs::{self, File},
     io::{Read, Write},
@@ -636,6 +637,52 @@ pub fn print_board_info(flasher: &mut Flasher) -> Result<DeviceInfo> {
     Ok(info)
 }
 
+#[derive(Debug)]
+pub struct MonitorElfs<'a> {
+    elfs: Vec<Cow<'a, [u8]>>,
+}
+
+impl<'a> MonitorElfs<'a> {
+    pub fn refs(&self) -> Vec<&[u8]> {
+        self.elfs.iter().map(|elf| elf.as_ref()).collect()
+    }
+}
+
+pub fn preprocess_monitor_args(
+    chip: Chip,
+    xtal_frequency: XtalFrequency,
+    monitor_args: &mut MonitorConfigArgs,
+) {
+    // The 26MHz ESP32-C2's need to be treated as a special case.
+    if chip == Chip::Esp32c2
+        && xtal_frequency == XtalFrequency::_26Mhz
+        && monitor_args.monitor_baud == 115_200
+    {
+        // 115_200 * 26 MHz / 40 MHz = 74_880
+        monitor_args.monitor_baud = 74_880;
+    }
+}
+
+pub fn load_monitor_elfs<'a>(
+    firmware_elf: Option<&'a [u8]>,
+    monitor_args: &MonitorConfigArgs,
+    dev_info: &DeviceInfo,
+) -> Result<MonitorElfs<'a>> {
+    let mut elfs = Vec::new();
+
+    if let Some(firmware_elf) = firmware_elf {
+        elfs.push(Cow::Borrowed(firmware_elf));
+    }
+
+    if let Some(rom) = &monitor_args.rom_elf {
+        elfs.push(Cow::Owned(fs::read(rom).into_diagnostic()?));
+    } else if let Some(rom) = dev_info.rom() {
+        elfs.push(Cow::Owned(rom));
+    }
+
+    Ok(MonitorElfs { elfs })
+}
+
 /// Open a serial monitor
 pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
@@ -656,33 +703,15 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     ensure_chip_compatibility(chip, firmware_elf.as_deref())?;
 
     let mut monitor_args = args.monitor_args;
+    let xtal_frequency = chip.xtal_frequency(flasher.connection())?;
+    preprocess_monitor_args(chip, xtal_frequency, &mut monitor_args);
 
-    // The 26MHz ESP32-C2's need to be treated as a special case.
-    if chip == Chip::Esp32c2
-        && chip.xtal_frequency(flasher.connection())? == XtalFrequency::_26Mhz
-        && monitor_args.monitor_baud == 115_200
-    {
-        // 115_200 * 26 MHz / 40 MHz = 74_880
-        monitor_args.monitor_baud = 74_880;
-    }
-
-    let mut elfs: Vec<&[u8]> = Vec::new();
-    if let Some(firmware_elf) = firmware_elf.as_ref() {
-        elfs.push(firmware_elf);
-    }
-
-    let rom_elf;
-    if let Some(ref rom) = monitor_args.rom_elf {
-        rom_elf = std::fs::read(rom).unwrap();
-        elfs.push(rom_elf.as_ref());
-    } else if let Some(rom) = dev_info.rom() {
-        rom_elf = rom;
-        elfs.push(rom_elf.as_ref())
-    }
+    let elfs = load_monitor_elfs(firmware_elf.as_deref(), &monitor_args, &dev_info)?;
+    let elf_refs = elfs.refs();
 
     monitor(
         flasher.into(),
-        elfs,
+        elf_refs,
         pid,
         monitor_args,
         args.connect_args.non_interactive,
@@ -1083,6 +1112,29 @@ pub fn make_image_format<'a>(
     build_ctx_bootloader: Option<PathBuf>,
     build_ctx_partition_table: Option<PathBuf>,
 ) -> Result<ImageFormat<'a>, Error> {
+    make_image_format_with_chip_revision(
+        elf_data,
+        flash_data,
+        image_format_kind,
+        config,
+        idf_format_args,
+        build_ctx_bootloader,
+        build_ctx_partition_table,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn make_image_format_with_chip_revision<'a>(
+    elf_data: &'a [u8],
+    flash_data: &FlashData,
+    image_format_kind: ImageFormatKind,
+    config: &Config,
+    idf_format_args: Option<IdfFormatArgs>,
+    build_ctx_bootloader: Option<PathBuf>,
+    build_ctx_partition_table: Option<PathBuf>,
+    chip_revision: Option<u16>,
+) -> Result<ImageFormat<'a>, Error> {
     let image_format = match image_format_kind {
         ImageFormatKind::EspIdf => {
             let mut args = idf_format_args.unwrap_or_default();
@@ -1105,13 +1157,14 @@ pub fn make_image_format<'a>(
                     .clone()
                     .or(build_ctx_partition_table);
             }
-            IdfBootloaderFormat::new(
+            IdfBootloaderFormat::new_with_chip_revision(
                 elf_data,
                 flash_data,
                 args.partition_table.as_deref(),
                 args.bootloader.as_deref(),
                 args.partition_table_offset,
                 args.target_app_partition.as_deref(),
+                chip_revision,
             )?
         }
     };
@@ -1167,7 +1220,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     f.read_to_end(&mut buffer).into_diagnostic()?;
 
     let mut flasher = connect(&args.connect_args, config, false, false)?;
-    print_board_info(&mut flasher)?;
+    let dev_info = print_board_info(&mut flasher)?;
 
     let chip = flasher.chip();
     let target_xtal_freq = chip.xtal_frequency(flasher.connection())?;
@@ -1177,15 +1230,15 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     if args.monitor {
         let pid = flasher.connection().usb_pid();
         let mut monitor_args = args.monitor_args;
-        if chip == Chip::Esp32c2
-            && target_xtal_freq == XtalFrequency::_26Mhz
-            && monitor_args.monitor_baud == 115_200
-        {
-            monitor_args.monitor_baud = 74_880;
-        }
+
+        preprocess_monitor_args(chip, target_xtal_freq, &mut monitor_args);
+
+        let elfs = load_monitor_elfs(None, &monitor_args, &dev_info)?;
+        let elf_refs = elfs.refs();
+
         monitor(
             flasher.into(),
-            Vec::new(),
+            elf_refs,
             pid,
             monitor_args,
             args.connect_args.non_interactive,

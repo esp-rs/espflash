@@ -122,7 +122,11 @@ impl FlashTarget for Esp32Target {
         // use compression only when stub is loaded.
         let use_compression = self.use_stub;
 
-        let flash_write_size = self.chip.flash_write_size();
+        let flash_write_size = if self.use_stub {
+            self.chip.stub_flash_write_size()
+        } else {
+            self.chip.flash_write_size()
+        };
         let erase_count = segment.data.len().div_ceil(FLASH_SECTOR_SIZE);
 
         // round up to sector size

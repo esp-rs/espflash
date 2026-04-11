@@ -59,19 +59,26 @@ const BOOTLOADER_ESP32C5: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32c5-bootloader.bin");
 const BOOTLOADER_ESP32C6: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32c6-bootloader.bin");
+const BOOTLOADER_ESP32C61: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32c61-bootloader.bin");
 const BOOTLOADER_ESP32H2: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32h2-bootloader.bin");
-const BOOTLOADER_ESP32P4: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32p4-bootloader.bin");
+const BOOTLOADER_ESP32P4_V0: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32p4-v0-bootloader.bin");
+const BOOTLOADER_ESP32P4_V3: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32p4-v3-bootloader.bin");
 const BOOTLOADER_ESP32S2: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin");
 const BOOTLOADER_ESP32S3: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin");
 
-/// Get the default bootloader for the given chip and crystal frequency
+/// Get the default bootloader for the given chip, crystal frequency, and
+/// chip revision.
 pub(crate) fn default_bootloader(
     chip: Chip,
     xtal_freq: XtalFrequency,
+    chip_revision: Option<u16>,
+    min_chip_rev: u16,
 ) -> Result<&'static [u8], Error> {
     let error = Error::UnsupportedFeature {
         chip,
@@ -101,12 +108,24 @@ pub(crate) fn default_bootloader(
             XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32C6),
             _ => Err(error),
         },
+        Chip::Esp32c61 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32C61),
+            _ => Err(error),
+        },
         Chip::Esp32h2 => match xtal_freq {
             XtalFrequency::_32Mhz => Ok(BOOTLOADER_ESP32H2),
             _ => Err(error),
         },
         Chip::Esp32p4 => match xtal_freq {
-            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32P4),
+            XtalFrequency::_40Mhz => {
+                let revision = chip_revision.unwrap_or(min_chip_rev);
+
+                if revision >= 300 {
+                    Ok(BOOTLOADER_ESP32P4_V3)
+                } else {
+                    Ok(BOOTLOADER_ESP32P4_V0)
+                }
+            }
             _ => Err(error),
         },
         Chip::Esp32s2 => match xtal_freq {
@@ -264,6 +283,26 @@ impl<'a> IdfBootloaderFormat<'a> {
         partition_table_offset: Option<u32>,
         target_app_partition: Option<&str>,
     ) -> Result<Self, Error> {
+        Self::new_with_chip_revision(
+            elf_data,
+            flash_data,
+            partition_table_path,
+            bootloader_path,
+            partition_table_offset,
+            target_app_partition,
+            None,
+        )
+    }
+
+    pub(crate) fn new_with_chip_revision(
+        elf_data: &'a [u8],
+        flash_data: &FlashData,
+        partition_table_path: Option<&Path>,
+        bootloader_path: Option<&Path>,
+        partition_table_offset: Option<u32>,
+        target_app_partition: Option<&str>,
+        chip_revision: Option<u16>,
+    ) -> Result<Self, Error> {
         let elf = ElfFile::parse(elf_data)?;
 
         let partition_table = if let Some(partition_table_path) = partition_table_path {
@@ -293,7 +332,12 @@ impl<'a> IdfBootloaderFormat<'a> {
             let bootloader = fs::read(bootloader_path)?;
             Cow::Owned(bootloader)
         } else {
-            let default_bootloader = default_bootloader(flash_data.chip, flash_data.xtal_freq)?;
+            let default_bootloader = default_bootloader(
+                flash_data.chip,
+                flash_data.xtal_freq,
+                chip_revision,
+                flash_data.min_chip_rev,
+            )?;
             Cow::Borrowed(default_bootloader)
         };
 
@@ -665,6 +709,7 @@ fn default_partition_table(chip: Chip, flash_size: Option<u32>) -> PartitionTabl
         Chip::Esp32c3 => (0x1_0000, 0x3f_0000),
         Chip::Esp32c5 => (0x1_0000, 0x3f_0000),
         Chip::Esp32c6 => (0x1_0000, 0x3f_0000),
+        Chip::Esp32c61 => (0x1_0000, 0x3f_0000),
         Chip::Esp32h2 => (0x1_0000, 0x3f_0000),
         Chip::Esp32p4 => (0x1_0000, 0x3f_0000),
         Chip::Esp32s2 => (0x1_0000, 0x10_0000),
