@@ -218,7 +218,7 @@ impl CommandType {
     }
 
     /// Return a max response length for the given [`CommandType`]
-    pub fn max_response_len(&self) -> u64 {
+    pub(crate) fn max_response_len(&self) -> u64 {
         match self {
             CommandType::Sync => SYNC_MAX_LEN,
             _ => DEFAULT_MAX_LEN,
