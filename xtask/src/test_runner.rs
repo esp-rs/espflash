@@ -572,8 +572,13 @@ impl TestRunner {
         let timeout = Duration::from_secs(10);
         let output =
             Self::run_command_capture_output_with_timeout(&mut cmd, timeout, "list-ports")?;
-        // Accept either "Silicon Labs" or "Espressif" in the output
-        if !output.contains("Silicon Labs") && !output.contains("Espressif") {
+
+        let accept_output = output.contains("Silicon Labs")
+            || output.contains("Espressif")
+            || output.contains(":303A") // Espressif USB VID; on Windows the output is "(Undefined Vendor)  USB JTAG/serial debug unit"
+            ;
+
+        if !accept_output {
             Self::restore_terminal();
             return Err(
                 "Missing expected output: neither 'Silicon Labs' nor 'Espressif' found".into(),
