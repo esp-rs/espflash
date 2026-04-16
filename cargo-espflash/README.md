@@ -2,7 +2,7 @@
 # cargo-espflash
 
 [![Crates.io](https://img.shields.io/crates/v/cargo-espflash?labelColor=1C2C2E&color=C96329&logo=Rust&style=flat-square)](https://crates.io/crates/cargo-espflash)
-![MSRV](https://img.shields.io/badge/MSRV-1.85-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
+![MSRV](https://img.shields.io/badge/MSRV-1.88-blue?labelColor=1C2C2E&logo=Rust&style=flat-square)
 ![Crates.io](https://img.shields.io/crates/l/cargo-espflash?labelColor=1C2C2E&style=flat-square)
 
 Cross-compiler and Cargo extension for flashing Espressif devices.
@@ -29,7 +29,7 @@ Supports the **ESP32**, **ESP32-C2/C3/C5/C6/C61**, **ESP32-H2**, **ESP32-P4**, a
 
 ## Installation
 
-If you are installing `cargo-espflash` from source (ie. using `cargo install`) then you must have `rustc>=1.85.0` installed on your system.
+If you are installing `cargo-espflash` from source (ie. using `cargo install`) then you must have `rustc>=1.88.0` installed on your system.
 
 To install:
 
