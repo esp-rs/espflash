@@ -571,13 +571,11 @@ fn build(
                     partition_table_path = Some(pt_path);
                 }
             }
-            Message::CompilerArtifact(artifact) => {
-                if artifact.executable.is_some() {
-                    if target_artifact.is_some() {
-                        return Err(Error::MultipleArtifacts.into());
-                    } else {
-                        target_artifact = Some(artifact);
-                    }
+            Message::CompilerArtifact(artifact) if artifact.executable.is_some() => {
+                if target_artifact.is_some() {
+                    return Err(Error::MultipleArtifacts.into());
+                } else {
+                    target_artifact = Some(artifact);
                 }
             }
             Message::CompilerMessage(message) => {

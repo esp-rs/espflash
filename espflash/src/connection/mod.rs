@@ -34,7 +34,7 @@ use self::{
     },
 };
 use crate::{
-    command::{Command, CommandResponse, CommandResponseValue, CommandType},
+    command::{Command, CommandResponse, CommandResponseValue, CommandType, DEFAULT_MAX_LEN},
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
     flasher::stubs::CHIP_DETECT_MAGIC_REG_ADDR,
     target::Chip,
@@ -369,7 +369,7 @@ impl Connection {
             sleep(Duration::from_millis(10));
 
             for _ in 0..MAX_CONNECT_ATTEMPTS {
-                match connection.read_response()? {
+                match connection.read_response_for_command(CommandType::Sync)? {
                     Some(response) if response.return_op == CommandType::Sync as u8 => {
                         if response.status == 1 {
                             connection.flush().ok();
@@ -542,9 +542,25 @@ impl Connection {
         Ok(Some(header))
     }
 
+    /// Reads the response from a serial port for a [`CommandType`].
+    pub fn read_response_for_command(
+        &mut self,
+        ty: CommandType,
+    ) -> Result<Option<CommandResponse>, Error> {
+        self.read_response_bounded(ty.max_response_len())
+            .for_command(ty)
+    }
+
     /// Reads the response from a serial port.
+    #[deprecated = "May halt on unexpected input from the port --please use `read_response_for_command` instead. Deprecated in https://github.com/esp-rs/espflash/pull/1007"]
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
-        match self.read(10)? {
+        // don't know the command to expect a response for -- use the default max length
+        // (the entire flash size)
+        self.read_response_bounded(DEFAULT_MAX_LEN)
+    }
+
+    fn read_response_bounded(&mut self, max_len: u64) -> Result<Option<CommandResponse>, Error> {
+        match self.read_bounded(10, max_len)? {
             None => Ok(None),
             Some(response) => {
                 // Here is what esptool does: https://github.com/espressif/esptool/blob/81b2eaee261aed0d3d754e32c57959d6b235bfed/esptool/loader.py#L518
@@ -631,7 +647,7 @@ impl Connection {
         let ty = command.command_type();
         self.write_command(command).for_command(ty)?;
         for _ in 0..100 {
-            match self.read_response().for_command(ty)? {
+            match self.read_response_for_command(ty)? {
                 Some(response) if response.return_op == ty as u8 => {
                     return if response.status != 0 {
                         let _error = self.flush();
@@ -693,11 +709,21 @@ impl Connection {
         self.write_reg(addr, masked_old_value | masked_new_value, None)
     }
 
-    /// Reads a register command with a timeout.
+    /// Reads a register command.
     pub(crate) fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
+        self.read_bounded(len, u64::MAX)
+    }
+
+    /// Reads a register command at most `max_len` bytes long.
+    pub(crate) fn read_bounded(
+        &mut self,
+        len: usize,
+        max_len: u64,
+    ) -> Result<Option<Vec<u8>>, Error> {
         let mut tmp = Vec::with_capacity(1024);
+        let mut serial = (&mut self.serial).take(max_len);
         loop {
-            self.decoder.decode(&mut self.serial, &mut tmp)?;
+            self.decoder.decode(&mut serial, &mut tmp)?;
             if tmp.len() >= len {
                 return Ok(Some(tmp));
             }
