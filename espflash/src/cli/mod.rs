@@ -880,7 +880,9 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
         return Err(Error::StubRequired).into_diagnostic();
     }
 
-    if args.address % FLASH_SECTOR_SIZE as u32 != 0 || args.size % FLASH_SECTOR_SIZE as u32 != 0 {
+    if !args.address.is_multiple_of(FLASH_SECTOR_SIZE as u32)
+        || !args.size.is_multiple_of(FLASH_SECTOR_SIZE as u32)
+    {
         return Err(Error::InvalidEraseRegionArgument {
             address: args.address,
             size: args.size,

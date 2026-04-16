@@ -162,10 +162,11 @@ impl Config {
         for (section_keys, allowed) in forbidden_keys.iter().zip(allowed_sections.iter()) {
             for &key in *section_keys {
                 for (section_name, value) in top_level {
-                    if let toml::Value::Table(table) = value {
-                        if table.contains_key(key) && !allowed.contains(&section_name.as_str()) {
-                            misplaced_keys.push((key, allowed[0]));
-                        }
+                    if let toml::Value::Table(table) = value
+                        && table.contains_key(key)
+                        && !allowed.contains(&section_name.as_str())
+                    {
+                        misplaced_keys.push((key, allowed[0]));
                     }
                 }
                 if top_level.contains_key(key) {
@@ -198,10 +199,10 @@ impl Config {
     }
 
     fn validate_bootloader_path(config: &ProjectConfig) -> Result<()> {
-        if let Some(path) = &config.idf_format_args.bootloader {
-            if path.extension() != Some(OsStr::new("bin")) {
-                return Err(Error::InvalidBootloaderPath.into());
-            }
+        if let Some(path) = &config.idf_format_args.bootloader
+            && path.extension() != Some(OsStr::new("bin"))
+        {
+            return Err(Error::InvalidBootloaderPath.into());
         }
         Ok(())
     }

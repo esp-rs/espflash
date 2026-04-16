@@ -9,17 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [4.4.0] - 2026-04-16
+
+### Added
+
 - eFuse write support (#962)
 - esp32p4rc1 support for esp32p4 chips with revision < 3.0 (#922)
 - Support for binaries with INIT_ARRAY sections, which is needed for esp32p4 support. (#991)
-- Add sha256 calculation to match esptool generated binaries (#991)
+- Added sha256 calculation to match esptool generated binaries (#991)
 - Support flashing in secure download mode (#990, #1002)
-- Add ESP32-C61 chip support (#1009)
+- Added ESP32-C61 chip support (#1009)
 - Added ESP32-P4 ROM ELFs (#1014)
 - Added ESP32-P4 rev < 300 bootloader (#1016)
 - USB VID/PID 303a:1001 is listed as known (#1022)
-
-### Changed
 
 ### Fixed
 
@@ -30,8 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use `0x4000` flash write blocks in stub mode for better throughput (#1021)
 - [cargo-espflash]: Use CARGO_BUILD_TARGET environment variable in `cargo-espflash` if `--target` is not provided before falling back to the `target` from `config.toml` (#1024)
 - Fix `espflash flash` getting stuck on `Sync` command (#1030)
-
-### Removed
 
 ## [4.3.0] - 2025-12-15
 
@@ -477,7 +483,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-09-21
 
-[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.3.0...HEAD
+[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.4.0...HEAD
+[4.4.0]: https://github.com/esp-rs/espflash/compare/v4.3.0...v4.4.0
 [4.3.0]: https://github.com/esp-rs/espflash/compare/v4.2.0...v4.3.0
 [4.2.0]: https://github.com/esp-rs/espflash/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/esp-rs/espflash/compare/v4.0.1...v4.1.0

@@ -535,18 +535,18 @@ impl<'a> IdfBootloaderFormat<'a> {
             loop {
                 let pad_len = segment_padding(data.len(), &segment, mmu_page_size);
                 if pad_len > 0 {
-                    if pad_len > SEG_HEADER_LEN {
-                        if let Some(ram_segment) = ram_segments.first_mut() {
-                            // save up to `pad_len` from the ram segment, any remaining bits in the
-                            // ram segments will be saved later
-                            let pad_segment = ram_segment.split_off(pad_len as usize);
-                            checksum = save_segment(&mut data, &pad_segment, checksum)?;
-                            if ram_segment.data().is_empty() {
-                                ram_segments.remove(0);
-                            }
-                            segment_count += 1;
-                            continue;
+                    if pad_len > SEG_HEADER_LEN
+                        && let Some(ram_segment) = ram_segments.first_mut()
+                    {
+                        // save up to `pad_len` from the ram segment, any remaining bits in the
+                        // ram segments will be saved later
+                        let pad_segment = ram_segment.split_off(pad_len as usize);
+                        checksum = save_segment(&mut data, &pad_segment, checksum)?;
+                        if ram_segment.data().is_empty() {
+                            ram_segments.remove(0);
                         }
+                        segment_count += 1;
+                        continue;
                     }
 
                     let pad_header = SegmentHeader {
@@ -757,7 +757,7 @@ fn segment_padding(offset: usize, segment: &Segment<'_>, align_to: u32) -> u32 {
     let align_past = (segment.addr - SEG_HEADER_LEN) % align_to;
     let pad_len = ((align_to - ((offset as u32) % align_to)) + align_past) % align_to;
 
-    if pad_len % align_to == 0 {
+    if pad_len.is_multiple_of(align_to) {
         0
     } else if pad_len > SEG_HEADER_LEN {
         pad_len - SEG_HEADER_LEN
