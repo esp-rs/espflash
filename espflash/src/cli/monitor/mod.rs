@@ -496,21 +496,21 @@ pub fn check_monitor_args(
     }
 
     // Check if log-format is used with serial but output-format is specified
-    if let Some(LogFormat::Serial) = monitor_args.log_format {
-        if monitor_args.output_format.is_some() {
-            warn!(
-                "Output format specified but log format is serial. The output format option will be ignored."
-            );
-        }
+    if let Some(LogFormat::Serial) = monitor_args.log_format
+        && monitor_args.output_format.is_some()
+    {
+        warn!(
+            "Output format specified but log format is serial. The output format option will be ignored."
+        );
     }
 
     // Check if log-format is defmt but no ELF file is provided
-    if let Some(LogFormat::Defmt) = monitor_args.log_format {
-        if monitor_args.elf.is_none() {
-            warn!(
-                "Log format `defmt` requires an ELF file. Please provide one with the `--elf` option."
-            );
-        }
+    if let Some(LogFormat::Defmt) = monitor_args.log_format
+        && monitor_args.elf.is_none()
+    {
+        warn!(
+            "Log format `defmt` requires an ELF file. Please provide one with the `--elf` option."
+        );
     }
 
     Ok(())

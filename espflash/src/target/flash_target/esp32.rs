@@ -82,26 +82,26 @@ impl FlashTarget for Esp32Target {
         //
         // NOTE: In Secure Download Mode, WRITE_REG commands are not allowed, so we
         // must skip the watchdog disable.
-        if connection.is_using_usb_serial_jtag() && !connection.secure_download_mode {
-            if let (Some(wdt_wprotect), Some(wdt_config0)) =
+        if connection.is_using_usb_serial_jtag()
+            && !connection.secure_download_mode
+            && let (Some(wdt_wprotect), Some(wdt_config0)) =
                 (self.chip.wdt_wprotect(), self.chip.wdt_config0())
-            {
-                connection.command(Command::WriteReg {
-                    address: wdt_wprotect,
-                    value: WDT_WKEY,
-                    mask: None,
-                })?; // WP disable
-                connection.command(Command::WriteReg {
-                    address: wdt_config0,
-                    value: 0x0,
-                    mask: None,
-                })?; // turn off RTC WDT
-                connection.command(Command::WriteReg {
-                    address: wdt_wprotect,
-                    value: 0x0,
-                    mask: None,
-                })?; // WP enable
-            }
+        {
+            connection.command(Command::WriteReg {
+                address: wdt_wprotect,
+                value: WDT_WKEY,
+                mask: None,
+            })?; // WP disable
+            connection.command(Command::WriteReg {
+                address: wdt_config0,
+                value: 0x0,
+                mask: None,
+            })?; // turn off RTC WDT
+            connection.command(Command::WriteReg {
+                address: wdt_wprotect,
+                value: 0x0,
+                mask: None,
+            })?; // WP enable
         }
 
         Ok(())

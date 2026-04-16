@@ -575,13 +575,13 @@ impl Flasher {
         {
             // Detect which chip we are connected to.
             let detected_chip = connection.detect_chip(use_stub)?;
-            if let Some(chip) = chip {
-                if chip != detected_chip {
-                    return Err(Error::ChipMismatch(
-                        chip.to_string(),
-                        detected_chip.to_string(),
-                    ));
-                }
+            if let Some(chip) = chip
+                && chip != detected_chip
+            {
+                return Err(Error::ChipMismatch(
+                    chip.to_string(),
+                    detected_chip.to_string(),
+                ));
             }
             detected_chip
         } else if connection.before_operation() == ResetBeforeOperation::NoResetNoSync
@@ -637,11 +637,11 @@ impl Flasher {
 
         // Now that we have established a connection and detected the chip and flash
         // size, we can set the baud rate of the connection to the configured value.
-        if let Some(baud) = baud {
-            if baud > 115_200 {
-                warn!("Setting baud rate higher than 115,200 can cause issues");
-                flasher.change_baud(baud)?;
-            }
+        if let Some(baud) = baud
+            && baud > 115_200
+        {
+            warn!("Setting baud rate higher than 115,200 can cause issues");
+            flasher.change_baud(baud)?;
         }
 
         Ok(flasher)
@@ -1055,7 +1055,7 @@ impl Flasher {
 
         // If the file size is not divisible by 4, we need to pad `FF` bytes to the end
         let size = segment.data.len();
-        if size % 4 != 0 {
+        if !size.is_multiple_of(4) {
             let padded_bytes = 4 - (size % 4);
             segment
                 .data

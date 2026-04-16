@@ -192,7 +192,7 @@ impl fmt::Display for SecurityInfo {
         }
 
         // Flash Encryption
-        if self.flash_crypt_cnt.count_ones() % 2 != 0 {
+        if !self.flash_crypt_cnt.count_ones().is_multiple_of(2) {
             writeln!(f, "Flash Encryption: Enabled")?;
         } else {
             writeln!(f, "Flash Encryption: Disabled")?;

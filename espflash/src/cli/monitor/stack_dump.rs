@@ -22,69 +22,69 @@ pub(crate) fn backtrace_from_stack_dump(
             (first, second)
         };
 
-        if let Some(address) = address {
-            if let Some(stack) = stack {
-                if stack.len() % 2 != 0 {
-                    return Ok(());
+        if let Some(address) = address
+            && let Some(stack) = stack
+        {
+            if stack.len() % 2 != 0 {
+                return Ok(());
+            }
+
+            let mut pc = u32::from_str_radix(address, 16).unwrap_or_default();
+            let mut stack_bytes = Vec::new();
+            for byte_chars in stack.chars().collect::<Vec<char>>().chunks(2) {
+                if byte_chars.len() == 2 {
+                    stack_bytes.push(
+                        u8::from_str_radix(&format!("{}{}", byte_chars[0], byte_chars[1]), 16)
+                            .unwrap_or_default(),
+                    );
                 }
+            }
 
-                let mut pc = u32::from_str_radix(address, 16).unwrap_or_default();
-                let mut stack_bytes = Vec::new();
-                for byte_chars in stack.chars().collect::<Vec<char>>().chunks(2) {
-                    if byte_chars.len() == 2 {
-                        stack_bytes.push(
-                            u8::from_str_radix(&format!("{}{}", byte_chars[0], byte_chars[1]), 16)
-                                .unwrap_or_default(),
-                        );
-                    }
-                }
+            let mut func_info = Vec::new();
+            for elf in elfs {
+                func_info.append(&mut get_func_info(elf)?);
+            }
 
-                let mut func_info = Vec::new();
-                for elf in elfs {
-                    func_info.append(&mut get_func_info(elf)?);
-                }
-
-                writeln!(out).ok();
-                let mut index = 0;
-                loop {
-                    let func = func_info.iter().find(|f| f.start <= pc && f.end >= pc);
-                    if let Some(func) = func {
-                        if func.stack_frame_size == 0 {
-                            break;
-                        }
-
-                        let lookup_pc = pc as u64 - 4;
-
-                        for symbols in symbols {
-                            let name = symbols.name(lookup_pc);
-                            let location = symbols.location(lookup_pc);
-                            if let Some(name) = name {
-                                if let Some((file, line_num)) = location {
-                                    writeln!(out, "{name}\r\n    at {file}:{line_num}\r\n").ok();
-                                } else {
-                                    writeln!(out, "{name}\r\n    at ??:??\r\n").ok();
-                                }
-                            }
-                        }
-
-                        if index + func.stack_frame_size as usize > stack_bytes.len() {
-                            break;
-                        }
-
-                        let next_pc_pos = index + (func.stack_frame_size as usize - 4);
-
-                        pc = u32::from_le_bytes(
-                            stack_bytes[next_pc_pos..][..4]
-                                .try_into()
-                                .unwrap_or_default(),
-                        );
-                        index += func.stack_frame_size as usize;
-                    } else {
+            writeln!(out).ok();
+            let mut index = 0;
+            loop {
+                let func = func_info.iter().find(|f| f.start <= pc && f.end >= pc);
+                if let Some(func) = func {
+                    if func.stack_frame_size == 0 {
                         break;
                     }
+
+                    let lookup_pc = pc as u64 - 4;
+
+                    for symbols in symbols {
+                        let name = symbols.name(lookup_pc);
+                        let location = symbols.location(lookup_pc);
+                        if let Some(name) = name {
+                            if let Some((file, line_num)) = location {
+                                writeln!(out, "{name}\r\n    at {file}:{line_num}\r\n").ok();
+                            } else {
+                                writeln!(out, "{name}\r\n    at ??:??\r\n").ok();
+                            }
+                        }
+                    }
+
+                    if index + func.stack_frame_size as usize > stack_bytes.len() {
+                        break;
+                    }
+
+                    let next_pc_pos = index + (func.stack_frame_size as usize - 4);
+
+                    pc = u32::from_le_bytes(
+                        stack_bytes[next_pc_pos..][..4]
+                            .try_into()
+                            .unwrap_or_default(),
+                    );
+                    index += func.stack_frame_size as usize;
+                } else {
+                    break;
                 }
-                writeln!(out).ok();
             }
+            writeln!(out).ok();
         }
     }
 
