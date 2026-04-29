@@ -189,7 +189,7 @@ You can have a local and/or a global configuration file(s):
 
 [`defmt`]: https://defmt.ferrous-systems.com/
 [`defmt` section]: https://github.com/esp-rs/esp-hal/tree/main/esp-println#defmt
-[`defmt` project]: https://docs.esp-rs.org/no_std-training/03_7_defmt.html
+[`defmt` project]: https://docs.espressif.com/projects/rust/no_std-training/03_7_defmt.html
 
 ## Development Kit Support Policy
 
