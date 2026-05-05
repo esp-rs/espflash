@@ -557,31 +557,51 @@ impl Flasher {
     /// connecting, Flasher will change the baud rate to the `baud`
     /// parameter.
     pub fn connect(
-        mut connection: Connection,
+        connection: Connection,
         use_stub: bool,
         verify: bool,
         skip: bool,
         chip: Option<Chip>,
         baud: Option<u32>,
     ) -> Result<Self, Error> {
+        Self::try_connect(connection, use_stub, verify, skip, chip, baud).map_err(|e| e.0)
+    }
+
+    /// Attempt to connect to the boot rom. If an error is encountered,
+    /// return the error along with the [Connection] that was passed in.
+    pub fn try_connect(
+        mut connection: Connection,
+        use_stub: bool,
+        verify: bool,
+        skip: bool,
+        chip: Option<Chip>,
+        baud: Option<u32>,
+    ) -> Result<Self, Box<(Error, Connection)>> {
         // The connection should already be established with the device using the
         // default baud rate of 115,200 and timeout of 3 seconds.
-        connection.begin()?;
-        connection.set_timeout(DEFAULT_TIMEOUT)?;
+        if let Err(e) = connection.begin() {
+            return Err(Box::new((e, connection)));
+        }
+        if let Err(e) = connection.set_timeout(DEFAULT_TIMEOUT) {
+            return Err(Box::new((e, connection)));
+        }
 
         detect_sdm(&mut connection);
 
         let detected_chip = if connection.before_operation() != ResetBeforeOperation::NoResetNoSync
         {
             // Detect which chip we are connected to.
-            let detected_chip = connection.detect_chip(use_stub)?;
+            let detected_chip = match connection.detect_chip(use_stub) {
+                Ok(detected_chip) => detected_chip,
+                Err(e) => return Err(Box::new((e, connection))),
+            };
             if let Some(chip) = chip
                 && chip != detected_chip
             {
-                return Err(Error::ChipMismatch(
-                    chip.to_string(),
-                    detected_chip.to_string(),
-                ));
+                return Err(Box::new((
+                    Error::ChipMismatch(chip.to_string(), detected_chip.to_string()),
+                    connection,
+                )));
             }
             detected_chip
         } else if connection.before_operation() == ResetBeforeOperation::NoResetNoSync
@@ -589,7 +609,7 @@ impl Flasher {
         {
             chip.unwrap()
         } else {
-            return Err(Error::ChipNotProvided);
+            return Err(Box::new((Error::ChipNotProvided, connection)));
         };
 
         let chip_revision = if !connection.secure_download_mode {
@@ -626,10 +646,14 @@ impl Flasher {
             // Load flash stub if enabled.
             if use_stub {
                 info!("Using flash stub");
-                flasher.load_stub()?;
+                if let Err(e) = flasher.load_stub() {
+                    return Err(Box::new((e, flasher.into_connection())));
+                }
             }
             // Flash size autodetection doesn't work in Secure Download Mode.
-            flasher.spi_autodetect()?;
+            if let Err(e) = flasher.spi_autodetect() {
+                return Err(Box::new((e, flasher.into_connection())));
+            }
         } else if use_stub {
             warn!("Stub is not supported in Secure Download Mode, setting --no-stub");
             flasher.use_stub = false;
@@ -641,7 +665,9 @@ impl Flasher {
             && baud > 115_200
         {
             warn!("Setting baud rate higher than 115,200 can cause issues");
-            flasher.change_baud(baud)?;
+            if let Err(e) = flasher.change_baud(baud) {
+                return Err(Box::new((e, flasher.into_connection())));
+            }
         }
 
         Ok(flasher)
