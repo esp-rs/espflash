@@ -716,7 +716,9 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     if args.connect_args.non_interactive
         && !monitor_args.no_reset
         && flasher.connection().is_using_usb_serial_jtag()
-        && chip.can_rtc_wdt_reset(flasher.connection())?
+        && chip
+            .can_rtc_wdt_reset(flasher.connection())
+            .unwrap_or(false)
     {
         let port_name = serial::serial_port_info(&args.connect_args, config)?.port_name;
         chip.rtc_wdt_reset(flasher.connection())?;
