@@ -730,10 +730,22 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
             .map_err(Error::from)
             .wrap_err_with(|| format!("Failed to reopen serial port {port_name}"))?;
         monitor_args.no_reset = true;
-        return monitor(serial, elf_refs, pid, monitor_args, args.connect_args.non_interactive);
+        return monitor(
+            serial,
+            elf_refs,
+            pid,
+            monitor_args,
+            args.connect_args.non_interactive,
+        );
     }
 
-    monitor(flasher.into(), elf_refs, pid, monitor_args, args.connect_args.non_interactive)
+    monitor(
+        flasher.into(),
+        elf_refs,
+        pid,
+        monitor_args,
+        args.connect_args.non_interactive,
+    )
 }
 
 /// Convert the provided firmware image from ELF to binary
