@@ -688,7 +688,7 @@ pub(crate) enum RomErrorKind {
 #[cfg(feature = "serialport")]
 impl From<u8> for RomErrorKind {
     fn from(raw: u8) -> Self {
-        Self::from_repr(raw).unwrap_or_else(|| Self::Other(raw))
+        Self::from_repr(raw).unwrap_or(Self::Other(raw))
     }
 }
 

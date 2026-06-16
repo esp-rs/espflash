@@ -78,7 +78,7 @@ fn load_cargo_config(path: &Path) -> Result<Option<CargoConfig>> {
         .wrap_err_with(|| {
             format!(
                 "Failed to parse {}",
-                &config_path.as_path().to_string_lossy()
+                config_path.as_path().to_string_lossy()
             )
         })?;
 

@@ -132,12 +132,12 @@ impl Config {
         Self::validate_partition_table_path(&project_config)?;
         Self::validate_bootloader_path(&project_config)?;
 
-        debug!("Config: {:#?}", &project_config);
+        debug!("Config: {:#?}", project_config);
 
         let mut port_config =
             Self::load_port_config(&port_config_file, &project_config_file, &raw_data)?;
         port_config.save_path = port_config_file;
-        debug!("Port Config: {:#?}", &port_config);
+        debug!("Port Config: {:#?}", port_config);
 
         Ok(Config {
             project_config,
@@ -218,7 +218,7 @@ impl Config {
             if data.contains("[connection]") || data.contains("[[usb_device]]") {
                 log::info!(
                     "espflash@3 configuration detected. Migrating port config to port_config_file: {:#?}",
-                    &port_config_file
+                    port_config_file
                 );
 
                 let port_config: PortConfig = toml::from_str(&data).into_diagnostic()?;
