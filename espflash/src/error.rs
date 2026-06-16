@@ -599,7 +599,7 @@ impl From<CommandType> for TimedOutCommand {
 }
 
 /// Errors originating from a device's ROM functionality.
-#[derive(Clone, Copy, Debug, Default, Diagnostic, Error, strum::FromRepr)]
+#[derive(Clone, Copy, Debug, Diagnostic, Error, strum::FromRepr)]
 #[non_exhaustive]
 #[repr(u8)]
 #[cfg(feature = "serialport")]
@@ -672,16 +672,23 @@ pub(crate) enum RomErrorKind {
     #[diagnostic(code(espflash::rom::too_much_data))]
     TooMuchData = 0xc9,
 
-    #[default]
-    #[error("Other")]
+    #[error("NAND program failed")]
+    #[diagnostic(code(espflash::rom::nand_program))]
+    NandProgramFailed = 0xca,
+
+    #[error("NAND erase failed")]
+    #[diagnostic(code(espflash::rom::nand_erase))]
+    NandEraseFailed = 0xcb,
+
+    #[error("Other ({0:#02x})")]
     #[diagnostic(code(espflash::rom::other))]
-    Other = 0xff,
+    Other(u8),
 }
 
 #[cfg(feature = "serialport")]
 impl From<u8> for RomErrorKind {
     fn from(raw: u8) -> Self {
-        Self::from_repr(raw).unwrap_or_default()
+        Self::from_repr(raw).unwrap_or_else(|| Self::Other(raw))
     }
 }
 
