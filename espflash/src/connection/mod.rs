@@ -653,7 +653,7 @@ impl Connection {
                         let _error = self.flush();
                         Err(Error::RomError(Box::new(RomError::new(
                             command.command_type(),
-                            RomErrorKind::from(response.error),
+                            RomErrorKind::from(response.status),
                         ))))
                     } else {
                         // Check if the response is a Vector and strip header (first 8 bytes)
