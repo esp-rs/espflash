@@ -241,11 +241,11 @@ pub enum Error {
 
     /// Error while connecting to device
     #[error("Error while connecting to device")]
-    Connection(CoreError),
+    Connection(#[source] CoreError),
 
     /// Communication error while flashing device
     #[error("Communication error while flashing device")]
-    Flashing(CoreError),
+    Flashing(#[source] CoreError),
 
     /// Supplied ELF image is not valid
     #[error("Supplied ELF image is not valid")]
@@ -253,25 +253,25 @@ pub enum Error {
         code(espflash::invalid_elf),
         help("Try running `cargo clean` and rebuilding the image")
     )]
-    InvalidElf(CoreError),
+    InvalidElf(#[source] CoreError),
 
     /// Supplied ELF image contains an invalid application descriptor
     #[error("Supplied ELF image contains an invalid application descriptor")]
     #[diagnostic(code(espflash::invalid_app_descriptor))]
-    InvalidAppDescriptor(CoreError),
+    InvalidAppDescriptor(#[source] CoreError),
 
     /// The bootloader returned an error
     #[error("The bootloader returned an error")]
     #[cfg(feature = "serialport")]
-    RomError(CoreError),
+    RomError(#[source] CoreError),
 
     /// The selected partition does not exist in the partition table
     #[error("The selected partition does not exist in the partition table")]
-    MissingPartition(CoreError),
+    MissingPartition(#[source] CoreError),
 
     /// The partition table is missing or invalid
     #[error("The partition table is missing or invalid")]
-    MissingPartitionTable(CoreError),
+    MissingPartitionTable(#[source] CoreError),
 
     /// `defmt` error
     #[cfg(feature = "cli")]
@@ -308,7 +308,7 @@ pub enum Error {
 
     /// Failed to parse partition table
     #[error("Failed to parse partition table")]
-    Partition(CoreError),
+    Partition(#[source] CoreError),
 
     /// Invalid response from target device
     #[error("Invalid response: {0}")]
