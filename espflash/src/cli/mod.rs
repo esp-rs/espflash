@@ -709,6 +709,38 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let elfs = load_monitor_elfs(firmware_elf.as_deref(), &monitor_args, &dev_info)?;
     let elf_refs = elfs.refs();
 
+    // UsbJtagSerialReset issues USB_UART_CHIP_RESET, which does not re-initialize
+    // the RISC-V debug module, which causes probe-rs JTAG sessions to timing
+    // out on DMI access. rtc_wdt_reset performs a full chip reset that fixes this,
+    // but also causes USB re-enumeration, so the port must be reopened.
+    if args.connect_args.non_interactive
+        && !monitor_args.no_reset
+        && flasher.connection().is_using_usb_serial_jtag()
+        && chip
+            .can_rtc_wdt_reset(flasher.connection())
+            .unwrap_or(false)
+    {
+        let port_name = serial::serial_port_info(&args.connect_args, config)?.port_name;
+        chip.rtc_wdt_reset(flasher.connection())?;
+        drop(flasher);
+
+        // Reopen the port after the reset
+        std::thread::sleep(std::time::Duration::from_millis(1500));
+        let serial = serialport::new(&port_name, monitor_args.monitor_baud)
+            .flow_control(FlowControl::None)
+            .open_native()
+            .map_err(Error::from)
+            .wrap_err_with(|| format!("Failed to reopen serial port {port_name}"))?;
+        monitor_args.no_reset = true;
+        return monitor(
+            serial,
+            elf_refs,
+            pid,
+            monitor_args,
+            args.connect_args.non_interactive,
+        );
+    }
+
     monitor(
         flasher.into(),
         elf_refs,
