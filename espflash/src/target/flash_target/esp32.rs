@@ -272,10 +272,12 @@ impl FlashTarget for Esp32Target {
             // avoiding that error.
             let flash_end_reboot = connection.secure_download_mode || reboot;
             let result = if self.use_stub {
+                // Let the host-side reset path handle rebooting after stub flashing. Asking the
+                // stub to reboot from FLASH_DEFL_END can race with response handling on some
+                // ESP32-P4 revisions/stubs, while the command's non-reboot path just exits
+                // flash mode.
                 connection.with_timeout(CommandType::FlashDeflEnd.timeout(), |connection| {
-                    connection.command(Command::FlashDeflEnd {
-                        reboot: flash_end_reboot,
-                    })
+                    connection.command(Command::FlashDeflEnd { reboot: false })
                 })
             } else {
                 connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
