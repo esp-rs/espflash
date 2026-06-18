@@ -10,12 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `Flasher::try_connect()` as a variant of `Flasher::connect()` that returns the `Connection`
+- Add ESP32-P4 ECO6/ECO7 flash power-on handling (#1043)
 
 ### Changed
 
 - Update ESP32-P4 stub (#1037)
 
 ### Fixed
+
+- Fix flash finish command encoding and reset handling when using the stub loader (#1043)
 
 ### Removed
 
