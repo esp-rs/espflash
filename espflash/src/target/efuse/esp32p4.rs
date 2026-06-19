@@ -265,11 +265,13 @@ pub const FORCE_DISABLE_SW_INIT_KEY: EfuseField = EfuseField::new(0, 2, 77, 1);
 /// Set this bit to configure flash encryption use xts-128 key; else use xts-256
 /// key
 pub const XTS_KEY_LENGTH_256: EfuseField = EfuseField::new(0, 2, 78, 1);
-/// Reserved; it was created by set_missed_fields_in_regs func
-pub const RESERVE_0_79: EfuseField = EfuseField::new(0, 2, 79, 1);
+/// Set this bit to permanently turn on ECC const-time mode
+pub const ECC_FORCE_CONST_TIME: EfuseField = EfuseField::new(0, 2, 79, 1);
+/// Set this bit to power on XPD in download mode
+pub const DOWNLOAD_MODE_XPD_ON: EfuseField = EfuseField::new(0, 2, 80, 1);
 /// Represents whether RTC watchdog timeout threshold is selected at startup. 1:
 /// selected. 0: not selected
-pub const WDT_DELAY_SEL: EfuseField = EfuseField::new(0, 2, 80, 2);
+pub const WDT_DELAY_SEL: EfuseField = EfuseField::new(0, 2, 81, 1);
 /// Enables flash encryption when 1 or 3 bits are set and disables otherwise
 pub const SPI_BOOT_CRYPT_CNT: EfuseField = EfuseField::new(0, 2, 82, 3);
 /// Revoke 1st secure boot key

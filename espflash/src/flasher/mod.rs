@@ -643,6 +643,10 @@ impl Flasher {
         }
 
         if !flasher.connection.secure_download_mode {
+            if let Err(e) = flasher.power_on_flash() {
+                return Err(Box::new((e, flasher.into_connection())));
+            }
+
             // Load flash stub if enabled.
             if use_stub {
                 info!("Using flash stub");
@@ -693,6 +697,101 @@ impl Flasher {
             .chip
             .flash_target(self.spi_params, self.use_stub, false, false);
         target.begin(&mut self.connection).flashing()?;
+        Ok(())
+    }
+
+    fn power_on_flash(&mut self) -> Result<(), Error> {
+        if self.chip != Chip::Esp32p4 || self.connection.secure_download_mode {
+            return Ok(());
+        }
+
+        // Flash power-on related registers and bits needed for ESP32-P4 ECO6/ECO7.
+        const EFUSE_RD_REPEAT_DATA1_REG: u32 = 0x5012_D034;
+        const EFUSE_DOWNLOAD_MODE_XPD_ON_MASK: u32 = 1 << 16;
+        const LP_SYSTEM_REG_ANA_XPD_PAD_GROUP_REG: u32 = 0x5011_010C;
+        const PMU_EXT_LDO_P0_0P1A_REG: u32 = 0x5011_51B8;
+        const PMU_EXT_LDO_P0_0P1A_ANA_REG: u32 = 0x5011_51BC;
+        const PMU_DATE_REG: u32 = 0x5011_53FC;
+        const PMU_ANA_0P1A_EN_CUR_LIM_0: u32 = 1 << 27;
+        const PMU_0P1A_FORCE_TIEH_SEL_0: u32 = 1 << 7;
+        const PMU_0P1A_TARGET0_0: u32 = 0xFF << 23;
+
+        let Some((major, minor)) = self.chip_revision()? else {
+            debug!("Skipping ESP32-P4 flash power-on: chip revision is unknown");
+            return Ok(());
+        };
+
+        let revision = major * 100 + minor;
+        // Flash defaults off on ECO6/ECO7 after the 1.8 V -> 3.3 V default
+        // change. Other silicon revisions do not need this sequence.
+        if !matches!(revision, 301 | 302) {
+            return Ok(());
+        }
+
+        // On ECO7, skip the power-up sequence when DOWNLOAD_MODE_XPD_ON is
+        // programmed: ROM already asserts flash XPD in download mode. Clear the
+        // PMU date register to release the force-on state left by the ROM path.
+        if revision == 302
+            && (self.connection.read_reg(EFUSE_RD_REPEAT_DATA1_REG)?
+                & EFUSE_DOWNLOAD_MODE_XPD_ON_MASK)
+                != 0
+        {
+            debug!("Clearing ESP32-P4 ECO7 flash force-on state");
+            self.connection.write_reg(PMU_DATE_REG, 0, None)?;
+            return Ok(());
+        }
+
+        debug!("Powering on ESP32-P4 flash");
+
+        // Power up pad group.
+        self.connection
+            .write_reg(LP_SYSTEM_REG_ANA_XPD_PAD_GROUP_REG, 1, None)?;
+        sleep(Duration::from_millis(10));
+
+        // Flash power-up sequence.
+        let value = self.connection.read_reg(PMU_EXT_LDO_P0_0P1A_ANA_REG)?;
+        self.connection.write_reg(
+            PMU_EXT_LDO_P0_0P1A_ANA_REG,
+            value | PMU_ANA_0P1A_EN_CUR_LIM_0,
+            None,
+        )?;
+
+        let value = self.connection.read_reg(PMU_EXT_LDO_P0_0P1A_REG)?;
+        self.connection.write_reg(
+            PMU_EXT_LDO_P0_0P1A_REG,
+            value | PMU_0P1A_FORCE_TIEH_SEL_0,
+            None,
+        )?;
+
+        let value = self.connection.read_reg(PMU_DATE_REG)?;
+        self.connection.write_reg(PMU_DATE_REG, value | 3, None)?;
+        sleep(Duration::from_micros(50));
+
+        let value = self.connection.read_reg(PMU_EXT_LDO_P0_0P1A_ANA_REG)?;
+        self.connection.write_reg(
+            PMU_EXT_LDO_P0_0P1A_ANA_REG,
+            value & !PMU_ANA_0P1A_EN_CUR_LIM_0,
+            None,
+        )?;
+
+        let value = self.connection.read_reg(PMU_EXT_LDO_P0_0P1A_REG)?;
+        self.connection
+            .write_reg(PMU_EXT_LDO_P0_0P1A_REG, value & !PMU_0P1A_TARGET0_0, None)?;
+
+        // Update eFuse voltage to PMU.
+        let value = self.connection.read_reg(PMU_EXT_LDO_P0_0P1A_REG)?;
+        self.connection
+            .write_reg(PMU_EXT_LDO_P0_0P1A_REG, value | 0x80, None)?;
+
+        let value = self.connection.read_reg(PMU_EXT_LDO_P0_0P1A_REG)?;
+        self.connection.write_reg(
+            PMU_EXT_LDO_P0_0P1A_REG,
+            value & !PMU_0P1A_FORCE_TIEH_SEL_0,
+            None,
+        )?;
+
+        sleep(Duration::from_micros(1_800));
+
         Ok(())
     }
 

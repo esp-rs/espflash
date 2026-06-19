@@ -502,7 +502,8 @@ impl Command<'_> {
                 data_command(writer, data, pad_to, pad_byte, sequence)?;
             }
             Command::FlashEnd { reboot } => {
-                write_basic(writer, &[u8::from(!reboot)], 0)?;
+                // 0 means reboot, 1 means do nothing/run user code.
+                write_basic(writer, &u32::from(!reboot).to_le_bytes(), 0)?;
             }
             Command::MemBegin {
                 size,
@@ -618,8 +619,8 @@ impl Command<'_> {
             }
             Command::FlashDeflEnd { reboot } => {
                 // As per the logic here: https://github.com/espressif/esptool/blob/0a9caaf04cfde6fd97c785d4811f3fde09b1b71f/flasher_stub/stub_flasher.c#L402
-                // 0 means reboot, 1 means do nothing
-                write_basic(writer, &[u8::from(!reboot)], 0)?;
+                // 0 means reboot, 1 means do nothing/run user code.
+                write_basic(writer, &u32::from(!reboot).to_le_bytes(), 0)?;
             }
             Command::FlashMd5 { offset, size } => {
                 // length
