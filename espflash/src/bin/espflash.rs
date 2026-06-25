@@ -10,7 +10,7 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
-    image_format::{ImageFormat, ImageFormatKind, idf::check_idf_bootloader},
+    image_format::{ImageFormat, ImageFormatKind, Metadata, idf::check_idf_bootloader},
     logging::initialize_logger,
     update::check_for_update,
 };
@@ -291,6 +291,19 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             chip,
             target_xtal_freq,
         );
+
+        // Check that the connected chip meets the minimum revision required by the
+        // image.
+        let metadata_min_rev = Metadata::from_bytes(Some(elf_data.as_slice()))
+            .min_chip_revision()
+            .unwrap_or(0);
+        let effective_min_rev = flash_data.min_chip_rev.max(metadata_min_rev);
+        if effective_min_rev > 0 {
+            flasher
+                .verify_minimum_revision(effective_min_rev)
+                .into_diagnostic()?;
+        }
+
         let image_format = make_image_format_with_chip_revision(
             &elf_data,
             &flash_data,

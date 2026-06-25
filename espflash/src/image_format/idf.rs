@@ -26,7 +26,7 @@ use object::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use super::{Segment, ram_segments, rom_segments};
+use super::{Metadata, Segment, ram_segments, rom_segments};
 use crate::{
     Error,
     error::AppDescriptorError,
@@ -305,6 +305,13 @@ impl<'a> IdfBootloaderFormat<'a> {
     ) -> Result<Self, Error> {
         let elf = ElfFile::parse(elf_data)?;
 
+        // Use the minimum chip revision declared in the ELF metadata as a floor,
+        // allowing the CLI value to raise it further but not lower it.
+        let metadata_min_rev = Metadata::from_bytes(Some(elf_data))
+            .min_chip_revision()
+            .unwrap_or(0);
+        let min_chip_rev = flash_data.min_chip_rev.max(metadata_min_rev);
+
         let partition_table = if let Some(partition_table_path) = partition_table_path {
             let data = fs::read(partition_table_path)
                 .map_err(|e| Error::FileOpenError(partition_table_path.display().to_string(), e))?;
@@ -336,7 +343,7 @@ impl<'a> IdfBootloaderFormat<'a> {
                 flash_data.chip,
                 flash_data.xtal_freq,
                 chip_revision,
-                flash_data.min_chip_rev,
+                min_chip_rev,
             )?;
             Cow::Borrowed(default_bootloader)
         };
@@ -404,7 +411,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         header.entry = elf.elf_header().e_entry.get(Endianness::Little);
         header.wp_pin = WP_PIN_DISABLED;
         header.chip_id = flash_data.chip.id();
-        header.min_chip_rev_full = flash_data.min_chip_rev;
+        header.min_chip_rev_full = min_chip_rev;
         header.append_digest = 1;
 
         let mut data = bytes_of(&header).to_vec();
