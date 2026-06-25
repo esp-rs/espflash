@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Update ESP32-P4 stub (#1037)
-- Update ESP32-P4 rev > 300 bootloader (#1044)
+- Update ESP32-P4 rev >= 300 bootloader (#1044)
 
 
 ### Fixed
