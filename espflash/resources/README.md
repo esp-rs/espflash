@@ -16,9 +16,9 @@ CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
 CONFIG_ESP32P4_REV_MIN_100=y
 ```
 
-The `esp32p4-v3-bootloader.bin` was built from `espressif/esp-idf` commit `f82a059` (`v6.0.1`) with the following config:
+The `esp32p4-v3-bootloader.bin` was built with the following config:
 ```
-CONFIG_ESP32P4_REV_MIN_301=y
+CONFIG_ESP32P4_REV_MIN_300=y
 ```
 
 The flasher stubs are taken from the `espressif/esptool` repository:
