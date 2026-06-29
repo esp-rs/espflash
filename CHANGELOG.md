@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `Flasher::try_connect()` as a variant of `Flasher::connect()` that returns the `Connection`
 - Add ESP32-P4 ECO6/ECO7 flash power-on handling (#1043)
+- `--force` flag to ignore min_chip_revision (#1046)
 
 ### Changed
 
