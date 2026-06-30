@@ -281,6 +281,20 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         .or_else(|| flasher.flash_detect().ok().flatten()) // Try detecting flash size next
         .or_else(|| Some(FlashSize::default())); // Otherwise, use a reasonable default value
 
+    // Check that the connected chip meets the minimum revision required by the
+    // image (unless --force is passed or in secure download mode).
+    if !args.force && !flasher.secure_download_mode() {
+        let metadata_min_rev = Metadata::from_bytes(Some(elf_data.as_slice()))
+            .min_chip_revision()
+            .unwrap_or(0);
+        let effective_min_rev = args.flash_args.image.min_chip_rev.max(metadata_min_rev);
+        if effective_min_rev > 0 {
+            flasher
+                .verify_minimum_revision(effective_min_rev)
+                .into_diagnostic()?;
+        }
+    }
+
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, &mut EspflashProgress::default())?;
     } else {
@@ -291,20 +305,6 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             chip,
             target_xtal_freq,
         );
-
-        // Check that the connected chip meets the minimum revision required by the
-        // image (unless --force is passed or in secure download mode).
-        if !args.force && !flasher.secure_download_mode() {
-            let metadata_min_rev = Metadata::from_bytes(Some(elf_data.as_slice()))
-                .min_chip_revision()
-                .unwrap_or(0);
-            let effective_min_rev = flash_data.min_chip_rev.max(metadata_min_rev);
-            if effective_min_rev > 0 {
-                flasher
-                    .verify_minimum_revision(effective_min_rev)
-                    .into_diagnostic()?;
-            }
-        }
 
         let image_format = make_image_format_with_chip_revision(
             &elf_data,
