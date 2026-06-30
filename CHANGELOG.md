@@ -17,8 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update ESP32-P4 stub (#1037)
 - Update ESP32-P4 rev >= 300 bootloader (#1044, #1045)
-
-- Update ESP32-P4 rev > 300 bootloader (#1044)
 - MIN_CHIP_REVISION from ELF metadata is now taken into consideration when setting min_chip_rev_full in the flash image header. (#1046)
 
 ### Fixed
