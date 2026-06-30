@@ -15,7 +15,7 @@ use espflash::{
         *,
     },
     flasher::FlashSize,
-    image_format::{ImageFormat, ImageFormatKind, idf::check_idf_bootloader},
+    image_format::{ImageFormat, ImageFormatKind, Metadata, idf::check_idf_bootloader},
     logging::initialize_logger,
     target::Chip,
     update::check_for_update,
@@ -210,6 +210,9 @@ struct FlashArgs {
     /// ESP-IDF format arguments
     #[clap(flatten)]
     idf_format_args: cli::IdfFormatArgs,
+    /// Skip compatibility checks (chip revision, etc.). Use with caution!
+    #[clap(long)]
+    force: bool,
 }
 
 #[derive(Debug, Args)]
@@ -315,7 +318,6 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         args.flash_args.no_verify,
         args.flash_args.no_skip,
     )?;
-    flasher.verify_minimum_revision(args.flash_args.image.min_chip_rev)?;
 
     // If the user has provided a flash size via a command-line argument or config,
     // we'll override the detected (or default) value with this.
@@ -335,6 +337,20 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(build_ctx.artifact_path.clone()).into_diagnostic()?;
+
+    // Enforce minimum chip revision from ELF metadata (unless --force or secure
+    // download mode).
+    if !args.force && !flasher.secure_download_mode() {
+        let metadata_min_rev = Metadata::from_bytes(Some(elf_data.as_slice()))
+            .min_chip_revision()
+            .unwrap_or(0);
+        let effective_min_rev = args.flash_args.image.min_chip_rev.max(metadata_min_rev);
+        if effective_min_rev > 0 {
+            flasher
+                .verify_minimum_revision(effective_min_rev)
+                .into_diagnostic()?;
+        }
+    }
 
     if args.flash_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
         check_idf_bootloader(&elf_data)?;
