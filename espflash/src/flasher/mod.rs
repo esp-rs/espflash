@@ -525,6 +525,9 @@ impl DeviceInfo {
             Chip::Esp32s3 => {
                 Some(include_bytes!("../../resources/roms/esp32s3_rev0_rom.elf").into())
             }
+            Chip::Esp32s31 => {
+                Some(include_bytes!("../../resources/roms/esp32s31_rev0_rom.elf").into())
+            }
         }
     }
 }

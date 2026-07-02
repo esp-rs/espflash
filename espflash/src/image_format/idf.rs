@@ -71,7 +71,8 @@ const BOOTLOADER_ESP32S2: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin");
 const BOOTLOADER_ESP32S3: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin");
-
+const BOOTLOADER_ESP32S31: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32s31-bootloader.bin");
 /// Get the default bootloader for the given chip, crystal frequency, and
 /// chip revision.
 pub(crate) fn default_bootloader(
@@ -134,6 +135,10 @@ pub(crate) fn default_bootloader(
         },
         Chip::Esp32s3 => match xtal_freq {
             XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32S3),
+            _ => Err(error),
+        },
+        Chip::Esp32s31 => match xtal_freq {
+            XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32S31),
             _ => Err(error),
         },
     }
@@ -721,6 +726,7 @@ fn default_partition_table(chip: Chip, flash_size: Option<u32>) -> PartitionTabl
         Chip::Esp32p4 => (0x1_0000, 0x3f_0000),
         Chip::Esp32s2 => (0x1_0000, 0x10_0000),
         Chip::Esp32s3 => (0x1_0000, 0x10_0000),
+        Chip::Esp32s31 => (0x1_0000, 0x3f_0000),
     };
 
     PartitionTable::new(vec![
