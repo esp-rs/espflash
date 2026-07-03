@@ -215,7 +215,8 @@ pub enum Error {
 
     /// Unsupported chip revision for connected chip
     #[error(
-        "Minimum supported revision is {major}.{minor}, connected device's revision is {found_major}.{found_minor}"
+        "Minimum supported revision is {major}.{minor}, connected device's revision is {found_major}.{found_minor}. \
+         Use --force to override this check. Use with caution!"
     )]
     #[diagnostic(code(espflash::unsupported_chip_revision))]
     UnsupportedChipRevision {

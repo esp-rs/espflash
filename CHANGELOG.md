@@ -11,12 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `Flasher::try_connect()` as a variant of `Flasher::connect()` that returns the `Connection`
 - Add ESP32-P4 ECO6/ECO7 flash power-on handling (#1043)
+- `--force` flag to ignore min_chip_revision (#1046)
 
 ### Changed
 
 - Update ESP32-P4 stub (#1037)
 - Update ESP32-P4 rev >= 300 bootloader (#1044, #1045)
-
+- MIN_CHIP_REVISION from ELF metadata is now taken into consideration when setting min_chip_rev_full in the flash image header. (#1046)
 
 ### Fixed
 

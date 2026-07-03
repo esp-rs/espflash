@@ -80,4 +80,11 @@ impl Metadata {
     pub fn log_format(&self) -> Option<&str> {
         self.read_string("espflash.LOG_FORMAT")
     }
+
+    /// Returns the minimum chip revision declared by the image, in
+    /// `major * 100 + minor` format (e.g. `300` for v3.0).
+    pub fn min_chip_revision(&self) -> Option<u16> {
+        self.read_string("build_info.MIN_CHIP_REVISION")
+            .and_then(|s| s.parse().ok())
+    }
 }
