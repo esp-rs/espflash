@@ -158,6 +158,7 @@ impl Chip {
             Chip::Esp32p4 => Some(0x5011_6018),
             Chip::Esp32s2 => Some(0x3F40_80AC),
             Chip::Esp32s3 => Some(0x6000_80B0),
+            Chip::Esp32s31 => Some(0x2080_1018),
             _ => None,
         }
     }
@@ -170,6 +171,7 @@ impl Chip {
             Chip::Esp32p4 => Some(0x5011_6000),
             Chip::Esp32s2 => Some(0x3F40_8094),
             Chip::Esp32s3 => Some(0x6000_8098),
+            Chip::Esp32s31 => Some(0x2080_1000),
             _ => None,
         }
     }
@@ -182,6 +184,7 @@ impl Chip {
             Chip::Esp32p4 => Some(0x5011_6004),
             Chip::Esp32s2 => Some(0x3F40_8098),
             Chip::Esp32s3 => Some(0x6000_809C),
+            Chip::Esp32s31 => Some(0x2080_1004),
             _ => None,
         }
     }
@@ -751,7 +754,7 @@ impl Chip {
                 "BT 5.4",
                 "IEEE802.15.4",
                 "Dual Core",
-                "300MHz",
+                "320MHz",
             ]),
             Chip::Esp32p4 => Ok(vec!["High-Performance MCU"]),
             Chip::Esp32s2 => {
