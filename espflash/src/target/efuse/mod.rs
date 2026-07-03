@@ -15,6 +15,7 @@ pub mod esp32h2;
 pub mod esp32p4;
 pub mod esp32s2;
 pub mod esp32s3;
+pub mod esp32s31;
 
 #[allow(unused)]
 #[derive(Clone, Copy)]

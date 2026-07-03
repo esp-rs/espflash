@@ -21,6 +21,8 @@ The `esp32p4-v3-bootloader.bin` was built with the following config:
 CONFIG_ESP32P4_REV_MIN_300=y
 ```
 
+The `esp32s31-bootloader.bin` was built using rev `e9da155a72624fce88b8ef2cf3cde9aee2e6067f`. 
+
 The flasher stubs are taken from the `espressif/esptool` repository:
 https://github.com/espressif/esptool/tree/master/esptool/targets/stub_flasher/1
 
@@ -28,3 +30,4 @@ https://github.com/espressif/esptool/tree/master/esptool/targets/stub_flasher/1
 The roms are taken from the (`esp-rom-elfs`)[https://github.com/espressif/esp-rom-elfs] repository. Expect for:
 - ESP32-P4 rev3: Was built from `esp-rom-elfs` gitlab merge request 30.
 - `esp32c5_rev100_rom.elf` and `esp32c61_rev100_rom.elf`: taken from release `20260313` of `esp-rom-elfs`: https://github.com/espressif/esp-rom-elfs/releases/tag/20260313
+- `esp32s31_rev0_rom.elf`: taken from release `20260528` of `esp-rom-elfs`: https://github.com/espressif/esp-rom-elfs/releases/tag/20260528

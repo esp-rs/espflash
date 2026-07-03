@@ -39,6 +39,7 @@ const STUB_32P4: &str = include_str!("../../resources/stubs/esp32p4.toml");
 const STUB_32P4RC1: &str = include_str!("../../resources/stubs/esp32p4rc1.toml");
 const STUB_32S2: &str = include_str!("../../resources/stubs/esp32s2.toml");
 const STUB_32S3: &str = include_str!("../../resources/stubs/esp32s3.toml");
+const STUB_32S31: &str = include_str!("../../resources/stubs/esp32s31.toml");
 
 impl FlashStub {
     /// Fetch flash stub for the provided chip
@@ -71,6 +72,7 @@ impl FlashStub {
             }
             Chip::Esp32s2 => STUB_32S2,
             Chip::Esp32s3 => STUB_32S3,
+            Chip::Esp32s31 => STUB_32S31,
         };
 
         let stub: FlashStub = toml::from_str(s).unwrap();
