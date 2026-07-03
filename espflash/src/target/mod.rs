@@ -673,9 +673,8 @@ impl Chip {
                 FLASH_RANGES.iter().any(|range| range.contains(&addr))
             }
             Chip::Esp32s31 => {
-                // Datasheet: external flash = 256 MB at 0x40000000..0x50000000;
-                const FLASH_RANGES: &[std::ops::Range<u32>] = &[0x4000_0000..0x5000_0000];
-                FLASH_RANGES.iter().any(|range| range.contains(&addr))
+                // Datasheet: external flash = 256 MB at 0x40000000..0x50000000
+                (0x4000_0000..0x5000_0000).contains(&addr)
             }
         }
     }
