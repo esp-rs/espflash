@@ -3,7 +3,7 @@
 //! This module defines the traits and types used for flashing operations on a
 //! target device's flash memory.
 
-use std::io::Write;
+use std::{io::Write, time::Duration};
 
 use flate2::{
     Compression,
@@ -35,6 +35,8 @@ pub struct Esp32Target {
     verify: bool,
     skip: bool,
     need_flash_end: bool,
+    /// Deferred stub timeout for the final completion wait; esptool.py uses this on a final dummy read before flash_defl_finish().
+    flash_defl_end_timeout: Option<Duration>,
 }
 
 impl Esp32Target {
@@ -53,6 +55,7 @@ impl Esp32Target {
             verify,
             skip,
             need_flash_end: false,
+            flash_defl_end_timeout: None,
         }
     }
 }
@@ -258,6 +261,10 @@ impl FlashTarget for Esp32Target {
             progress.update(i + 1)
         }
 
+        if use_compression {
+            self.flash_defl_end_timeout = Some(deferred_stub_timeout);
+        }
+
         if self.verify {
             progress.verifying();
             let flash_checksum_md5: u128 = connection.with_timeout(
@@ -295,7 +302,17 @@ impl FlashTarget for Esp32Target {
                 // stub to reboot from FLASH_DEFL_END can race with response handling on some
                 // ESP32-P4 revisions/stubs, while the command's non-reboot path just exits
                 // flash mode.
-                connection.with_timeout(CommandType::FlashDeflEnd.timeout(), |connection| {
+                //
+                // Match esptool.py: FlashDeflEnd is not ACKed until the last compressed block
+                // has been written on-device, so use the deferred timeout from that block.
+                let flash_defl_end_timeout = self
+                    .flash_defl_end_timeout
+                    .unwrap_or_else(|| CommandType::FlashDeflEnd.timeout());
+                debug!(
+                    "FlashDeflEnd timeout={:.3}s",
+                    flash_defl_end_timeout.as_secs_f32(),
+                );
+                connection.with_timeout(flash_defl_end_timeout, |connection| {
                     connection.command(Command::FlashDeflEnd { reboot: false })
                 })
             } else {
