@@ -202,15 +202,27 @@ impl FlashTarget for Esp32Target {
         let mut decoder = ZlibDecoder::new(Vec::new());
         let mut decoded_size = 0;
 
+        let mut deferred_stub_timeout = CommandType::FlashDeflData.timeout();
+
         for (i, block) in chunks.enumerate() {
             if use_compression {
                 decoder.write_all(block)?;
                 decoder.flush()?;
                 let size = decoder.get_ref().len() - decoded_size;
                 decoded_size = decoder.get_ref().len();
+                let timeout_for_this_block = deferred_stub_timeout;
+                let timeout_for_next_block = CommandType::FlashDeflData.timeout_for_size(size as u32);
+
+                debug!(
+                    "FlashDeflData seq={i} compressed_len={} decoded_len={} timeout_now={:.3}s timeout_next={:.3}s",
+                    block.len(),
+                    size,
+                    timeout_for_this_block.as_secs_f32(),
+                    timeout_for_next_block.as_secs_f32(),
+                );
 
                 connection.with_timeout(
-                    CommandType::FlashDeflData.timeout_for_size(size as u32),
+                    timeout_for_this_block,
                     |connection| {
                         connection.command(Command::FlashDeflData {
                             sequence: i as u32,
@@ -221,6 +233,13 @@ impl FlashTarget for Esp32Target {
                         Ok(())
                     },
                 )?;
+
+                // Match esptool.py stub semantics: the stub ACKs once it has received
+                // the current compressed packet, then performs the corresponding flash
+                // write while the next packet is in flight. The timeout for the next
+                // packet therefore needs to reflect the amount of data this packet
+                // expands to on-device.
+                deferred_stub_timeout = timeout_for_next_block;
             } else {
                 connection.with_timeout(
                     CommandType::FlashData.timeout_for_size(block.len() as u32),
