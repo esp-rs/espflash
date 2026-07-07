@@ -619,7 +619,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["erase-flash"],
             Some(&["Flash has been erased!"]),
-            Duration::from_secs(40),
+            Duration::from_secs(300),
             "erase-flash",
         )?;
 
@@ -970,7 +970,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["erase-flash"],
             Some(&["Flash has been erased!"]),
-            Duration::from_secs(40),
+            Duration::from_secs(300),
             "erase-flash for checksum",
         )?;
 

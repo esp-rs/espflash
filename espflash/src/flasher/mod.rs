@@ -1298,10 +1298,24 @@ impl Flasher {
     pub fn erase_flash(&mut self) -> Result<(), Error> {
         debug!("Erasing the entire flash");
 
-        self.connection
-            .with_timeout(CommandType::EraseFlash.timeout(), |connection| {
-                connection.command(Command::EraseFlash)
-            })?;
+        if self.chip == Chip::Esp32 {
+            // The ESP32 stub can acknowledge chip erase almost immediately while
+            // leaving the bootloader region at 0x1000 intact. Use the region
+            // erase command across the detected flash size instead; it returns
+            // only after the erase has completed and is reliable on this target.
+            let size = self.flash_size.size();
+            debug!("Using region erase for ESP32 full-flash erase: 0x{size:x}B");
+            self.connection.with_timeout(
+                CommandType::EraseRegion.timeout_for_size(size),
+                |connection| connection.command(Command::EraseRegion { offset: 0, size }),
+            )?;
+        } else {
+            self.connection
+                .with_timeout(CommandType::EraseFlash.timeout(), |connection| {
+                    connection.command(Command::EraseFlash)
+                })?;
+        }
+
         sleep(Duration::from_secs_f32(0.05));
         self.connection.flush()?;
 
