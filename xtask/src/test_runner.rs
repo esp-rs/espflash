@@ -3,17 +3,13 @@ use std::{
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::{
-        Arc,
-        Mutex,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, Mutex},
     thread,
     time::{Duration, Instant},
 };
 
 use clap::{ArgAction, Args};
-use log::info;
+use log::{info, warn};
 
 use crate::Result;
 
@@ -165,48 +161,31 @@ impl TestRunner {
         Ok(output.clone())
     }
 
-    /// Runs a command with a timeout, returning the exit code
+    /// Runs a command with a timeout, returning the exit code.
     pub fn run_command_with_timeout(&self, cmd: &mut Command, timeout: Duration) -> Result<i32> {
         log::debug!("Running command: {cmd:?}");
         self.setup_command(cmd);
 
         let mut child = cmd.spawn()?;
-        let completed = Arc::new(AtomicBool::new(false));
         let child_id = child.id();
-        let completed_clone = Arc::clone(&completed);
+        let start_time = Instant::now();
 
-        let timer = thread::spawn(move || {
-            let interval = Duration::from_millis(100);
-            let mut elapsed = Duration::ZERO;
-
-            while elapsed < timeout {
-                thread::sleep(interval);
-                elapsed += interval;
-                if completed_clone.load(Ordering::SeqCst) {
-                    return;
-                }
+        loop {
+            if let Some(status) = child.try_wait()? {
+                let exit_code = status.code().unwrap_or(1);
+                log::debug!("Command exit code: {exit_code}");
+                return Ok(exit_code);
             }
 
-            log::warn!("Command timed out after {timeout:?}, killing process {child_id}");
-            Self::terminate_process(&mut None);
-        });
-
-        let status = match child.wait() {
-            Ok(s) => {
-                completed.store(true, Ordering::SeqCst);
-                s
+            if start_time.elapsed() >= timeout {
+                log::warn!("Command timed out after {timeout:?}, killing process {child_id}");
+                Self::terminate_process(&mut Some(&mut child));
+                Self::restore_terminal();
+                return Ok(124);
             }
-            Err(e) => {
-                completed.store(true, Ordering::SeqCst);
-                thread::sleep(Duration::from_millis(10));
-                return Err(format!("Command execution failed: {e}").into());
-            }
-        };
 
-        let _ = timer.join();
-        let exit_code = status.code().unwrap_or(1);
-        log::debug!("Command exit code: {exit_code}");
-        Ok(exit_code)
+            thread::sleep(Duration::from_millis(100));
+        }
     }
 
     /// Runs a command for a specified duration, returning whether it terminated
@@ -351,15 +330,30 @@ impl TestRunner {
         Ok(())
     }
 
-    fn is_flash_empty(&self, file_path: &Path, chip: Option<&str>) -> Result<bool> {
-        let flash_data = fs::read(file_path)?;
-        Ok(Self::is_erased_flash_data(&flash_data, chip))
+    fn is_erased_flash_data(data: &[u8], chip: Option<&str>) -> bool {
+        Self::first_non_erased_bytes(data, chip, 1).is_empty()
     }
 
-    fn is_erased_flash_data(data: &[u8], chip: Option<&str>) -> bool {
-        data.iter().enumerate().all(|(offset, &byte)| {
-            byte == 0xFF || Self::is_esp32p4_erased_read_artifact(offset, byte, chip)
-        })
+    fn first_non_erased_bytes(data: &[u8], chip: Option<&str>, limit: usize) -> Vec<(usize, u8)> {
+        data.iter()
+            .enumerate()
+            .filter_map(|(offset, &byte)| {
+                if byte == 0xFF || Self::is_esp32p4_erased_read_artifact(offset, byte, chip) {
+                    None
+                } else {
+                    Some((offset, byte))
+                }
+            })
+            .take(limit)
+            .collect()
+    }
+
+    fn format_non_erased_bytes(non_erased: &[(usize, u8)]) -> String {
+        non_erased
+            .iter()
+            .map(|(offset, byte)| format!("0x{offset:04x}=0x{byte:02x}"))
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 
     fn is_esp32p4_erased_read_artifact(offset: usize, byte: u8, chip: Option<&str>) -> bool {
@@ -629,21 +623,41 @@ impl TestRunner {
             "erase-flash",
         )?;
 
-        // Read a portion of the flash to verify it's erased
-        self.run_simple_command_test(
-            &["read-flash", "0", "0x4000", flash_output.to_str().unwrap()],
-            Some(&["Flash content successfully read"]),
-            Duration::from_secs(10),
-            "read after erase",
-        )?;
+        // Read a portion of the flash to verify it's erased. On some USB/JTAG
+        // setups the chip can still be settling after the reset at the end of a
+        // full-chip erase, so retry the verification read before failing.
+        let mut last_non_erased = Vec::new();
+        for attempt in 1..=3 {
+            self.run_simple_command_test(
+                &["read-flash", "0", "0x4000", flash_output.to_str().unwrap()],
+                Some(&["Flash content successfully read"]),
+                Duration::from_secs(10),
+                "read after erase",
+            )?;
 
-        // Verify the flash is empty (all 0xFF)
-        if let Ok(is_empty) = self.is_flash_empty(&flash_output, chip) {
-            if !is_empty {
-                return Err("Flash is not empty after erase-flash command".into());
+            let flash_data =
+                fs::read(&flash_output).map_err(|_| "Failed to read flash_content.bin file")?;
+            last_non_erased = Self::first_non_erased_bytes(&flash_data, chip, 16);
+            if last_non_erased.is_empty() {
+                log::info!("erase-flash verification passed on attempt {attempt}");
+                break;
             }
-        } else {
-            return Err("Failed to check if flash is empty".into());
+
+            if attempt < 3 {
+                warn!(
+                    "erase-flash verification attempt {attempt} found non-erased bytes: {}; retrying after settle delay",
+                    Self::format_non_erased_bytes(&last_non_erased)
+                );
+                thread::sleep(Duration::from_secs(2));
+            }
+        }
+
+        if !last_non_erased.is_empty() {
+            return Err(format!(
+                "Flash is not empty after erase-flash command; first non-erased bytes: {}",
+                Self::format_non_erased_bytes(&last_non_erased)
+            )
+            .into());
         }
 
         log::info!("erase-flash test passed");

@@ -165,12 +165,61 @@ jobs:
           echo "$PWD/xtask_app" >> "$GITHUB_PATH"
 
       - name: Reset device
+        shell: bash
         run: |
-          espflash reset
+          set -x
+
+          wait_for_port() {
+            local timeout="$1"
+            for attempt in $(seq 1 "${timeout}"); do
+              udevadm settle --timeout=1 || true
+              if [[ -e "${ESPFLASH_PORT}" ]]; then
+                return 0
+              fi
+              echo "Waiting for ${ESPFLASH_PORT} to appear (${attempt}/${timeout})"
+              ls -la /dev/serial_ports || true
+              sleep 1
+            done
+            return 1
+          }
+
+          power_cycle_usb() {
+            if [[ -n "${HIL_USB_POWER_CYCLE_CMD:-}" ]]; then
+              eval "${HIL_USB_POWER_CYCLE_CMD}"
+            elif command -v uhubctl >/dev/null && [[ -n "${HIL_UHUBCTL_LOCATION:-}" && -n "${HIL_UHUBCTL_PORT:-}" ]]; then
+              sudo -n uhubctl -l "${HIL_UHUBCTL_LOCATION}" -p "${HIL_UHUBCTL_PORT}" -a cycle \
+                || uhubctl -l "${HIL_UHUBCTL_LOCATION}" -p "${HIL_UHUBCTL_PORT}" -a cycle
+            else
+              echo "::error::${ESPFLASH_PORT} did not appear and no USB power-cycle command is configured. Set HIL_USB_POWER_CYCLE_CMD, or HIL_UHUBCTL_LOCATION/HIL_UHUBCTL_PORT for uhubctl, on the runner."
+              return 1
+            fi
+          }
+
+          echo "ESPFLASH_PORT=${ESPFLASH_PORT}"
+          if ! wait_for_port 30; then
+            echo "::warning::${ESPFLASH_PORT} did not appear; power-cycling the runner USB port"
+            power_cycle_usb
+            sleep 2
+            wait_for_port 60
+          fi
+
+          espflash reset || echo "::warning::Initial espflash reset failed; continuing after USB settle delay"
           sleep 5
+          ls -la /dev/serial_ports || true
 
       - name: Run all tests
         run: xtask run-tests --chip ${{ matrix.target.soc }} -t 60 --no-build
+
+      - name: Upload HIL debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hil-debug-${{ matrix.target.soc }}-${{ matrix.target.port }}
+          path: |
+            espflash/tests/flash_content.bin
+            espflash/tests/app.bin
+            espflash/tests/pattern.bin
+          if-no-files-found: ignore
 
   # SDM Tests (VM - ESP32C6)
   build-sdm-packages:
