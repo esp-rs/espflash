@@ -546,21 +546,21 @@ impl<'a> IdfBootloaderFormat<'a> {
         for segment in flash_segments {
             loop {
                 let pad_len = segment_padding(data.len(), &segment, mmu_page_size);
-                if pad_len > 0 {
-                    if pad_len > SEG_HEADER_LEN
-                        && let Some(ram_segment) = ram_segments.first_mut()
-                    {
-                        // save up to `pad_len` from the ram segment, any remaining bits in the
-                        // ram segments will be saved later
-                        let pad_segment = ram_segment.split_off(pad_len as usize);
-                        checksum = save_segment(&mut data, &pad_segment, checksum)?;
-                        if ram_segment.data().is_empty() {
-                            ram_segments.remove(0);
-                        }
-                        segment_count += 1;
-                        continue;
-                    }
 
+                // Optimisation: if flash segments need padding, we fill it up with RAM
+                // segment data if we can, to save space in the final image.
+                if pad_len > SEG_HEADER_LEN
+                    && let Some(ram_segment) = ram_segments.first_mut()
+                {
+                    // save up to `pad_len` from the ram segment, any remaining bits in the
+                    // ram segments will be saved later
+                    let pad_segment = ram_segment.split_off(pad_len as usize);
+                    checksum = save_segment(&mut data, &pad_segment, checksum)?;
+                    if ram_segment.data().is_empty() {
+                        ram_segments.remove(0);
+                    }
+                    segment_count += 1;
+                } else if pad_len > 0 {
                     let pad_header = SegmentHeader {
                         addr: 0,
                         length: pad_len,
