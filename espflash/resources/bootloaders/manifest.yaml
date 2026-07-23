@@ -6,6 +6,8 @@
 
 defaults:
   idf_ref: release/v6.1
+  configs:
+    - '# CONFIG_BOOTLOADER_COMPILE_TIME_DATE is not set'
 
 bootloaders:
   - name: esp32
