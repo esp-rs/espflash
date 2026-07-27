@@ -961,6 +961,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "esp-metadata-generated"
+version = "0.4.0"
+
+[[package]]
 name = "espflash"
 version = "4.5.0"
 dependencies = [
@@ -978,6 +982,7 @@ dependencies = [
  "directories",
  "env_logger",
  "esp-idf-part",
+ "esp-metadata-generated",
  "flate2",
  "gimli 0.32.3",
  "indicatif",
