@@ -1,0 +1,93 @@
+# Bootloader generation manifest for `cargo run -p xtask -- build-bootloaders`.
+#
+# The committed binaries are ESP-IDF second-stage bootloaders generated from a
+# minimal ESP-IDF project with the ESP-IDF refs and per-target sdkconfig fragments
+# listed below.
+
+defaults:
+  idf_ref: release/v6.1
+  configs:
+    - '# CONFIG_BOOTLOADER_COMPILE_TIME_DATE is not set'
+
+bootloaders:
+  - name: esp32
+    target: esp32
+    output: esp32-bootloader.bin
+
+  - name: esp32-26mhz
+    target: esp32
+    output: esp32_26-bootloader.bin
+    configs:
+      - CONFIG_XTAL_FREQ_26=y
+      - CONFIG_XTAL_FREQ=26
+
+  - name: esp32c2
+    target: esp32c2
+    output: esp32c2-bootloader.bin
+    configs:
+      - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y
+      - CONFIG_ESPTOOLPY_FLASHSIZE="64MB"
+
+  - name: esp32c2-26mhz
+    target: esp32c2
+    output: esp32c2_26-bootloader.bin
+    configs:
+      - CONFIG_XTAL_FREQ_26=y
+      - CONFIG_XTAL_FREQ=26
+      - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y
+      - CONFIG_ESPTOOLPY_FLASHSIZE="64MB"
+
+  - name: esp32c3
+    target: esp32c3
+    output: esp32c3-bootloader.bin
+
+  - name: esp32c5
+    target: esp32c5
+    output: esp32c5-bootloader.bin
+
+  - name: esp32c6
+    target: esp32c6
+    output: esp32c6-bootloader.bin
+    configs:
+      - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y
+      - CONFIG_ESPTOOLPY_FLASHSIZE="64MB"
+
+  - name: esp32c61
+    target: esp32c61
+    output: esp32c61-bootloader.bin
+    configs:
+      - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y
+      - CONFIG_ESPTOOLPY_FLASHSIZE="64MB"
+
+  - name: esp32h2
+    target: esp32h2
+    output: esp32h2-bootloader.bin
+    configs:
+      - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y
+      - CONFIG_ESPTOOLPY_FLASHSIZE="64MB"
+
+  - name: esp32p4-v0
+    target: esp32p4
+    output: esp32p4-v0-bootloader.bin
+    configs:
+      - CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+      - CONFIG_ESP32P4_REV_MIN_100=y
+
+  - name: esp32p4-v3
+    target: esp32p4
+    output: esp32p4-v3-bootloader.bin
+    configs:
+      - CONFIG_ESP32P4_REV_MIN_300=y
+
+  - name: esp32s2
+    target: esp32s2
+    output: esp32s2-bootloader.bin
+
+  - name: esp32s3
+    target: esp32s3
+    output: esp32s3-bootloader.bin
+
+  - name: esp32s31
+    target: esp32s31
+    output: esp32s31-bootloader.bin
+    preview: true

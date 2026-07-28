@@ -1,4 +1,5 @@
 [alias]
 xtask = "run --package xtask --"
+build-bootloaders = "run --package xtask -- build-bootloaders"
 xgenerate-efuse-fields = "run --package xtask --features=efuse-generator -- generate-efuse-fields"
 xrun = "run --package espflash --"
