@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- Bump MSRV to 1.95.0 (#1056)
 
 ### Fixed
 - Regenerate efuses for S31 (#1053)

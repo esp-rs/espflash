@@ -6,6 +6,7 @@
 
 use std::collections::HashMap;
 
+use esp_metadata_generated::Chip as MetadataChip;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, VariantNames};
 
@@ -601,81 +602,28 @@ impl Chip {
 
     /// Returns whether the provided address `addr` in flash.
     pub fn addr_is_flash(&self, addr: u32) -> bool {
+        let layout = self.metadata().memory_layout();
+
+        ["irom", "drom"].into_iter().any(|name| {
+            layout
+                .region(name)
+                .is_some_and(|region| region.range().contains(&addr))
+        })
+    }
+
+    fn metadata(&self) -> MetadataChip {
         match self {
-            Chip::Esp32 => {
-                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
-                    0x400d_0000..0x4040_0000, // IROM
-                    0x3f40_0000..0x3f80_0000, // DROM
-                ];
-                FLASH_RANGES.iter().any(|range| range.contains(&addr))
-            }
-            Chip::Esp32c2 => {
-                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
-                    0x4200_0000..0x4240_0000, // IROM
-                    0x3c00_0000..0x3c40_0000, // DROM
-                ];
-                FLASH_RANGES.iter().any(|range| range.contains(&addr))
-            }
-            Chip::Esp32c3 => {
-                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
-                    0x4200_0000..0x4280_0000, // IROM
-                    0x3c00_0000..0x3c80_0000, // DROM
-                ];
-                FLASH_RANGES.iter().any(|range| range.contains(&addr))
-            }
-            Chip::Esp32c5 => {
-                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
-                    0x3c00_0000..0x3c80_0000, // DROM
-                    0x4200_0000..0x4280_0000, // IROM
-                ];
-                FLASH_RANGES.iter().any(|range| range.contains(&addr))
-            }
-            Chip::Esp32c6 => {
-                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
-                    0x4200_0000..0x4280_0000, // IROM
-                    0x3c00_0000..0x3c80_0000, // DROM
-                ];
-                FLASH_RANGES.iter().any(|range| range.contains(&addr))
-            }
-            Chip::Esp32c61 => {
-                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
-                    0x4200_0000..0x4280_0000, // IROM
-                    0x3c00_0000..0x3c80_0000, // DROM
-                ];
-                FLASH_RANGES.iter().any(|range| range.contains(&addr))
-            }
-            Chip::Esp32h2 => {
-                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
-                    0x4200_0000..0x4280_0000, // IROM
-                    0x3c00_0000..0x3c80_0000, // DROM
-                ];
-                FLASH_RANGES.iter().any(|range| range.contains(&addr))
-            }
-            Chip::Esp32p4 => {
-                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
-                    0x4800_0000..0x4C00_0000, // IROM
-                    0x4000_0000..0x4400_0000, // DROM
-                ];
-                FLASH_RANGES.iter().any(|range| range.contains(&addr))
-            }
-            Chip::Esp32s2 => {
-                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
-                    0x4008_0000..0x4180_0000, // IROM
-                    0x3f00_0000..0x3f3f_0000, // DROM
-                ];
-                FLASH_RANGES.iter().any(|range| range.contains(&addr))
-            }
-            Chip::Esp32s3 => {
-                const FLASH_RANGES: &[std::ops::Range<u32>] = &[
-                    0x4200_0000..0x4400_0000, // IROM
-                    0x3c00_0000..0x3e00_0000, // DROM
-                ];
-                FLASH_RANGES.iter().any(|range| range.contains(&addr))
-            }
-            Chip::Esp32s31 => {
-                // Datasheet: external flash = 256 MB at 0x40000000..0x50000000
-                (0x4000_0000..0x5000_0000).contains(&addr)
-            }
+            Chip::Esp32 => MetadataChip::Esp32,
+            Chip::Esp32c2 => MetadataChip::Esp32c2,
+            Chip::Esp32c3 => MetadataChip::Esp32c3,
+            Chip::Esp32c5 => MetadataChip::Esp32c5,
+            Chip::Esp32c6 => MetadataChip::Esp32c6,
+            Chip::Esp32c61 => MetadataChip::Esp32c61,
+            Chip::Esp32h2 => MetadataChip::Esp32h2,
+            Chip::Esp32p4 => MetadataChip::Esp32p4,
+            Chip::Esp32s2 => MetadataChip::Esp32s2,
+            Chip::Esp32s3 => MetadataChip::Esp32s3,
+            Chip::Esp32s31 => MetadataChip::Esp32s31,
         }
     }
 
