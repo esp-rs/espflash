@@ -963,6 +963,7 @@ dependencies = [
 [[package]]
 name = "esp-metadata-generated"
 version = "0.4.0"
+source = "git+https://github.com/esp-rs/esp-hal?rev=d91ecc5#d91ecc513f4e7915ce239f05f24d561a81fa2f46"
 
 [[package]]
 name = "espflash"
