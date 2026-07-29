@@ -143,6 +143,10 @@ jobs:
             runner: esp32s3-usb
             port: uart
             host: armv7
+          - soc: esp32s31
+            runner: esp32s31-jtag
+            port: uart
+            host: aarch64
 
     steps:
       - uses: actions/checkout@v6
