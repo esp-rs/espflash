@@ -139,6 +139,26 @@ jobs:
           chmod +x hil-bin/espflash hil-bin/xtask
           echo "$PWD/hil-bin" >> "$GITHUB_PATH"
 
+      - name: Prepare device
+        run: |
+          # Native USB can be unavailable when the firmware left by a previous
+          # run disabled it. Recover through UART when that connection exists.
+          if [[ ! -e "$ESPFLASH_PORT" && "${{ matrix.target.port }}" == "usb" && -e /dev/serial_ports/uart ]]; then
+            espflash reset --port /dev/serial_ports/uart
+          fi
+
+          for _ in {1..30}; do
+            [[ -e "$ESPFLASH_PORT" ]] && break
+            sleep 1
+          done
+          if [[ ! -e "$ESPFLASH_PORT" ]]; then
+            echo "Serial port did not appear: $ESPFLASH_PORT" >&2
+            exit 1
+          fi
+
+          espflash reset
+          sleep 5
+
       - name: Run all tests
         run: >-
           xtask run-tests --chip ${{ matrix.target.soc }} --timeout 90
