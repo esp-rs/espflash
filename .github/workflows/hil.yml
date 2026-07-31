@@ -61,11 +61,7 @@ jobs:
           retention-days: 1
 
   run-tests:
-    # Never execute untrusted pull-request code on a persistent self-hosted runner.
-    if: >-
-      github.repository_owner == 'esp-rs' &&
-      (github.event_name != 'pull_request' ||
-       github.event.pull_request.head.repo.full_name == github.repository)
+    if: github.repository_owner == 'esp-rs'
     name: HIL | ${{ matrix.target.soc }} | ${{ matrix.target.port }}
     needs: build-packages
     runs-on: [self-hosted, linux, ARM64, "${{ matrix.target.runner }}"]
@@ -186,11 +182,7 @@ jobs:
           retention-days: 1
 
   run-sdm-tests:
-    # Never execute untrusted pull-request code on a persistent self-hosted runner.
-    if: >-
-      github.repository_owner == 'esp-rs' &&
-      (github.event_name != 'pull_request' ||
-       github.event.pull_request.head.repo.full_name == github.repository)
+    if: github.repository_owner == 'esp-rs'
     name: HIL (SDM) | esp32c6
     needs: build-sdm-packages
     runs-on: [self-hosted, "linux", "x64", "esp32c6"]
