@@ -129,7 +129,9 @@ impl DefmtData {
 
         let table = match Table::parse(elf) {
             Ok(Some(table)) => table,
-            Ok(None) => bail!(DefmtError::NoDefmtData),
+            Ok(None) => {
+                bail!(DefmtError::NoDefmtData);
+            }
             Err(e) => return Err(DefmtError::TableParseFailed).with_context(|| e),
         };
 
