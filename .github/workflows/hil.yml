@@ -50,14 +50,14 @@ jobs:
         run: cross build --release --target aarch64-unknown-linux-gnu -p espflash -p xtask
 
       - name: Upload espflash-aarch64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: espflash-aarch64
           path: target/aarch64-unknown-linux-gnu/release/espflash
           if-no-files-found: error
 
       - name: Upload xtask-aarch64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: xtask-aarch64
           path: target/aarch64-unknown-linux-gnu/release/xtask
@@ -180,14 +180,14 @@ jobs:
         run: cargo build --release -p espflash -p xtask
 
       - name: Upload espflash
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: espflash
           path: target/release/espflash
           if-no-files-found: error
 
       - name: Upload xtask
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: xtask
           path: target/release/xtask
