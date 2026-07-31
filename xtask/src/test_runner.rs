@@ -1234,7 +1234,10 @@ mod tests {
     fn command_timeout_really_terminates_process() {
         let runner = runner();
         let mut command = Command::new("sh");
-        command.args(["-c", "sleep 5"]);
+        // Use a shell builtin loop so killing the shell closes its output pipes;
+        // a spawned `sleep` process would inherit those pipes and make the reader
+        // threads wait for an unrelated descendant.
+        command.args(["-c", "while :; do :; done"]);
         let start = Instant::now();
         let result = runner
             .execute_command(&mut command, Duration::from_millis(100), None)
@@ -1264,7 +1267,7 @@ mod tests {
     fn expected_output_stops_long_running_command_early() {
         let runner = runner();
         let mut command = Command::new("sh");
-        command.args(["-c", "echo ready; sleep 5"]);
+        command.args(["-c", "echo ready; while :; do :; done"]);
         let start = Instant::now();
         let result = runner
             .execute_command(&mut command, Duration::from_secs(2), Some(&["ready"]))
