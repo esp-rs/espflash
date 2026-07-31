@@ -17,6 +17,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  ESPFLASH_SKIP_UPDATE_CHECK: "true"
   RUST_LOG: debug
 
 # Cancel any currently running workflows from the same PR, branch, or
@@ -25,7 +26,7 @@ env:
 # https://stackoverflow.com/a/66336834
 concurrency:
   cancel-in-progress: true
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.inputs.repository || github.repository }}-${{ github.event.inputs.branch || github.ref }}
 
 jobs:
   build-packages:
@@ -49,25 +50,26 @@ jobs:
       - name: Build binaries
         run: cross build --release --target aarch64-unknown-linux-gnu -p espflash -p xtask
 
-      - name: Upload espflash-aarch64
+      - name: Upload HIL binaries
         uses: actions/upload-artifact@v7
         with:
-          name: espflash-aarch64
-          path: target/aarch64-unknown-linux-gnu/release/espflash
+          name: hil-aarch64
+          path: |
+            target/aarch64-unknown-linux-gnu/release/espflash
+            target/aarch64-unknown-linux-gnu/release/xtask
           if-no-files-found: error
-
-      - name: Upload xtask-aarch64
-        uses: actions/upload-artifact@v7
-        with:
-          name: xtask-aarch64
-          path: target/aarch64-unknown-linux-gnu/release/xtask
-          if-no-files-found: error
+          retention-days: 1
 
   run-tests:
-    if: github.repository_owner == 'esp-rs'
+    # Never execute untrusted pull-request code on a persistent self-hosted runner.
+    if: >-
+      github.repository_owner == 'esp-rs' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
     name: HIL | ${{ matrix.target.soc }} | ${{ matrix.target.port }}
     needs: build-packages
     runs-on: [self-hosted, linux, ARM64, "${{ matrix.target.runner }}"]
+    timeout-minutes: 30
     env:
       ESPFLASH_PORT: /dev/serial_ports/${{ matrix.target.port }}
 
@@ -93,6 +95,7 @@ jobs:
           - soc: esp32c6
             runner: esp32c6-usb
             port: uart
+            extra-args: --extended
           - soc: esp32c61
             runner: esp32c61-usb
             port: usb
@@ -126,31 +129,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: ${{ github.event.inputs.repository || github.repository }}
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - uses: actions/download-artifact@v7
         with:
-          name: espflash-aarch64
-          path: espflash_app
-
-      - uses: actions/download-artifact@v7
-        with:
-          name: xtask-aarch64
-          path: xtask_app
+          name: hil-aarch64
+          path: hil-bin
 
       - name: Set up binaries
         run: |
-          chmod +x espflash_app/espflash
-          chmod +x xtask_app/xtask
-          echo "$PWD/espflash_app" >> "$GITHUB_PATH"
-          echo "$PWD/xtask_app" >> "$GITHUB_PATH"
-
-      - name: Reset device
-        run: |
-          espflash reset
-          sleep 5
+          chmod +x hil-bin/espflash hil-bin/xtask
+          echo "$PWD/hil-bin" >> "$GITHUB_PATH"
 
       - name: Run all tests
-        run: xtask run-tests --chip ${{ matrix.target.soc }} -t 60 --no-build
+        run: >-
+          xtask run-tests --chip ${{ matrix.target.soc }} --timeout 90
+          --espflash "$PWD/hil-bin/espflash" ${{ matrix.target.extra-args }}
 
   # SDM Tests (VM - ESP32C6)
   build-sdm-packages:
@@ -179,46 +175,46 @@ jobs:
       - name: Build binaries
         run: cargo build --release -p espflash -p xtask
 
-      - name: Upload espflash
+      - name: Upload HIL binaries
         uses: actions/upload-artifact@v7
         with:
-          name: espflash
-          path: target/release/espflash
+          name: hil-sdm
+          path: |
+            target/release/espflash
+            target/release/xtask
           if-no-files-found: error
+          retention-days: 1
 
-      - name: Upload xtask
-        uses: actions/upload-artifact@v7
-        with:
-          name: xtask
-          path: target/release/xtask
-          if-no-files-found: error
   run-sdm-tests:
-    if: github.repository_owner == 'esp-rs'
+    # Never execute untrusted pull-request code on a persistent self-hosted runner.
+    if: >-
+      github.repository_owner == 'esp-rs' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
     name: HIL (SDM) | esp32c6
     needs: build-sdm-packages
     runs-on: [self-hosted, "linux", "x64", "esp32c6"]
+    timeout-minutes: 30
     env:
       ESPFLASH_PORT: /dev/serial_ports/esp32c6
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: ${{ github.event.inputs.repository || github.repository }}
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - uses: actions/download-artifact@v7
         with:
-          name: espflash
-          path: espflash_app
-
-      - uses: actions/download-artifact@v7
-        with:
-          name: xtask
-          path: xtask_app
+          name: hil-sdm
+          path: hil-bin
 
       - name: Set up binaries
         run: |
-          chmod +x espflash_app/espflash
-          chmod +x xtask_app/xtask
-          echo "$PWD/espflash_app" >> "$GITHUB_PATH"
-          echo "$PWD/xtask_app" >> "$GITHUB_PATH"
+          chmod +x hil-bin/espflash hil-bin/xtask
+          echo "$PWD/hil-bin" >> "$GITHUB_PATH"
 
       - name: Run all tests
-        run: xtask run-tests --chip esp32c6 -t 60 --no-build --sdm
+        run: >-
+          xtask run-tests --chip esp32c6 --timeout 90 --sdm
+          --espflash "$PWD/hil-bin/espflash"
