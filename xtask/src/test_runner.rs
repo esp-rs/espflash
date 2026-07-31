@@ -1,13 +1,10 @@
 use std::{
+    env,
     fs,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
-    process::{Child, Command, Stdio},
-    sync::{
-        Arc,
-        Mutex,
-        atomic::{AtomicBool, Ordering},
-    },
+    process::{Child, Command, ExitStatus, Stdio},
+    sync::{Arc, Mutex},
     thread,
     time::{Duration, Instant},
 };
@@ -17,12 +14,24 @@ use log::info;
 
 use crate::Result;
 
-type SpawnedCommandOutput = (
+const SUPPORTED_CHIPS: [&str; 11] = [
+    "esp32", "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32h2", "esp32p4",
+    "esp32s2", "esp32s3", "esp32s31",
+];
+
+type SpawnedCommand = (
     Child,
     Arc<Mutex<String>>,
     thread::JoinHandle<()>,
     thread::JoinHandle<()>,
 );
+
+struct CommandOutput {
+    status: ExitStatus,
+    output: String,
+    timed_out: bool,
+}
+
 /// Arguments for running tests
 #[derive(Debug, Args)]
 pub struct RunTestsArgs {
@@ -31,253 +40,199 @@ pub struct RunTestsArgs {
     pub test: String,
 
     /// Chip target
-    #[clap(short, long)]
+    #[clap(
+        short,
+        long,
+        value_parser = clap::builder::PossibleValuesParser::new(SUPPORTED_CHIPS)
+    )]
     pub chip: Option<String>,
 
-    /// Timeout for test commands in seconds
-    #[clap(short, long, default_value = "15")]
+    /// Maximum duration of each command, in seconds
+    #[clap(short, long, default_value = "60")]
     pub timeout: u64,
 
-    /// Whether to build espflash before running tests, true by default
+    /// Do not build espflash; find it in PATH instead
     #[arg(long = "no-build", action = ArgAction::SetFalse, default_value_t = true)]
     pub build_espflash: bool,
 
-    /// Flag to run SDM HIL tests
-    #[arg(long = "sdm", action = ArgAction::SetTrue, default_value_t = false)]
+    /// espflash executable to test (also disables the local build)
+    #[arg(long, value_name = "PATH")]
+    pub espflash: Option<PathBuf>,
+
+    /// Run extended hardware command and option coverage
+    #[arg(long)]
+    pub extended: bool,
+
+    /// Run the subset supported in secure download mode
+    #[arg(long)]
     pub sdm: bool,
 }
 
-/// A struct to manage and run tests for the espflash
+/// A struct to manage and run tests for espflash.
 pub struct TestRunner {
     /// The workspace directory where the tests are located
     pub workspace: PathBuf,
     /// The directory containing the test files
     pub tests_dir: PathBuf,
-    /// Timeout for test commands
+    /// Maximum duration of each command
     pub timeout: Duration,
-    /// Optional chip target for tests
-    pub chip: Option<String>,
-    /// Build espflash before running tests
-    pub build_espflash: bool,
+    /// espflash executable under test
+    pub espflash: PathBuf,
 }
 
 impl TestRunner {
-    /// Creates a new [TestRunner] instance
-    pub fn new(
-        workspace: &Path,
-        tests_dir: PathBuf,
-        timeout_secs: u64,
-        build_espflash: bool,
-    ) -> Self {
+    /// Creates a new [TestRunner] instance.
+    pub fn new(workspace: &Path, tests_dir: PathBuf, timeout_secs: u64, espflash: PathBuf) -> Self {
         Self {
             workspace: workspace.to_path_buf(),
             tests_dir,
             timeout: Duration::from_secs(timeout_secs),
-            chip: None,
-            build_espflash,
+            espflash,
         }
     }
 
     fn setup_command(&self, cmd: &mut Command) {
         cmd.current_dir(&self.workspace)
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
-    }
-
-    fn terminate_process(child: &mut Option<&mut Child>) {
-        if let Some(child_proc) = child {
-            let _ = child_proc.kill();
-
-            // Wait for the process to terminate
-            if let Some(child_proc) = child {
-                let _ = child_proc.wait();
-            }
-        }
+            // Update checks make HIL slower and introduce an unnecessary network
+            // dependency. This also exercises the global environment option.
+            .env("ESPFLASH_SKIP_UPDATE_CHECK", "true");
     }
 
     fn restore_terminal() {
         #[cfg(unix)]
-        {
+        if std::io::IsTerminal::is_terminal(&std::io::stdin()) {
             let _ = Command::new("stty").arg("sane").status();
         }
     }
 
-    fn spawn_and_capture_output(cmd: &mut Command) -> Result<SpawnedCommandOutput> {
+    fn spawn_and_capture_output(&self, cmd: &mut Command) -> Result<SpawnedCommand> {
+        self.setup_command(cmd);
         info!("Spawning command: {cmd:?}");
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
         let mut child = cmd.spawn()?;
-        let stdout = child.stdout.take().expect("Failed to capture stdout");
-        let stderr = child.stderr.take().expect("Failed to capture stderr");
+        let stdout = child.stdout.take().expect("stdout was configured as piped");
+        let stderr = child.stderr.take().expect("stderr was configured as piped");
 
         let output = Arc::new(Mutex::new(String::new()));
-        let out_clone1 = Arc::clone(&output);
-        let out_clone2 = Arc::clone(&output);
+        let stdout_output = Arc::clone(&output);
+        let stderr_output = Arc::clone(&output);
 
         let stdout_handle = thread::spawn(move || {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines().map_while(|line| line.ok()) {
+            for line in BufReader::new(stdout).lines().map_while(|line| line.ok()) {
                 println!("{line}");
-                out_clone1.lock().unwrap().push_str(&line);
-                out_clone1.lock().unwrap().push('\n');
+                if let Ok(mut output) = stdout_output.lock() {
+                    output.push_str(&line);
+                    output.push('\n');
+                }
             }
         });
-
         let stderr_handle = thread::spawn(move || {
-            let reader = BufReader::new(stderr);
-            for line in reader.lines().map_while(|line| line.ok()) {
-                println!("{line}");
-                out_clone2.lock().unwrap().push_str(&line);
-                out_clone2.lock().unwrap().push('\n');
+            for line in BufReader::new(stderr).lines().map_while(|line| line.ok()) {
+                eprintln!("{line}");
+                if let Ok(mut output) = stderr_output.lock() {
+                    output.push_str(&line);
+                    output.push('\n');
+                }
             }
         });
 
         Ok((child, output, stdout_handle, stderr_handle))
     }
 
-    fn run_command_capture_output_with_timeout(
+    fn output_contains_all(output: &Arc<Mutex<String>>, expected: &[&str]) -> bool {
+        output
+            .lock()
+            .map(|output| expected.iter().all(|value| output.contains(value)))
+            .unwrap_or(false)
+    }
+
+    fn execute_command(
+        &self,
         cmd: &mut Command,
         timeout: Duration,
-        test_name: &str,
-    ) -> Result<String> {
-        let (mut child, output, h1, h2) = Self::spawn_and_capture_output(cmd)?;
-        let start_time = Instant::now();
-        let grace = Duration::from_millis(500);
-        let mut terminated_naturally = false;
+        stop_after: Option<&[&str]>,
+    ) -> Result<CommandOutput> {
+        let (mut child, output, stdout_handle, stderr_handle) =
+            self.spawn_and_capture_output(cmd)?;
+        let start = Instant::now();
+        let mut timed_out = false;
 
-        while start_time.elapsed() < timeout + grace {
-            if let Ok(Some(_)) = child.try_wait() {
-                terminated_naturally = true;
-                break;
-            }
-            thread::sleep(Duration::from_millis(100));
-        }
-
-        if !terminated_naturally {
-            log::warn!("{test_name} test timed out after {timeout:?}, terminating process");
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-
-        let _ = h1.join();
-        let _ = h2.join();
-
-        let output = output.lock().unwrap();
-        Ok(output.clone())
-    }
-
-    /// Runs a command with a timeout, returning the exit code
-    pub fn run_command_with_timeout(&self, cmd: &mut Command, timeout: Duration) -> Result<i32> {
-        log::debug!("Running command: {cmd:?}");
-        self.setup_command(cmd);
-
-        let mut child = cmd.spawn()?;
-        let completed = Arc::new(AtomicBool::new(false));
-        let child_id = child.id();
-        let completed_clone = Arc::clone(&completed);
-
-        let timer = thread::spawn(move || {
-            let interval = Duration::from_millis(100);
-            let mut elapsed = Duration::ZERO;
-
-            while elapsed < timeout {
-                thread::sleep(interval);
-                elapsed += interval;
-                if completed_clone.load(Ordering::SeqCst) {
-                    return;
-                }
+        let status = loop {
+            // Monitors do not exit by themselves. Stop as soon as all expected
+            // output arrives instead of sleeping for the whole timeout.
+            if stop_after.is_some_and(|expected| Self::output_contains_all(&output, expected)) {
+                let _ = child.kill();
+                break child.wait()?;
             }
 
-            log::warn!("Command timed out after {timeout:?}, killing process {child_id}");
-            Self::terminate_process(&mut None);
-        });
+            if let Some(status) = child.try_wait()? {
+                break status;
+            }
 
-        let status = match child.wait() {
-            Ok(s) => {
-                completed.store(true, Ordering::SeqCst);
-                s
+            if start.elapsed() >= timeout {
+                timed_out = true;
+                log::warn!(
+                    "Command timed out after {timeout:?}; terminating process {}",
+                    child.id()
+                );
+                let _ = child.kill();
+                break child.wait()?;
             }
-            Err(e) => {
-                completed.store(true, Ordering::SeqCst);
-                thread::sleep(Duration::from_millis(10));
-                return Err(format!("Command execution failed: {e}").into());
-            }
+
+            thread::sleep(Duration::from_millis(50));
         };
 
-        let _ = timer.join();
-        let exit_code = status.code().unwrap_or(1);
-        log::debug!("Command exit code: {exit_code}");
-        Ok(exit_code)
-    }
-
-    /// Runs a command for a specified duration, returning whether it terminated
-    /// naturally
-    pub fn run_command_for(&self, cmd: &mut Command, duration: Duration) -> Result<bool> {
-        log::debug!("Running command: {cmd:?}");
-        let mut child = cmd.spawn()?;
-        let start_time = Instant::now();
-        let mut naturally_terminated = false;
-
-        if let Ok(Some(_)) = child.try_wait() {
-            naturally_terminated = true;
-        } else {
-            thread::sleep(duration);
-            if let Ok(Some(_)) = child.try_wait() {
-                naturally_terminated = true;
-            }
-        }
-
-        if !naturally_terminated {
-            log::info!(
-                "Command ran for {:?}, terminating process {}",
-                start_time.elapsed(),
-                child.id()
-            );
-            Self::terminate_process(&mut Some(&mut child));
-        }
-
+        let _ = stdout_handle.join();
+        let _ = stderr_handle.join();
         Self::restore_terminal();
-        log::debug!("Command completed after {:?}", start_time.elapsed());
 
-        Ok(naturally_terminated)
+        let output = output
+            .lock()
+            .map_err(|_| "command output mutex was poisoned")?
+            .clone();
+        Ok(CommandOutput {
+            status,
+            output,
+            timed_out,
+        })
     }
 
-    fn build_espflash(&self) {
-        let mut cmd = Command::new("cargo");
-
-        log::info!("Building espflash...");
-        cmd.args(["build", "-p", "espflash", "--release", "--"]);
-
-        let status = cmd.status().expect("Failed to build espflash");
-        if !status.success() {
-            panic!("espflash build failed with status: {status}");
+    /// Runs a command with a timeout, returning the exit code.
+    pub fn run_command_with_timeout(&self, cmd: &mut Command, timeout: Duration) -> Result<i32> {
+        let result = self.execute_command(cmd, timeout, None)?;
+        if result.timed_out {
+            return Err(format!("Command timed out after {timeout:?}: {cmd:?}").into());
         }
+        Ok(result.status.code().unwrap_or(1))
+    }
+
+    fn build_espflash(workspace: &Path) -> Result<PathBuf> {
+        log::info!("Building espflash...");
+        let status = Command::new("cargo")
+            .current_dir(workspace)
+            .args(["build", "-p", "espflash", "--release"])
+            .status()?;
+        if !status.success() {
+            return Err(format!("espflash build failed with status: {status}").into());
+        }
+
+        let target_dir = match env::var_os("CARGO_TARGET_DIR") {
+            Some(path) if Path::new(&path).is_absolute() => PathBuf::from(path),
+            Some(path) => workspace.join(path),
+            None => workspace.join("target"),
+        };
+        Ok(target_dir
+            .join("release")
+            .join(format!("espflash{}", env::consts::EXE_SUFFIX)))
     }
 
     fn create_espflash_command(&self, args: &[&str]) -> Command {
-        let mut cmd = Command::new("cargo");
-
-        // we need to distinguish between local and CI runs, on CI we are building
-        // espflash and then copying the binary, so we can use just `espflash`
-        match self.build_espflash {
-            true => {
-                log::info!("Running cargo run...");
-                cmd.args(["run", "-p", "espflash", "--release", "--quiet", "--"]);
-            }
-            false => {
-                log::info!("Using system espflash");
-                let mut cmd = Command::new("espflash");
-                cmd.args(args);
-                return cmd;
-            }
-        }
-
+        let mut cmd = Command::new(&self.espflash);
         cmd.args(args);
-
         cmd
     }
 
-    /// Runs a simple command test, capturing output and checking for expected
-    /// outputs
+    /// Runs a command to completion and verifies its status and output.
     pub fn run_simple_command_test(
         &self,
         args: &[&str],
@@ -287,67 +242,58 @@ impl TestRunner {
     ) -> Result<()> {
         log::info!("Running {test_name} test");
         let mut cmd = self.create_espflash_command(args);
+        let result = self.execute_command(&mut cmd, timeout, None)?;
 
+        if result.timed_out {
+            return Err(format!("{test_name} timed out after {timeout:?}").into());
+        }
+        if !result.status.success() {
+            return Err(format!("{test_name} failed with status {}", result.status).into());
+        }
         if let Some(expected) = expected_contains {
-            let output =
-                Self::run_command_capture_output_with_timeout(&mut cmd, timeout, test_name)?;
-            for &expected in expected {
-                if !output.contains(expected) {
-                    Self::restore_terminal();
-                    return Err(format!("Missing expected output: {expected}").into());
+            for value in expected {
+                if !result.output.contains(value) {
+                    return Err(format!("{test_name}: missing expected output: {value}").into());
                 }
             }
-
-            log::info!("{test_name} test passed and output verified");
-        } else {
-            let exit_code = self.run_command_with_timeout(&mut cmd, timeout)?;
-            if exit_code != 0 {
-                return Err(
-                    format!("{test_name} test failed: non-zero exit code {exit_code}").into(),
-                );
-            }
-
-            log::info!("{test_name} test passed with exit code 0");
         }
 
+        log::info!("{test_name} test passed");
         Ok(())
     }
 
-    /// Runs a timed command test, capturing output and checking for expected
-    /// outputs after a specified duration
+    /// Runs a command until all expected output is observed or the timeout
+    /// expires. This is used for monitor commands which intentionally do not
+    /// terminate naturally.
     pub fn run_timed_command_test(
         &self,
         args: &[&str],
         expected_contains: Option<&[&str]>,
-        duration: Duration,
+        timeout: Duration,
         test_name: &str,
     ) -> Result<()> {
         log::info!("Running {test_name} test");
         let mut cmd = self.create_espflash_command(args);
+        let result = self.execute_command(&mut cmd, timeout, expected_contains)?;
 
         if let Some(expected) = expected_contains {
-            let (mut child, output, h1, h2) = Self::spawn_and_capture_output(&mut cmd)?;
-            thread::sleep(duration);
-            let _ = child.kill();
-            let _ = child.wait();
-            let _ = h1.join();
-            let _ = h2.join();
-
-            let output = output.lock().unwrap();
-            for &expected in expected {
-                if !output.contains(expected) {
-                    Self::restore_terminal();
-                    return Err(format!("Missing expected output: {expected}").into());
+            for value in expected {
+                if !result.output.contains(value) {
+                    let reason = if result.timed_out {
+                        format!("timed out after {timeout:?}")
+                    } else {
+                        format!("exited with status {}", result.status)
+                    };
+                    return Err(
+                        format!("{test_name} {reason}; missing expected output: {value}").into(),
+                    );
                 }
             }
-
-            log::info!("{test_name} test passed and output verified");
-        } else {
-            let terminated_naturally = self.run_command_for(&mut cmd, duration)?;
-            log::info!("{test_name} test completed (terminated naturally: {terminated_naturally})");
+        } else if !result.status.success() && !result.timed_out {
+            return Err(format!("{test_name} failed with status {}", result.status).into());
         }
 
-        Self::restore_terminal();
+        log::info!("{test_name} test passed");
         Ok(())
     }
 
@@ -380,40 +326,48 @@ impl TestRunner {
     }
 
     /// Runs all tests in the test suite, optionally overriding the chip target
-    pub fn run_all_tests(&self, chip_override: Option<&str>, sdm: bool) -> Result<()> {
+    pub fn run_all_tests(
+        &self,
+        chip_override: Option<&str>,
+        sdm: bool,
+        extended: bool,
+    ) -> Result<()> {
         log::info!("Running all tests");
 
-        let chip = chip_override.or(self.chip.as_deref()).unwrap_or("esp32");
+        let chip = chip_override.unwrap_or("esp32");
 
         if sdm {
-            self.test_board_info()?;
+            self.test_board_info(chip)?;
             self.test_save_image_write_bin(Some(chip))?;
             self.test_hold_in_reset()?;
             self.test_reset()?;
-            self.test_list_ports()?;
-            self.test_flash(Some(chip))?;
-            self.test_monitor()?;
+            self.test_list_ports(false)?;
+            self.test_flash(Some(chip), false)?;
+            self.test_monitor(chip)?;
         } else if chip == "esp32p4" {
             // ESP32-P4 flash stub currently reports erased bytes and MD5 checksums
             // differently in some ranges, so keep the default suite to tests that
             // are stable on this target.
-            self.test_board_info()?;
+            self.test_board_info(chip)?;
             self.test_erase_flash(Some(chip))?;
             self.test_hold_in_reset()?;
             self.test_reset()?;
-            self.test_list_ports()?;
+            self.test_list_ports(extended)?;
         } else {
-            self.test_board_info()?;
+            self.test_board_info(chip)?;
             self.test_erase_flash(Some(chip))?;
             self.test_save_image_write_bin(Some(chip))?;
+            if extended {
+                self.test_erase_parts(Some(chip))?;
+            }
             self.test_erase_region(Some(chip))?;
             self.test_hold_in_reset()?;
             self.test_reset()?;
-            self.test_list_ports()?;
+            self.test_list_ports(extended)?;
             self.test_checksum_md5()?;
             self.test_read_flash()?;
-            self.test_flash(Some(chip))?;
-            self.test_monitor()?;
+            self.test_flash(Some(chip), extended)?;
+            self.test_monitor(chip)?;
         }
 
         log::info!("All tests completed successfully");
@@ -427,27 +381,29 @@ impl TestRunner {
         chip_override: Option<&str>,
         sdm: bool,
     ) -> Result<()> {
-        let chip = chip_override.or(self.chip.as_deref()).unwrap_or("esp32");
+        let chip = chip_override.unwrap_or("esp32");
 
         if sdm {
             return match test_name {
-                "board-info" => self.test_board_info(),
+                "board-info" => self.test_board_info(chip),
+                "flash" => self.test_flash(Some(chip), false),
                 "save-image" | "write-bin" | "save-image-write-bin" => {
                     self.test_save_image_write_bin(Some(chip))
                 }
                 "hold-in-reset" => self.test_hold_in_reset(),
                 "reset" => self.test_reset(),
-                "list-ports" => self.test_list_ports(),
-                "monitor" => self.test_monitor(),
+                "list-ports" => self.test_list_ports(false),
+                "monitor" => self.test_monitor(chip),
                 _ => Err(format!("Unknown or unsupported SDM test: {test_name}").into()),
             };
         }
 
         match test_name {
-            "board-info" => self.test_board_info(),
-            "flash" => self.test_flash(Some(chip)),
-            "monitor" => self.test_monitor(),
+            "board-info" => self.test_board_info(chip),
+            "flash" => self.test_flash(Some(chip), false),
+            "monitor" => self.test_monitor(chip),
             "erase-flash" => self.test_erase_flash(Some(chip)),
+            "erase-parts" => self.test_erase_parts(Some(chip)),
             "save-image" | "write-bin" | "save-image-write-bin" => {
                 self.test_save_image_write_bin(Some(chip))
             }
@@ -455,25 +411,142 @@ impl TestRunner {
             "hold-in-reset" => self.test_hold_in_reset(),
             "reset" => self.test_reset(),
             "checksum-md5" => self.test_checksum_md5(),
-            "list-ports" => self.test_list_ports(),
+            "list-ports" => self.test_list_ports(true),
+            "partition-table" | "offline" => self.test_offline_commands(chip),
             "read-flash" => self.test_read_flash(),
             _ => Err(format!("Unknown test: {test_name}").into()),
         }
     }
 
     // Board info test
-    pub fn test_board_info(&self) -> Result<()> {
+    pub fn test_board_info(&self, chip: &str) -> Result<()> {
         self.run_simple_command_test(
-            &["board-info"],
-            Some(&["Chip type:"]),
-            Duration::from_secs(10),
+            &[
+                "board-info",
+                "--baud",
+                "115200",
+                "--after",
+                "hard-reset",
+                "--before",
+                "default-reset",
+                "--confirm-port",
+                "--list-all-ports",
+                "--non-interactive",
+            ],
+            Some(&[&format!("Chip type:         {chip}")]),
+            self.timeout,
             "board-info",
         )
     }
 
+    /// Tests commands that do not require hardware and exercises image options
+    /// which would otherwise make every HIL target perform another flash.
+    pub fn test_offline_commands(&self, chip: &str) -> Result<()> {
+        log::info!("Running extended offline command tests for {chip}");
+        let partition_csv = "espflash/tests/data/partitions.csv";
+        let partition_bin = self.tests_dir.join("partitions.bin");
+        let partition_roundtrip = self.tests_dir.join("partitions-roundtrip.csv.bin");
+        let options_image = self.tests_dir.join("options-image.bin");
+        let app = format!("espflash/tests/data/{chip}");
+
+        self.run_simple_command_test(
+            &[
+                "partition-table",
+                "--to-binary",
+                "--output",
+                partition_bin.to_str().unwrap(),
+                partition_csv,
+            ],
+            None,
+            self.timeout,
+            "partition table CSV to binary",
+        )?;
+        self.run_simple_command_test(
+            &[
+                "partition-table",
+                "--to-csv",
+                "--output",
+                partition_roundtrip.to_str().unwrap(),
+                partition_bin.to_str().unwrap(),
+            ],
+            None,
+            self.timeout,
+            "partition table binary to CSV",
+        )?;
+        let roundtrip = fs::read_to_string(&partition_roundtrip)?;
+        for label in ["nvs", "phy_init", "factory"] {
+            if !roundtrip.contains(label) {
+                return Err(format!("partition table roundtrip lost partition {label}").into());
+            }
+        }
+        self.run_simple_command_test(
+            &["partition-table", partition_csv],
+            Some(&["factory", "0x10000"]),
+            self.timeout,
+            "partition table display",
+        )?;
+
+        let flash_frequency = match chip {
+            "esp32c2" => "30mhz",
+            "esp32h2" => "24mhz",
+            _ => "40mhz",
+        };
+        let bootloader_name = match chip {
+            "esp32p4" => "esp32p4-v3-bootloader.bin".to_owned(),
+            _ => format!("{chip}-bootloader.bin"),
+        };
+        let bootloader = self
+            .workspace
+            .join("espflash/resources/bootloaders")
+            .join(bootloader_name);
+        let mut args = vec![
+            "save-image",
+            "--merge",
+            "--skip-padding",
+            "--chip",
+            chip,
+            "--flash-freq",
+            flash_frequency,
+            "--flash-mode",
+            "dio",
+            "--flash-size",
+            "8mb",
+            "--ignore-app-descriptor",
+            "--format",
+            "esp-idf",
+            "--bootloader",
+            bootloader.to_str().unwrap(),
+            "--partition-table",
+            partition_csv,
+            "--partition-table-offset",
+            "0x8000",
+            "--target-app-partition",
+            "factory",
+            &app,
+            options_image.to_str().unwrap(),
+        ];
+        if matches!(chip, "esp32c2" | "esp32c6" | "esp32h2") {
+            args.extend(["--mmu-page-size", "0x10000"]);
+        }
+        if chip == "esp32c2" {
+            args.extend(["--xtal-freq", "26mhz"]);
+        }
+        if chip == "esp32p4" {
+            args.extend(["--min-chip-rev", "3.0"]);
+        }
+        self.run_simple_command_test(
+            &args,
+            Some(&["Image successfully saved!"]),
+            self.timeout,
+            "save-image options",
+        )?;
+
+        Ok(())
+    }
+
     // Flash test
-    pub fn test_flash(&self, chip: Option<&str>) -> Result<()> {
-        let chip = chip.unwrap_or_else(|| self.chip.as_deref().unwrap_or("esp32"));
+    pub fn test_flash(&self, chip: Option<&str>, extended: bool) -> Result<()> {
+        let chip = chip.unwrap_or("esp32");
         log::info!("Running flash test for chip: {chip}");
 
         let app = format!("espflash/tests/data/{chip}");
@@ -493,8 +566,8 @@ impl TestRunner {
                 "--partition-table",
                 part_table,
             ],
-            Some(&["espflash::partition_table::does_not_fit"]),
-            Duration::from_secs(10),
+            Some(&["The partition table does not fit into the flash"]),
+            self.timeout,
             "partition too big",
         )?;
 
@@ -506,11 +579,35 @@ impl TestRunner {
             self.test_backtrace(&app_backtrace)?;
         }
 
-        // Test standard flashing
+        // Exercise less common flash and image options on one representative
+        // target without adding another flash operation to every HIL job.
+        let mut standard_args = vec!["flash", "--no-skip", "--monitor", "--non-interactive"];
+        if extended {
+            let flash_frequency = match chip {
+                "esp32c2" => "30mhz",
+                "esp32h2" => "24mhz",
+                _ => "40mhz",
+            };
+            standard_args.extend([
+                "--chip",
+                chip,
+                "--no-verify",
+                "--force",
+                "--flash-freq",
+                flash_frequency,
+                "--flash-mode",
+                "dio",
+                "--erase-parts",
+                "nvs",
+                "--erase-data-parts",
+                "nvs",
+            ]);
+        }
+        standard_args.push(&app);
         self.run_timed_command_test(
-            &["flash", "--no-skip", "--monitor", "--non-interactive", &app],
+            &standard_args,
             Some(&["Flashing has completed!", "Hello world!"]),
-            Duration::from_secs(15),
+            self.timeout,
             "standard flashing",
         )?;
 
@@ -526,7 +623,7 @@ impl TestRunner {
                 &app,
             ],
             Some(&["Flashing has completed!", "Hello world!"]),
-            Duration::from_secs(15),
+            self.timeout,
             "standard flashing with high baud rate",
         )?;
 
@@ -546,9 +643,11 @@ impl TestRunner {
                 &app_defmt,
                 "--log-format",
                 "defmt",
+                "--output-format",
+                "full",
             ],
             Some(&["Flashing has completed!", "Hello world!"]),
-            Duration::from_secs(15),
+            self.timeout,
             "defmt manual log-format",
         )?;
 
@@ -562,7 +661,7 @@ impl TestRunner {
                 &app_defmt,
             ],
             Some(&["Flashing has completed!", "Hello world!"]),
-            Duration::from_secs(15),
+            self.timeout,
             "defmt auto-detected log-format",
         )?;
 
@@ -577,6 +676,7 @@ impl TestRunner {
                 "--no-skip",
                 "--monitor",
                 "--non-interactive",
+                "--all-addresses",
                 app_backtrace,
             ],
             Some(&[
@@ -586,7 +686,7 @@ impl TestRunner {
                 "0x42001280",
                 "hal_main",
             ]),
-            Duration::from_secs(15),
+            self.timeout,
             "backtrace test",
         )?;
 
@@ -594,23 +694,28 @@ impl TestRunner {
     }
 
     /// Tests listing available ports
-    pub fn test_list_ports(&self) -> Result<()> {
+    pub fn test_list_ports(&self, extended: bool) -> Result<()> {
         log::info!("Running list-ports test");
         let mut cmd = self.create_espflash_command(&["list-ports"]);
-        let timeout = Duration::from_secs(10);
-        let output =
-            Self::run_command_capture_output_with_timeout(&mut cmd, timeout, "list-ports")?;
+        let result = self.execute_command(&mut cmd, self.timeout, None)?;
+        if result.timed_out || !result.status.success() {
+            return Err(format!("list-ports failed with status {}", result.status).into());
+        }
 
-        let accept_output = output.contains("Silicon Labs")
-            || output.contains("Espressif")
-            || output.contains(":303A") // Espressif USB VID; on Windows the output is "(Undefined Vendor)  USB JTAG/serial debug unit"
-            ;
-
+        let accept_output = result.output.contains("Silicon Labs")
+            || result.output.contains("Espressif")
+            || result.output.contains(":303A"); // Espressif USB VID
         if !accept_output {
-            Self::restore_terminal();
-            return Err(
-                "Missing expected output: neither 'Silicon Labs' nor 'Espressif' found".into(),
-            );
+            return Err("list-ports did not include the connected Espressif device".into());
+        }
+
+        if extended {
+            self.run_simple_command_test(
+                &["list-ports", "--list-all-ports", "--name-only"],
+                Some(&["/dev/"]),
+                self.timeout,
+                "list-ports all names",
+            )?;
         }
 
         log::info!("list-ports test passed and output verified");
@@ -625,7 +730,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["erase-flash"],
             Some(&["Flash has been erased!"]),
-            Duration::from_secs(40),
+            self.timeout,
             "erase-flash",
         )?;
 
@@ -633,7 +738,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["read-flash", "0", "0x4000", flash_output.to_str().unwrap()],
             Some(&["Flash content successfully read"]),
-            Duration::from_secs(10),
+            self.timeout,
             "read after erase",
         )?;
 
@@ -657,14 +762,14 @@ impl TestRunner {
 
         // Test unaligned address (not multiple of 4096)
         let mut cmd = self.create_espflash_command(&["erase-region", "0x1001", "0x1000"]);
-        let exit_code = self.run_command_with_timeout(&mut cmd, Duration::from_secs(10))?;
+        let exit_code = self.run_command_with_timeout(&mut cmd, self.timeout)?;
         if exit_code == 0 {
             return Err("Unaligned address erase should have failed but succeeded".into());
         }
 
         // Test unaligned size (not multiple of 4096)
         let mut cmd = self.create_espflash_command(&["erase-region", "0x1000", "0x1001"]);
-        let exit_code = self.run_command_with_timeout(&mut cmd, Duration::from_secs(10))?;
+        let exit_code = self.run_command_with_timeout(&mut cmd, self.timeout)?;
         if exit_code == 0 {
             return Err("Unaligned size erase should have failed but succeeded".into());
         }
@@ -673,7 +778,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["erase-region", "0x1000", "0x1000"],
             Some(&["Erasing region at"]),
-            Duration::from_secs(20),
+            self.timeout,
             "erase-region valid",
         )?;
 
@@ -686,7 +791,7 @@ impl TestRunner {
                 flash_output.to_str().unwrap(),
             ],
             Some(&["Flash content successfully read"]),
-            Duration::from_secs(20),
+            self.timeout,
             "read after erase-region",
         )?;
 
@@ -711,6 +816,49 @@ impl TestRunner {
         Ok(())
     }
 
+    /// Tests erasing a named partition and verifies the resulting bytes.
+    pub fn test_erase_parts(&self, chip: Option<&str>) -> Result<()> {
+        log::info!("Running erase-parts test");
+        let pattern_file = self.tests_dir.join("partition-pattern.bin");
+        let flash_output = self.flash_output_file();
+        let pattern = vec![0x5a; 256];
+        fs::write(&pattern_file, &pattern)?;
+
+        self.run_simple_command_test(
+            &["write-bin", "0x9000", pattern_file.to_str().unwrap()],
+            Some(&["Binary successfully written to flash!"]),
+            self.timeout,
+            "populate partition",
+        )?;
+        self.run_simple_command_test(
+            &[
+                "erase-parts",
+                "nvs",
+                "--partition-table",
+                "espflash/tests/data/partitions.csv",
+            ],
+            Some(&["Specified partitions successfully erased!"]),
+            self.timeout,
+            "erase named partition",
+        )?;
+        self.run_simple_command_test(
+            &[
+                "read-flash",
+                "0x9000",
+                "0x100",
+                flash_output.to_str().unwrap(),
+            ],
+            Some(&["Flash content successfully read"]),
+            self.timeout,
+            "read erased partition",
+        )?;
+
+        if !self.is_flash_empty(&flash_output, chip)? {
+            return Err("named partition was not erased".into());
+        }
+        Ok(())
+    }
+
     /// Tests reading the flash memory
     pub fn test_read_flash(&self) -> Result<()> {
         log::info!("Running read-flash test");
@@ -732,7 +880,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["erase-region", "0x0", "0x1000"],
             Some(&["Erasing region at"]),
-            Duration::from_secs(20),
+            self.timeout,
             "erase read-flash test region",
         )?;
 
@@ -740,7 +888,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["write-bin", "0x0", pattern_file.to_str().unwrap()],
             Some(&["Binary successfully written to flash!"]),
-            Duration::from_secs(10),
+            self.timeout,
             "write pattern",
         )?;
 
@@ -752,12 +900,16 @@ impl TestRunner {
             self.run_simple_command_test(
                 &[
                     "read-flash",
+                    "--block-size",
+                    "0x400",
+                    "--max-in-flight",
+                    "4",
                     "0x0",
                     &len.to_string(),
                     flash_output.to_str().unwrap(),
                 ],
                 Some(&["Flash content successfully read and written to"]),
-                Duration::from_secs(10),
+                self.timeout,
                 &format!("read {len} bytes"),
             )?;
 
@@ -779,12 +931,16 @@ impl TestRunner {
                 &[
                     "read-flash",
                     "--no-stub",
+                    "--block-size",
+                    "0x400",
+                    "--max-in-flight",
+                    "4",
                     "0x0",
                     &len.to_string(),
                     flash_output.to_str().unwrap(),
                 ],
                 Some(&["Flash content successfully read and written to"]),
-                Duration::from_secs(10),
+                self.timeout,
                 &format!("read {len} bytes with ROM bootloader"),
             )?;
 
@@ -810,7 +966,7 @@ impl TestRunner {
 
     /// Tests saving an image to the flash memory
     pub fn test_save_image_write_bin(&self, chip: Option<&str>) -> Result<()> {
-        let chip = chip.unwrap_or_else(|| self.chip.as_deref().unwrap_or("esp32"));
+        let chip = chip.unwrap_or("esp32");
         log::info!("Running save-image and write-bin test for chip: {chip}");
 
         let app = format!("espflash/tests/data/{chip}");
@@ -854,7 +1010,7 @@ impl TestRunner {
                 "--non-interactive",
             ],
             Some(&["Hello world!"]),
-            Duration::from_secs(80),
+            self.timeout,
             "write-bin and monitor",
         )?;
 
@@ -893,7 +1049,7 @@ impl TestRunner {
                 "--non-interactive",
             ],
             Some(&["Hello world!"]),
-            Duration::from_secs(80),
+            self.timeout,
             "write-bin and monitor",
         )?;
 
@@ -923,7 +1079,7 @@ impl TestRunner {
                 app_bin.to_str().unwrap(),
             ],
             Some(&["Image successfully saved!"]),
-            Duration::from_secs(10),
+            self.timeout,
             "save-image C6 regression",
         )?;
 
@@ -956,7 +1112,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["erase-flash"],
             Some(&["Flash has been erased!"]),
-            Duration::from_secs(40),
+            self.timeout,
             "erase-flash for checksum",
         )?;
 
@@ -964,7 +1120,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["checksum-md5", "0x1000", "0x100"],
             Some(&["0x827f263ef9fb63d05499d14fcef32f60"]),
-            Duration::from_secs(10),
+            self.timeout,
             "checksum-md5",
         )?;
 
@@ -973,11 +1129,22 @@ impl TestRunner {
     }
 
     /// Tests the monitor command
-    pub fn test_monitor(&self) -> Result<()> {
+    pub fn test_monitor(&self, chip: &str) -> Result<()> {
+        let app = format!("espflash/tests/data/{chip}");
         self.run_timed_command_test(
-            &["monitor", "--non-interactive"],
+            &[
+                "monitor",
+                "--non-interactive",
+                "--monitor-baud",
+                "115200",
+                "--log-format",
+                "serial",
+                "--elf",
+                &app,
+                "--no-addresses",
+            ],
             Some(&["Hello world!"]),
-            Duration::from_secs(10),
+            self.timeout,
             "monitor",
         )?;
         Ok(())
@@ -988,7 +1155,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["reset"],
             Some(&["Resetting target device"]),
-            Duration::from_secs(10),
+            self.timeout,
             "reset",
         )?;
         Ok(())
@@ -999,7 +1166,7 @@ impl TestRunner {
         self.run_simple_command_test(
             &["hold-in-reset"],
             Some(&["Holding target device in reset"]),
-            Duration::from_secs(10),
+            self.timeout,
             "hold-in-reset",
         )?;
         Ok(())
@@ -1011,17 +1178,26 @@ pub fn run_tests(workspace: &Path, args: RunTestsArgs) -> Result<()> {
     log::info!("Running espflash tests");
 
     let tests_dir = workspace.join("espflash").join("tests");
-    let test_runner = TestRunner::new(workspace, tests_dir, args.timeout, args.build_espflash);
-
-    // Build espflash before running test(s) so we are not "waisting" test's
-    // duration or timeout
-    if args.build_espflash {
-        test_runner.build_espflash();
-    }
+    // Build once and invoke the resulting executable directly. Running `cargo
+    // run` for every assertion used to add overhead and could orphan espflash
+    // when the cargo process was killed at a monitor timeout.
+    let espflash = if let Some(espflash) = args.espflash {
+        if espflash.is_absolute() || espflash.components().count() == 1 {
+            espflash
+        } else {
+            workspace.join(espflash)
+        }
+    } else if args.build_espflash {
+        TestRunner::build_espflash(workspace)?
+    } else {
+        PathBuf::from("espflash")
+    };
+    let test_runner = TestRunner::new(workspace, tests_dir, args.timeout, espflash);
 
     match args.test.as_str() {
         "all" => {
-            if let Err(e) = test_runner.run_all_tests(args.chip.as_deref(), args.sdm) {
+            if let Err(e) = test_runner.run_all_tests(args.chip.as_deref(), args.sdm, args.extended)
+            {
                 log::error!("Test suite failed: {e}");
                 return Err(e);
             }
@@ -1037,4 +1213,84 @@ pub fn run_tests(workspace: &Path, args: RunTestsArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn runner() -> TestRunner {
+        let workspace = env::current_dir().unwrap();
+        TestRunner::new(
+            &workspace,
+            workspace.join("espflash/tests"),
+            1,
+            PathBuf::from("espflash"),
+        )
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn command_timeout_really_terminates_process() {
+        let runner = runner();
+        let mut command = Command::new("sh");
+        command.args(["-c", "sleep 5"]);
+        let start = Instant::now();
+        let result = runner
+            .execute_command(&mut command, Duration::from_millis(100), None)
+            .unwrap();
+
+        assert!(result.timed_out);
+        assert!(start.elapsed() < Duration::from_secs(2));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn expected_output_does_not_hide_a_failed_command() {
+        let mut runner = runner();
+        runner.espflash = PathBuf::from("sh");
+        let result = runner.run_simple_command_test(
+            &["-c", "echo expected; exit 1"],
+            Some(&["expected"]),
+            Duration::from_secs(1),
+            "failure",
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn expected_output_stops_long_running_command_early() {
+        let runner = runner();
+        let mut command = Command::new("sh");
+        command.args(["-c", "echo ready; sleep 5"]);
+        let start = Instant::now();
+        let result = runner
+            .execute_command(&mut command, Duration::from_secs(2), Some(&["ready"]))
+            .unwrap();
+
+        assert!(!result.timed_out);
+        assert!(result.output.contains("ready"));
+        assert!(start.elapsed() < Duration::from_secs(1));
+    }
+
+    #[test]
+    fn erased_flash_artifacts_are_limited_to_esp32p4() {
+        assert!(TestRunner::is_erased_flash_data(&[0xff; 0x1200], None));
+
+        let mut artifact = vec![0xff; 0x1200];
+        artifact[0x400] = 0;
+        assert!(TestRunner::is_erased_flash_data(&artifact, Some("esp32p4")));
+        assert!(!TestRunner::is_erased_flash_data(
+            &artifact,
+            Some("esp32c6")
+        ));
+
+        artifact[0x300] = 0;
+        assert!(!TestRunner::is_erased_flash_data(
+            &artifact,
+            Some("esp32p4")
+        ));
+    }
 }
