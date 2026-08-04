@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Bump MSRV to 1.95.0 (#1056)
+- Update flasher stubs to Espressif's v1.1.0 implementation for improved flashing throughput
+- Transfer the flasher stub at the requested baud rate instead of 115,200 baud
+- Skip deflate compression when it would increase the amount of data transferred
 
 ### Fixed
 - Regenerate efuses for S31 (#1053)
