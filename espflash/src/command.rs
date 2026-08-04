@@ -789,3 +789,26 @@ fn checksum(data: &[u8], mut checksum: u8) -> u8 {
 
     checksum
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Command, CommandType};
+
+    #[test]
+    fn flash_end_payloads_are_u32() {
+        for (command, ty) in [
+            (Command::FlashEnd { reboot: false }, CommandType::FlashEnd),
+            (
+                Command::FlashDeflEnd { reboot: false },
+                CommandType::FlashDeflEnd,
+            ),
+        ] {
+            let mut encoded = Vec::new();
+            command.write(&mut encoded).unwrap();
+
+            assert_eq!(encoded[0..2], [0, ty as u8]);
+            assert_eq!(u16::from_le_bytes(encoded[2..4].try_into().unwrap()), 4);
+            assert_eq!(u32::from_le_bytes(encoded[8..12].try_into().unwrap()), 1);
+        }
+    }
+}
