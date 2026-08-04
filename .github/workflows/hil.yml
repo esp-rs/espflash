@@ -141,22 +141,48 @@ jobs:
 
       - name: Prepare device
         run: |
-          # Native USB can be unavailable when the firmware left by a previous
-          # run disabled it. Recover through UART when that connection exists.
-          if [[ ! -e "$ESPFLASH_PORT" && "${{ matrix.target.port }}" == "usb" && -e /dev/serial_ports/uart ]]; then
-            espflash reset --port /dev/serial_ports/uart
-          fi
+          port_kind="${{ matrix.target.port }}"
+          uart_port=/dev/serial_ports/uart
 
-          for _ in {1..30}; do
-            [[ -e "$ESPFLASH_PORT" ]] && break
-            sleep 1
-          done
-          if [[ ! -e "$ESPFLASH_PORT" ]]; then
+          wait_for_port() {
+            for _ in {1..30}; do
+              [[ -e "$ESPFLASH_PORT" ]] && return 0
+              sleep 1
+            done
             echo "Serial port did not appear: $ESPFLASH_PORT" >&2
-            exit 1
-          fi
+            return 1
+          }
 
-          espflash reset
+          recover_usb_via_uart() {
+            if [[ "$port_kind" != "usb" || ! -e "$uart_port" ]]; then
+              return 1
+            fi
+            echo "Recovering native USB through $uart_port"
+            if ! espflash reset --port "$uart_port"; then
+              echo "UART recovery failed on $uart_port" >&2
+              return 1
+            fi
+            # Give the application time to re-enumerate its native USB port.
+            sleep 2
+          }
+
+          # Firmware left by a previous run may have disabled native USB.
+          if [[ ! -e "$ESPFLASH_PORT" && "$port_kind" == "usb" && -e "$uart_port" ]]; then
+            recover_usb_via_uart
+          fi
+          wait_for_port
+
+          # A USB node can remain present while the device is unresponsive. If
+          # reset fails, recover through UART and retry the selected USB port.
+          if ! espflash reset --port "$ESPFLASH_PORT"; then
+            echo "Reset failed on $ESPFLASH_PORT" >&2
+            if ! recover_usb_via_uart; then
+              echo "No successful recovery path is available" >&2
+              exit 1
+            fi
+            wait_for_port
+            espflash reset --port "$ESPFLASH_PORT"
+          fi
           sleep 5
 
       - name: Run all tests
