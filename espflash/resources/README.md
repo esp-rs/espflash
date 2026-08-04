@@ -19,8 +19,9 @@ ESP-IDF tools are installed and exported with `IDF_TOOLS_PATH` set to `target/es
 
 For now, `esp-hal` uses MMU page size as `0x10000` (64k) for some chips, therefore those manifest entries set the ESP-IDF flash size to 64MB. ESP32-P4 revision-specific bootloader configs are also captured in the manifest.
 
-The flasher stubs are taken from the `espressif/esptool` repository:
-https://github.com/espressif/esptool/tree/master/esptool/targets/stub_flasher/1
+The flasher stubs are from `esp-flasher-stub` v1.1.0, as bundled with the
+`espressif/esptool` repository:
+https://github.com/espressif/esptool/tree/master/esptool/targets/stub_flasher/2
 
 The roms are taken from the [`esp-rom-elfs`](https://github.com/espressif/esp-rom-elfs) repository, except for:
 - ESP32-P4 rev3: Was built from `esp-rom-elfs` gitlab merge request 30.
