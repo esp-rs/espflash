@@ -17,6 +17,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  ESPFLASH_SKIP_UPDATE_CHECK: "true"
   RUST_LOG: debug
 
 # Cancel any currently running workflows from the same PR, branch, or
@@ -25,7 +26,7 @@ env:
 # https://stackoverflow.com/a/66336834
 concurrency:
   cancel-in-progress: true
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.inputs.repository || github.repository }}-${{ github.event.inputs.branch || github.ref }}
 
 jobs:
   build-packages:
@@ -49,25 +50,22 @@ jobs:
       - name: Build binaries
         run: cross build --release --target aarch64-unknown-linux-gnu -p espflash -p xtask
 
-      - name: Upload espflash-aarch64
-        uses: actions/upload-artifact@v4
+      - name: Upload HIL binaries
+        uses: actions/upload-artifact@v7
         with:
-          name: espflash-aarch64
-          path: target/aarch64-unknown-linux-gnu/release/espflash
+          name: hil-aarch64
+          path: |
+            target/aarch64-unknown-linux-gnu/release/espflash
+            target/aarch64-unknown-linux-gnu/release/xtask
           if-no-files-found: error
-
-      - name: Upload xtask-aarch64
-        uses: actions/upload-artifact@v4
-        with:
-          name: xtask-aarch64
-          path: target/aarch64-unknown-linux-gnu/release/xtask
-          if-no-files-found: error
+          retention-days: 1
 
   run-tests:
     if: github.repository_owner == 'esp-rs'
     name: HIL | ${{ matrix.target.soc }} | ${{ matrix.target.port }}
     needs: build-packages
     runs-on: [self-hosted, linux, ARM64, "${{ matrix.target.runner }}"]
+    timeout-minutes: 30
     env:
       ESPFLASH_PORT: /dev/serial_ports/${{ matrix.target.port }}
 
@@ -93,6 +91,7 @@ jobs:
           - soc: esp32c6
             runner: esp32c6-usb
             port: uart
+            extra-args: --extended
           - soc: esp32c61
             runner: esp32c61-usb
             port: usb
@@ -126,31 +125,70 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: ${{ github.event.inputs.repository || github.repository }}
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - uses: actions/download-artifact@v7
         with:
-          name: espflash-aarch64
-          path: espflash_app
-
-      - uses: actions/download-artifact@v7
-        with:
-          name: xtask-aarch64
-          path: xtask_app
+          name: hil-aarch64
+          path: hil-bin
 
       - name: Set up binaries
         run: |
-          chmod +x espflash_app/espflash
-          chmod +x xtask_app/xtask
-          echo "$PWD/espflash_app" >> "$GITHUB_PATH"
-          echo "$PWD/xtask_app" >> "$GITHUB_PATH"
+          chmod +x hil-bin/espflash hil-bin/xtask
+          echo "$PWD/hil-bin" >> "$GITHUB_PATH"
 
-      - name: Reset device
+      - name: Prepare device
         run: |
-          espflash reset
+          port_kind="${{ matrix.target.port }}"
+          uart_port=/dev/serial_ports/uart
+
+          wait_for_port() {
+            for _ in {1..30}; do
+              [[ -e "$ESPFLASH_PORT" ]] && return 0
+              sleep 1
+            done
+            echo "Serial port did not appear: $ESPFLASH_PORT" >&2
+            return 1
+          }
+
+          recover_usb_via_uart() {
+            if [[ "$port_kind" != "usb" || ! -e "$uart_port" ]]; then
+              return 1
+            fi
+            echo "Recovering native USB through $uart_port"
+            if ! espflash reset --port "$uart_port"; then
+              echo "UART recovery failed on $uart_port" >&2
+              return 1
+            fi
+            # Give the application time to re-enumerate its native USB port.
+            sleep 2
+          }
+
+          # Firmware left by a previous run may have disabled native USB.
+          if [[ ! -e "$ESPFLASH_PORT" && "$port_kind" == "usb" && -e "$uart_port" ]]; then
+            recover_usb_via_uart
+          fi
+          wait_for_port
+
+          # A USB node can remain present while the device is unresponsive. If
+          # reset fails, recover through UART and retry the selected USB port.
+          if ! espflash reset --port "$ESPFLASH_PORT"; then
+            echo "Reset failed on $ESPFLASH_PORT" >&2
+            if ! recover_usb_via_uart; then
+              echo "No successful recovery path is available" >&2
+              exit 1
+            fi
+            wait_for_port
+            espflash reset --port "$ESPFLASH_PORT"
+          fi
           sleep 5
 
       - name: Run all tests
-        run: xtask run-tests --chip ${{ matrix.target.soc }} -t 60 --no-build
+        run: >-
+          xtask run-tests --chip ${{ matrix.target.soc }} --timeout 90 --baud 921600
+          --espflash "$PWD/hil-bin/espflash" ${{ matrix.target.extra-args }}
 
   # SDM Tests (VM - ESP32C6)
   build-sdm-packages:
@@ -179,46 +217,42 @@ jobs:
       - name: Build binaries
         run: cargo build --release -p espflash -p xtask
 
-      - name: Upload espflash
-        uses: actions/upload-artifact@v4
+      - name: Upload HIL binaries
+        uses: actions/upload-artifact@v7
         with:
-          name: espflash
-          path: target/release/espflash
+          name: hil-sdm
+          path: |
+            target/release/espflash
+            target/release/xtask
           if-no-files-found: error
+          retention-days: 1
 
-      - name: Upload xtask
-        uses: actions/upload-artifact@v4
-        with:
-          name: xtask
-          path: target/release/xtask
-          if-no-files-found: error
   run-sdm-tests:
     if: github.repository_owner == 'esp-rs'
     name: HIL (SDM) | esp32c6
     needs: build-sdm-packages
     runs-on: [self-hosted, "linux", "x64", "esp32c6"]
+    timeout-minutes: 30
     env:
       ESPFLASH_PORT: /dev/serial_ports/esp32c6
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: ${{ github.event.inputs.repository || github.repository }}
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - uses: actions/download-artifact@v7
         with:
-          name: espflash
-          path: espflash_app
-
-      - uses: actions/download-artifact@v7
-        with:
-          name: xtask
-          path: xtask_app
+          name: hil-sdm
+          path: hil-bin
 
       - name: Set up binaries
         run: |
-          chmod +x espflash_app/espflash
-          chmod +x xtask_app/xtask
-          echo "$PWD/espflash_app" >> "$GITHUB_PATH"
-          echo "$PWD/xtask_app" >> "$GITHUB_PATH"
+          chmod +x hil-bin/espflash hil-bin/xtask
+          echo "$PWD/hil-bin" >> "$GITHUB_PATH"
 
       - name: Run all tests
-        run: xtask run-tests --chip esp32c6 -t 60 --no-build --sdm
+        run: >-
+          xtask run-tests --chip esp32c6 --timeout 90 --baud 921600 --sdm
+          --espflash "$PWD/hil-bin/espflash"
