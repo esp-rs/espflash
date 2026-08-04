@@ -59,6 +59,10 @@ pub struct RunTestsArgs {
     #[arg(long, value_name = "PATH")]
     pub espflash: Option<PathBuf>,
 
+    /// Baud rate for transfer-heavy hardware tests
+    #[arg(long, value_name = "BAUD")]
+    pub baud: Option<u32>,
+
     /// Run extended hardware command and option coverage
     #[arg(long)]
     pub extended: bool,
@@ -78,16 +82,25 @@ pub struct TestRunner {
     pub timeout: Duration,
     /// espflash executable under test
     pub espflash: PathBuf,
+    /// Baud rate for transfer-heavy hardware tests
+    pub baud: Option<u32>,
 }
 
 impl TestRunner {
     /// Creates a new [TestRunner] instance.
-    pub fn new(workspace: &Path, tests_dir: PathBuf, timeout_secs: u64, espflash: PathBuf) -> Self {
+    pub fn new(
+        workspace: &Path,
+        tests_dir: PathBuf,
+        timeout_secs: u64,
+        espflash: PathBuf,
+        baud: Option<u32>,
+    ) -> Self {
         Self {
             workspace: workspace.to_path_buf(),
             tests_dir,
             timeout: Duration::from_secs(timeout_secs),
             espflash,
+            baud,
         }
     }
 
@@ -232,6 +245,14 @@ impl TestRunner {
         cmd
     }
 
+    fn create_transfer_command(&self, args: &[&str]) -> Command {
+        let mut cmd = self.create_espflash_command(args);
+        if let Some(baud) = self.baud {
+            cmd.arg("--baud").arg(baud.to_string());
+        }
+        cmd
+    }
+
     /// Runs a command to completion and verifies its status and output.
     pub fn run_simple_command_test(
         &self,
@@ -272,8 +293,29 @@ impl TestRunner {
         timeout: Duration,
         test_name: &str,
     ) -> Result<()> {
+        let cmd = self.create_espflash_command(args);
+        self.run_timed_command(cmd, expected_contains, timeout, test_name)
+    }
+
+    fn run_timed_transfer_command_test(
+        &self,
+        args: &[&str],
+        expected_contains: Option<&[&str]>,
+        timeout: Duration,
+        test_name: &str,
+    ) -> Result<()> {
+        let cmd = self.create_transfer_command(args);
+        self.run_timed_command(cmd, expected_contains, timeout, test_name)
+    }
+
+    fn run_timed_command(
+        &self,
+        mut cmd: Command,
+        expected_contains: Option<&[&str]>,
+        timeout: Duration,
+        test_name: &str,
+    ) -> Result<()> {
         log::info!("Running {test_name} test");
-        let mut cmd = self.create_espflash_command(args);
         let result = self.execute_command(&mut cmd, timeout, expected_contains)?;
 
         if let Some(expected) = expected_contains {
@@ -604,28 +646,22 @@ impl TestRunner {
             ]);
         }
         standard_args.push(&app);
-        self.run_timed_command_test(
+        self.run_timed_transfer_command_test(
             &standard_args,
             Some(&["Flashing has completed!", "Hello world!"]),
             self.timeout,
             "standard flashing",
         )?;
 
-        // Test standard flashing
-        self.run_timed_command_test(
-            &[
-                "flash",
-                "--no-skip",
-                "--monitor",
-                "--non-interactive",
-                "--baud",
-                "921600",
-                &app,
-            ],
-            Some(&["Flashing has completed!", "Hello world!"]),
-            self.timeout,
-            "standard flashing with high baud rate",
-        )?;
+        // Keep default-baud flash coverage on the representative extended runner.
+        if extended && self.baud.is_some_and(|baud| baud != 115_200) {
+            self.run_timed_command_test(
+                &["flash", "--no-skip", "--monitor", "--non-interactive", &app],
+                Some(&["Flashing has completed!", "Hello world!"]),
+                self.timeout,
+                "standard flashing with default baud rate",
+            )?;
+        }
 
         Ok(())
     }
@@ -634,7 +670,7 @@ impl TestRunner {
         let app_defmt = format!("{app}_defmt");
 
         // Test with manual log-format
-        self.run_timed_command_test(
+        self.run_timed_transfer_command_test(
             &[
                 "flash",
                 "--no-skip",
@@ -652,7 +688,7 @@ impl TestRunner {
         )?;
 
         // Test with auto-detected log-format
-        self.run_timed_command_test(
+        self.run_timed_transfer_command_test(
             &[
                 "flash",
                 "--no-skip",
@@ -670,7 +706,7 @@ impl TestRunner {
 
     fn test_backtrace(&self, app_backtrace: &str) -> Result<()> {
         // Test flashing with backtrace
-        self.run_timed_command_test(
+        self.run_timed_transfer_command_test(
             &[
                 "flash",
                 "--no-skip",
@@ -1001,7 +1037,7 @@ impl TestRunner {
         )?;
 
         // Write the image and monitor
-        self.run_timed_command_test(
+        self.run_timed_transfer_command_test(
             &[
                 "write-bin",
                 "--monitor",
@@ -1040,7 +1076,7 @@ impl TestRunner {
         )?;
 
         // Write the image and monitor
-        self.run_timed_command_test(
+        self.run_timed_transfer_command_test(
             &[
                 "write-bin",
                 "--monitor",
@@ -1192,7 +1228,7 @@ pub fn run_tests(workspace: &Path, args: RunTestsArgs) -> Result<()> {
     } else {
         PathBuf::from("espflash")
     };
-    let test_runner = TestRunner::new(workspace, tests_dir, args.timeout, espflash);
+    let test_runner = TestRunner::new(workspace, tests_dir, args.timeout, espflash, args.baud);
 
     match args.test.as_str() {
         "all" => {
@@ -1226,6 +1262,7 @@ mod tests {
             workspace.join("espflash/tests"),
             1,
             PathBuf::from("espflash"),
+            None,
         )
     }
 
@@ -1276,6 +1313,26 @@ mod tests {
         assert!(!result.timed_out);
         assert!(result.output.contains("ready"));
         assert!(start.elapsed() < Duration::from_secs(1));
+    }
+
+    #[test]
+    fn configured_baud_only_applies_to_transfer_commands() {
+        let mut runner = runner();
+        runner.baud = Some(921_600);
+
+        let transfer = runner.create_transfer_command(&["flash", "app"]);
+        let transfer_args: Vec<_> = transfer
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(transfer_args, ["flash", "app", "--baud", "921600"]);
+
+        let regular = runner.create_espflash_command(&["reset"]);
+        let regular_args: Vec<_> = regular
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(regular_args, ["reset"]);
     }
 
     #[test]

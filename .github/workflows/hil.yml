@@ -161,7 +161,7 @@ jobs:
 
       - name: Run all tests
         run: >-
-          xtask run-tests --chip ${{ matrix.target.soc }} --timeout 90
+          xtask run-tests --chip ${{ matrix.target.soc }} --timeout 90 --baud 921600
           --espflash "$PWD/hil-bin/espflash" ${{ matrix.target.extra-args }}
 
   # SDM Tests (VM - ESP32C6)
@@ -228,5 +228,5 @@ jobs:
 
       - name: Run all tests
         run: >-
-          xtask run-tests --chip esp32c6 --timeout 90 --sdm
+          xtask run-tests --chip esp32c6 --timeout 90 --baud 921600 --sdm
           --espflash "$PWD/hil-bin/espflash"
