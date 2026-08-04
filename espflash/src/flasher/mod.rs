@@ -645,13 +645,30 @@ impl Flasher {
             return Ok(flasher);
         }
 
+        let mut baud_changed = false;
+
         if !flasher.connection.secure_download_mode {
             if let Err(e) = flasher.power_on_flash() {
                 return Err(Box::new((e, flasher.into_connection())));
             }
 
-            // Load flash stub if enabled.
+            // Load flash stub if enabled. Increase the ROM loader's baud rate first so
+            // the larger stub is also transferred at the requested speed. ESP32 and
+            // ESP32-S2 ROM loaders are unreliable when starting a stub uploaded at high
+            // baud, so change their baud only after the stub is running.
             if use_stub {
+                let change_baud_before_stub = !matches!(flasher.chip, Chip::Esp32 | Chip::Esp32s2);
+                if let Some(baud) = baud
+                    && baud > 115_200
+                    && change_baud_before_stub
+                {
+                    warn!("Setting baud rate higher than 115,200 can cause issues");
+                    if let Err(e) = flasher.change_baud_for_loader(baud, false) {
+                        return Err(Box::new((e, flasher.into_connection())));
+                    }
+                    baud_changed = true;
+                }
+
                 info!("Using flash stub");
                 if let Err(e) = flasher.load_stub() {
                     return Err(Box::new((e, flasher.into_connection())));
@@ -666,9 +683,9 @@ impl Flasher {
             flasher.use_stub = false;
         }
 
-        // Now that we have established a connection and detected the chip and flash
-        // size, we can set the baud rate of the connection to the configured value.
-        if let Some(baud) = baud
+        // If no stub was loaded, change the baud rate after initialization as before.
+        if !baud_changed
+            && let Some(baud) = baud
             && baud > 115_200
         {
             warn!("Setting baud rate higher than 115,200 can cause issues");
@@ -1249,12 +1266,13 @@ impl Flasher {
 
     /// Change the baud rate of the connection.
     pub fn change_baud(&mut self, baud: u32) -> Result<(), Error> {
+        self.change_baud_for_loader(baud, self.use_stub)
+    }
+
+    fn change_baud_for_loader(&mut self, baud: u32, use_stub: bool) -> Result<(), Error> {
         debug!("Change baud to: {baud}");
 
-        let prior_baud = match self.use_stub {
-            true => self.connection.baud()?,
-            false => 0,
-        };
+        let prior_baud = if use_stub { self.connection.baud()? } else { 0 };
 
         let xtal_freq = self.chip.xtal_frequency(&mut self.connection)?;
 
@@ -1263,7 +1281,7 @@ impl Flasher {
         // The ROM code thinks it uses a 40 MHz XTAL. Recompute the baud rate in order
         // to trick the ROM code to set the correct baud rate for a 26 MHz XTAL.
         let mut new_baud = baud;
-        if self.chip == Chip::Esp32c2 && !self.use_stub && xtal_freq == XtalFrequency::_26Mhz {
+        if self.chip == Chip::Esp32c2 && !use_stub && xtal_freq == XtalFrequency::_26Mhz {
             new_baud = new_baud * 40 / 26;
         }
 

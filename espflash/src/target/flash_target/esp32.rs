@@ -119,9 +119,6 @@ impl FlashTarget for Esp32Target {
         md5_hasher.update(&segment.data);
         let checksum_md5 = md5_hasher.finalize();
 
-        // use compression only when stub is loaded.
-        let use_compression = self.use_stub;
-
         let flash_write_size = if self.use_stub {
             self.chip.stub_flash_write_size()
         } else {
@@ -153,12 +150,21 @@ impl FlashTarget for Esp32Target {
             }
         }
 
-        let data = if use_compression {
+        // Compression reduces the amount of data sent over the serial connection, but
+        // adds work on the target. Fall back to an uncompressed transfer when deflate
+        // cannot make the segment smaller.
+        let (data, use_compression) = if self.use_stub {
             let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
             encoder.write_all(&segment.data)?;
-            encoder.finish()?
+            let compressed = encoder.finish()?;
+
+            if compressed.len() < segment.data.len() {
+                (compressed, true)
+            } else {
+                (segment.data.to_vec(), false)
+            }
         } else {
-            segment.data.to_vec()
+            (segment.data.to_vec(), false)
         };
 
         let block_count = data.len().div_ceil(flash_write_size);
