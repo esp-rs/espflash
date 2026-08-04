@@ -29,16 +29,8 @@ concurrency:
 
 jobs:
   build-packages:
-    name: Build packages | (${{ matrix.target.host }})
+    name: Build packages | aarch64
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - host: aarch64
-            target: aarch64-unknown-linux-gnu
-          - host: armv7
-            target: armv7-unknown-linux-gnueabihf
 
     steps:
       - uses: actions/checkout@v6
@@ -55,27 +47,27 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build binaries
-        run: cross build --release --target ${{ matrix.target.target }} -p espflash -p xtask
+        run: cross build --release --target aarch64-unknown-linux-gnu -p espflash -p xtask
 
-      - name: Upload espflash-${{ matrix.target.host }}
+      - name: Upload espflash-aarch64
         uses: actions/upload-artifact@v4
         with:
-          name: espflash-${{ matrix.target.host }}
-          path: target/${{ matrix.target.target }}/release/espflash
+          name: espflash-aarch64
+          path: target/aarch64-unknown-linux-gnu/release/espflash
           if-no-files-found: error
 
-      - name: Upload xtask-${{ matrix.target.host }}
+      - name: Upload xtask-aarch64
         uses: actions/upload-artifact@v4
         with:
-          name: xtask-${{ matrix.target.host }}
-          path: target/${{ matrix.target.target }}/release/xtask
+          name: xtask-aarch64
+          path: target/aarch64-unknown-linux-gnu/release/xtask
           if-no-files-found: error
 
   run-tests:
     if: github.repository_owner == 'esp-rs'
     name: HIL | ${{ matrix.target.soc }} | ${{ matrix.target.port }}
     needs: build-packages
-    runs-on: [self-hosted, "${{ matrix.target.runner }}"]
+    runs-on: [self-hosted, linux, ARM64, "${{ matrix.target.runner }}"]
     env:
       ESPFLASH_PORT: /dev/serial_ports/${{ matrix.target.port }}
 
@@ -86,79 +78,63 @@ jobs:
           - soc: esp32c2
             runner: esp32c2-jtag
             port: uart
-            host: aarch64
           - soc: esp32c3
             runner: esp32c3-usb
             port: usb
-            host: armv7
           - soc: esp32c5
             runner: esp32c5-usb
             port: usb
-            host: aarch64
           - soc: esp32c5
             runner: esp32c5-usb
             port: uart
-            host: aarch64
           - soc: esp32c6
             runner: esp32c6-usb
             port: usb
-            host: armv7
           - soc: esp32c6
             runner: esp32c6-usb
             port: uart
-            host: armv7
           - soc: esp32c61
             runner: esp32c61-usb
             port: usb
-            host: aarch64
           - soc: esp32c61
             runner: esp32c61-usb
             port: uart
-            host: aarch64
           - soc: esp32h2
             runner: esp32h2-usb
             port: usb
-            host: armv7
           - soc: esp32h2
             runner: esp32h2-usb
             port: uart
-            host: armv7
           - soc: esp32p4
             runner: esp32p4
             port: usb
-            host: aarch64
           - soc: esp32
             runner: esp32-jtag
             port: uart
-            host: aarch64
           - soc: esp32s2
             runner: esp32s2-jtag
             port: uart
-            host: armv7
           - soc: esp32s3
             runner: esp32s3-usb
             port: usb
-            host: armv7
           - soc: esp32s3
             runner: esp32s3-usb
             port: uart
-            host: armv7
           - soc: esp32s31
             runner: esp32s31-jtag
             port: uart
-            host: aarch64
 
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/download-artifact@v7
         with:
-          name: espflash-${{ matrix.target.host }}
+          name: espflash-aarch64
           path: espflash_app
 
       - uses: actions/download-artifact@v7
         with:
-          name: xtask-${{ matrix.target.host }}
+          name: xtask-aarch64
           path: xtask_app
 
       - name: Set up binaries
