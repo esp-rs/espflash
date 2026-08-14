@@ -153,12 +153,17 @@ jobs:
             return 1
           }
 
+          reset_device() {
+            timeout --signal=TERM --kill-after=5s 20s \
+              espflash reset --port "$1"
+          }
+
           recover_usb_via_uart() {
             if [[ "$port_kind" != "usb" || ! -e "$uart_port" ]]; then
               return 1
             fi
             echo "Recovering native USB through $uart_port"
-            if ! espflash reset --port "$uart_port"; then
+            if ! reset_device "$uart_port"; then
               echo "UART recovery failed on $uart_port" >&2
               return 1
             fi
@@ -174,14 +179,14 @@ jobs:
 
           # A USB node can remain present while the device is unresponsive. If
           # reset fails, recover through UART and retry the selected USB port.
-          if ! espflash reset --port "$ESPFLASH_PORT"; then
+          if ! reset_device "$ESPFLASH_PORT"; then
             echo "Reset failed on $ESPFLASH_PORT" >&2
             if ! recover_usb_via_uart; then
               echo "No successful recovery path is available" >&2
               exit 1
             fi
             wait_for_port
-            espflash reset --port "$ESPFLASH_PORT"
+            reset_device "$ESPFLASH_PORT"
           fi
           sleep 5
 
