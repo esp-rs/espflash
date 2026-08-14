@@ -36,23 +36,26 @@ fn main() -> Result<()> {
         .filter_module("xtask", log::LevelFilter::Info)
         .init();
 
-    // Determine the path to the workspace (i.e. the root of the repository).
-    // At compile-time we know where the `xtask` crate lives, but that absolute
-    // path may not exist at runtime once the binary is distributed as an
-    // artefact and executed on a different machine (e.g. a self-hosted CI
-    // runner). Therefore we
-    //  1. Try the compile-time location first.
-    //  2. Fallback to the current working directory if that fails.
-
+    // Prefer the checkout containing the current directory. A distributed
+    // xtask binary retains its build machine's CARGO_MANIFEST_DIR, and that path
+    // can accidentally exist (but refer to a different checkout) on a
+    // self-hosted runner.
+    let current_dir = env::current_dir()?.canonicalize()?;
     let workspace_from_build = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("`CARGO_MANIFEST_DIR` should always have a parent")
         .to_path_buf();
 
-    let workspace = if workspace_from_build.exists() {
+    let workspace_from_cwd = current_dir
+        .ancestors()
+        .find(|path| path.join("Cargo.toml").is_file() && path.join("xtask/Cargo.toml").is_file())
+        .map(PathBuf::from);
+    let workspace = if let Some(workspace) = workspace_from_cwd {
+        workspace
+    } else if workspace_from_build.exists() {
         workspace_from_build.canonicalize()?
     } else {
-        env::current_dir()?.canonicalize()?
+        current_dir
     };
 
     match Cli::parse() {
