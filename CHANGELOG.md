@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Regenerate efuses for S31 (#1053)
+- Avoid loading the flash stub for standalone `monitor` and `hold-in-reset` commands (#1061)
 
 ### Removed
 
