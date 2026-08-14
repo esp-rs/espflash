@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add esp32h4 support (#1063)
+
 ### Changed
 - Bump MSRV to 1.95.0 (#1056)
 
