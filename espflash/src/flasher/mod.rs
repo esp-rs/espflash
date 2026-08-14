@@ -506,6 +506,7 @@ impl DeviceInfo {
             Chip::Esp32h2 => {
                 Some(include_bytes!("../../resources/roms/esp32h2_rev0_rom.elf").into())
             }
+            Chip::Esp32h4 => None,
             Chip::Esp32p4 => {
                 if let Some((major, minor)) = self.revision {
                     let revision = major * 100 + minor;

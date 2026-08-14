@@ -50,6 +50,13 @@ idf.py build
 
 The `esp32c5` elf file under this folder has been generated using `esp-hal@e81c3d4` `hello_world` example (to print "Hello world!").
 
+The `esp32s31` and `esp32h4` elf files under this folder have been generated using ESP-IDF `release/v6.1` (preview target):
+```
+idf.py --preview set-target esp32h4
+idf.py --preview build
+```
+from `examples/get-started/hello_world`.
+
 ## SDM HIL Setup for ESP32C6
 
 The VM running SDM HIL is connected to a ESP32C6. To enable secure download mode, the following command needs to be run:
