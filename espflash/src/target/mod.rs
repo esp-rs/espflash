@@ -146,11 +146,9 @@ impl Chip {
             Chip::Esp32c6 => [0x2CE0_806F].contains(&value),
             Chip::Esp32c61 => [0x7211_606f].contains(&value),
             Chip::Esp32h2 => [0xD7B7_3E80].contains(&value),
-            Chip::Esp32h4 => [0x0].contains(&value),
-            Chip::Esp32p4 => [0x0, 0x0ADDBAD0].contains(&value),
             Chip::Esp32s2 => [0x0000_07c6].contains(&value),
             Chip::Esp32s3 => [0x9].contains(&value),
-            Chip::Esp32s31 => [0x0].contains(&value),
+            Chip::Esp32h4 | Chip::Esp32s31 | Chip::Esp32p4 => false,
         }
     }
 
