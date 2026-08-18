@@ -10,10 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add esp32h4 support (#1063)
+
 ### Changed
 - Bump MSRV to 1.95.0 (#1056)
 
 ### Fixed
+- Do not treat `0x0` as a chip-detect magic value for ESP32-H4, ESP32-S31 and ESP32-P4 (#1063)
 - Regenerate efuses for S31 (#1053)
 
 ### Removed

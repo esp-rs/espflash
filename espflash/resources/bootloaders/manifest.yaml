@@ -66,6 +66,14 @@ bootloaders:
       - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y
       - CONFIG_ESPTOOLPY_FLASHSIZE="64MB"
 
+  - name: esp32h4
+    target: esp32h4
+    output: esp32h4-bootloader.bin
+    preview: true
+    configs:
+      - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y
+      - CONFIG_ESPTOOLPY_FLASHSIZE="64MB"
+
   - name: esp32p4-v0
     target: esp32p4
     output: esp32p4-v0-bootloader.bin

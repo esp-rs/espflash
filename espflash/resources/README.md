@@ -26,3 +26,5 @@ The roms are taken from the [`esp-rom-elfs`](https://github.com/espressif/esp-ro
 - ESP32-P4 rev3: Was built from `esp-rom-elfs` gitlab merge request 30.
 - `esp32c5_rev100_rom.elf` and `esp32c61_rev100_rom.elf`: taken from release `20260313` of `esp-rom-elfs`: https://github.com/espressif/esp-rom-elfs/releases/tag/20260313
 - `esp32s31_rev0_rom.elf`: taken from release `20260528` of `esp-rom-elfs`: https://github.com/espressif/esp-rom-elfs/releases/tag/20260528
+
+ESP32-H4 currently has no published ROM ELF in `esp-rom-elfs`.

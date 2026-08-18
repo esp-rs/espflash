@@ -100,6 +100,8 @@ pub enum Chip {
     Esp32c61,
     /// ESP32-H2
     Esp32h2,
+    /// ESP32-H4
+    Esp32h4,
     /// ESP32-P4
     Esp32p4,
     /// ESP32-S2
@@ -144,10 +146,9 @@ impl Chip {
             Chip::Esp32c6 => [0x2CE0_806F].contains(&value),
             Chip::Esp32c61 => [0x7211_606f].contains(&value),
             Chip::Esp32h2 => [0xD7B7_3E80].contains(&value),
-            Chip::Esp32p4 => [0x0, 0x0ADDBAD0].contains(&value),
             Chip::Esp32s2 => [0x0000_07c6].contains(&value),
             Chip::Esp32s3 => [0x9].contains(&value),
-            Chip::Esp32s31 => [0x0].contains(&value),
+            Chip::Esp32h4 | Chip::Esp32s31 | Chip::Esp32p4 => false,
         }
     }
 
@@ -310,6 +311,7 @@ impl Chip {
             Chip::Esp32c6 => 13,
             Chip::Esp32c61 => 20,
             Chip::Esp32h2 => 16,
+            Chip::Esp32h4 => 28,
             Chip::Esp32p4 => 18,
             Chip::Esp32s2 => 2,
             Chip::Esp32s3 => 9,
@@ -321,7 +323,9 @@ impl Chip {
     pub fn valid_mmu_page_sizes(self) -> Option<&'static [u32]> {
         match self {
             Chip::Esp32c2 => Some(&[16 * 1024, 32 * 1024, 64 * 1024]),
-            Chip::Esp32c6 | Chip::Esp32h2 => Some(&[8 * 1024, 16 * 1024, 32 * 1024, 64 * 1024]),
+            Chip::Esp32c6 | Chip::Esp32h2 | Chip::Esp32h4 => {
+                Some(&[8 * 1024, 16 * 1024, 32 * 1024, 64 * 1024])
+            }
             // TODO: Verify this is correct for Esp32c5
             _ => None,
         }
@@ -337,7 +341,7 @@ impl Chip {
             | Chip::Esp32h2
             | Chip::Esp32s3 => 0x0,
             Chip::Esp32 | Chip::Esp32s2 => 0x1000,
-            Chip::Esp32c5 | Chip::Esp32p4 | Chip::Esp32s31 => 0x2000,
+            Chip::Esp32c5 | Chip::Esp32h4 | Chip::Esp32p4 | Chip::Esp32s31 => 0x2000,
         }
     }
 
@@ -354,7 +358,7 @@ impl Chip {
             | Chip::Esp32s3
             | Chip::Esp32s31 => FlashFrequency::_40Mhz,
             Chip::Esp32c2 => FlashFrequency::_30Mhz,
-            Chip::Esp32h2 => FlashFrequency::_24Mhz,
+            Chip::Esp32h2 | Chip::Esp32h4 => FlashFrequency::_24Mhz,
         }
     }
 
@@ -363,7 +367,7 @@ impl Chip {
         match self {
             Chip::Esp32c5 => XtalFrequency::_48Mhz,
             Chip::Esp32c61 | Chip::Esp32s31 => XtalFrequency::_40Mhz,
-            Chip::Esp32h2 => XtalFrequency::_32Mhz,
+            Chip::Esp32h2 | Chip::Esp32h4 => XtalFrequency::_32Mhz,
             _ => XtalFrequency::_40Mhz,
         }
     }
@@ -401,6 +405,7 @@ impl Chip {
             Chip::Esp32c6 => 0x600B_0800,
             Chip::Esp32c61 => 0x600B_4800,
             Chip::Esp32h2 => 0x600B_0800,
+            Chip::Esp32h4 => 0x600B_1800,
             Chip::Esp32p4 => 0x5012_D000,
             Chip::Esp32s2 => 0x3F41_A000,
             Chip::Esp32s3 => 0x6000_7000,
@@ -419,6 +424,7 @@ impl Chip {
             Chip::Esp32c6 => 0x2C,
             Chip::Esp32c61 => 0x2C,
             Chip::Esp32h2 => 0x2C,
+            Chip::Esp32h4 => 0x2C,
             Chip::Esp32p4 => 0x2C,
             Chip::Esp32s2 => 0x2C,
             Chip::Esp32s3 => 0x2C,
@@ -436,6 +442,7 @@ impl Chip {
             Chip::Esp32c6 => efuse::esp32c6::BLOCKS,
             Chip::Esp32c61 => efuse::esp32c61::BLOCKS,
             Chip::Esp32h2 => efuse::esp32h2::BLOCKS,
+            Chip::Esp32h4 => efuse::esp32h4::BLOCKS,
             Chip::Esp32p4 => efuse::esp32p4::BLOCKS,
             Chip::Esp32s2 => efuse::esp32s2::BLOCKS,
             Chip::Esp32s3 => efuse::esp32s3::BLOCKS,
@@ -463,6 +470,7 @@ impl Chip {
             Chip::Esp32c6 => efuse::esp32c6::defines::BLOCK_ERRORS,
             Chip::Esp32c61 => efuse::esp32c61::defines::BLOCK_ERRORS,
             Chip::Esp32h2 => efuse::esp32h2::defines::BLOCK_ERRORS,
+            Chip::Esp32h4 => efuse::esp32h4::defines::BLOCK_ERRORS,
             Chip::Esp32p4 => efuse::esp32p4::defines::BLOCK_ERRORS,
             Chip::Esp32s2 => efuse::esp32s2::defines::BLOCK_ERRORS,
             Chip::Esp32s3 => efuse::esp32s3::defines::BLOCK_ERRORS,
@@ -602,13 +610,20 @@ impl Chip {
 
     /// Returns whether the provided address `addr` in flash.
     pub fn addr_is_flash(&self, addr: u32) -> bool {
-        let layout = self.metadata().memory_layout();
+        match self {
+            // ESP32-H4 is not yet in `esp-metadata-generated`. Flash window from
+            // ESP-IDF `soc.h`: `SOC_IROM`/`SOC_DROM` 0x42000000..0x44000000.
+            Chip::Esp32h4 => (0x4200_0000..0x4400_0000).contains(&addr),
+            _ => {
+                let layout = self.metadata().memory_layout();
 
-        ["irom", "drom"].into_iter().any(|name| {
-            layout
-                .region(name)
-                .is_some_and(|region| region.range().contains(&addr))
-        })
+                ["irom", "drom"].into_iter().any(|name| {
+                    layout
+                        .region(name)
+                        .is_some_and(|region| region.range().contains(&addr))
+                })
+            }
+        }
     }
 
     fn metadata(&self) -> MetadataChip {
@@ -620,6 +635,9 @@ impl Chip {
             Chip::Esp32c6 => MetadataChip::Esp32c6,
             Chip::Esp32c61 => MetadataChip::Esp32c61,
             Chip::Esp32h2 => MetadataChip::Esp32h2,
+            Chip::Esp32h4 => {
+                unreachable!("ESP32-H4 is not yet present in esp-metadata-generated")
+            }
             Chip::Esp32p4 => MetadataChip::Esp32p4,
             Chip::Esp32s2 => MetadataChip::Esp32s2,
             Chip::Esp32s3 => MetadataChip::Esp32s3,
@@ -696,6 +714,7 @@ impl Chip {
             Chip::Esp32c6 => Ok(vec!["WiFi 6", "BT 5"]),
             Chip::Esp32c61 => Ok(vec!["WiFi 6", "BT 5"]),
             Chip::Esp32h2 => Ok(vec!["BLE"]),
+            Chip::Esp32h4 => Ok(vec!["BT 5 (LE)", "IEEE802.15.4", "Dual Core", "96MHz"]),
             Chip::Esp32s31 => Ok(vec![
                 "WiFi 6",
                 "BT 5.4",
@@ -803,6 +822,9 @@ impl Chip {
             Chip::Esp32h2 => {
                 self.read_efuse_le::<u32>(connection, efuse::esp32h2::WAFER_VERSION_MAJOR)
             }
+            Chip::Esp32h4 => {
+                self.read_efuse_le::<u32>(connection, efuse::esp32h4::WAFER_VERSION_MAJOR)
+            }
             Chip::Esp32p4 => {
                 let hi =
                     self.read_efuse_le::<u32>(connection, efuse::esp32p4::WAFER_VERSION_MAJOR_HI)?;
@@ -858,6 +880,9 @@ impl Chip {
             }
             Chip::Esp32h2 => {
                 self.read_efuse_le::<u32>(connection, efuse::esp32h2::WAFER_VERSION_MINOR)
+            }
+            Chip::Esp32h4 => {
+                self.read_efuse_le::<u32>(connection, efuse::esp32h4::WAFER_VERSION_MINOR)
             }
             Chip::Esp32p4 => {
                 self.read_efuse_le::<u32>(connection, efuse::esp32p4::WAFER_VERSION_MINOR)
@@ -933,7 +958,7 @@ impl Chip {
 
                 Ok(norm_xtal)
             }
-            Chip::Esp32h2 => Ok(XtalFrequency::_32Mhz), // Fixed frequency
+            Chip::Esp32h2 | Chip::Esp32h4 => Ok(XtalFrequency::_32Mhz), // Fixed frequency
             Chip::Esp32c6
             | Chip::Esp32c61
             | Chip::Esp32p4
@@ -948,7 +973,9 @@ impl Chip {
         use FlashFrequency::*;
 
         HashMap::from(match self {
-            Chip::Esp32h2 => [(_12Mhz, 0x2), (_16Mhz, 0x1), (_24Mhz, 0x0), (_48Mhz, 0xF)],
+            Chip::Esp32h2 | Chip::Esp32h4 => {
+                [(_12Mhz, 0x2), (_16Mhz, 0x1), (_24Mhz, 0x0), (_48Mhz, 0xF)]
+            }
             Chip::Esp32c2 => [(_15Mhz, 0x2), (_20Mhz, 0x1), (_30Mhz, 0x0), (_60Mhz, 0xF)],
             _ => [(_20Mhz, 0x2), (_26Mhz, 0x1), (_40Mhz, 0x0), (_80Mhz, 0xf)],
         })
@@ -976,6 +1003,7 @@ impl Chip {
             Chip::Esp32c61 => (self::efuse::esp32c61::MAC0, self::efuse::esp32c61::MAC1),
             Chip::Esp32s31 => (self::efuse::esp32s31::MAC0, self::efuse::esp32s31::MAC1),
             Chip::Esp32h2 => (self::efuse::esp32h2::MAC0, self::efuse::esp32h2::MAC1),
+            Chip::Esp32h4 => (self::efuse::esp32h4::MAC0, self::efuse::esp32h4::MAC1),
             Chip::Esp32p4 => (self::efuse::esp32p4::MAC0, self::efuse::esp32p4::MAC1),
             Chip::Esp32s2 => (self::efuse::esp32s2::MAC0, self::efuse::esp32s2::MAC1),
             Chip::Esp32s3 => (self::efuse::esp32s3::MAC0, self::efuse::esp32s3::MAC1),
@@ -1016,6 +1044,15 @@ impl Chip {
             },
             Chip::Esp32c5 | Chip::Esp32c6 | Chip::Esp32c61 | Chip::Esp32h2 => SpiRegisters {
                 base: 0x6000_3000,
+                usr_offset: 0x18,
+                usr1_offset: 0x1c,
+                usr2_offset: 0x20,
+                w0_offset: 0x58,
+                mosi_length_offset: Some(0x24),
+                miso_length_offset: Some(0x28),
+            },
+            Chip::Esp32h4 => SpiRegisters {
+                base: 0x6009_9000,
                 usr_offset: 0x18,
                 usr1_offset: 0x1c,
                 usr2_offset: 0x20,
@@ -1066,14 +1103,15 @@ impl Chip {
     pub fn supported_build_targets(&self) -> &[&str] {
         match self {
             Chip::Esp32 => &["xtensa-esp32-espidf", "xtensa-esp32-none-elf"],
-            Chip::Esp32c2 => &["riscv32imc-esp-espidf", "riscv32imc-unknown-none-elf"],
-            Chip::Esp32c3 => &["riscv32imc-esp-espidf", "riscv32imc-unknown-none-elf"],
-            Chip::Esp32c5 => &["riscv32imac-esp-espidf", "riscv32imac-unknown-none-elf"],
-            Chip::Esp32c6 => &["riscv32imac-esp-espidf", "riscv32imac-unknown-none-elf"],
-            Chip::Esp32c61 => &["riscv32imac-esp-espidf", "riscv32imac-unknown-none-elf"],
-            Chip::Esp32s31 => &["riscv32imafc-esp-espidf", "riscv32imafc-unknown-none-elf"],
-            Chip::Esp32h2 => &["riscv32imac-esp-espidf", "riscv32imac-unknown-none-elf"],
-            Chip::Esp32p4 => &["riscv32imafc-esp-espidf", "riscv32imafc-unknown-none-elf"],
+            Chip::Esp32c2 | Chip::Esp32c3 => {
+                &["riscv32imc-esp-espidf", "riscv32imc-unknown-none-elf"]
+            }
+            Chip::Esp32c5 | Chip::Esp32c6 | Chip::Esp32c61 | Chip::Esp32h2 => {
+                &["riscv32imac-esp-espidf", "riscv32imac-unknown-none-elf"]
+            }
+            Chip::Esp32h4 | Chip::Esp32p4 | Chip::Esp32s31 => {
+                &["riscv32imafc-esp-espidf", "riscv32imafc-unknown-none-elf"]
+            }
             Chip::Esp32s2 => &["xtensa-esp32s2-espidf", "xtensa-esp32s2-none-elf"],
             Chip::Esp32s3 => &["xtensa-esp32s3-espidf", "xtensa-esp32s3-none-elf"],
         }
@@ -1159,6 +1197,10 @@ impl Chip {
             Chip::Esp32h2 => (
                 efuse::esp32h2::defines::EFUSE_CMD_REG,
                 efuse::esp32h2::defines::EFUSE_PGM_CMD | efuse::esp32h2::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32h4 => (
+                efuse::esp32h4::defines::EFUSE_CMD_REG,
+                efuse::esp32h4::defines::EFUSE_PGM_CMD | efuse::esp32h4::defines::EFUSE_READ_CMD,
             ),
             Chip::Esp32p4 => (
                 efuse::esp32p4::defines::EFUSE_CMD_REG,
@@ -1443,6 +1485,35 @@ impl Chip {
                 )?;
             }
 
+            Chip::Esp32h4 => {
+                if xtal_freq != XtalFrequency::_32Mhz {
+                    return Err(Error::UnsupportedXtalFrequency(format!(
+                        "Only 32 MHz is supported (xtal was {xtal_freq})"
+                    )));
+                }
+
+                connection.update_reg(
+                    efuse::esp32h4::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32h4::defines::EFUSE_DAC_NUM_M,
+                    0xFF,
+                )?;
+                connection.update_reg(
+                    efuse::esp32h4::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32h4::defines::EFUSE_DAC_CLK_DIV_M,
+                    0x28,
+                )?;
+                connection.update_reg(
+                    efuse::esp32h4::defines::EFUSE_WR_TIM_CONF1_REG,
+                    efuse::esp32h4::defines::EFUSE_PWR_ON_NUM_M,
+                    0x3000,
+                )?;
+                connection.update_reg(
+                    efuse::esp32h4::defines::EFUSE_WR_TIM_CONF2_REG,
+                    efuse::esp32h4::defines::EFUSE_PWR_OFF_NUM_M,
+                    0x190,
+                )?;
+            }
+
             Chip::Esp32p4 => {
                 if xtal_freq != XtalFrequency::_40Mhz {
                     return Err(Error::UnsupportedXtalFrequency(format!(
@@ -1590,6 +1661,7 @@ impl Chip {
             | Chip::Esp32c6
             | Chip::Esp32c61
             | Chip::Esp32h2
+            | Chip::Esp32h4
             | Chip::Esp32p4
             | Chip::Esp32s2
             | Chip::Esp32s3
@@ -1649,6 +1721,12 @@ impl Chip {
                 efuse::esp32h2::defines::EFUSE_READ_OP_CODE,
                 efuse::esp32h2::defines::EFUSE_CMD_REG,
                 efuse::esp32h2::defines::EFUSE_READ_CMD,
+            ),
+            Chip::Esp32h4 => (
+                efuse::esp32h4::defines::EFUSE_CONF_REG,
+                efuse::esp32h4::defines::EFUSE_READ_OP_CODE,
+                efuse::esp32h4::defines::EFUSE_CMD_REG,
+                efuse::esp32h4::defines::EFUSE_READ_CMD,
             ),
             Chip::Esp32p4 => (
                 efuse::esp32p4::defines::EFUSE_CONF_REG,
@@ -1714,6 +1792,7 @@ impl Chip {
                 Chip::Esp32c61 => (efuse::esp32c61::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
                 Chip::Esp32s31 => (efuse::esp32s31::defines::EFUSE_RD_REPEAT_ERR0_REG, 8),
                 Chip::Esp32h2 => (efuse::esp32h2::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
+                Chip::Esp32h4 => (efuse::esp32h4::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
                 Chip::Esp32p4 => (efuse::esp32p4::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
                 Chip::Esp32s2 => (efuse::esp32s2::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
                 Chip::Esp32s3 => (efuse::esp32s3::defines::EFUSE_RD_REPEAT_ERR0_REG, 5),
@@ -1869,6 +1948,12 @@ impl Chip {
                 efuse::esp32h2::defines::EFUSE_CMD_REG,
                 efuse::esp32h2::defines::EFUSE_PGM_CMD | ((block.index as u32) << 2),
             ),
+            Chip::Esp32h4 => (
+                efuse::esp32h4::defines::EFUSE_CONF_REG,
+                efuse::esp32h4::defines::EFUSE_WRITE_OP_CODE,
+                efuse::esp32h4::defines::EFUSE_CMD_REG,
+                efuse::esp32h4::defines::EFUSE_PGM_CMD | ((block.index as u32) << 2),
+            ),
             Chip::Esp32p4 => (
                 efuse::esp32p4::defines::EFUSE_CONF_REG,
                 efuse::esp32p4::defines::EFUSE_WRITE_OP_CODE,
@@ -1959,6 +2044,7 @@ impl TryFrom<u16> for Chip {
             13 => Ok(Chip::Esp32c6),
             20 => Ok(Chip::Esp32c61),
             16 => Ok(Chip::Esp32h2),
+            28 => Ok(Chip::Esp32h4),
             18 => Ok(Chip::Esp32p4),
             2 => Ok(Chip::Esp32s2),
             9 => Ok(Chip::Esp32s3),
