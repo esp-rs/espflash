@@ -195,6 +195,37 @@ jobs:
           xtask run-tests --chip ${{ matrix.target.soc }} --timeout 90 --baud 921600
           --espflash "$PWD/hil-bin/espflash" ${{ matrix.target.extra-args }}
 
+  # Merge gate for HIL matrix legs. Blocks when more than MAX_FAILED_RUNS
+  # (see hil-gate.js) executed legs failed or were cancelled. Dual-port chips
+  # count as two jobs. Skipped legs are excluded. SDM is informational and is
+  # not part of this gate.
+  #
+  # Branch protection / merge queue should require this job instead of the
+  # individual `HIL | <soc> | <port>` checks.
+  hil-gate:
+    name: hil-gate
+    needs: [run-tests]
+    if: >
+      always() &&
+      needs.run-tests.result != 'skipped'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: ${{ github.event.inputs.repository || github.repository }}
+          ref: ${{ github.event.inputs.branch || github.ref }}
+          fetch-depth: 1
+
+      - name: Evaluate HIL results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { evaluateHilGate } = require('./.github/scripts/hil-gate.js');
+            await evaluateHilGate({ github, context, core });
+
   # SDM Tests (VM - ESP32C6)
   build-sdm-packages:
     name: Build SDM packages
