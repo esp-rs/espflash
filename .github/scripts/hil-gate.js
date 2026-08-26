@@ -25,6 +25,7 @@ function classifyMatrixJob(job) {
   if (
     conclusion === "failure" ||
     conclusion === "cancelled" ||
+    conclusion === "timed_out" ||
     conclusion === null
   ) {
     return { kind: "failed" };
