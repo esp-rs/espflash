@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Do not treat `0x0` as a chip-detect magic value for ESP32-H4, ESP32-S31 and ESP32-P4 (#1063)
 - Regenerate efuses for S31 (#1053)
+- Avoid loading the flash stub for standalone `monitor` and `hold-in-reset` commands (#1061)
 
 ### Removed
 
