@@ -243,9 +243,9 @@ fn main() -> Result<()> {
     } = cli.subcommand;
     debug!("{args:#?}, {skip_update_check:#?}");
 
-    // Only check for updates once the command-line arguments have been processed,
-    // to avoid printing any update notifications when the help message is
-    // displayed.
+    // Only check for updates once the command-line arguments have been
+    // processed, to avoid printing any update notifications when the help
+    // message is displayed.
     if !skip_update_check {
         check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     }
@@ -319,8 +319,8 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         args.flash_args.no_skip,
     )?;
 
-    // If the user has provided a flash size via a command-line argument or config,
-    // we'll override the detected (or default) value with this.
+    // If the user has provided a flash size via a command-line argument or
+    // config, we'll override the detected (or default) value with this.
     if let Some(flash_size) = args.build_args.flash_config_args.flash_size {
         flasher.set_flash_size(flash_size);
     } else if let Some(flash_size) = config.project_config.flash.size {
@@ -468,8 +468,8 @@ fn build(
 
     // The 'build-std' unstable cargo feature is required to enable
     // cross-compilation for Xtensa targets. If it has not been set then we
-    // cannot build the application, and the cause of the (numerous) build errors
-    // may not be immediately clear to the user.
+    // cannot build the application, and the cause of the (numerous) build
+    // errors may not be immediately clear to the user.
     let cfg_has_build_std = cargo_config.has_build_std();
     let opts_has_build_std = build_options
         .unstable
@@ -483,8 +483,8 @@ fn build(
     };
 
     // Build the list of arguments to pass to 'cargo build'. We will always
-    // explicitly state the target, as it must be provided as either a command-line
-    // argument or in the cargo config file.
+    // explicitly state the target, as it must be provided as either a
+    // command-line argument or in the cargo config file.
     let mut args = vec!["--target".to_string(), target.to_string()];
 
     if let Some(target_dir) = &build_options.target_dir {
@@ -558,8 +558,9 @@ fn build(
     for message in messages {
         match message.into_diagnostic()? {
             Message::BuildScriptExecuted(script) => {
-                // We can't use the `Index` implementation on `Metadata` because `-Zbuild-std`
-                // pulls in dependencies not listed in the metadata which then causes the
+                // We can't use the `Index` implementation on `Metadata` because
+                // `-Zbuild-std` pulls in dependencies not
+                // listed in the metadata which then causes the
                 // `Index` implementation to panic.
                 let Some(package) = metadata.packages.iter().find(|p| p.id == script.package_id)
                 else {
@@ -570,8 +571,9 @@ fn build(
                     continue;
                 }
 
-                // If the `esp-idf-sys` package is being used, attempt to use the bootloader and
-                // partition table compiled by `embuild` instead.
+                // If the `esp-idf-sys` package is being used, attempt to use
+                // the bootloader and partition table compiled
+                // by `embuild` instead.
                 let build_path = PathBuf::from(script.out_dir).join("build");
 
                 let bl_path = build_path.join("bootloader").join("bootloader.bin");
@@ -604,9 +606,9 @@ fn build(
         }
     }
 
-    // Check if the command succeeded, otherwise return an error. Any error messages
-    // occurring during the build are shown above, when the compiler messages are
-    // rendered.
+    // Check if the command succeeded, otherwise return an error. Any error
+    // messages occurring during the build are shown above, when the
+    // compiler messages are rendered.
     if !output.status.success() {
         exit_with_process_status(output.status);
     }

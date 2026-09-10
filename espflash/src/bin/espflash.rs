@@ -174,9 +174,9 @@ fn main() -> Result<()> {
     let args = cli.subcommand;
     debug!("{:#?}, {:#?}", args, cli.skip_update_check);
 
-    // Only check for updates once the command-line arguments have been processed,
-    // to avoid printing any update notifications when the help message is
-    // displayed.
+    // Only check for updates once the command-line arguments have been
+    // processed, to avoid printing any update notifications when the help
+    // message is displayed.
     if !cli.skip_update_check {
         check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     }

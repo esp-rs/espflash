@@ -69,8 +69,8 @@ pub mod update {
 
     /// Check for updates to the espflash crate.
     pub fn check_for_update(name: &str, version: &str) {
-        // By setting the interval to 0 seconds we invalidate the cache with each
-        // invocation and ensure we're getting up-to-date results
+        // By setting the interval to 0 seconds we invalidate the cache with
+        // each invocation and ensure we're getting up-to-date results
         let informer = update_informer::new(Crates, name, version).interval(Duration::from_secs(0));
 
         if let Some(version) = informer.check_version().ok().flatten() {

@@ -709,10 +709,11 @@ pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let elfs = load_monitor_elfs(firmware_elf.as_deref(), &monitor_args, &dev_info)?;
     let elf_refs = elfs.refs();
 
-    // UsbJtagSerialReset issues USB_UART_CHIP_RESET, which does not re-initialize
-    // the RISC-V debug module, which causes probe-rs JTAG sessions to timing
-    // out on DMI access. rtc_wdt_reset performs a full chip reset that fixes this,
-    // but also causes USB re-enumeration, so the port must be reopened.
+    // UsbJtagSerialReset issues USB_UART_CHIP_RESET, which does not
+    // re-initialize the RISC-V debug module, which causes probe-rs JTAG
+    // sessions to timing out on DMI access. rtc_wdt_reset performs a full
+    // chip reset that fixes this, but also causes USB re-enumeration, so
+    // the port must be reopened.
     if args.connect_args.non_interactive
         && !monitor_args.no_reset
         && flasher.connection().is_using_usb_serial_jtag()
@@ -785,7 +786,8 @@ pub fn save_elf_as_image<'a>(
         }
 
         if !skip_padding {
-            // Take flash_size as input parameter, if None, use default value of 4Mb
+            // Take flash_size as input parameter, if None, use default value of
+            // 4Mb
             let padding_bytes = vec![
                 0xffu8;
                 flash_size.unwrap_or_default().size() as usize

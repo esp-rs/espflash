@@ -1219,10 +1219,11 @@ impl Chip {
         // `esptool` has a 0.25 second timeout.
         let deadline = std::time::Instant::now() + std::time::Duration::from_millis(250);
         while std::time::Instant::now() < deadline {
-            // Wait until `EFUSE_CMD_REG` reads as zero twice in a row.  `esptool.py` says
-            // that "due to a hardware error, we have to read READ_CMD again to
-            // make sure the efuse clock is normal" but doesn't provide any
-            // references.  See if this is documented in the errata.
+            // Wait until `EFUSE_CMD_REG` reads as zero twice in a row.
+            // `esptool.py` says that "due to a hardware error, we
+            // have to read READ_CMD again to make sure the efuse
+            // clock is normal" but doesn't provide any references.
+            // See if this is documented in the errata.
             if (connection.read_reg(cmd_reg)? & cmds) != 0 {
                 continue;
             }
@@ -1523,8 +1524,9 @@ impl Chip {
             }
 
             Chip::Esp32s2 => {
-                // The datasheet lists parameters for 80 MHz and 20 MHz as well, but `esptool`
-                // doesn't support detecting either of those frequencies, so it seems like we
+                // The datasheet lists parameters for 80 MHz and 20 MHz as well,
+                // but `esptool` doesn't support detecting
+                // either of those frequencies, so it seems like we
                 // only need to support 40 MHz here?
                 if xtal_freq != XtalFrequency::_40Mhz {
                     return Err(Error::UnsupportedXtalFrequency(format!(
@@ -1557,7 +1559,8 @@ impl Chip {
                     efuse_tpgm_inactive,
                 )?;
 
-                // From `VDDQ_TIMING_PARAMETERS` in `espefuse/efuse/esp32s2/mem_definition.py`
+                // From `VDDQ_TIMING_PARAMETERS` in
+                // `espefuse/efuse/esp32s2/mem_definition.py`
                 let (efuse_dac_clk_div, efuse_pwr_on_num, efuse_pwr_off_num) = (0x50, 0x5100, 0x80);
                 connection.update_reg(
                     efuse::esp32s2::defines::EFUSE_DAC_CONF_REG,
@@ -1575,11 +1578,12 @@ impl Chip {
                     efuse_pwr_off_num,
                 )?;
 
-                // From `EFUSE_READING_PARAMETERS` in `espefuse/efuse/esp32s2/mem_definition.py`
+                // From `EFUSE_READING_PARAMETERS` in
+                // `espefuse/efuse/esp32s2/mem_definition.py`
                 let (_efuse_tsur_a, efuse_trd, efuse_thr_a) = (0x1, 0x2, 0x1);
                 // This is commented out in `esptool` for some reason.
-                // TODO: Check TRM and ask `esptool` devs whether this is correct, and
-                // preferably why.
+                // TODO: Check TRM and ask `esptool` devs whether this is
+                // correct, and preferably why.
                 //
                 // connection.update_reg(
                 //     efuse::esp32s2::defines::EFUSE_RD_TIM_CONF_REG,
@@ -1770,8 +1774,9 @@ impl Chip {
         block: EfuseBlock,
     ) -> Result<bool, Error> {
         let Some(block_errors) = self.block_errors(block)? else {
-            // ESP32 chips can only detect write errors while using the 3/4 encoding scheme,
-            // in other cases the return value is meaningless.
+            // ESP32 chips can only detect write errors while using the 3/4
+            // encoding scheme, in other cases the return value is
+            // meaningless.
             if self.efuse_coding_scheme(connection, block)? != CodingScheme::_34 {
                 return Ok(true);
             }
@@ -1831,11 +1836,12 @@ impl Chip {
         self.wait_efuse_idle(connection)?;
 
         let words: u32 = if self == Chip::Esp32 {
-            // All ESP32 eFuse blocks have 8 data registers with no separate check
-            // registers.
+            // All ESP32 eFuse blocks have 8 data registers with no separate
+            // check registers.
             8
         } else {
-            // All other chips a shared set of 8 data registers and 3 check registers.
+            // All other chips a shared set of 8 data registers and 3 check
+            // registers.
             8 + 3
         };
         for word in 0..words {
@@ -1864,10 +1870,11 @@ impl Chip {
         self.configure_efuse_write_timing(connection)?;
         self.clear_efuse_programming_registers(connection, block)?;
 
-        // Apply the coding scheme and convert the data into a vector of 4-byte words.
+        // Apply the coding scheme and convert the data into a vector of 4-byte
+        // words.
         let coded_data: Vec<u32> = {
-            // Make sure that the data is padded with zeroes to the full size of the eFuse
-            // block.
+            // Make sure that the data is padded with zeroes to the full size of
+            // the eFuse block.
             let data = {
                 let mut buf = vec![0u8; block.length as usize * 4];
                 buf[0..data.len()].copy_from_slice(data);
@@ -1890,8 +1897,9 @@ impl Chip {
 
             // Turn the vector of bytes into a vector of words.
             //
-            // We know that the vector contains an even number of bytes because of how we
-            // allocated this vector at the beginning of this block.
+            // We know that the vector contains an even number of bytes because
+            // of how we allocated this vector at the beginning of
+            // this block.
             bytes
                 .chunks(4)
                 .map(|bytes| u32::from_le_bytes(bytes.try_into().unwrap()))
@@ -1974,26 +1982,28 @@ impl Chip {
             ),
         };
 
-        // Try to flash the eFuse up to 3 times in case not all bits ended up being
-        // burned.
+        // Try to flash the eFuse up to 3 times in case not all bits ended up
+        // being burned.
         let mut err = None;
         for _ in 0..3 {
             self.wait_efuse_idle(connection)?;
 
             // Write the encoded data to the block's write address.
             //
-            // The check value registers for the Reed-Solomon follow after the data
-            // registers.
+            // The check value registers for the Reed-Solomon follow after the
+            // data registers.
             for (idx, word) in coded_data.iter().enumerate() {
                 connection.write_reg(block.write_address + (idx as u32 * 4), *word, None)?;
             }
 
-            // Trigger the eFuse write and wait for the burning process to finish.
+            // Trigger the eFuse write and wait for the burning process to
+            // finish.
             connection.write_reg(conf_reg, conf_val, None)?;
             connection.write_reg(cmd_reg, cmd_val, None)?;
             self.wait_efuse_idle(connection)?;
 
-            // Clear the parameter registers to avoid leaking the programmed contents.
+            // Clear the parameter registers to avoid leaking the programmed
+            // contents.
             self.clear_efuse_programming_registers(connection, block)?;
 
             // Trigger eFuse controller to update its internal registers.
@@ -2005,8 +2015,8 @@ impl Chip {
                 continue;
             }
 
-            // Check that the bits we wrote are actually set.  If there are any differences
-            // we perform the burn again.
+            // Check that the bits we wrote are actually set.  If there are any
+            // differences we perform the burn again.
             for word in 0..block.length {
                 let rd_word = self.read_efuse_raw(connection, block.index.into(), word.into())?;
                 let wr_word = coded_data[word as usize];
@@ -2019,7 +2029,8 @@ impl Chip {
             return Ok(());
         }
 
-        // Reaching this point means that we failed to burn the eFuse 3 times in a row.
+        // Reaching this point means that we failed to burn the eFuse 3 times in
+        // a row.
         Err(Error::WritingEfuseFailed(err.unwrap().to_string()))
     }
 }

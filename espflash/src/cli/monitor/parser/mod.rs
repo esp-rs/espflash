@@ -42,12 +42,12 @@ fn resolve_addresses(
     }
 
     // Check the previous line for function addresses. For each address found,
-    // attempt to look up the associated function's name and location and write both
-    // to the terminal.
+    // attempt to look up the associated function's name and location and write
+    // both to the terminal.
     for matched in RE_FN_ADDR.find_iter(line).map(|m| m.as_str()) {
-        // Since our regular expression already confirms that this is a correctly
-        // formatted hex literal, we can (fairly) safely assume that it will parse
-        // successfully into an integer.
+        // Since our regular expression already confirms that this is a
+        // correctly formatted hex literal, we can (fairly) safely
+        // assume that it will parse successfully into an integer.
         let addr = u64::from_str_radix(&matched[2..], 16).unwrap();
 
         let name = symbols.name(addr);
@@ -89,8 +89,8 @@ impl Utf8Merger {
         let mut buffer = std::mem::take(&mut self.incomplete_utf8_buffer);
         buffer.extend(normalized(buff.iter().copied()));
 
-        // look for longest slice that we can then lossily convert without introducing
-        // errors for partial sequences (#457)
+        // look for longest slice that we can then lossily convert without
+        // introducing errors for partial sequences (#457)
         let mut len = 0;
 
         loop {
@@ -109,7 +109,8 @@ impl Utf8Merger {
                     if let Some(error_len) = e.error_len() {
                         len += error_len;
                     } else {
-                        // incomplete sequence. We split it off, save it for later
+                        // incomplete sequence. We split it off, save it for
+                        // later
                         let (bytes, incomplete) = buffer.split_at(len);
                         self.incomplete_utf8_buffer = incomplete.to_vec();
                         return String::from_utf8_lossy(bytes).to_string();
@@ -167,8 +168,9 @@ impl<W: Write> Write for ResolvingPrinter<'_, W> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let text = self.merger.process_utf8(buf);
 
-        // Split the text into lines, storing the last of which separately if it is
-        // incomplete (ie. does not end with '\n') because these need special handling.
+        // Split the text into lines, storing the last of which separately if it
+        // is incomplete (ie. does not end with '\n') because these need
+        // special handling.
         let mut lines = text.lines().collect::<Vec<_>>();
         let incomplete = if text.ends_with('\n') {
             None
@@ -181,22 +183,25 @@ impl<W: Write> Write for ResolvingPrinter<'_, W> {
             // ... and print the line.
             self.writer.queue(Print(line))?;
 
-            // If there is a previous line fragment, that means that the current line must
-            // be appended to it in order to form the complete line. Since we want to look
-            // for function addresses in the *entire* previous line we combine these prior
+            // If there is a previous line fragment, that means that the current
+            // line must be appended to it in order to form the
+            // complete line. Since we want to look for function
+            // addresses in the *entire* previous line we combine these prior
             // to performing the symbol lookup(s).
             let fragment = std::mem::take(&mut self.line_fragment);
             let line = if fragment.is_empty() {
                 Cow::from(line)
             } else {
-                // The previous fragment has been completed (by this current line).
+                // The previous fragment has been completed (by this current
+                // line).
                 Cow::from(format!("{fragment}{line}"))
             };
 
             // Remember to begin a new line after we have printed this one!
             self.writer.queue(Print("\r\n"))?;
 
-            // If we have loaded some symbols and address resolution is not disabled...
+            // If we have loaded some symbols and address resolution is not
+            // disabled...
             if !self.disable_address_resolution {
                 for symbols in &self.symbols {
                     // Try to print the names of addresses in the current line.
@@ -222,8 +227,9 @@ impl<W: Write> Write for ResolvingPrinter<'_, W> {
             }
         }
 
-        // If there is an incomplete line we will still print it. However, we will not
-        // perform function name lookups or terminate it with a newline.
+        // If there is an incomplete line we will still print it. However, we
+        // will not perform function name lookups or terminate it with a
+        // newline.
         if let Some(line) = incomplete {
             self.writer.queue(Print(line))?;
 

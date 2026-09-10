@@ -46,8 +46,8 @@ impl<'sym> Symbols<'sym> {
         // The basic steps here are:
         //   1. Find which frame `addr` is in
         //   2. Look up and demangle the function name
-        //   3. If no function name is found, try to look it up in the object file
-        //      directly
+        //   3. If no function name is found, try to look it up in the object
+        //      file directly
         //   4. Return a demangled function name, if one was found
         let mut frames = match self.ctx.find_frames(addr) {
             LookupResult::Output(result) => result.unwrap(),
@@ -64,8 +64,9 @@ impl<'sym> Symbols<'sym> {
                     .and_then(|name| name.demangle().map(|s| s.into_owned()).ok())
             })
             .or_else(|| {
-                // Don't use `symbol_map().get(addr)` - it's documentation says "Get the symbol
-                // before the given address." which might be totally wrong
+                // Don't use `symbol_map().get(addr)` - it's documentation says
+                // "Get the symbol before the given address."
+                // which might be totally wrong
                 let symbol = self.object.symbols().find(|symbol| {
                     (symbol.address()..=(symbol.address() + symbol.size())).contains(&addr)
                 });
@@ -87,8 +88,9 @@ impl<'sym> Symbols<'sym> {
     /// Returns the file name and line number of the function at the given
     /// address, if one can be.
     pub fn location(&self, addr: u64) -> Option<(String, u32)> {
-        // Find the location which `addr` is in. If we can dedetermine a file name and
-        // line number for this function we will return them both in a tuple.
+        // Find the location which `addr` is in. If we can dedetermine a file
+        // name and line number for this function we will return them
+        // both in a tuple.
         self.ctx.find_location(addr).ok()?.map(|location| {
             let file = location.file.map(|f| f.to_string());
             let line = location.line;

@@ -94,14 +94,15 @@ pub fn monitor(
     let baud = monitor_args.monitor_baud;
     debug!("Opening serial monitor with baudrate: {baud}");
 
-    // Explicitly set the baud rate when starting the serial monitor, to allow using
-    // different rates for flashing.
+    // Explicitly set the baud rate when starting the serial monitor, to allow
+    // using different rates for flashing.
     serial.set_baud_rate(baud).into_diagnostic()?;
     serial
         .set_timeout(Duration::from_millis(5))
         .into_diagnostic()?;
 
-    // We are in raw mode until `_raw_mode` is dropped (ie. this function returns).
+    // We are in raw mode until `_raw_mode` is dropped (ie. this function
+    // returns).
     let _raw_mode = RawModeGuard::new();
 
     let firmware_elf = elfs.first().map(|v| &**v);
@@ -264,8 +265,8 @@ mod linux {
     pub fn arm_timeout_workaround(timeout: Duration) -> Workaround {
         extern "C" fn handle_signal(_signal: libc::c_int) {}
 
-        // Register signal handler to prevent killing the program. The original handler
-        // will be restored during cleanup.
+        // Register signal handler to prevent killing the program. The original
+        // handler will be restored during cleanup.
         let handler = SigHandler::Handler(handle_signal);
         unsafe {
             signal::sigaction(

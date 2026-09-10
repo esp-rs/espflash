@@ -19,8 +19,8 @@ pub struct PackageMetadata {
 impl PackageMetadata {
     /// Load package metadata.
     pub fn load(package_name: &Option<String>) -> Result<Self> {
-        // There MUST be a cargo manifest in the executing directory, regardless of
-        // whether or not we are in a workspace.
+        // There MUST be a cargo manifest in the executing directory, regardless
+        // of whether or not we are in a workspace.
         let manifest_path = PathBuf::from("Cargo.toml");
         if !manifest_path.exists() {
             return Err(Error::NoProject.into());

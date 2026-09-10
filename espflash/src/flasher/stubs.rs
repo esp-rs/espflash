@@ -65,7 +65,8 @@ impl FlashStub {
             Chip::Esp32h2 => STUB_32H2,
             Chip::Esp32h4 => STUB_32H4,
             Chip::Esp32p4 => {
-                // For ESP32-P4, use RC1 stub if revision < 300 (matching esptool behavior)
+                // For ESP32-P4, use RC1 stub if revision < 300 (matching
+                // esptool behavior)
                 if revision.unwrap_or(300) < 300 {
                     STUB_32P4RC1
                 } else {

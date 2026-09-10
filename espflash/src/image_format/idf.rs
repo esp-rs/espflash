@@ -316,8 +316,9 @@ impl<'a> IdfBootloaderFormat<'a> {
     ) -> Result<Self, Error> {
         let elf = ElfFile::parse(elf_data)?;
 
-        // Use the minimum chip revision declared in the ELF metadata as a floor,
-        // allowing the CLI value to raise it further but not lower it.
+        // Use the minimum chip revision declared in the ELF metadata as a
+        // floor, allowing the CLI value to raise it further but not
+        // lower it.
         let metadata_min_rev = Metadata::from_bytes(Some(elf_data))
             .min_chip_revision()
             .unwrap_or(0);
@@ -428,9 +429,9 @@ impl<'a> IdfBootloaderFormat<'a> {
         let mut data = bytes_of(&header).to_vec();
 
         // The bootloader needs segments to be 4-byte aligned, but ensuring that
-        // alignment by padding segments might result in overlapping segments. We
-        // need to merge adjacent segments first to avoid the possibility of them
-        // overlapping, and then do the padding.
+        // alignment by padding segments might result in overlapping segments.
+        // We need to merge adjacent segments first to avoid the
+        // possibility of them overlapping, and then do the padding.
         let mut flash_segments: Vec<_> = pad_align_segments(merge_adjacent_segments(
             rom_segments(flash_data.chip, &elf).collect(),
         ));
@@ -441,8 +442,9 @@ impl<'a> IdfBootloaderFormat<'a> {
         let mut checksum = ESP_CHECKSUM_MAGIC;
         let mut segment_count = 0;
 
-        // Find and bubble the app descriptor segment to the first position. We do this
-        // after merging/padding the segments, so it should be okay to reorder them now.
+        // Find and bubble the app descriptor segment to the first position. We
+        // do this after merging/padding the segments, so it should be
+        // okay to reorder them now.
         let app_desc_addr = if let Some(appdesc) = elf.section_by_name(".flash.appdesc") {
             let address = appdesc.address() as u32;
             let Some(segment_position) = flash_segments
@@ -490,7 +492,8 @@ impl<'a> IdfBootloaderFormat<'a> {
             } else {
                 // Infer from the app descriptor alignment
 
-                // Subtract image + extended header (24 bytes) and segment header (8 bytes)
+                // Subtract image + extended header (24 bytes) and segment
+                // header (8 bytes)
                 let address = address - 32;
 
                 // Page sizes are defined in ascenting order
@@ -553,13 +556,15 @@ impl<'a> IdfBootloaderFormat<'a> {
             loop {
                 let pad_len = segment_padding(data.len(), &segment, mmu_page_size);
 
-                // Optimisation: if flash segments need padding, we fill it up with RAM
-                // segment data if we can, to save space in the final image.
+                // Optimisation: if flash segments need padding, we fill it up
+                // with RAM segment data if we can, to save
+                // space in the final image.
                 if pad_len > SEG_HEADER_LEN
                     && let Some(ram_segment) = ram_segments.first_mut()
                 {
-                    // save up to `pad_len` from the ram segment, any remaining bits in the
-                    // ram segments will be saved later
+                    // save up to `pad_len` from the ram segment, any remaining
+                    // bits in the ram segments will be
+                    // saved later
                     let pad_segment = ram_segment.split_off(pad_len as usize);
                     checksum = save_segment(&mut data, &pad_segment, checksum)?;
                     if ram_segment.data().is_empty() {
@@ -598,7 +603,8 @@ impl<'a> IdfBootloaderFormat<'a> {
 
         data.write_all(&[checksum])?;
 
-        // since we added some dummy segments, we need to patch the segment count
+        // since we added some dummy segments, we need to patch the segment
+        // count
         data[1] = segment_count as u8;
 
         let mut hasher = Sha256::new();
@@ -628,8 +634,8 @@ impl<'a> IdfBootloaderFormat<'a> {
         let app_size = data.len() as u32;
         let partition_table_size = target_app_partition.size();
 
-        // The size of the application must not exceed the size of the target app
-        // partition.
+        // The size of the application must not exceed the size of the target
+        // app partition.
         if app_size as f32 / partition_table_size as f32 > 1.0 {
             return Err(Error::ElfTooBig(app_size, partition_table_size));
         }
@@ -639,9 +645,9 @@ impl<'a> IdfBootloaderFormat<'a> {
             data: Cow::Owned(data),
         };
 
-        // If the user did not specify a partition offset, we need to assume that the
-        // partition offset is (first partition offset) - 0x1000, since this is
-        // the most common case.
+        // If the user did not specify a partition offset, we need to assume
+        // that the partition offset is (first partition offset) -
+        // 0x1000, since this is the most common case.
         let partition_table_offset = partition_table_offset.unwrap_or_else(|| {
             let partitions = partition_table.partitions();
             let first_partition = partitions
@@ -799,9 +805,9 @@ fn merge_adjacent_segments(mut segments: Vec<Segment<'_>>) -> Vec<Segment<'_>> {
                 continue;
             }
 
-            // There is some space between the segments. We can merge them if they would
-            // either be contiguous, or overlap, if the first segment was 4-byte
-            // aligned.
+            // There is some space between the segments. We can merge them if
+            // they would either be contiguous, or overlap, if the
+            // first segment was 4-byte aligned.
             let max_padding = (4 - last_end % 4) % 4;
             if last_end + max_padding >= segment.addr {
                 *last += &[0u8; 4][..(segment.addr - last_end) as usize];
@@ -832,9 +838,9 @@ fn save_flash_segment(
     let segment_remainder = end_pos % mmu_page_size;
 
     if segment_remainder < 0x24 {
-        // Work around a bug in ESP-IDF 2nd stage bootloader, that it didn't map the
-        // last MMU page, if an IROM/DROM segment was < 0x24 bytes over the page
-        // boundary.
+        // Work around a bug in ESP-IDF 2nd stage bootloader, that it didn't map
+        // the last MMU page, if an IROM/DROM segment was < 0x24 bytes
+        // over the page boundary.
         static PADDING: [u8; 0x24] = [0; 0x24];
 
         segment += &PADDING[0..(0x24 - segment_remainder as usize)];

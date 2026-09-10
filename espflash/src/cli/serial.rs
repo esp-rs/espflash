@@ -18,15 +18,16 @@ use crate::{
 /// Return the information of a serial port taking into account the different
 /// ways of choosing a port.
 pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<SerialPortInfo, Error> {
-    // A serial port should be specified either as a command-line argument or in a
-    // configuration file. In the case that both have been provided the command-line
-    // argument takes precedence.
+    // A serial port should be specified either as a command-line argument or in
+    // a configuration file. In the case that both have been provided the
+    // command-line argument takes precedence.
     //
-    // Users may optionally specify the device's VID and PID in the configuration
-    // file. If no VID/PID has been provided, the user will always be prompted to
-    // select a serial port. If some VID and PID were provided then the user will
-    // also be prompted to select a port, unless there is only one found whose VID
-    // and PID match the configured values.
+    // Users may optionally specify the device's VID and PID in the
+    // configuration file. If no VID/PID has been provided, the user will
+    // always be prompted to select a serial port. If some VID and PID were
+    // provided then the user will also be prompted to select a port, unless
+    // there is only one found whose VID and PID match the configured
+    // values.
     //
     // The call to canonicalize() was originally added to resolve
     // https://github.com/esp-rs/espflash/issues/177, however, canonicalize
