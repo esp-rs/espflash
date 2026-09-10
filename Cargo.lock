@@ -263,7 +263,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-espflash"
-version = "4.5.0"
+version = "4.6.0"
 dependencies = [
  "cargo_metadata",
  "clap",
@@ -967,7 +967,7 @@ source = "git+https://github.com/esp-rs/esp-hal?rev=d91ecc5#d91ecc513f4e7915ce23
 
 [[package]]
 name = "espflash"
-version = "4.5.0"
+version = "4.6.0"
 dependencies = [
  "addr2line",
  "base64",
