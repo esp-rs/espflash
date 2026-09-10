@@ -355,9 +355,9 @@ impl TestRunner {
             return false;
         }
 
-        // ESP32-P4 flash stub reads erased flash as 0x00 in a few regular ranges.
-        // Treat only those ranges as erased so the test can still verify all other
-        // bytes.
+        // ESP32-P4 flash stub reads erased flash as 0x00 in a few regular
+        // ranges. Treat only those ranges as erased so the test can
+        // still verify all other bytes.
         let offset_in_sector = offset % 0x1000;
         (offset >= 0x400 && offset % 0x400 < 0x100)
             || (offset >= 0x1000 && (0x0e0..0x100).contains(&offset_in_sector))
@@ -387,9 +387,10 @@ impl TestRunner {
             self.test_flash(Some(chip), false)?;
             self.test_monitor(chip)?;
         } else if chip == "esp32p4" {
-            // ESP32-P4 flash stub currently reports erased bytes and MD5 checksums
-            // differently in some ranges, so keep the default suite to tests that
-            // are stable on this target.
+            // ESP32-P4 flash stub currently reports erased bytes and MD5
+            // checksums differently in some ranges, so keep the
+            // default suite to tests that are stable on this
+            // target.
             self.test_board_info(chip)?;
             self.test_erase_flash(Some(chip))?;
             self.test_hold_in_reset()?;
@@ -653,7 +654,8 @@ impl TestRunner {
             "standard flashing",
         )?;
 
-        // Keep default-baud flash coverage on the representative extended runner.
+        // Keep default-baud flash coverage on the representative extended
+        // runner.
         if extended && self.baud.is_some_and(|baud| baud != 115_200) {
             self.run_timed_command_test(
                 &["flash", "--no-skip", "--monitor", "--non-interactive", &app],
@@ -911,8 +913,8 @@ impl TestRunner {
         // Write the pattern to a file
         fs::write(&pattern_file, &known_pattern)?;
 
-        // Ensure the test region can be programmed regardless of the current flash
-        // contents.
+        // Ensure the test region can be programmed regardless of the current
+        // flash contents.
         self.run_simple_command_test(
             &["erase-region", "0x0", "0x1000"],
             Some(&["Erasing region at"]),
@@ -1271,9 +1273,9 @@ mod tests {
     fn command_timeout_really_terminates_process() {
         let runner = runner();
         let mut command = Command::new("sh");
-        // Use a shell builtin loop so killing the shell closes its output pipes;
-        // a spawned `sleep` process would inherit those pipes and make the reader
-        // threads wait for an unrelated descendant.
+        // Use a shell builtin loop so killing the shell closes its output
+        // pipes; a spawned `sleep` process would inherit those pipes
+        // and make the reader threads wait for an unrelated descendant.
         command.args(["-c", "while :; do :; done"]);
         let start = Instant::now();
         let result = runner

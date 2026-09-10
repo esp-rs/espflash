@@ -581,8 +581,8 @@ impl Flasher {
         chip: Option<Chip>,
         baud: Option<u32>,
     ) -> Result<Self, Box<(Error, Connection)>> {
-        // The connection should already be established with the device using the
-        // default baud rate of 115,200 and timeout of 3 seconds.
+        // The connection should already be established with the device using
+        // the default baud rate of 115,200 and timeout of 3 seconds.
         if let Err(e) = connection.begin() {
             return Err(Box::new((e, connection)));
         }
@@ -667,8 +667,9 @@ impl Flasher {
             flasher.use_stub = false;
         }
 
-        // Now that we have established a connection and detected the chip and flash
-        // size, we can set the baud rate of the connection to the configured value.
+        // Now that we have established a connection and detected the chip and
+        // flash size, we can set the baud rate of the connection to the
+        // configured value.
         if let Some(baud) = baud
             && baud > 115_200
         {
@@ -709,7 +710,8 @@ impl Flasher {
             return Ok(());
         }
 
-        // Flash power-on related registers and bits needed for ESP32-P4 ECO6/ECO7.
+        // Flash power-on related registers and bits needed for ESP32-P4
+        // ECO6/ECO7.
         const EFUSE_RD_REPEAT_DATA1_REG: u32 = 0x5012_D034;
         const EFUSE_DOWNLOAD_MODE_XPD_ON_MASK: u32 = 1 << 16;
         const LP_SYSTEM_REG_ANA_XPD_PAD_GROUP_REG: u32 = 0x5011_010C;
@@ -806,7 +808,8 @@ impl Flasher {
         let revision = if matches!(self.chip, Chip::Esp32p4) {
             match self.chip_revision() {
                 Ok(Some((major, minor))) => {
-                    // Calculate revision as major * 100 + minor (matching esptool format)
+                    // Calculate revision as major * 100 + minor (matching
+                    // esptool format)
                     let rev = major * 100 + minor;
                     debug!("ESP32-P4 revision: v{major}.{minor} (calculated: {rev})");
                     Some(rev)
@@ -877,8 +880,8 @@ impl Flasher {
     }
 
     fn spi_autodetect(&mut self) -> Result<(), Error> {
-        // Loop over all available SPI parameters until we find one that successfully
-        // reads the flash size.
+        // Loop over all available SPI parameters until we find one that
+        // successfully reads the flash size.
         for spi_params in TRY_SPI_PARAMS.iter().copied() {
             debug!("Attempting flash enable with: {spi_params:?}");
 
@@ -891,8 +894,8 @@ impl Flasher {
             if let Some(flash_size) = self.flash_detect()? {
                 debug!("Flash detect OK!");
 
-                // Flash detection was successful, so save the flash size and SPI parameters and
-                // return.
+                // Flash detection was successful, so save the flash size and
+                // SPI parameters and return.
                 self.flash_size = flash_size;
                 self.spi_params = spi_params;
 
@@ -925,7 +928,8 @@ impl Flasher {
         let flash_id = self.spi_command(CommandType::FlashDetect, &[], 24)?;
         let size_id = (flash_id >> 16) as u8;
 
-        // This value indicates that an alternate detection method should be tried.
+        // This value indicates that an alternate detection method should be
+        // tried.
         if size_id == FLASH_RETRY {
             return Ok(None);
         }
@@ -1147,7 +1151,8 @@ impl Flasher {
             .flash_target(self.spi_params, self.use_stub, verify, skip);
         target.begin(&mut self.connection).flashing()?;
 
-        // When the `cli` feature is enabled, display the image size information.
+        // When the `cli` feature is enabled, display the image size
+        // information.
         #[cfg(feature = "cli")]
         {
             let metadata = image_format.metadata();
@@ -1182,7 +1187,8 @@ impl Flasher {
             data: Cow::from(data),
         };
 
-        // If the file size is not divisible by 4, we need to pad `FF` bytes to the end
+        // If the file size is not divisible by 4, we need to pad `FF` bytes to
+        // the end
         let size = segment.data.len();
         if !size.is_multiple_of(4) {
             let padded_bytes = 4 - (size % 4);
@@ -1259,10 +1265,12 @@ impl Flasher {
 
         let xtal_freq = self.chip.xtal_frequency(&mut self.connection)?;
 
-        // Probably this is just a temporary solution until the next chip revision.
+        // Probably this is just a temporary solution until the next chip
+        // revision.
         //
-        // The ROM code thinks it uses a 40 MHz XTAL. Recompute the baud rate in order
-        // to trick the ROM code to set the correct baud rate for a 26 MHz XTAL.
+        // The ROM code thinks it uses a 40 MHz XTAL. Recompute the baud rate in
+        // order to trick the ROM code to set the correct baud rate for
+        // a 26 MHz XTAL.
         let mut new_baud = baud;
         if self.chip == Chip::Esp32c2 && !self.use_stub && xtal_freq == XtalFrequency::_26Mhz {
             new_baud = new_baud * 40 / 26;
@@ -1479,8 +1487,8 @@ fn detect_sdm(connection: &mut Connection) {
         connection.secure_download_mode =
             security_info.security_flag_status("SECURE_DOWNLOAD_ENABLE");
     } else if connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR).is_err() {
-        // On older chips, we have to guess by reading something. On these chips, there
-        // is always something readable at 0x40001000.
+        // On older chips, we have to guess by reading something. On these
+        // chips, there is always something readable at 0x40001000.
         log::warn!("Secure Download Mode is enabled on this chip");
         connection.secure_download_mode = true;
     }

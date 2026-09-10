@@ -97,8 +97,8 @@ impl FrameDelimiter {
         }
 
         if !self.in_frame {
-            // If we have a 0xFF byte at the end, we should assume it's the start of a new
-            // frame.
+            // If we have a 0xFF byte at the end, we should assume it's the
+            // start of a new frame.
             let consume = if self.buffer.ends_with(&[0xFF]) {
                 &self.buffer[..self.buffer.len() - 1]
             } else {
@@ -137,8 +137,9 @@ impl DefmtData {
 
         let encoding = table.encoding();
 
-        // We only support rzcobs encoding because it is the only way to multiplex
-        // a defmt stream and an ASCII log stream over the same serial port.
+        // We only support rzcobs encoding because it is the only way to
+        // multiplex a defmt stream and an ASCII log stream over the
+        // same serial port.
         ensure!(
             encoding == defmt_decoder::Encoding::Rzcobs,
             DefmtError::UnsupportedEncoding(encoding)
@@ -234,7 +235,8 @@ impl InputParser for EspDefmt {
         self.delimiter.feed(bytes, |frame| match frame {
             FrameKind::Defmt(frame) => {
                 decoder.received(frame);
-                // small reliance on rzcobs internals: we need to feed the terminating zero
+                // small reliance on rzcobs internals: we need to feed the
+                // terminating zero
                 decoder.received(FRAME_END);
 
                 if let Ok(frame) = decoder.decode() {

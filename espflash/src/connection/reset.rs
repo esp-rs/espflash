@@ -286,7 +286,8 @@ pub fn soft_reset(
             connection.write_command(Command::FlashEnd { reboot: true })
         })?;
     } else {
-        // Running user code from stub loader requires some hacks in the stub loader
+        // Running user code from stub loader requires some hacks in the stub
+        // loader
         connection.with_timeout(CommandType::RunUserCode.timeout(), |connection| {
             connection.command(Command::RunUserCode)
         })?;

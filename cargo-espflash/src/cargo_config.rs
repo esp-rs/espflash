@@ -35,11 +35,12 @@ impl CargoConfig {
     /// Load and merge Cargo configuration from the workspace and/or package
     /// level.
     pub fn load(workspace_root: &Path, package_root: &Path) -> Self {
-        // If there is a Cargo configuration file in the current package, we will
-        // deserialize and return it.
-        // If the package is in a workspace and a Cargo configuration file is present in
-        // that workspace we will deserialize and return that one instead.
-        // Otherwise, there is no configuration present so we will return `None`.
+        // If there is a Cargo configuration file in the current package, we
+        // will deserialize and return it.
+        // If the package is in a workspace and a Cargo configuration file is
+        // present in that workspace we will deserialize and return that
+        // one instead. Otherwise, there is no configuration present so
+        // we will return `None`.
         if let Ok(Some(package_config)) = load_cargo_config(package_root) {
             package_config
         } else if let Ok(Some(workspace_config)) = load_cargo_config(workspace_root) {

@@ -37,8 +37,8 @@ fn main() -> Result<()> {
         .init();
 
     // Prefer the checkout containing the current directory. A distributed
-    // xtask binary retains its build machine's CARGO_MANIFEST_DIR, and that path
-    // can accidentally exist (but refer to a different checkout) on a
+    // xtask binary retains its build machine's CARGO_MANIFEST_DIR, and that
+    // path can accidentally exist (but refer to a different checkout) on a
     // self-hosted runner.
     let current_dir = env::current_dir()?.canonicalize()?;
     let workspace_from_build = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

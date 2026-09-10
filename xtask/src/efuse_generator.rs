@@ -142,9 +142,10 @@ fn parse_efuse_fields(efuse_yaml_path: &Path) -> Result<EfuseFields> {
 }
 
 fn process_efuse_definitions(efuse_fields: &mut EfuseFields) -> Result<()> {
-    // This is all a special case for the MAC field, which is larger than a single
-    // word (i.e. 32-bits) in size. To handle this, we just split it up into two
-    // separate fields, and update the fields' attributes accordingly.
+    // This is all a special case for the MAC field, which is larger than a
+    // single word (i.e. 32-bits) in size. To handle this, we just split it
+    // up into two separate fields, and update the fields' attributes
+    // accordingly.
     for yaml in (*efuse_fields).values_mut() {
         let mac_attrs = yaml.fields.get("MAC").unwrap();
 
@@ -338,8 +339,9 @@ pub(crate) mod defines {{
             } else if members.contains_key("BLOCK_FAIL_BIT")
                 && members.contains_key("BLOCK_NUM_ERRORS")
             {
-                // ESP32-C3 has a design flaw where the fail bit is shifted by one block, so its
-                // memory definition differs from the rest.
+                // ESP32-C3 has a design flaw where the fail bit is shifted by
+                // one block, so its memory definition differs
+                // from the rest.
                 let num_errors = members
                     .remove("BLOCK_NUM_ERRORS")
                     .unwrap()

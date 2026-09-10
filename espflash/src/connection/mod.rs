@@ -435,8 +435,8 @@ impl Connection {
                     Chip::Esp32s2 => {
                         // Check if the connection is USB OTG
                         if chip.is_using_usb_otg(self)? {
-                            // Check the strapping register to see if we can perform RTC WDT
-                            // reset
+                            // Check the strapping register to see if we can
+                            // perform RTC WDT reset
                             if chip.can_rtc_wdt_reset(self)? {
                                 chip.rtc_wdt_reset(self)?;
                             }
@@ -444,8 +444,8 @@ impl Connection {
                     }
                     Chip::Esp32s3 => {
                         if self.is_using_usb_serial_jtag() || chip.is_using_usb_otg(self)? {
-                            // Check the strapping register to see if we can perform RTC WDT
-                            // reset
+                            // Check the strapping register to see if we can
+                            // perform RTC WDT reset
                             if chip.can_rtc_wdt_reset(self)? {
                                 chip.rtc_wdt_reset(self)?;
                             }
@@ -554,8 +554,8 @@ impl Connection {
     /// Reads the response from a serial port.
     #[deprecated = "May halt on unexpected input from the port --please use `read_response_for_command` instead. Deprecated in https://github.com/esp-rs/espflash/pull/1007"]
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
-        // don't know the command to expect a response for -- use the default max length
-        // (the entire flash size)
+        // don't know the command to expect a response for -- use the default
+        // max length (the entire flash size)
         self.read_response_bounded(DEFAULT_MAX_LEN)
     }
 
@@ -566,12 +566,15 @@ impl Connection {
                 // Here is what esptool does: https://github.com/espressif/esptool/blob/81b2eaee261aed0d3d754e32c57959d6b235bfed/esptool/loader.py#L518
                 // from esptool: things are a bit weird here, bear with us
 
-                // We rely on the known and expected response sizes which should be fine for now
-                // - if that changes we need to pass the command type we are parsing the
+                // We rely on the known and expected response sizes which should
+                // be fine for now
+                // - if that changes we need to pass the command type we are
+                //   parsing the
                 // response for.
                 //
-                // For most commands the response length is 10 (for the stub) or 12 (for ROM
-                // code). The MD5 command response is 44 for ROM loader, 26 for the stub.
+                // For most commands the response length is 10 (for the stub) or
+                // 12 (for ROM code). The MD5 command response
+                // is 44 for ROM loader, 26 for the stub.
                 //
                 // See:
                 // - https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html?highlight=md5#response-packet
@@ -656,8 +659,8 @@ impl Connection {
                             RomErrorKind::from(response.status),
                         ))))
                     } else {
-                        // Check if the response is a Vector and strip header (first 8 bytes)
-                        // https://github.com/espressif/esptool/blob/749d1ad/esptool/loader.py#L481
+                        // Check if the response is a Vector and strip header
+                        // (first 8 bytes) https://github.com/espressif/esptool/blob/749d1ad/esptool/loader.py#L481
                         let modified_value = match response.value {
                             CommandResponseValue::Vector(mut vec) if vec.len() >= 8 => {
                                 vec = vec[8..][..response.return_length as usize].to_vec();
@@ -768,8 +771,9 @@ impl Connection {
             let response = connection.command(Command::GetSecurityInfo)?;
             // Extract raw bytes and convert them into `SecurityInfo`
             if let crate::command::CommandResponseValue::Vector(data) = response {
-                // HACK: Not quite sure why there seem to be 4 extra bytes at the end of the
-                //       response when the stub is not being used...
+                // HACK: Not quite sure why there seem to be 4 extra bytes at
+                // the end of the       response when the stub
+                // is not being used...
                 let end = if use_stub { data.len() } else { data.len() - 4 };
                 SecurityInfo::try_from(&data[..end])
             } else {
