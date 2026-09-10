@@ -5,12 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
 ## [Unreleased]
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [4.6.0] - 2026-09-10
+
+### Added
+
 - Add esp32h4 support (#1063)
+- Add esp32h21 bootloader (#1067)
 
 ### Changed
 - Bump MSRV to 1.95.0 (#1056)
@@ -18,8 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Do not treat `0x0` as a chip-detect magic value for ESP32-H4, ESP32-S31 and ESP32-P4 (#1063)
 - Regenerate efuses for S31 (#1053)
-
-### Removed
 
 ## [4.5.0] - 2026-07-08
 
@@ -508,7 +516,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-09-21
 
-[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.5.0...HEAD
+[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.6.0...HEAD
+[4.6.0]: https://github.com/esp-rs/espflash/compare/v4.5.0...v4.6.0
 [4.5.0]: https://github.com/esp-rs/espflash/compare/v4.4.0...v4.5.0
 [4.4.0]: https://github.com/esp-rs/espflash/compare/v4.3.0...v4.4.0
 [4.3.0]: https://github.com/esp-rs/espflash/compare/v4.2.0...v4.3.0
