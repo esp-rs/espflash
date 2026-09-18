@@ -7,6 +7,15 @@ use addr2line::{
 };
 use object::{Object, ObjectSection, ObjectSegment, ObjectSymbol, read::File};
 
+/// A function found at some address, see [`Symbols::frames`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct SymbolFrame {
+    /// The demangled name of the function, if known.
+    pub name: Option<String>,
+    /// The file name and line number, if known.
+    pub location: Option<(String, u32)>,
+}
+
 // Wrapper around addr2line that allows to look up function names and
 // locations from a given address.
 pub(crate) struct Symbols<'sym> {
@@ -37,9 +46,7 @@ impl<'sym> Symbols<'sym> {
     /// found.
     pub fn name(&self, addr: u64) -> Option<String> {
         // No need to try an address not contained in any segment:
-        if !self.object.segments().any(|segment| {
-            (segment.address()..(segment.address() + segment.size())).contains(&addr)
-        }) {
+        if !self.contains(addr) {
             return None;
         }
 
@@ -63,26 +70,77 @@ impl<'sym> Symbols<'sym> {
                     .function
                     .and_then(|name| name.demangle().map(|s| s.into_owned()).ok())
             })
-            .or_else(|| {
-                // Don't use `symbol_map().get(addr)` - it's documentation says
-                // "Get the symbol before the given address."
-                // which might be totally wrong
-                let symbol = self.object.symbols().find(|symbol| {
-                    (symbol.address()..=(symbol.address() + symbol.size())).contains(&addr)
-                });
+            .or_else(|| self.symbol_table_name(addr))
+    }
 
-                if let Some(symbol) = symbol {
-                    match symbol.name() {
-                        Ok(name) if !name.is_empty() => Some(
-                            addr2line::demangle_auto(std::borrow::Cow::Borrowed(name), None)
-                                .to_string(),
-                        ),
-                        _ => None,
-                    }
-                } else {
-                    None
-                }
-            })
+    /// Returns the chain of functions at the given address, innermost first:
+    /// the function containing the address, followed by the functions it was
+    /// inlined into. Each entry comes with the location of the address in the
+    /// innermost function, resp. of the inlined call in the outer ones.
+    ///
+    /// Empty if nothing is known about the address.
+    pub fn frames(&self, addr: u64) -> Vec<SymbolFrame> {
+        if !self.contains(addr) {
+            return Vec::new();
+        }
+
+        let mut result = Vec::new();
+
+        if let Ok(mut frames) = self.ctx.find_frames(addr).skip_all_loads() {
+            while let Ok(Some(frame)) = frames.next() {
+                result.push(SymbolFrame {
+                    name: frame
+                        .function
+                        .and_then(|name| name.demangle().map(|s| s.into_owned()).ok()),
+                    location: frame
+                        .location
+                        .and_then(|location| Some((location.file?.to_string(), location.line?))),
+                });
+            }
+        }
+
+        if result.is_empty()
+            && let Some(name) = self.symbol_table_name(addr)
+        {
+            result.push(SymbolFrame {
+                name: Some(name),
+                location: self.location(addr),
+            });
+        }
+
+        result
+    }
+
+    /// Returns the address of the symbol with the given name, if any.
+    pub fn symbol_address(&self, name: &str) -> Option<u64> {
+        self.object
+            .symbol_by_name(name)
+            .map(|symbol| symbol.address())
+    }
+
+    /// Whether the address is part of one of the object's segments.
+    fn contains(&self, addr: u64) -> bool {
+        self.object.segments().any(|segment| {
+            (segment.address()..(segment.address() + segment.size())).contains(&addr)
+        })
+    }
+
+    /// Looks up the (demangled) name of the symbol containing the address in
+    /// the symbol table.
+    fn symbol_table_name(&self, addr: u64) -> Option<String> {
+        // Don't use `symbol_map().get(addr)` - it's documentation says
+        // "Get the symbol before the given address."
+        // which might be totally wrong
+        let symbol = self.object.symbols().find(|symbol| {
+            (symbol.address()..=(symbol.address() + symbol.size())).contains(&addr)
+        })?;
+
+        match symbol.name() {
+            Ok(name) if !name.is_empty() => {
+                Some(addr2line::demangle_auto(std::borrow::Cow::Borrowed(name), None).to_string())
+            }
+            _ => None,
+        }
     }
 
     /// Returns the file name and line number of the function at the given

@@ -38,9 +38,29 @@ use crate::{
 pub mod external_processors;
 pub mod parser;
 
+mod cfi_unwind;
 mod line_endings;
 mod stack_dump;
 mod symbols;
+
+/// Which unwind tables of the ELF file(s) to decode stack dumps with.
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Display, EnumIter, EnumString, VariantNames,
+)]
+#[non_exhaustive]
+#[strum(serialize_all = "kebab-case")]
+pub enum UnwindTables {
+    /// `.debug_frame` (emitted along with debug info), falling back to
+    /// `.eh_frame` (emitted instead when building with `-C
+    /// force-unwind-tables`)
+    #[default]
+    Auto,
+    /// `.debug_frame` only
+    DebugFrame,
+    /// `.eh_frame` only
+    EhFrame,
+}
 
 /// Log format to use when parsing incoming data.
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
@@ -110,7 +130,12 @@ pub fn monitor(
     let mut stdout = if monitor_args.no_addresses {
         ResolvingPrinter::new_no_addresses(firmware_elf, stdout.lock())
     } else {
-        ResolvingPrinter::new(elfs, stdout.lock(), monitor_args.all_addresses)
+        ResolvingPrinter::new(
+            elfs,
+            stdout.lock(),
+            monitor_args.all_addresses,
+            monitor_args.unwind_tables.unwrap_or_default(),
+        )
     };
 
     let mut parser: Box<dyn InputParser> = match monitor_args
@@ -477,6 +502,7 @@ pub fn check_monitor_args(
             || monitor_args.no_reset
             || monitor_args.no_addresses
             || monitor_args.all_addresses
+            || monitor_args.unwind_tables.is_some()
             || monitor_args.monitor_baud != 115_200)
     {
         warn!(

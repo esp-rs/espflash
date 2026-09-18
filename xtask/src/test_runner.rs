@@ -620,6 +620,8 @@ impl TestRunner {
             self.test_flash_with_defmt(&app)?;
             // Backtrace test
             self.test_backtrace(&app_backtrace)?;
+            // Decoding of the ESP-IDF register and stack memory dump
+            self.test_espidf_stack_dump(&format!("{app}_espidf_abort"))?;
         }
 
         // Exercise less common flash and image options on one representative
@@ -726,6 +728,37 @@ impl TestRunner {
             ]),
             self.timeout,
             "backtrace test",
+        )?;
+
+        Ok(())
+    }
+
+    fn test_espidf_stack_dump(&self, app_espidf_abort: &str) -> Result<()> {
+        // The app calls `abort()` from `app_main`. The ESP-IDF panic handler
+        // then prints a register dump and the raw stack memory, which the
+        // monitor unwinds into a backtrace using the `.debug_frame` of the
+        // ELF (an ESP-IDF build has no `.eh_frame`).
+        self.run_timed_transfer_command_test(
+            &[
+                "flash",
+                "--no-skip",
+                "--monitor",
+                "--non-interactive",
+                "--unwind-tables",
+                "debug-frame",
+                app_espidf_abort,
+            ],
+            Some(&[
+                "abort() was called",
+                "Backtrace (decoded from the stack dump):",
+                "panic_abort",
+                "esp_system_abort",
+                "app_main",
+                "hello_world_main.c:",
+                "main_task",
+            ]),
+            self.timeout,
+            "ESP-IDF stack dump test",
         )?;
 
         Ok(())

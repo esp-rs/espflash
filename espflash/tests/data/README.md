@@ -35,6 +35,16 @@ And then build the elf file:
 cargo build --release
 ```
 
+The `esp32c6_espidf_abort` elf file under this folder has been generated using `esp-idf@v5.5.5`, from `examples/get-started/hello_world` with `idf.py set-target esp32c6` and `idf.py build`, after modifying `main/hello_world_main.c` to crash right after printing:
+```diff
+     printf("Hello world!\n");
++
++    // Crash on purpose: the panic handler prints a register and stack memory
++    // dump which the espflash monitor decodes into a backtrace.
++    abort();
+```
+It is used in a HIL test which checks that the monitor decodes the register and stack memory dump printed by the ESP-IDF panic handler into a backtrace, using the `.debug_frame` of the ELF.
+
 `esp_hal_binary_with_overlapping_defmt_and_embedded_test_sections` is the ESP-HAL `gpio_unstable` test built for ESP32.
 This file is used in a unit test in espflash, and is not flashed as a HIL test.
 

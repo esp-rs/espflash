@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-### Changed
+- RiscV backtrace decoding based on `.debug_frame`s, in addition to the existing `.eh_frame` support
 
 ### Fixed
 

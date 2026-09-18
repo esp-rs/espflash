@@ -34,7 +34,7 @@ use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo};
 
 use self::{
     config::Config,
-    monitor::{LogFormat, check_monitor_args, monitor},
+    monitor::{LogFormat, UnwindTables, check_monitor_args, monitor},
 };
 use crate::{
     connection::{
@@ -333,6 +333,10 @@ pub struct MonitorConfigArgs {
     /// Try to resolve all addresses, even well-known misleading ones
     #[arg(long)]
     pub all_addresses: bool,
+    /// Which unwind tables of the ELF to decode stack dumps with (default:
+    /// auto)
+    #[arg(long)]
+    pub unwind_tables: Option<UnwindTables>,
 }
 
 /// Arguments for MD5 checksum calculation
