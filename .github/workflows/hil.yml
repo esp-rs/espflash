@@ -43,13 +43,6 @@ env:
   ESPFLASH_SKIP_UPDATE_CHECK: "true"
   RUST_LOG: debug
 
-concurrency:
-  cancel-in-progress: true
-  group: >-
-    ${{ github.workflow }}-${{
-      github.event_name == 'workflow_dispatch' && format('{0}-{1}', inputs.repository, inputs.branch) ||
-      github.event.pull_request.number || github.ref }}
-
 jobs:
   # Keep reporting the required `hil-gate` check on ordinary pull requests, but
   # defer device access until an authorized slash command or the merge queue.
@@ -135,6 +128,11 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.resolve.outputs.matrix) }}
     steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.branch || github.sha }}
+
       - uses: actions/download-artifact@v7
         with:
           name: hil-aarch64
@@ -251,6 +249,11 @@ jobs:
     env:
       ESPFLASH_PORT: /dev/serial_ports/esp32c6
     steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.branch || github.sha }}
+
       - uses: actions/download-artifact@v7
         with:
           name: hil-sdm

@@ -5,6 +5,7 @@ const { parseHilCommand } = require("./hil-command.js");
 const { dispatchMarker } = require("./hil-find-run.js");
 const { evaluateHilRunResults } = require("./hil-gate.js");
 const { allowedChips, resolveMatrix } = require("./hil-matrix.js");
+const config = require("../hil-targets.json");
 const {
   extractTrustedList,
   parseTrustCommand,
@@ -39,7 +40,7 @@ test("rejects unknown chips", () => {
 test("resolves all configured targets and rejects invalid selections", () => {
   const all = resolveMatrix("all");
   assert.deepEqual(all.chips, allowedChips);
-  assert.equal(all.matrix.target.length, 16);
+  assert.equal(all.matrix.target.length, config.targets.length);
   assert.throws(() => resolveMatrix("esp32c3 nope"), /Unsupported/);
 });
 
