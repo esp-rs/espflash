@@ -272,7 +272,7 @@ jobs:
   hil-gate:
     name: hil-gate
     if: always()
-    needs: [resolve, build-packages, run-tests, build-sdm-packages, run-sdm-tests]
+    needs: [resolve, build-packages, run-tests]
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -296,16 +296,13 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Check build and SDM results
+      - name: Check build results
         if: github.event_name != 'pull_request'
         uses: actions/github-script@v7
         env:
-          EVENT_NAME: ${{ github.event_name }}
           SUITE: ${{ needs.resolve.outputs.suite }}
           RESOLVE_RESULT: ${{ needs.resolve.result }}
           BUILD_RESULT: ${{ needs.build-packages.result }}
-          SDM_BUILD_RESULT: ${{ needs.build-sdm-packages.result }}
-          SDM_RESULT: ${{ needs.run-sdm-tests.result }}
         with:
           script: |
             const suite = process.env.SUITE;
@@ -314,12 +311,6 @@ jobs:
             };
             requireSuccess('Matrix resolution', process.env.RESOLVE_RESULT);
             if (suite !== 'sdm') requireSuccess('HIL build', process.env.BUILD_RESULT);
-            // SDM remains informational in the merge queue, matching the
-            // existing policy, but an explicit command must report its result.
-            if (process.env.EVENT_NAME === 'workflow_dispatch' && (suite === 'sdm' || suite === 'full')) {
-              requireSuccess('SDM build', process.env.SDM_BUILD_RESULT);
-              requireSuccess('SDM run', process.env.SDM_RESULT);
-            }
 
       - name: Evaluate device results
         if: >-
@@ -328,7 +319,7 @@ jobs:
           needs.build-packages.result == 'success'
         uses: actions/github-script@v7
         env:
-          MAX_FAILURES: ${{ github.event_name == 'merge_group' && '6' || '0' }}
+          STRICT: ${{ github.event_name != 'merge_group' }}
         with:
           script: |
             const { evaluateHilGate } = require('./trusted-workflow/.github/scripts/hil-gate.js');
@@ -336,5 +327,29 @@ jobs:
               github,
               context,
               core,
-              maxFailures: Number(process.env.MAX_FAILURES),
+              maxFailures: process.env.STRICT === 'true' ? 0 : undefined,
             });
+
+  sdm-gate:
+    name: sdm-gate
+    if: >-
+      always() &&
+      github.event_name == 'workflow_dispatch' &&
+      (needs.resolve.outputs.suite == 'sdm' || needs.resolve.outputs.suite == 'full')
+    needs: [resolve, build-sdm-packages, run-sdm-tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check SDM results
+        uses: actions/github-script@v7
+        env:
+          SDM_BUILD_RESULT: ${{ needs.build-sdm-packages.result }}
+          SDM_RESULT: ${{ needs.run-sdm-tests.result }}
+        with:
+          script: |
+            const requireSuccess = (name, result) => {
+              if (result !== 'success') core.setFailed(`${name} did not succeed (${result})`);
+            };
+            requireSuccess('SDM build', process.env.SDM_BUILD_RESULT);
+            requireSuccess('SDM run', process.env.SDM_RESULT);
