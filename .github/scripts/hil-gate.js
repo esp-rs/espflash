@@ -1,13 +1,15 @@
 // Merge-queue gate for HIL matrix legs.
 //
-// Passes when at most MAX_FAILED_RUNS executed `HIL | <soc> | <port>` jobs
-// failed or were cancelled. Dual-port chips (uart + usb) count as two jobs.
+// Passes when at most the configured number of executed
+// `HIL | <soc> | <port>` jobs failed or were cancelled. Dual-port chips
+// (uart + usb) count as two jobs. Merge-queue runs use the default allowance;
+// slash-command runs pass zero so that requested subsets report every failure.
 // Skipped jobs are excluded. `HIL (SDM)` is informational and is not gated.
 //
 // Classification uses the job conclusion rather than a single step: a dead
 // runner typically fails "Prepare device" and never reaches "Run all tests".
 
-const MAX_FAILED_RUNS = 6;
+const DEFAULT_MAX_FAILED_RUNS = 6;
 
 function isHilRunMatrixJob(name) {
   // Matches "HIL | …" but not "HIL (SDM) | …".
@@ -36,7 +38,10 @@ function classifyMatrixJob(job) {
   };
 }
 
-function evaluateHilRunResults(classifications) {
+function evaluateHilRunResults(
+  classifications,
+  maxFailures = DEFAULT_MAX_FAILED_RUNS,
+) {
   const executed = classifications.filter(
     (c) => c.kind === "passed" || c.kind === "failed",
   );
@@ -46,7 +51,7 @@ function evaluateHilRunResults(classifications) {
     return { pass: true, executed: 0, failures: 0 };
   }
 
-  const pass = failures.length <= MAX_FAILED_RUNS;
+  const pass = failures.length <= maxFailures;
   return { pass, executed: executed.length, failures: failures.length };
 }
 
@@ -100,7 +105,12 @@ async function listWorkflowRunJobs(github, context) {
   return jobs;
 }
 
-async function evaluateHilGate({ github, context, core }) {
+async function evaluateHilGate({
+  github,
+  context,
+  core,
+  maxFailures = DEFAULT_MAX_FAILED_RUNS,
+}) {
   const jobs = await listWorkflowRunJobs(github, context);
   const matrixJobs = latestJobsByName(
     jobs.filter((job) => isHilRunMatrixJob(job.name)),
@@ -121,7 +131,7 @@ async function evaluateHilGate({ github, context, core }) {
     classifications.push(result);
   }
 
-  const verdict = evaluateHilRunResults(classifications);
+  const verdict = evaluateHilRunResults(classifications, maxFailures);
   if (verdict.pass) {
     if (verdict.executed > 0) {
       core.info(
@@ -134,12 +144,12 @@ async function evaluateHilGate({ github, context, core }) {
   }
 
   core.setFailed(
-    `HIL gate failed: ${verdict.failures}/${verdict.executed} executed runners failed (max ${MAX_FAILED_RUNS})`,
+    `HIL gate failed: ${verdict.failures}/${verdict.executed} executed runners failed (max ${maxFailures})`,
   );
 }
 
 module.exports = {
-  MAX_FAILED_RUNS,
+  DEFAULT_MAX_FAILED_RUNS,
   isHilRunMatrixJob,
   classifyMatrixJob,
   evaluateHilRunResults,

@@ -126,6 +126,7 @@ jobs:
 
       - run: cargo check -p xtask --all-features
       - run: cargo test -p xtask
+      - run: node --test .github/scripts/hil.test.js
       - run: cargo build -p espflash
       - run: >-
           cargo run -p xtask -- run-tests offline --chip esp32c6

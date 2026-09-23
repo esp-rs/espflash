@@ -1,0 +1,217 @@
+name: Dispatch
+
+on:
+  pull_request_target:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: read
+
+env:
+  DISTINCT_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+  label-trusted-author:
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.label.name == 'trusted-author'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Trust PR author
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { TRUST_HEADER, upsertTrusted } = require('./.github/scripts/hil-trust.js');
+            const issue_number = context.payload.pull_request.number;
+            const login = context.payload.pull_request.user.login.toLowerCase();
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find(comment =>
+              comment.user?.login === 'github-actions[bot]' && comment.body?.includes(TRUST_HEADER)
+            );
+            const { body } = upsertTrusted(existing?.body || '', login);
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number, body });
+            }
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number,
+              body: `Author **@${login}** is trusted to use HIL commands on this PR.`,
+            });
+
+  trust-management:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      (github.event.comment.author_association == 'MEMBER' ||
+       github.event.comment.author_association == 'OWNER') &&
+      (startsWith(github.event.comment.body, '/trust ') ||
+       startsWith(github.event.comment.body, '/revoke '))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Update trust list
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {
+              TRUST_HEADER, parseTrustCommand, upsertTrusted, revokeTrusted,
+            } = require('./.github/scripts/hil-trust.js');
+            const text = context.payload.comment.body.trim();
+            const command = text.startsWith('/trust ') ? 'trust' : 'revoke';
+            const parsed = parseTrustCommand(text, command);
+            if (parsed.error) {
+              core.setFailed(parsed.error);
+              return;
+            }
+            const issue_number = context.payload.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find(comment =>
+              comment.user?.login === 'github-actions[bot]' && comment.body?.includes(TRUST_HEADER)
+            );
+            const update = command === 'trust' ? upsertTrusted : revokeTrusted;
+            const { body } = update(existing?.body || '', parsed.login);
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number, body });
+            }
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number,
+              body: `${command === 'trust' ? 'Trusted' : 'Revoked'} **@${parsed.login}** for this PR.`,
+            });
+
+  hil-command:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      (github.event.comment.body == '/hil' ||
+       startsWith(github.event.comment.body, '/hil '))
+    runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.dispatch.outputs.run_id }}
+      comment_id: ${{ steps.dispatch.outputs.comment_id }}
+      kind: ${{ steps.dispatch.outputs.kind }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Authorize and dispatch HIL
+        id: dispatch
+        uses: actions/github-script@v7
+        env:
+          DISTINCT_ID: ${{ env.DISTINCT_ID }}
+        with:
+          script: |
+            const { parseHilCommand, usage } = require('./.github/scripts/hil-command.js');
+            const { extractTrustedList, TRUST_HEADER } = require('./.github/scripts/hil-trust.js');
+            const { findDispatchedRun } = require('./.github/scripts/hil-find-run.js');
+            const issue_number = context.payload.issue.number;
+            const parsed = parseHilCommand(context.payload.comment.body);
+            const comment = async body => github.rest.issues.createComment({
+              ...context.repo, issue_number, body,
+            });
+
+            if (parsed.kind === 'help') {
+              await comment(usage);
+              return;
+            }
+            if (parsed.error) {
+              await comment(`@${context.actor}, ${parsed.error}.\n\n${usage}`);
+              return;
+            }
+
+            const association = context.payload.comment.author_association;
+            let allowed = association === 'MEMBER' || association === 'OWNER';
+            if (!allowed) {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                ...context.repo, issue_number, per_page: 100,
+              });
+              const trust = comments.find(entry =>
+                entry.user?.login === 'github-actions[bot]' && entry.body?.includes(TRUST_HEADER)
+              );
+              allowed = extractTrustedList(trust?.body || '').includes(context.actor.toLowerCase());
+            }
+            if (!allowed) {
+              await comment(
+                `@${context.actor}, you are not authorized to use HIL on this PR. ` +
+                `Ask a repository member to run \`/trust @${context.actor}\`.`,
+              );
+              return;
+            }
+
+            const { data: pull } = await github.rest.pulls.get({
+              ...context.repo, pull_number: issue_number,
+            });
+            if (pull.state !== 'open' || !pull.head.repo?.full_name || !pull.head.sha) {
+              core.setFailed('Could not resolve an open PR head repository and SHA');
+              return;
+            }
+
+            const inputs = {
+              repository: pull.head.repo.full_name,
+              branch: pull.head.sha,
+              pr_number: String(issue_number),
+              chips: parsed.chips,
+              suite: parsed.suite,
+              distinct_id: process.env.DISTINCT_ID,
+            };
+            await github.rest.actions.createWorkflowDispatch({
+              ...context.repo,
+              workflow_id: 'hil.yml',
+              ref: context.payload.repository.default_branch,
+              inputs,
+            });
+
+            const run = await findDispatchedRun({
+              github, context, distinctId: process.env.DISTINCT_ID,
+            });
+            let body = `Triggered **${parsed.kind}** HIL for PR #${issue_number}.\n\n` +
+              `Revision: \`${pull.head.sha}\`\n\nChips: \`${parsed.chips}\`; suite: \`${parsed.suite}\``;
+            if (run?.html_url) body += `\n\nRun: ${run.html_url}`;
+            else body += '\n\nThe run was dispatched, but its URL could not be resolved yet.';
+            const response = await comment(body);
+            core.setOutput('run_id', run?.id ? String(run.id) : '');
+            core.setOutput('comment_id', String(response.data.id));
+            core.setOutput('kind', `${parsed.kind} HIL`);
+
+  hil-status:
+    needs: hil-command
+    if: needs.hil-command.outputs.run_id != '' && needs.hil-command.outputs.comment_id != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Update HIL status comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { pollRun } = require('./.github/scripts/hil-status.js');
+            await pollRun({
+              github,
+              context,
+              runId: Number('${{ needs.hil-command.outputs.run_id }}'),
+              commentId: Number('${{ needs.hil-command.outputs.comment_id }}'),
+              kind: '${{ needs.hil-command.outputs.kind }}',
+            });

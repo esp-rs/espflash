@@ -1,0 +1,21 @@
+{
+  "quickChips": ["esp32c6", "esp32s3"],
+  "targets": [
+    { "soc": "esp32c2", "runner": "esp32c2-jtag", "port": "uart" },
+    { "soc": "esp32c3", "runner": "esp32c3-usb", "port": "usb" },
+    { "soc": "esp32c5", "runner": "esp32c5-usb", "port": "usb" },
+    { "soc": "esp32c5", "runner": "esp32c5-usb", "port": "uart" },
+    { "soc": "esp32c6", "runner": "esp32c6-usb", "port": "usb" },
+    { "soc": "esp32c6", "runner": "esp32c6-usb", "port": "uart", "extraArgs": "--extended" },
+    { "soc": "esp32c61", "runner": "esp32c61-usb", "port": "usb" },
+    { "soc": "esp32c61", "runner": "esp32c61-usb", "port": "uart" },
+    { "soc": "esp32h2", "runner": "esp32h2-usb", "port": "usb" },
+    { "soc": "esp32h2", "runner": "esp32h2-usb", "port": "uart" },
+    { "soc": "esp32p4", "runner": "esp32p4", "port": "usb" },
+    { "soc": "esp32", "runner": "esp32-jtag", "port": "uart" },
+    { "soc": "esp32s2", "runner": "esp32s2-jtag", "port": "uart" },
+    { "soc": "esp32s3", "runner": "esp32s3-usb", "port": "usb" },
+    { "soc": "esp32s3", "runner": "esp32s3-usb", "port": "uart" },
+    { "soc": "esp32s31", "runner": "esp32s31-jtag", "port": "uart" }
+  ]
+}
