@@ -38,6 +38,10 @@ on:
         required: false
         default: "manual"
 
+# Build and test jobs run pull request code; jobs that need more declare it.
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   ESPFLASH_SKIP_UPDATE_CHECK: "true"
@@ -90,6 +94,8 @@ jobs:
         with:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.branch || github.sha }}
+          # Pull request code must not see the job token.
+          persist-credentials: false
 
       - name: Install cross
         uses: taiki-e/install-action@v2
@@ -132,6 +138,8 @@ jobs:
         with:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.branch || github.sha }}
+          # Pull request code must not see the job token.
+          persist-credentials: false
 
       - uses: actions/download-artifact@v7
         with:
@@ -211,6 +219,8 @@ jobs:
         with:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.branch || github.sha }}
+          # Pull request code must not see the job token.
+          persist-credentials: false
 
       - name: Install dependencies
         env:
@@ -253,6 +263,8 @@ jobs:
         with:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.branch || github.sha }}
+          # Pull request code must not see the job token.
+          persist-credentials: false
 
       - uses: actions/download-artifact@v7
         with:
