@@ -10,7 +10,8 @@ permissions:
   actions: write
   contents: read
   issues: write
-  pull-requests: read
+  # Commenting on a pull request through the issues API requires this.
+  pull-requests: write
 
 env:
   DISTINCT_ID: ${{ github.run_id }}-${{ github.run_attempt }}
@@ -106,17 +107,14 @@ jobs:
       (github.event.comment.body == '/hil' ||
        startsWith(github.event.comment.body, '/hil '))
     runs-on: ubuntu-latest
-    outputs:
-      run_id: ${{ steps.dispatch.outputs.run_id }}
-      comment_id: ${{ steps.dispatch.outputs.comment_id }}
-      kind: ${{ steps.dispatch.outputs.kind }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
+      # The dispatched run reports its own verdict on the comment posted here;
+      # see the `report` job in hil.yml.
       - name: Authorize and dispatch HIL
-        id: dispatch
         uses: actions/github-script@v7
         env:
           DISTINCT_ID: ${{ env.DISTINCT_ID }}
@@ -189,29 +187,4 @@ jobs:
               `Revision: \`${pull.head.sha}\`\n\nChips: \`${parsed.chips}\`; suite: \`${parsed.suite}\``;
             if (run?.html_url) body += `\n\nRun: ${run.html_url}`;
             else body += '\n\nThe run was dispatched, but its URL could not be resolved yet.';
-            const response = await comment(body);
-            core.setOutput('run_id', run?.id ? String(run.id) : '');
-            core.setOutput('comment_id', String(response.data.id));
-            core.setOutput('kind', `${parsed.kind} HIL`);
-
-  hil-status:
-    needs: hil-command
-    if: needs.hil-command.outputs.run_id != '' && needs.hil-command.outputs.comment_id != ''
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - name: Update HIL status comment
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { pollRun } = require('./.github/scripts/hil-status.js');
-            await pollRun({
-              github,
-              context,
-              runId: Number('${{ needs.hil-command.outputs.run_id }}'),
-              commentId: Number('${{ needs.hil-command.outputs.comment_id }}'),
-              kind: '${{ needs.hil-command.outputs.kind }}',
-            });
+            await comment(body);

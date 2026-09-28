@@ -21,5 +21,9 @@ member:
 Applying the `trusted-author` label also trusts the pull request author.
 
 Each command tests the exact pull request head commit at the time the command
-is submitted. Full HIL runs automatically when a pull request enters the merge
-queue; ordinary pull request events do not occupy the hardware runners.
+is submitted. The bot replies with a link to the triggered run and edits that
+comment with the result (succeeded, failed, or cancelled) when the run
+finishes, and again whenever the run is re-run.
+
+Full HIL runs automatically when a pull request enters the merge queue;
+ordinary pull request events do not occupy the hardware runners.
