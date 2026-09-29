@@ -611,12 +611,20 @@ impl Chip {
         connection.read_reg(addr)
     }
 
-    /// Returns whether the provided address `addr` in flash.
+    /// Returns whether the bootloader leaves a segment at `addr` in the image.
+    /// espflash pads such a segment so its data keeps its offset within an MMU
+    /// page.
     pub fn addr_is_flash(&self, addr: u32) -> bool {
         match self {
             // ESP32-H4 is not yet in `esp-metadata-generated`. Flash window from
             // ESP-IDF `soc.h`: `SOC_IROM`/`SOC_DROM` 0x42000000..0x44000000.
             Chip::Esp32h4 => (0x4200_0000..0x4400_0000).contains(&addr),
+            // The ESP32-P4 and ESP32-S31 bootloaders do not load or map segments
+            // in the PSRAM window, but they reject one that is not padded like a
+            // flash segment. The PSRAM windows are from ESP-IDF `soc.h`:
+            // `SOC_EXTRAM_LOW`/`SOC_EXTRAM_HIGH`.
+            Chip::Esp32p4 if (0x4800_0000..0x4C00_0000).contains(&addr) => true,
+            Chip::Esp32s31 if (0x5000_0000..0x5400_0000).contains(&addr) => true,
             _ => {
                 let layout = self.metadata().memory_layout();
 
@@ -2116,5 +2124,33 @@ impl SpiRegisters {
     /// Get the address of the MISO length register.
     pub fn miso_length(&self) -> Option<u32> {
         self.miso_length_offset.map(|offset| self.base + offset)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn esp32p4_psram_window_counts_as_mapped() {
+        let chip = Chip::Esp32p4;
+        assert!(chip.addr_is_flash(0x4000_0000));
+        assert!(chip.addr_is_flash(0x4800_0000));
+        assert!(chip.addr_is_flash(0x4bff_fffc));
+        assert!(!chip.addr_is_flash(0x4c00_0000));
+    }
+
+    #[test]
+    fn esp32s31_psram_window_counts_as_mapped() {
+        let chip = Chip::Esp32s31;
+        assert!(chip.addr_is_flash(0x4000_0000));
+        assert!(chip.addr_is_flash(0x5000_0000));
+        assert!(chip.addr_is_flash(0x53ff_fffc));
+        assert!(!chip.addr_is_flash(0x5400_0000));
+    }
+
+    #[test]
+    fn other_chips_keep_their_metadata_windows() {
+        assert!(!Chip::Esp32c5.addr_is_flash(0x5000_0000));
     }
 }
