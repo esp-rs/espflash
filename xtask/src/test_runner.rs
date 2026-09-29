@@ -11,6 +11,7 @@ use std::{
 
 use clap::{ArgAction, Args, ValueEnum};
 use log::info;
+use serialport::SerialPortType;
 
 use crate::Result;
 
@@ -21,6 +22,11 @@ const SUPPORTED_CHIPS: [&str; 12] = [
 
 /// Test firmware built with ESP-IDF instead of `esp-generate`
 const ESP_IDF_FIRMWARE: [&str; 2] = ["esp32h4", "esp32p4"];
+
+/// Espressif USB vendor ID
+const ESPRESSIF_VID: u16 = 0x303a;
+/// USB product ID of the USB-Serial-JTAG peripheral
+const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
 type SpawnedCommand = (
     Child,
@@ -42,6 +48,36 @@ pub enum Console {
     Uart,
     /// The native USB-Serial-JTAG peripheral
     Usb,
+}
+
+impl Console {
+    /// Console of the port selected by `ESPFLASH_PORT`: USB-Serial-JTAG if the
+    /// port reports its USB IDs, UART otherwise.
+    fn detect() -> Self {
+        // HIL runners select ports through symlinks, e.g.
+        // `/dev/serial_ports/usb`, so compare the resolved device nodes.
+        let Some(port) = env::var_os("ESPFLASH_PORT").and_then(|p| fs::canonicalize(p).ok()) else {
+            return Console::Uart;
+        };
+
+        let usb_serial_jtag = serialport::available_ports()
+            .unwrap_or_default()
+            .into_iter()
+            .any(|info| {
+                fs::canonicalize(&info.port_name).is_ok_and(|name| name == port)
+                    && matches!(
+                        info.port_type,
+                        SerialPortType::UsbPort(usb)
+                            if usb.vid == ESPRESSIF_VID && usb.pid == USB_SERIAL_JTAG_PID
+                    )
+            });
+
+        if usb_serial_jtag {
+            Console::Usb
+        } else {
+            Console::Uart
+        }
+    }
 }
 
 /// Arguments for running tests
@@ -84,9 +120,10 @@ pub struct RunTestsArgs {
     pub sdm: bool,
 
     /// Serial console of the port under test, which selects the firmware
-    /// that prints to it
-    #[arg(long, value_enum, default_value_t = Console::Uart)]
-    pub console: Console,
+    /// that prints to it [default: detected from the USB IDs of
+    /// `ESPFLASH_PORT`, falling back to uart]
+    #[arg(long, value_enum)]
+    pub console: Option<Console>,
 }
 
 /// A struct to manage and run tests for espflash.
@@ -1299,18 +1336,20 @@ pub fn run_tests(workspace: &Path, args: RunTestsArgs) -> Result<()> {
     } else {
         PathBuf::from("espflash")
     };
+    let console = args.console.unwrap_or_else(Console::detect);
+    log::info!("Testing firmware printing to {console:?}");
     let test_runner = TestRunner::new(
         workspace,
         tests_dir,
         args.timeout,
         espflash,
         args.baud,
-        args.console,
+        console,
     );
 
     let chip = args.chip.as_deref().unwrap_or("esp32");
     if !workspace.join(test_runner.app(chip)).exists() {
-        return Err(format!("No test firmware for {chip} printing to {:?}", args.console).into());
+        return Err(format!("No test firmware for {chip} printing to {console:?}").into());
     }
 
     match args.test.as_str() {

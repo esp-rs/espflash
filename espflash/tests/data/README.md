@@ -23,7 +23,7 @@ cargo build --release --features uart
 cargo build --release --features usb
 ```
 
-`xtask run-tests --console <uart|usb>` selects the firmware matching the port under test.
+`xtask run-tests` selects the firmware matching the port under test: USB-Serial-JTAG firmware when `ESPFLASH_PORT` is a USB-Serial-JTAG port, UART firmware otherwise, unless `--console <uart|usb>` overrides it.
 
 The `esp32c6_defmt` and `esp32c6_defmt_usb` elf files under this folder have been generated using `esp-generate@1.4.0`, `esp-hal@1.2.2`, `esp-println@0.18.0`, `defmt@1.1.1`:
 
