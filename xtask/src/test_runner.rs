@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use clap::{ArgAction, Args};
+use clap::{ArgAction, Args, ValueEnum};
 use log::info;
 
 use crate::Result;
@@ -18,6 +18,9 @@ const SUPPORTED_CHIPS: [&str; 12] = [
     "esp32", "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32h2", "esp32h4",
     "esp32p4", "esp32s2", "esp32s3", "esp32s31",
 ];
+
+/// Test firmware built with ESP-IDF instead of `esp-generate`
+const ESP_IDF_FIRMWARE: [&str; 2] = ["esp32h4", "esp32p4"];
 
 type SpawnedCommand = (
     Child,
@@ -30,6 +33,15 @@ struct CommandOutput {
     status: ExitStatus,
     output: String,
     timed_out: bool,
+}
+
+/// Serial console the test firmware prints to
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum Console {
+    /// UART0, through an external USB-UART bridge
+    Uart,
+    /// The native USB-Serial-JTAG peripheral
+    Usb,
 }
 
 /// Arguments for running tests
@@ -70,6 +82,11 @@ pub struct RunTestsArgs {
     /// Run the subset supported in secure download mode
     #[arg(long)]
     pub sdm: bool,
+
+    /// Serial console of the port under test, which selects the firmware
+    /// that prints to it
+    #[arg(long, value_enum, default_value_t = Console::Uart)]
+    pub console: Console,
 }
 
 /// A struct to manage and run tests for espflash.
@@ -84,6 +101,8 @@ pub struct TestRunner {
     pub espflash: PathBuf,
     /// Baud rate for transfer-heavy hardware tests
     pub baud: Option<u32>,
+    /// Serial console of the port under test
+    pub console: Console,
 }
 
 impl TestRunner {
@@ -94,6 +113,7 @@ impl TestRunner {
         timeout_secs: u64,
         espflash: PathBuf,
         baud: Option<u32>,
+        console: Console,
     ) -> Self {
         Self {
             workspace: workspace.to_path_buf(),
@@ -101,6 +121,23 @@ impl TestRunner {
             timeout: Duration::from_secs(timeout_secs),
             espflash,
             baud,
+            console,
+        }
+    }
+
+    /// Path of the test firmware `name` that prints to the console under
+    /// test.
+    ///
+    /// Firmware printing through `esp-println` only prints to one console:
+    /// its `auto` mode switches to USB-Serial-JTAG whenever the host polls
+    /// the USB port, which loses the output on UART when both are connected.
+    /// ESP-IDF firmware prints to both, so a single build covers either.
+    fn app(&self, name: &str) -> String {
+        match self.console {
+            Console::Usb if !ESP_IDF_FIRMWARE.contains(&name) => {
+                format!("espflash/tests/data/{name}_usb")
+            }
+            _ => format!("espflash/tests/data/{name}"),
         }
     }
 
@@ -490,7 +527,7 @@ impl TestRunner {
         let partition_bin = self.tests_dir.join("partitions.bin");
         let partition_roundtrip = self.tests_dir.join("partitions-roundtrip.csv.bin");
         let options_image = self.tests_dir.join("options-image.bin");
-        let app = format!("espflash/tests/data/{chip}");
+        let app = self.app(chip);
 
         self.run_simple_command_test(
             &[
@@ -592,8 +629,8 @@ impl TestRunner {
         let chip = chip.unwrap_or("esp32");
         log::info!("Running flash test for chip: {chip}");
 
-        let app = format!("espflash/tests/data/{chip}");
-        let app_backtrace = format!("espflash/tests/data/{chip}_backtrace");
+        let app = self.app(chip);
+        let app_backtrace = self.app(&format!("{chip}_backtrace"));
         let part_table = "espflash/tests/data/partitions.csv";
 
         // Partition table is too big
@@ -617,11 +654,12 @@ impl TestRunner {
         // Additional tests for ESP32-C6 with manual log-format
         if chip == "esp32c6" {
             // Test with manual log-format and with auto-detected log-format
-            self.test_flash_with_defmt(&app)?;
+            self.test_flash_with_defmt(&self.app(&format!("{chip}_defmt")))?;
             // Backtrace test
             self.test_backtrace(&app_backtrace)?;
             // Decoding of the ESP-IDF register and stack memory dump
-            self.test_espidf_stack_dump(&format!("{app}_espidf_abort"))?;
+            // ESP-IDF prints to both consoles, so there is a single build.
+            self.test_espidf_stack_dump(&format!("espflash/tests/data/{chip}_espidf_abort"))?;
         }
 
         // Exercise less common flash and image options on one representative
@@ -670,9 +708,7 @@ impl TestRunner {
         Ok(())
     }
 
-    fn test_flash_with_defmt(&self, app: &str) -> Result<()> {
-        let app_defmt = format!("{app}_defmt");
-
+    fn test_flash_with_defmt(&self, app_defmt: &str) -> Result<()> {
         // Test with manual log-format
         self.run_timed_transfer_command_test(
             &[
@@ -680,7 +716,7 @@ impl TestRunner {
                 "--no-skip",
                 "--monitor",
                 "--non-interactive",
-                &app_defmt,
+                app_defmt,
                 "--log-format",
                 "defmt",
                 "--output-format",
@@ -698,7 +734,7 @@ impl TestRunner {
                 "--no-skip",
                 "--monitor",
                 "--non-interactive",
-                &app_defmt,
+                app_defmt,
             ],
             Some(&["Flashing has completed!", "Hello world!"]),
             self.timeout,
@@ -720,10 +756,10 @@ impl TestRunner {
                 app_backtrace,
             ],
             Some(&[
-                "0x420012c8",
+                "0x42010252",
                 "main",
                 "esp32c6_backtrace/src/bin/main.rs:",
-                "0x42001280",
+                "0x4201021a",
                 "hal_main",
             ]),
             self.timeout,
@@ -1040,7 +1076,7 @@ impl TestRunner {
         let chip = chip.unwrap_or("esp32");
         log::info!("Running save-image and write-bin test for chip: {chip}");
 
-        let app = format!("espflash/tests/data/{chip}");
+        let app = self.app(chip);
         let app_bin = self.tests_dir.join("app.bin");
 
         // Test the `--merge` option
@@ -1201,7 +1237,7 @@ impl TestRunner {
 
     /// Tests the monitor command
     pub fn test_monitor(&self, chip: &str) -> Result<()> {
-        let app = format!("espflash/tests/data/{chip}");
+        let app = self.app(chip);
         self.run_timed_command_test(
             &[
                 "monitor",
@@ -1263,7 +1299,19 @@ pub fn run_tests(workspace: &Path, args: RunTestsArgs) -> Result<()> {
     } else {
         PathBuf::from("espflash")
     };
-    let test_runner = TestRunner::new(workspace, tests_dir, args.timeout, espflash, args.baud);
+    let test_runner = TestRunner::new(
+        workspace,
+        tests_dir,
+        args.timeout,
+        espflash,
+        args.baud,
+        args.console,
+    );
+
+    let chip = args.chip.as_deref().unwrap_or("esp32");
+    if !workspace.join(test_runner.app(chip)).exists() {
+        return Err(format!("No test firmware for {chip} printing to {:?}", args.console).into());
+    }
 
     match args.test.as_str() {
         "all" => {
@@ -1298,6 +1346,7 @@ mod tests {
             1,
             PathBuf::from("espflash"),
             None,
+            Console::Uart,
         )
     }
 
@@ -1368,6 +1417,19 @@ mod tests {
             .map(|arg| arg.to_string_lossy().into_owned())
             .collect();
         assert_eq!(regular_args, ["reset"]);
+    }
+
+    #[test]
+    fn firmware_follows_console() {
+        let mut runner = runner();
+        assert_eq!(runner.app("esp32c6"), "espflash/tests/data/esp32c6");
+
+        runner.console = Console::Usb;
+        assert_eq!(
+            runner.app("esp32c6_defmt"),
+            "espflash/tests/data/esp32c6_defmt_usb"
+        );
+        assert_eq!(runner.app("esp32p4"), "espflash/tests/data/esp32p4");
     }
 
     #[test]
