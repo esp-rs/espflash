@@ -12,7 +12,6 @@ use espflash::{
     flasher::FlashSize,
     image_format::{ImageFormat, ImageFormatKind, Metadata, idf::check_idf_bootloader},
     logging::initialize_logger,
-    update::check_for_update,
 };
 use log::{LevelFilter, debug, info};
 use miette::{IntoDiagnostic, Result, WrapErr};
@@ -177,8 +176,9 @@ fn main() -> Result<()> {
     // Only check for updates once the command-line arguments have been
     // processed, to avoid printing any update notifications when the help
     // message is displayed.
+    #[cfg(feature = "update-check")]
     if !cli.skip_update_check {
-        check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        espflash::update::check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     }
 
     // Load any user configuration, if present.

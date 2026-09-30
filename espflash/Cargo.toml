@@ -69,7 +69,7 @@ libc = "0.2.174"
 nix = { version = "0.31", features = ["signal", "time"] }
 
 [features]
-default = ["cli"]
+default = ["cli", "update-check"]
 cli = [
     "dep:addr2line",
     "dep:clap",
@@ -82,10 +82,12 @@ cli = [
     "dep:directories",
     "dep:env_logger",
     "dep:indicatif",
-    "dep:update-informer",
     "miette/fancy",
     "serialport",
 ]
+
+# Checks crates.io for a newer release on every run of the CLI
+update-check = ["dep:update-informer"]
 
 # Enables connecting to a device via serial port
 serialport = ["dep:reed-solomon", "dep:regex", "dep:serialport", "dep:slip-codec", "dep:toml"]

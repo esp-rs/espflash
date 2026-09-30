@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - RiscV backtrace decoding based on `.debug_frame`s, in addition to the existing `.eh_frame` support
 
+### Changed
+
+- Move the update check into a new `update-check` feature, enabled by default, so `espflash` can be built without it
+
 ### Fixed
 
 ### Removed
