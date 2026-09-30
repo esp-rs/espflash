@@ -60,7 +60,7 @@ pub mod logging {
 }
 
 /// Check for updates
-#[cfg(feature = "cli")]
+#[cfg(feature = "update-check")]
 pub mod update {
     use std::time::Duration;
 
