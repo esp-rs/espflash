@@ -421,7 +421,7 @@ impl Connection {
                 info!("Resetting device with watchdog");
 
                 match chip {
-                    Chip::Esp32c3 => {
+                    Chip::Esp32c3 | Chip::Esp32c5 => {
                         if self.is_using_usb_serial_jtag() {
                             chip.rtc_wdt_reset(self)?;
                         }
