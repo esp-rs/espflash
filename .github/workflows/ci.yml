@@ -88,6 +88,7 @@ jobs:
 
       - run: RUSTFLAGS="-D warnings" cargo check -p espflash --lib --no-default-features
       - run: RUSTFLAGS="-D warnings" cargo check -p espflash --lib --no-default-features --features serialport
+      - run: RUSTFLAGS="-D warnings" cargo check -p espflash --no-default-features --features cli
 
   msrv:
     name: Check lib MSRV  (${{ matrix.platform.target }})

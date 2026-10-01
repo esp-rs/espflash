@@ -87,7 +87,7 @@ cli = [
 ]
 
 # Checks crates.io for a newer release on every run of the CLI
-update-check = ["dep:update-informer"]
+update-check = ["cli", "dep:update-informer"]
 
 # Enables connecting to a device via serial port
 serialport = ["dep:reed-solomon", "dep:regex", "dep:serialport", "dep:slip-codec", "dep:toml"]
