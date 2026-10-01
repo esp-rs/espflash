@@ -218,38 +218,46 @@ impl InputHandler {
     /// Returns `true` if the program should continue running, `false` if it
     /// should exit.
     fn handle(&mut self, serial: &mut Port) -> Result<bool> {
-        let key = match key_event().into_diagnostic() {
-            Ok(Some(event)) => event,
-            Ok(None) => {
-                self.flush_if_needed(serial)?;
-                return Ok(true);
-            }
-            Err(_) if self.non_interactive => return Ok(true),
-            Err(err) => return Err(err),
-        };
+        let mut bytes = Vec::new();
+        let mut shortcut = None;
+        for _ in 0..256 {
+            let key = match key_event().into_diagnostic() {
+                Ok(Some(event)) => event,
+                Ok(None) => break,
+                Err(_) if self.non_interactive => break,
+                Err(err) => return Err(err),
+            };
 
-        if key.kind == KeyEventKind::Press {
-            if key.modifiers.contains(KeyModifiers::CONTROL) {
-                match key.code {
-                    KeyCode::Char('c') => return Ok(false),
-                    KeyCode::Char('r') => {
-                        reset_after_flash(serial, self.pid).into_diagnostic()?;
-                        return Ok(true);
-                    }
-                    _ => {}
+            if key.kind == KeyEventKind::Press {
+                if key.modifiers.contains(KeyModifiers::CONTROL)
+                    && let KeyCode::Char('c' | 'r') = key.code
+                {
+                    shortcut = Some(key.code);
+                    break;
+                }
+                if let Some(encoded) = handle_key_event(key) {
+                    bytes.extend_from_slice(&encoded);
                 }
             }
+        }
 
-            self.flush_if_needed(serial)?;
-            if let Some(bytes) = handle_key_event(key) {
-                serial
-                    .write_all(&bytes)
-                    .ignore_timeout()
-                    .into_diagnostic()?;
-                if self.flush_deadline.is_none() {
-                    self.flush_deadline = Some(Instant::now() + Duration::from_millis(50));
-                }
+        self.flush_if_needed(serial)?;
+        if !bytes.is_empty() {
+            serial
+                .write_all(&bytes)
+                .ignore_timeout()
+                .into_diagnostic()?;
+            if self.flush_deadline.is_none() {
+                self.flush_deadline = Some(Instant::now() + Duration::from_millis(50));
             }
+        }
+
+        match shortcut {
+            Some(KeyCode::Char('c')) => return Ok(false),
+            Some(KeyCode::Char('r')) => {
+                reset_after_flash(serial, self.pid).into_diagnostic()?;
+            }
+            _ => {}
         }
 
         Ok(true)
