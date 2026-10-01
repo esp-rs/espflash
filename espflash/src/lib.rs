@@ -60,21 +60,29 @@ pub mod logging {
 }
 
 /// Check for updates
-#[cfg(feature = "update-check")]
+#[cfg(feature = "cli")]
 pub mod update {
-    use std::time::Duration;
-
-    use log::info;
-    use update_informer::{Check, registry::Crates};
-
     /// Check for updates to the espflash crate.
+    ///
+    /// Does nothing unless the `update-check` feature is enabled.
     pub fn check_for_update(name: &str, version: &str) {
-        // By setting the interval to 0 seconds we invalidate the cache with
-        // each invocation and ensure we're getting up-to-date results
-        let informer = update_informer::new(Crates, name, version).interval(Duration::from_secs(0));
+        #[cfg(feature = "update-check")]
+        {
+            use std::time::Duration;
 
-        if let Some(version) = informer.check_version().ok().flatten() {
-            info!("🚀 A new version of {name} is available: {version}");
+            use log::info;
+            use update_informer::{Check, registry::Crates};
+
+            // By setting the interval to 0 seconds we invalidate the cache with
+            // each invocation and ensure we're getting up-to-date results
+            let informer =
+                update_informer::new(Crates, name, version).interval(Duration::from_secs(0));
+
+            if let Some(version) = informer.check_version().ok().flatten() {
+                info!("🚀 A new version of {name} is available: {version}");
+            }
         }
+        #[cfg(not(feature = "update-check"))]
+        let _ = (name, version);
     }
 }
