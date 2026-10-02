@@ -205,6 +205,7 @@ jobs:
       - name: Run all tests
         run: >-
           xtask run-tests --chip ${{ matrix.target.soc }} --timeout 90 --baud 921600
+          --console ${{ matrix.target.port }}
           --espflash "$PWD/hil-bin/espflash" ${{ matrix.target.extraArgs }}
 
   build-sdm-packages:
