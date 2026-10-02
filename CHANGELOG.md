@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - RiscV backtrace decoding based on `.debug_frame`s, in addition to the existing `.eh_frame` support
 - Release binaries for `aarch64-unknown-linux-musl` (e.g. OpenWrt routers, Alpine on ARM)
+- Batching write for serial monitor input, to speed up text pasting, with writes timeout warning
 
 ### Fixed
 

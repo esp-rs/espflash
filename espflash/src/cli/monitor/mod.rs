@@ -220,7 +220,8 @@ impl InputHandler {
     fn handle(&mut self, serial: &mut Port) -> Result<bool> {
         let mut bytes = Vec::new();
         let mut shortcut = None;
-        for _ in 0..256 {
+        const MAX_KEYS_PER_POLL: usize = 256;
+        for _ in 0..MAX_KEYS_PER_POLL {
             let key = match key_event().into_diagnostic() {
                 Ok(Some(event)) => event,
                 Ok(None) => break,
@@ -243,10 +244,13 @@ impl InputHandler {
 
         self.flush_if_needed(serial)?;
         if !bytes.is_empty() {
-            serial
-                .write_all(&bytes)
-                .ignore_timeout()
-                .into_diagnostic()?;
+            match serial.write_all(&bytes) {
+                Ok(()) => {}
+                Err(err) if err.kind() == ErrorKind::TimedOut => {
+                    warn!("Serial write timed out; some input may not have been sent.");
+                }
+                Err(err) => return Err(err).into_diagnostic(),
+            }
             if self.flush_deadline.is_none() {
                 self.flush_deadline = Some(Instant::now() + Duration::from_millis(50));
             }
