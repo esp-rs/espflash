@@ -11,8 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - RiscV backtrace decoding based on `.debug_frame`s, in addition to the existing `.eh_frame` support
 - Release binaries for `aarch64-unknown-linux-musl` (e.g. OpenWrt routers, Alpine on ARM)
+- A bundled ESP32-S3 bootloader built for QIO, used with `--flash-mode qio`/`qout` (#657)
 
 ### Fixed
+
+- `--flash-mode qio`/`qout` no longer marks the 2nd stage bootloader itself as quad, which the ROM cannot boot; only the app header gets the quad mode, as with ESP-IDF and esptool (#657)
 
 ### Removed
 
