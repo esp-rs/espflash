@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Batching write for serial monitor input, to speed up text pasting, with writes timeout warning
 
+### Changed
+
+- Move the update check into a new `update-check` feature, enabled by default, so `espflash` can be built without it
+
 ### Fixed
 
 ### Removed
