@@ -73,6 +73,8 @@ const BOOTLOADER_ESP32S2: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin");
 const BOOTLOADER_ESP32S3: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin");
+const BOOTLOADER_ESP32S3_QIO: &[u8] =
+    include_bytes!("../../resources/bootloaders/esp32s3-qio-bootloader.bin");
 const BOOTLOADER_ESP32S31: &[u8] =
     include_bytes!("../../resources/bootloaders/esp32s31-bootloader.bin");
 /// Get the default bootloader for the given chip, crystal frequency, and
@@ -147,6 +149,35 @@ pub(crate) fn default_bootloader(
             XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32S31),
             _ => Err(error),
         },
+    }
+}
+
+/// Get the default bootloader built for quad flash mode, if there is one for
+/// the given chip and crystal frequency.
+///
+/// Such a bootloader switches the flash chip to quad mode itself; the ROM
+/// still loads it in dual mode.
+pub(crate) fn default_quad_bootloader(
+    chip: Chip,
+    xtal_freq: XtalFrequency,
+) -> Option<&'static [u8]> {
+    match (chip, xtal_freq) {
+        (Chip::Esp32s3, XtalFrequency::_40Mhz) => Some(BOOTLOADER_ESP32S3_QIO),
+        _ => None,
+    }
+}
+
+/// The mode to write into the 2nd stage bootloader's own header.
+///
+/// The ROM loads the bootloader before anything has enabled quad mode on the
+/// flash chip, so a bootloader marked QIO or QOUT does not boot. ESP-IDF and
+/// esptool always mark it DIO or DOUT, and a bootloader built for quad mode
+/// enables it itself.
+fn bootloader_flash_mode(mode: FlashMode) -> FlashMode {
+    match mode {
+        FlashMode::Qio => FlashMode::Dio,
+        FlashMode::Qout => FlashMode::Dout,
+        mode => mode,
     }
 }
 
@@ -347,10 +378,25 @@ impl<'a> IdfBootloaderFormat<'a> {
             ));
         }
 
+        let quad_mode = matches!(
+            flash_data.flash_settings.mode,
+            Some(FlashMode::Qio | FlashMode::Qout)
+        );
         let mut bootloader = if let Some(bootloader_path) = bootloader_path {
             let bootloader = fs::read(bootloader_path)?;
             Cow::Owned(bootloader)
+        } else if let Some(quad_bootloader) = quad_mode
+            .then(|| default_quad_bootloader(flash_data.chip, flash_data.xtal_freq))
+            .flatten()
+        {
+            Cow::Borrowed(quad_bootloader)
         } else {
+            if quad_mode {
+                warn!(
+                    "There is no bundled {} bootloader for quad flash mode: the flash                      will be read in dual mode. Use `--bootloader` with an ESP-IDF                      bootloader built for QIO/QOUT to change that.",
+                    flash_data.chip
+                );
+            }
             let default_bootloader = default_bootloader(
                 flash_data.chip,
                 flash_data.xtal_freq,
@@ -391,9 +437,15 @@ impl<'a> IdfBootloaderFormat<'a> {
             flash_data.chip,
         )?;
 
+        // The app header keeps the requested mode, the bootloader's own header
+        // must not be quad
+        let mut bootloader_header = header;
+        if let Some(mode) = flash_data.flash_settings.mode {
+            bootloader_header.flash_mode = bootloader_flash_mode(mode) as u8;
+        }
         bootloader.to_mut().splice(
             0..size_of::<ImageHeader>(),
-            bytes_of(&header).iter().copied(),
+            bytes_of(&bootloader_header).iter().copied(),
         );
 
         // The header was modified so we need to recalculate the hash of the
@@ -928,6 +980,7 @@ pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::flasher::FlashSettings;
 
     #[test]
     fn test_flash_config_write() {
@@ -941,6 +994,75 @@ mod tests {
             .write_flash_config(FlashSize::_32Mb, FlashFrequency::_80Mhz, Chip::Esp32s3)
             .unwrap();
         assert_eq!(header.flash_config, 0x5F);
+    }
+
+    /// The bootloader, partition table and app images, as flashed
+    fn image(chip: Chip, mode: Option<FlashMode>) -> Vec<Vec<u8>> {
+        let elf = std::fs::read(format!("tests/data/{chip}")).unwrap();
+        let flash_data = FlashData::new(
+            FlashSettings::new(mode, None, None),
+            0,
+            None,
+            chip,
+            XtalFrequency::_40Mhz,
+        );
+        let image = IdfBootloaderFormat::new(&elf, &flash_data, None, None, None, None).unwrap();
+        image
+            .flash_segments()
+            .map(|s| s.data.into_owned())
+            .collect()
+    }
+
+    fn sha256_valid(bootloader: &[u8]) -> bool {
+        let digest = bootloader.len() - 32;
+        Sha256::digest(&bootloader[..digest]).as_slice() == &bootloader[digest..]
+    }
+
+    #[test]
+    fn bootloader_header_is_never_quad() {
+        assert_eq!(bootloader_flash_mode(FlashMode::Qio), FlashMode::Dio);
+        assert_eq!(bootloader_flash_mode(FlashMode::Qout), FlashMode::Dout);
+        assert_eq!(bootloader_flash_mode(FlashMode::Dio), FlashMode::Dio);
+        assert_eq!(bootloader_flash_mode(FlashMode::Dout), FlashMode::Dout);
+    }
+
+    #[test]
+    fn qio_uses_the_quad_bootloader_marked_dio() {
+        let segments = image(Chip::Esp32s3, Some(FlashMode::Qio));
+        let (bootloader, app) = (&segments[0], &segments[2]);
+
+        assert_eq!(bootloader.len(), BOOTLOADER_ESP32S3_QIO.len());
+        assert_eq!(
+            bootloader[size_of::<ImageHeader>()..bootloader.len() - 32],
+            BOOTLOADER_ESP32S3_QIO[size_of::<ImageHeader>()..bootloader.len() - 32]
+        );
+        assert_eq!(bootloader[2], FlashMode::Dio as u8);
+        assert!(sha256_valid(bootloader));
+        assert_eq!(app[2], FlashMode::Qio as u8);
+    }
+
+    #[test]
+    fn dio_keeps_the_default_bootloader() {
+        let segments = image(Chip::Esp32s3, Some(FlashMode::Dio));
+        let (bootloader, app) = (&segments[0], &segments[2]);
+
+        assert_eq!(bootloader.len(), BOOTLOADER_ESP32S3.len());
+        assert_eq!(bootloader[2], FlashMode::Dio as u8);
+        assert!(sha256_valid(bootloader));
+        assert_eq!(app[2], FlashMode::Dio as u8);
+    }
+
+    #[test]
+    fn qio_without_a_quad_bootloader_still_boots() {
+        assert!(default_quad_bootloader(Chip::Esp32c3, XtalFrequency::_40Mhz).is_none());
+
+        let segments = image(Chip::Esp32c3, Some(FlashMode::Qio));
+        let (bootloader, app) = (&segments[0], &segments[2]);
+
+        assert_eq!(bootloader.len(), BOOTLOADER_ESP32C3.len());
+        assert_eq!(bootloader[2], FlashMode::Dio as u8);
+        assert!(sha256_valid(bootloader));
+        assert_eq!(app[2], FlashMode::Qio as u8);
     }
 
     #[test]

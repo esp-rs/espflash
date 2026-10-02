@@ -103,6 +103,12 @@ bootloaders:
     target: esp32s3
     output: esp32s3-bootloader.bin
 
+  - name: esp32s3-qio
+    target: esp32s3
+    output: esp32s3-qio-bootloader.bin
+    configs:
+      - CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+
   - name: esp32s31
     target: esp32s31
     output: esp32s31-bootloader.bin
