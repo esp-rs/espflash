@@ -34,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `object` to 0.40, `addr2line` to 0.27, and `gimli` to 0.34, and drop the unused `object` compression support that pulled in `ruzstd` (RUSTSEC-2026-0344)
 - Build the ESP32-S31 bootloader for 64 KB MMU pages, as esp-hal images use, so it maps the app's first page at the last MMU entry (#1093)
 - Report the ROM error code for failed commands instead of `Other (0x1)` (#1060)
+- A bundled ESP32-S3 bootloader built for QIO, used with `--flash-mode qio`/`qout` (#657)
+
+### Fixed
+
+- `--flash-mode qio`/`qout` no longer marks the 2nd stage bootloader itself as quad, which the ROM cannot boot; only the app header gets the quad mode, as with ESP-IDF and esptool (#657)
 
 ### Removed
 
