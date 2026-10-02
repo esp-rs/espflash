@@ -689,7 +689,10 @@ pub fn load_monitor_elfs<'a>(
 
 /// Open a serial monitor
 pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
-    let mut flasher = connect(&args.connect_args, config, true, true)?;
+    let mut connect_args = args.connect_args.clone();
+    debug!("The flash stub is not used by `monitor`, `--no-stub` has no effect");
+    connect_args.no_stub = true;
+    let mut flasher = connect(&connect_args, config, true, true)?;
     let pid = flasher.connection().usb_pid();
 
     let firmware_elf = if let Some(elf_path) = args.monitor_args.elf.clone() {
@@ -1301,6 +1304,9 @@ pub fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
 
 /// Hold the target device in reset.
 pub fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
+    let mut args = args.clone();
+    debug!("The flash stub is not used by `hold-in-reset`, `--no-stub` has no effect");
+    args.no_stub = true;
     connect(&args, config, true, true)?;
     info!("Holding target device in reset");
 
