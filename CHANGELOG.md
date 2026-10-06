@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- SPI command data words are written to consecutive `W` registers (`SPI_W0 + 4 * i`)
+
 ### Removed
 
 ## [4.6.0] - 2026-09-10
