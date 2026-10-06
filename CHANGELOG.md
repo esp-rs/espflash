@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Connecting to USB-Serial-JTAG devices (`303a:1001`) no longer requires all eight ROM `SYNC` replies; one strictly validated reply is accepted and the duplicates are drained, which fixes connecting through USB-over-IP passthrough such as VirtualHere or SEH UTN
+
 ### Removed
 
 ## [4.6.0] - 2026-09-10

@@ -47,6 +47,76 @@ pub use reset::{ResetAfterOperation, ResetBeforeOperation};
 const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
 const USB_SERIAL_JTAG_PID: u16 = 0x1001;
+const ESPRESSIF_VID: u16 = 0x303A;
+const NATIVE_USB_SYNC_SETTLE: Duration = Duration::from_millis(100);
+const NATIVE_USB_SYNC_TIMEOUT: Duration = Duration::from_millis(1000);
+const NATIVE_USB_SYNC_DRAIN: Duration = Duration::from_millis(300);
+/// The ROM answers one SYNC command with this many identical replies.
+const ROM_SYNC_REPLIES: usize = 8;
+const NATIVE_USB_READ_TIMEOUT: Duration = Duration::from_millis(10);
+fn is_valid_native_usb_sync_frame(frame: &[u8]) -> bool {
+    frame.len() == 12
+        && frame[0] == 1
+        && frame[1] == CommandType::Sync as u8
+        && u16::from_le_bytes([frame[2], frame[3]]) == 4
+        && u32::from_le_bytes([frame[4], frame[5], frame[6], frame[7]]) == 0x2012_0707
+        && frame[8] == 0
+        && frame[9] == 0
+}
+
+fn matches_native_usb_sync_profile(vid: u16, pid: u16) -> bool {
+    vid == ESPRESSIF_VID && pid == USB_SERIAL_JTAG_PID
+}
+
+#[derive(Default)]
+struct NativeUsbSlipDecoder {
+    started: bool,
+    escape: bool,
+    invalid: bool,
+    data: Vec<u8>,
+}
+
+impl NativeUsbSlipDecoder {
+    fn feed(&mut self, bytes: &[u8]) -> Vec<Result<Vec<u8>, ()>> {
+        let mut packets = Vec::new();
+        for &byte in bytes {
+            if byte == 0xC0 {
+                if self.escape {
+                    self.invalid = true;
+                }
+                if self.started && (self.invalid || !self.data.is_empty()) {
+                    packets.push(if self.invalid {
+                        Err(())
+                    } else {
+                        Ok(std::mem::take(&mut self.data))
+                    });
+                }
+                self.data.clear();
+                self.started = true;
+                self.escape = false;
+                self.invalid = false;
+            } else if self.started && !self.invalid {
+                if self.escape {
+                    self.escape = false;
+                    match byte {
+                        0xDC => self.data.push(0xC0),
+                        0xDD => self.data.push(0xDB),
+                        _ => self.invalid = true,
+                    }
+                } else if byte == 0xDB {
+                    self.escape = true;
+                } else {
+                    self.data.push(byte);
+                }
+                if self.data.len() > 65_543 {
+                    self.data.clear();
+                    self.invalid = true;
+                }
+            }
+        }
+        packets
+    }
+}
 
 #[cfg(unix)]
 /// Alias for the serial TTYPort.
@@ -297,6 +367,10 @@ impl Connection {
             // Reset the chip to bootloader (download mode)
             reset_strategy.reset(&mut self.serial)?;
 
+            if self.is_native_usb_sync_profile() {
+                sleep(NATIVE_USB_SYNC_SETTLE);
+            }
+
             // S2 in USB download mode responds with 0 available bytes here
             let available_bytes = self.serial.bytes_to_read()?;
 
@@ -362,6 +436,12 @@ impl Connection {
 
     /// Syncs with a device.
     pub(crate) fn sync(&mut self) -> Result<(), Error> {
+        if self.is_native_usb_sync_profile() {
+            return self.with_timeout(NATIVE_USB_READ_TIMEOUT, |connection| {
+                connection.native_usb_sync()
+            });
+        }
+
         self.with_timeout(CommandType::Sync.timeout(), |connection| {
             connection.command(Command::Sync)?;
             connection.flush()?;
@@ -392,6 +472,86 @@ impl Connection {
         })?;
 
         Ok(())
+    }
+
+    fn is_native_usb_sync_profile(&self) -> bool {
+        matches_native_usb_sync_profile(self.port_info.vid, self.port_info.pid)
+    }
+
+    fn native_usb_sync(&mut self) -> Result<(), Error> {
+        self.write_command(Command::Sync)?;
+        self.serial.flush()?;
+
+        let first_deadline = std::time::Instant::now() + NATIVE_USB_SYNC_TIMEOUT;
+        let mut decoder = NativeUsbSlipDecoder::default();
+        let mut first_valid = false;
+        let mut valid_replies = 0;
+        let mut drain_deadline = None;
+        let mut bytes = [0u8; 256];
+
+        loop {
+            let now = std::time::Instant::now();
+            let deadline = drain_deadline.unwrap_or(first_deadline);
+            if now >= deadline {
+                break;
+            }
+
+            let remaining = deadline.saturating_duration_since(now);
+            self.serial
+                .set_timeout(NATIVE_USB_READ_TIMEOUT.min(remaining))?;
+            match self.serial.read(&mut bytes) {
+                Ok(count) => {
+                    let read_at = std::time::Instant::now();
+                    if (!first_valid && read_at > first_deadline)
+                        || drain_deadline.is_some_and(|deadline| read_at > deadline)
+                    {
+                        continue;
+                    }
+                    for packet in decoder.feed(&bytes[..count]) {
+                        match packet {
+                            Ok(frame) if is_valid_native_usb_sync_frame(&frame) => {
+                                valid_replies += 1;
+                                if !first_valid {
+                                    first_valid = true;
+                                    drain_deadline =
+                                        Some(std::time::Instant::now() + NATIVE_USB_SYNC_DRAIN);
+                                } else {
+                                    debug!("Ignoring duplicate native USB SYNC response");
+                                }
+                            }
+                            Ok(frame) => debug!(
+                                "Ignoring malformed or unexpected native USB SYNC frame: {frame:02x?}"
+                            ),
+                            Err(()) => debug!("Ignoring malformed native USB SLIP frame"),
+                        }
+                    }
+                }
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                    ) =>
+                {
+                    // Keep the decoder state across read timeouts. The drain
+                    // deadline is fixed from the first valid response.
+                }
+                Err(error) => return Err(error.into()),
+            }
+            if valid_replies >= ROM_SYNC_REPLIES {
+                // Every duplicate arrived (the directly attached case): no need
+                // to wait for the drain deadline.
+                break;
+            }
+        }
+
+        if first_valid {
+            Ok(())
+        } else {
+            Err(Error::RomError(Box::new(RomError::new(
+                CommandType::Sync,
+                RomErrorKind::InvalidMessage,
+            ))))
+        }
     }
 
     /// Resets the device.
@@ -813,6 +973,112 @@ impl Connection {
                 Chip::from_magic(magic)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod sync_response_tests {
+    use super::*;
+
+    fn valid_wire_reply() -> Vec<u8> {
+        let mut frame = vec![1, 8, 4, 0];
+        frame.extend_from_slice(&0x2012_0707u32.to_le_bytes());
+        frame.extend_from_slice(&[0, 0, 0, 0]);
+        let mut wire = vec![0xC0];
+        wire.extend(frame.iter().flat_map(|byte| match byte {
+            0xC0 => vec![0xDB, 0xDC],
+            0xDB => vec![0xDB, 0xDD],
+            _ => vec![*byte],
+        }));
+        wire.push(0xC0);
+        wire
+    }
+
+    #[test]
+    fn accepts_complete_raw_rom_sync_frame() {
+        let wire = valid_wire_reply();
+        let mut decoder = NativeUsbSlipDecoder::default();
+        let packets = decoder.feed(&wire);
+        assert_eq!(packets.len(), 1);
+        assert!(is_valid_native_usb_sync_frame(packets[0].as_ref().unwrap()));
+    }
+
+    #[test]
+    fn profile_is_limited_to_espressif_native_usb_vid_pid() {
+        assert!(matches_native_usb_sync_profile(0x303A, 0x1001));
+        assert!(!matches_native_usb_sync_profile(0x303A, 0x1002));
+        assert!(!matches_native_usb_sync_profile(0x10C4, 0x1001));
+    }
+
+    #[test]
+    fn rejects_stub_wrong_direction_and_rom_status() {
+        let mut decoder = NativeUsbSlipDecoder::default();
+        let mut stub = vec![1, 8, 4, 0];
+        stub.extend_from_slice(&0u32.to_le_bytes());
+        stub.extend_from_slice(&[0, 0, 0, 0]);
+        assert!(!is_valid_native_usb_sync_frame(&stub));
+
+        let mut wrong_direction = vec![0, 8, 4, 0];
+        wrong_direction.extend_from_slice(&0x2012_0707u32.to_le_bytes());
+        wrong_direction.extend_from_slice(&[0, 0, 0, 0]);
+        assert!(!is_valid_native_usb_sync_frame(&wrong_direction));
+
+        let mut rom_error = vec![1, 8, 4, 0];
+        rom_error.extend_from_slice(&0x2012_0707u32.to_le_bytes());
+        rom_error.extend_from_slice(&[1, 0, 0, 0]);
+        assert!(!is_valid_native_usb_sync_frame(&rom_error));
+        assert!(
+            decoder
+                .feed(&[0xC0, 0xDB, 0x00, 0xC0])
+                .iter()
+                .any(Result::is_err)
+        );
+    }
+
+    #[test]
+    fn partial_bytes_survive_read_timeout_boundaries() {
+        let wire = valid_wire_reply();
+        let mut decoder = NativeUsbSlipDecoder::default();
+        assert!(decoder.feed(&wire[..5]).is_empty());
+        // An elapsed serial read timeout does not reset decoder state.
+        let packets = decoder.feed(&wire[5..]);
+        assert_eq!(packets.len(), 1);
+        assert!(is_valid_native_usb_sync_frame(packets[0].as_ref().unwrap()));
+    }
+
+    #[test]
+    fn two_valid_replies_then_truncated_duplicate_tail_keeps_valid_handshake() {
+        let first = valid_wire_reply();
+        let second = valid_wire_reply();
+        let mut capture = first;
+        capture.extend(second.into_iter().skip(1));
+        capture.extend_from_slice(&[0x20, 0, 0, 0, 0, 0xC0]);
+
+        let mut decoder = NativeUsbSlipDecoder::default();
+        let packets = decoder.feed(&capture);
+        let valid = packets
+            .iter()
+            .filter(|packet| {
+                packet
+                    .as_ref()
+                    .is_ok_and(|frame| is_valid_native_usb_sync_frame(frame))
+            })
+            .count();
+        assert_eq!(valid, 2);
+        assert_eq!(packets.len(), 3);
+        assert!(!is_valid_native_usb_sync_frame(
+            packets[2].as_ref().unwrap()
+        ));
+    }
+
+    #[test]
+    fn malformed_escape_is_rejected_and_next_packet_recovers() {
+        let mut wire = vec![0xC0, 0xDB, 0x00, 0xC0];
+        wire.extend(valid_wire_reply().into_iter().skip(1));
+        let packets = NativeUsbSlipDecoder::default().feed(&wire);
+        assert_eq!(packets.len(), 2);
+        assert!(packets[0].is_err());
+        assert!(is_valid_native_usb_sync_frame(packets[1].as_ref().unwrap()));
     }
 }
 
