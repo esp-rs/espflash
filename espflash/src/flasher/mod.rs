@@ -1027,10 +1027,12 @@ impl Flasher {
         self.connection
             .write_reg(spi_registers.cmd(), 1 << 18, None)?;
 
+        // SPI_CMD owns the operation's busy bit; SPI_USR stores transaction
+        // configuration.
         let mut i = 0;
         loop {
             sleep(Duration::from_millis(1));
-            if self.connection.read_reg(spi_registers.usr())? & (1 << 18) == 0 {
+            if self.connection.read_reg(spi_registers.cmd())? & (1 << 18) == 0 {
                 break;
             }
             i += 1;
