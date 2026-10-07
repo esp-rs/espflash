@@ -1022,17 +1022,19 @@ impl Flasher {
                 data_bytes[0..bytes.len()].copy_from_slice(bytes);
                 let data = u32::from_le_bytes(data_bytes);
                 self.connection
-                    .write_reg(spi_registers.w0() + i as u32, data, None)?;
+                    .write_reg(spi_registers.w0() + (i as u32 * 4), data, None)?;
             }
         }
 
         self.connection
             .write_reg(spi_registers.cmd(), 1 << 18, None)?;
 
+        // SPI_CMD owns the operation's busy bit; SPI_USR stores transaction
+        // configuration.
         let mut i = 0;
         loop {
             sleep(Duration::from_millis(1));
-            if self.connection.read_reg(spi_registers.usr())? & (1 << 18) == 0 {
+            if self.connection.read_reg(spi_registers.cmd())? & (1 << 18) == 0 {
                 break;
             }
             i += 1;

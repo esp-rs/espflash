@@ -496,7 +496,9 @@ pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, true, true)?;
 
     let checksum = flasher.checksum_md5(args.address, args.size)?;
-    println!("0x{checksum:x}");
+    // Pad to 32 digits: an MD5 digest with a leading zero must still compare
+    // equal to md5sum output.
+    println!("0x{checksum:032x}");
 
     let chip = flasher.chip();
     flasher
