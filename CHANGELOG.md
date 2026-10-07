@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix SPI command data being written to misaligned W register addresses (#1086)
+
 ### Removed
 
 ## [4.6.0] - 2026-09-10

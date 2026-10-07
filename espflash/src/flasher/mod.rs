@@ -1020,7 +1020,7 @@ impl Flasher {
                 data_bytes[0..bytes.len()].copy_from_slice(bytes);
                 let data = u32::from_le_bytes(data_bytes);
                 self.connection
-                    .write_reg(spi_registers.w0() + i as u32, data, None)?;
+                    .write_reg(spi_registers.w0() + (i as u32 * 4), data, None)?;
             }
         }
 
