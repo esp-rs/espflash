@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `checksum-md5` prints all 32 hex digits, keeping leading zeros (#1087)
 - Fix SPI command data being written to misaligned W register addresses (#1086)
 
 ### Removed
