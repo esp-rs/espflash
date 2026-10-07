@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Allow SPI flash commands to read 32 bits and write 64 bytes of data, matching esptool (#1088)
+
 ### Removed
 
 ## [4.6.0] - 2026-09-10

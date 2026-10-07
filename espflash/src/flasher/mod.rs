@@ -966,8 +966,10 @@ impl Flasher {
         data: &[u8],
         read_bits: u32,
     ) -> Result<u32, Error> {
-        assert!(read_bits < 32);
-        assert!(data.len() < 64);
+        // Same limits as esptool:
+        // https://github.com/espressif/esptool/blob/5031d94/esptool/loader.py#L2032-L2040
+        assert!(read_bits <= 32);
+        assert!(data.len() <= 64);
 
         let spi_registers = self.chip.spi_registers();
 
