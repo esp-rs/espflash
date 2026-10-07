@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- SPI command completion is now detected by polling `SPI_CMD` instead of `SPI_USR`
+- SPI command completion is now detected by polling `SPI_CMD` instead of `SPI_USR` (#1085)
 
 ### Removed
 
