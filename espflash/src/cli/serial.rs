@@ -189,6 +189,16 @@ fn find_serial_port(ports: &[SerialPortInfo], name: &str) -> Result<SerialPortIn
     if let Some(port) = port_info {
         Ok(port.to_owned())
     } else {
+        // An explicitly given port that exists but is not enumerated, e.g. an
+        // on-chip UART of an embedded Linux board: use it as it is.
+        // canonicalize() above already failed if it does not exist.
+        #[cfg(not(target_os = "windows"))]
+        return Ok(SerialPortInfo {
+            port_name: name.to_string(),
+            port_type: SerialPortType::Unknown,
+        });
+
+        #[cfg(target_os = "windows")]
         Err(Error::SerialNotFound(name.to_string()))
     }
 }
