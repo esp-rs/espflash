@@ -3531,6 +3531,7 @@ dependencies = [
  "pyo3",
  "serde",
  "serde_yaml",
+ "serialport",
  "sha2",
 ]
 

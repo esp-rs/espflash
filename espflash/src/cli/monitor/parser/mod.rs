@@ -323,7 +323,11 @@ mod test {
     /// The ESP-IDF `hello_world` example built for the ESP32-C61 (see
     /// `tests/data/README.md`), whose CFI lives in `.debug_frame`.
     fn espidf_elf() -> Vec<u8> {
-        std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/esp32c61")).unwrap()
+        std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/data/esp_idf_hello_world_c61.elf"
+        ))
+        .unwrap()
     }
 
     /// The bare-metal `esp-backtrace` example for the ESP32-C6 (see
@@ -332,7 +336,7 @@ mod test {
     fn esp_backtrace_elf() -> Vec<u8> {
         std::fs::read(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/tests/data/esp32c6_backtrace"
+            "/tests/data/esp_hal_backtrace_c6.elf"
         ))
         .unwrap()
     }
@@ -351,12 +355,12 @@ mod test {
         line
     }
 
-    /// A stack for the `esp32c6_backtrace` ELF as `esp-backtrace` would dump
-    /// it while `core::panicking::panic_bounds_check` (64 byte frame) is
-    /// executing, called from `main` (32 byte frame) whose saved `ra` is zero.
-    /// Both functions switch their CFA to `s0` after the prologue. `len` is
-    /// the number of words to dump; anything not needed by the unwinder is
-    /// zero.
+    /// A stack for the `esp_hal_backtrace_c6.elf` ELF as `esp-backtrace` would
+    /// dump it while `core::panicking::panic_bounds_check` (64 byte frame)
+    /// is executing, called from `main` (32 byte frame) whose saved `ra` is
+    /// zero. Both functions switch their CFA to `s0` after the prologue.
+    /// `len` is the number of words to dump; anything not needed by the
+    /// unwinder is zero.
     fn esp_backtrace_stack(len: usize, main_s0: u32) -> Vec<u32> {
         let mut words = vec![0; len];
         words[14] = main_s0; // s0 saved by panic_bounds_check = CFA of main
@@ -428,7 +432,8 @@ mod test {
         );
     }
 
-    /// An `abort()` crash dump laid out by hand for the `esp32c61` ELF, with
+    /// An `abort()` crash dump laid out by hand for the
+    /// `esp_idf_hello_world_c61.elf` ELF, with
     /// the return addresses at the places the CFI of each function dictates:
     ///
     /// - `panic_abort` (frameless, `ra` still live) called from
