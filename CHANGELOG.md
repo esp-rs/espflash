@@ -10,8 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - RiscV backtrace decoding based on `.debug_frame`s, in addition to the existing `.eh_frame` support
+- Release binaries for `aarch64-unknown-linux-musl` (e.g. OpenWrt routers, Alpine on ARM)
+
+### Changed
+- Batching write for serial monitor input, to speed up text pasting, with writes timeout warning
+
+### Changed
+
+- Move the update check into a new `update-check` feature, enabled by default, so `espflash` can be built without it
 
 ### Fixed
+
+- SPI command completion is now detected by polling `SPI_CMD` instead of `SPI_USR` (#1085)
+- `checksum-md5` prints all 32 hex digits, keeping leading zeros (#1087)
+- Fix SPI command data being written to misaligned W register addresses (#1086)
+- Allow SPI flash commands to read 32 bits and write 64 bytes of data, matching esptool (#1088)
 
 ### Removed
 
