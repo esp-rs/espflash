@@ -771,11 +771,10 @@ impl Connection {
             let response = connection.command(Command::GetSecurityInfo)?;
             // Extract raw bytes and convert them into `SecurityInfo`
             if let crate::command::CommandResponseValue::Vector(data) = response {
-                // HACK: Not quite sure why there seem to be 4 extra bytes at
-                // the end of the       response when the stub
-                // is not being used...
-                let end = if use_stub { data.len() } else { data.len() - 4 };
-                SecurityInfo::try_from(&data[..end])
+                // The payload ends with the status bytes: 2 for the stub, 4 for
+                // the ROM loader.
+                let status_len = if use_stub { 2 } else { 4 };
+                SecurityInfo::try_from(&data[..data.len().saturating_sub(status_len)])
             } else {
                 Err(Error::InvalidResponse(
                     "response was not a vector of bytes".into(),
