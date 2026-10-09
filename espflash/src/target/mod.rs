@@ -157,6 +157,7 @@ impl Chip {
     pub fn wdt_wprotect(&self) -> Option<u32> {
         match self {
             Chip::Esp32c3 => Some(0x6000_80A8),
+            Chip::Esp32c5 => Some(0x600B_1C18),
             Chip::Esp32p4 => Some(0x5011_6018),
             Chip::Esp32s2 => Some(0x3F40_80AC),
             Chip::Esp32s3 => Some(0x6000_80B0),
@@ -170,6 +171,7 @@ impl Chip {
     pub fn wdt_config0(&self) -> Option<u32> {
         match self {
             Chip::Esp32c3 => Some(0x6000_8090),
+            Chip::Esp32c5 => Some(0x600B_1C00),
             Chip::Esp32p4 => Some(0x5011_6000),
             Chip::Esp32s2 => Some(0x3F40_8094),
             Chip::Esp32s3 => Some(0x6000_8098),
@@ -183,6 +185,7 @@ impl Chip {
     pub fn wdt_config1(&self) -> Option<u32> {
         match self {
             Chip::Esp32c3 => Some(0x6000_8094),
+            Chip::Esp32c5 => Some(0x600B_1C04),
             Chip::Esp32p4 => Some(0x5011_6004),
             Chip::Esp32s2 => Some(0x3F40_8098),
             Chip::Esp32s3 => Some(0x6000_809C),
