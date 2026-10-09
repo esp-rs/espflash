@@ -655,13 +655,22 @@ impl Flasher {
 
             // Load flash stub if enabled. Increase the ROM loader's baud rate
             // first so the larger stub is also transferred at the requested
-            // speed. ESP32 and ESP32-S2 ROM loaders are unreliable when
-            // starting a stub uploaded at high baud, and the ESP32-C6 stub
-            // reprograms the UART to the ROM's initial baud after boosting its
-            // clock, so change their baud only after the stub is running.
+            // speed. Stubs that boost the clock on UART reprogram the UART
+            // divider to the baud recorded at ROM init (115,200), discarding
+            // the ROM's CHANGE_BAUDRATE, so change their baud only after the
+            // stub is running. Keep this list in sync with the clock boost
+            // targets in esp-flasher-stub's `src/main.c`.
             if use_stub {
-                let change_baud_before_stub =
-                    !matches!(flasher.chip, Chip::Esp32 | Chip::Esp32s2 | Chip::Esp32c6);
+                let change_baud_before_stub = !matches!(
+                    flasher.chip,
+                    Chip::Esp32
+                        | Chip::Esp32c6
+                        | Chip::Esp32h4
+                        | Chip::Esp32p4
+                        | Chip::Esp32s2
+                        | Chip::Esp32s3
+                        | Chip::Esp32s31
+                );
                 if let Some(baud) = baud
                     && baud > 115_200
                     && change_baud_before_stub
