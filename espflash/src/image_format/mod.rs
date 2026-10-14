@@ -245,7 +245,7 @@ fn segments<'a>(elf: &'a ElfFile<'a>) -> impl Iterator<Item = Segment<'a>> {
 fn is_empty(flags: object::SectionFlags) -> bool {
     match flags {
         object::SectionFlags::None => true,
-        object::SectionFlags::Elf { sh_flags } => sh_flags == 0,
+        object::SectionFlags::Elf { sh_flags, .. } => sh_flags.0 == 0,
         _ => unreachable!(),
     }
 }

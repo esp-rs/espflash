@@ -29,7 +29,7 @@ path              = "./src/bin/espflash.rs"
 required-features = ["cli", "serialport"]
 
 [dependencies]
-addr2line       = { version = "0.25", optional = true }
+addr2line       = { version = "0.27", default-features = false, features = ["cpp_demangle", "rustc-demangle"], optional = true }
 base64          = "0.22"
 bitflags        = "2.9"
 bytemuck        = { version = "1.23", features = ["derive"] }
@@ -45,12 +45,12 @@ env_logger      = { version = "0.11", optional = true }
 esp-idf-part    = "0.6"
 esp-metadata-generated = { version = "0.5.1", features = ["build-script"] }
 flate2          = "1.1"
-gimli           = "0.32.3"
+gimli           = "0.34"
 indicatif       = { version = "0.18", optional = true }
 log             = "0.4"
 md-5            = "0.11"
 miette          = "7.6"
-object          = "0.39"
+object          = { version = "0.40", default-features = false, features = ["read", "std"] }
 reed-solomon    = { version = "0.2.1", optional = true }
 regex           = { version = "1.11", optional = true }
 serde           = { version = "1.0", features = ["derive"] }
