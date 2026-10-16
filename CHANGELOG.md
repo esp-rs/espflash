@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Batching write for serial monitor input, to speed up text pasting, with writes timeout warning
+- Update flasher stubs to Espressif's v1.4.0 implementation for improved flashing throughput (#1060)
+- Transfer the flasher stub at the requested baud rate instead of 115,200 baud (#1060)
+- Skip deflate compression when it would increase the amount of data transferred (#1060)
 
 ### Changed
 
