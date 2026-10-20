@@ -107,3 +107,6 @@ bootloaders:
     target: esp32s31
     output: esp32s31-bootloader.bin
     preview: true
+    configs:
+      - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y
+      - CONFIG_ESPTOOLPY_FLASHSIZE="64MB"
