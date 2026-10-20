@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Pad ESP32-P4 and ESP32-S31 segments in the PSRAM window to MMU pages like flash segments, so an image can link code and read-only data there (#1094)
 - SPI command completion is now detected by polling `SPI_CMD` instead of `SPI_USR` (#1085)
 - `checksum-md5` prints all 32 hex digits, keeping leading zeros (#1087)
 - Fix SPI command data being written to misaligned W register addresses (#1086)
