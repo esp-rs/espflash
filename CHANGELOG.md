@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Move the update check into a new `update-check` feature, enabled by default, so `espflash` can be built without it
-- Place a section at its ELF load address if the load address is not in flash and differs from the run address, so an image can initialize memory that the bootloader cannot load directly, such as the ESP32-P4 uncached RAM alias
+- Place a section at its ELF load address if the load address is not in flash and differs from the run address, so an image can initialize memory that the bootloader cannot load directly, such as the ESP32-P4 uncached RAM alias (#1096)
 
 ### Fixed
 
