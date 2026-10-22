@@ -13,8 +13,8 @@ use object::{
     Endianness,
     Object as _,
     ObjectSection as _,
-    elf::{SHT_INIT_ARRAY, SHT_PROGBITS},
-    read::elf::{ElfFile32 as ElfFile, SectionHeader},
+    elf::{PT_LOAD, SHT_INIT_ARRAY, SHT_PROGBITS},
+    read::elf::{ElfFile32 as ElfFile, ProgramHeader as _, SectionHeader},
 };
 use serde::{Deserialize, Serialize};
 
@@ -213,7 +213,7 @@ pub(crate) fn ram_segments<'a>(
     chip: Chip,
     elf: &'a ElfFile<'a>,
 ) -> impl Iterator<Item = Segment<'a>> {
-    segments(elf).filter(move |segment| !chip.addr_is_flash(segment.addr))
+    segments(chip, elf).filter(move |segment| !chip.addr_is_flash(segment.addr))
 }
 
 /// Returns an iterator over all ROM segments for a given chip and ELF file.
@@ -221,10 +221,10 @@ pub(crate) fn rom_segments<'a>(
     chip: Chip,
     elf: &'a ElfFile<'a>,
 ) -> impl Iterator<Item = Segment<'a>> {
-    segments(elf).filter(move |segment| chip.addr_is_flash(segment.addr))
+    segments(chip, elf).filter(move |segment| chip.addr_is_flash(segment.addr))
 }
 
-fn segments<'a>(elf: &'a ElfFile<'a>) -> impl Iterator<Item = Segment<'a>> {
+fn segments<'a>(chip: Chip, elf: &'a ElfFile<'a>) -> impl Iterator<Item = Segment<'a>> {
     elf.sections()
         .filter(|section| {
             let header = section.elf_section_header();
@@ -237,9 +237,42 @@ fn segments<'a>(elf: &'a ElfFile<'a>) -> impl Iterator<Item = Segment<'a>> {
                 && !is_empty(section.flags())
         })
         .flat_map(move |section| match section.data() {
-            Ok(data) => Some(Segment::new(section.address() as u32, data)),
+            Ok(data) => {
+                let vaddr = section.address() as u32;
+                let addr = load_address(chip, elf, vaddr);
+                if addr != vaddr {
+                    log::info!(
+                        "Placing section `{}` at its load address {addr:#010x} instead of {vaddr:#010x}",
+                        section.name().unwrap_or("<unknown>"),
+                    );
+                }
+                Some(Segment::new(addr, data))
+            }
             _ => None,
         })
+}
+
+/// Returns the ELF load address of the section at `vaddr` if it differs from
+/// `vaddr` and is not in flash, and `vaddr` otherwise.
+///
+/// The bootloader cannot place a segment in flash, so a load address in flash
+/// marks data that the application copies at startup.
+fn load_address(chip: Chip, elf: &ElfFile<'_>, vaddr: u32) -> u32 {
+    let endian = Endianness::Little;
+    let lma = elf
+        .elf_program_headers()
+        .iter()
+        .filter(|phdr| phdr.p_type(endian) == PT_LOAD)
+        .find(|phdr| {
+            let start = phdr.p_vaddr(endian);
+            (start..start.saturating_add(phdr.p_memsz(endian))).contains(&vaddr)
+        })
+        .map(|phdr| phdr.p_paddr(endian) + (vaddr - phdr.p_vaddr(endian)));
+
+    match lma {
+        Some(lma) if lma != vaddr && !chip.addr_is_flash(lma) => lma,
+        _ => vaddr,
+    }
 }
 
 fn is_empty(flags: object::SectionFlags) -> bool {
@@ -255,6 +288,7 @@ mod test {
     use object::read::elf::ElfFile;
 
     use super::segments;
+    use crate::target::Chip;
 
     #[test]
     fn test_overlapping_sections_are_removed() {
@@ -264,7 +298,7 @@ mod test {
         .unwrap();
 
         let elf = ElfFile::parse(elf_data.as_slice()).unwrap();
-        let segments = segments(&elf).collect::<Vec<_>>();
+        let segments = segments(Chip::Esp32, &elf).collect::<Vec<_>>();
 
         let expected = [
             // (address, size)
@@ -285,5 +319,24 @@ mod test {
                 "Unexpected section: {addr_and_len:x?}"
             )
         }
+    }
+
+    #[test]
+    fn test_load_address_outside_flash_is_used() {
+        let elf_data: Vec<u8> = std::fs::read("tests/data/esp_hal_uncached_data_p4.elf").unwrap();
+
+        let elf = ElfFile::parse(elf_data.as_slice()).unwrap();
+        let segments = segments(Chip::Esp32p4, &elf)
+            .map(|seg| (seg.addr, seg.size()))
+            .collect::<Vec<_>>();
+
+        // `.uncached.data` runs at 0x8FF40000 and loads at 0x4FF40000.
+        assert!(segments.contains(&(0x4FF40000, 4)), "{segments:x?}");
+        assert!(!segments.iter().any(|&(addr, _)| addr == 0x8FF40000));
+
+        // `.rtc_fast.text` and `.rtc_fast.data` load in flash, so they stay at
+        // their run address.
+        assert!(segments.contains(&(0x50108100, 0x14)), "{segments:x?}");
+        assert!(segments.contains(&(0x50108114, 4)), "{segments:x?}");
     }
 }
