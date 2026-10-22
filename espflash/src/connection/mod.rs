@@ -656,7 +656,7 @@ impl Connection {
                         let _error = self.flush();
                         Err(Error::RomError(Box::new(RomError::new(
                             command.command_type(),
-                            RomErrorKind::from(response.status),
+                            RomErrorKind::from(response.error),
                         ))))
                     } else {
                         // Check if the response is a Vector and strip header
