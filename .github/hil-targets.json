@@ -11,6 +11,7 @@
     { "soc": "esp32c61", "runner": "esp32c61-usb", "port": "uart" },
     { "soc": "esp32h2", "runner": "esp32h2-usb", "port": "usb" },
     { "soc": "esp32h2", "runner": "esp32h2-usb", "port": "uart" },
+    { "soc": "esp32h4", "runner": "esp32h4-usb", "port": "usb" },
     { "soc": "esp32p4", "runner": "esp32p4", "port": "usb" },
     { "soc": "esp32", "runner": "esp32-jtag", "port": "uart" },
     { "soc": "esp32s2", "runner": "esp32s2-jtag", "port": "uart" },
