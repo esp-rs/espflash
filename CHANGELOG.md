@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Batching write for serial monitor input, to speed up text pasting, with writes timeout warning
 - Update flasher stubs to Espressif's v1.4.1 implementation for improved flashing throughput (#1060)
-- Transfer the flasher stub at the requested baud rate instead of 115,200 baud (#1060)
 - Skip deflate compression when it would increase the amount of data transferred (#1060)
 
 ### Changed
@@ -33,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow SPI flash commands to read 32 bits and write 64 bytes of data, matching esptool (#1088)
 - Update `object` to 0.40, `addr2line` to 0.27, and `gimli` to 0.34, and drop the unused `object` compression support that pulled in `ruzstd` (RUSTSEC-2026-0344)
 - Build the ESP32-S31 bootloader for 64 KB MMU pages, as esp-hal images use, so it maps the app's first page at the last MMU entry (#1093)
+- Report the ROM error code for failed commands instead of `Other (0x1)` (#1060)
 
 ### Removed
 
