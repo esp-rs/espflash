@@ -104,12 +104,13 @@ impl Utf8Merger {
                 // whole input is valid
                 Ok(str) if len == 0 => return String::from(str),
 
-                // input is valid after the last error, and we could ignore the last error, so
-                // let's process the whole input
+                // input is valid after the last error, and we could ignore the
+                // last error, so let's process the whole input
                 Ok(_) => return String::from_utf8_lossy(&buffer).to_string(),
 
-                // input has some errors. We can ignore invalid sequences and replace them later,
-                // but we have to stop if we encounter an incomplete sequence.
+                // input has some errors. We can ignore invalid sequences and
+                // replace them later, but we have to stop if we encounter an
+                // incomplete sequence.
                 Err(e) => {
                     len += e.valid_up_to();
                     if let Some(error_len) = e.error_len() {
