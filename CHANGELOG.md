@@ -9,18 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- RiscV backtrace decoding based on `.debug_frame`s, in addition to the existing `.eh_frame` support
-- Release binaries for `aarch64-unknown-linux-musl` (e.g. OpenWrt routers, Alpine on ARM)
+### Changed
+
+### Fixed
+
+### Removed
+
+## [4.7.0] - 2026-10-23
+
+### Added
+
+- RISC-V backtrace decoding based on `.debug_frame`s, in addition to the existing `.eh_frame` support (#1072)
+- Release binaries for `aarch64-unknown-linux-musl` (e.g. OpenWrt routers, Alpine on ARM) (#1078)
 - Add esp32c5 watchdog registers (#1079)
 
 ### Changed
-- Batching write for serial monitor input, to speed up text pasting, with writes timeout warning
+
+- Batching write for serial monitor input, to speed up text pasting, with writes timeout warning (#1081)
 - Update flasher stubs to Espressif's v1.4.1 implementation for improved flashing throughput (#1060)
 - Skip deflate compression when it would increase the amount of data transferred (#1060)
-
-### Changed
-
-- Move the update check into a new `update-check` feature, enabled by default, so `espflash` can be built without it
+- Move the update check into a new `update-check` feature, enabled by default, so `espflash` can be built without it (#1080)
 - Place a section at its ELF load address if the load address is not in flash and differs from the run address, so an image can initialize memory that the bootloader cannot load directly, such as the ESP32-P4 uncached RAM alias (#1096)
 
 ### Fixed
@@ -31,11 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update the ESP32-H4 flash stub to v1.3.0, fixing connections over USB Serial/JTAG (#1095)
 - Fix SPI command data being written to misaligned W register addresses (#1086)
 - Allow SPI flash commands to read 32 bits and write 64 bytes of data, matching esptool (#1088)
-- Update `object` to 0.40, `addr2line` to 0.27, and `gimli` to 0.34, and drop the unused `object` compression support that pulled in `ruzstd` (RUSTSEC-2026-0344)
+- Update `object` to 0.40, `addr2line` to 0.27, and `gimli` to 0.34, and drop the unused `object` compression support that pulled in `ruzstd` (RUSTSEC-2026-0344) (#1090)
 - Build the ESP32-S31 bootloader for 64 KB MMU pages, as esp-hal images use, so it maps the app's first page at the last MMU entry (#1093)
 - Report the ROM error code for failed commands instead of `Other (0x1)` (#1060)
-
-### Removed
+- Avoid loading the flash stub for standalone `monitor` and `hold-in-reset` commands (#1061)
 
 ## [4.6.0] - 2026-09-10
 
@@ -50,7 +57,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Do not treat `0x0` as a chip-detect magic value for ESP32-H4, ESP32-S31 and ESP32-P4 (#1063)
 - Regenerate efuses for S31 (#1053)
-- Avoid loading the flash stub for standalone `monitor` and `hold-in-reset` commands (#1061)
 
 ## [4.5.0] - 2026-07-08
 
@@ -539,7 +545,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2021-09-21
 
-[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.6.0...HEAD
+[Unreleased]: https://github.com/esp-rs/espflash/compare/v4.7.0...HEAD
+[4.7.0]: https://github.com/esp-rs/espflash/compare/v4.6.0...v4.7.0
 [4.6.0]: https://github.com/esp-rs/espflash/compare/v4.5.0...v4.6.0
 [4.5.0]: https://github.com/esp-rs/espflash/compare/v4.4.0...v4.5.0
 [4.4.0]: https://github.com/esp-rs/espflash/compare/v4.3.0...v4.4.0
