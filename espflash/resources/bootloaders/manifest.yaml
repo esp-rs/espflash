@@ -3,6 +3,11 @@
 # The committed binaries are ESP-IDF second-stage bootloaders generated from a
 # minimal ESP-IDF project with the ESP-IDF refs and per-target sdkconfig fragments
 # listed below.
+#
+# Each entry also builds a `-qio` variant with the same settings plus
+# `CONFIG_ESPTOOLPY_FLASHMODE_QIO=y`, used for `--flash-mode qio`. It enables
+# quad mode on the flash chip itself, so it is never the default: a board may
+# use the flash's WP and HD pins for other things.
 
 defaults:
   # release/v6.1 (v6.1-829-g9a97f6c54ec)
@@ -105,12 +110,6 @@ bootloaders:
   - name: esp32s3
     target: esp32s3
     output: esp32s3-bootloader.bin
-
-  - name: esp32s3-qio
-    target: esp32s3
-    output: esp32s3-qio-bootloader.bin
-    configs:
-      - CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
 
   - name: esp32s31
     target: esp32s31

@@ -28,7 +28,8 @@ pub(crate) struct BuildBootloadersArgs {
     #[arg(long)]
     install_tools: bool,
 
-    /// Only build the named bootloader entry. Can be passed multiple times
+    /// Only build the named bootloader entry and its QIO variant. Can be
+    /// passed multiple times
     #[arg(long)]
     only: Vec<String>,
 
@@ -50,7 +51,7 @@ struct Defaults {
     configs: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 struct Bootloader {
     name: String,
     target: String,
@@ -62,6 +63,38 @@ struct Bootloader {
     configs: Vec<String>,
 }
 
+/// The config that turns an entry's bootloader into its QIO variant
+const QIO_CONFIG: &str = "CONFIG_ESPTOOLPY_FLASHMODE_QIO=y";
+
+/// Each entry followed by its QIO variant, built from the same settings
+fn with_qio_variants(bootloaders: Vec<Bootloader>) -> Result<Vec<Bootloader>> {
+    let mut variants = Vec::with_capacity(bootloaders.len() * 2);
+
+    for bootloader in bootloaders {
+        let output = bootloader.output.to_string_lossy();
+        let Some(stem) = output.strip_suffix("-bootloader.bin") else {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "output {output:?} of {:?} must end in -bootloader.bin",
+                    bootloader.name
+                ),
+            )
+            .into());
+        };
+
+        let mut qio = bootloader.clone();
+        qio.name = format!("{}-qio", bootloader.name);
+        qio.output = format!("{stem}-qio-bootloader.bin").into();
+        qio.configs.push(QIO_CONFIG.into());
+
+        variants.push(bootloader);
+        variants.push(qio);
+    }
+
+    Ok(variants)
+}
+
 pub(crate) fn build_bootloaders(workspace: &Path, args: BuildBootloadersArgs) -> Result<()> {
     let resources_dir = workspace.join("espflash").join("resources");
     let bootloaders_dir = resources_dir.join("bootloaders");
@@ -69,7 +102,7 @@ pub(crate) fn build_bootloaders(workspace: &Path, args: BuildBootloadersArgs) ->
     let manifest = fs::read_to_string(&manifest_path)?;
     let manifest: Manifest = serde_yaml::from_str(&manifest)?;
 
-    let selected = selected_bootloaders(&manifest, &args.only)?;
+    let selected = bootloaders_to_build(&manifest, &args.only)?;
     ensure_esp_idf_checkout(&args.esp_idf_path, args.no_fetch)?;
 
     let idf_tools_path = env::var_os("IDF_TOOLS_PATH")
@@ -85,7 +118,7 @@ pub(crate) fn build_bootloaders(workspace: &Path, args: BuildBootloadersArgs) ->
     let mut current_ref = None;
     let mut installed = BTreeSet::new();
 
-    for bootloader in selected {
+    for bootloader in &selected {
         let idf_ref = bootloader
             .idf_ref
             .as_deref()
@@ -117,6 +150,13 @@ pub(crate) fn build_bootloaders(workspace: &Path, args: BuildBootloadersArgs) ->
     }
 
     Ok(())
+}
+
+/// The entries named by `only`, or every entry, each followed by its QIO
+/// variant
+fn bootloaders_to_build(manifest: &Manifest, only: &[String]) -> Result<Vec<Bootloader>> {
+    let selected = selected_bootloaders(manifest, only)?;
+    with_qio_variants(selected.into_iter().cloned().collect())
 }
 
 fn selected_bootloaders<'a>(
@@ -374,4 +414,93 @@ fn shell_quote(value: impl AsRef<OsStr>) -> String {
 fn cmd_quote(value: impl AsRef<OsStr>) -> String {
     let value = value.as_ref().to_string_lossy();
     format!("\"{}\"", value.replace('"', "\\\""))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry(output: &str) -> Bootloader {
+        Bootloader {
+            name: "esp32-26mhz".into(),
+            target: "esp32".into(),
+            output: output.into(),
+            idf_ref: Some("release/v6.1".into()),
+            preview: true,
+            configs: vec!["CONFIG_XTAL_FREQ_26=y".into(), "CONFIG_XTAL_FREQ=26".into()],
+        }
+    }
+
+    #[test]
+    fn qio_variant_differs_only_by_the_flash_mode() {
+        let dio = entry("esp32_26-bootloader.bin");
+        let qio = Bootloader {
+            name: "esp32-26mhz-qio".into(),
+            output: "esp32_26-qio-bootloader.bin".into(),
+            configs: vec![
+                "CONFIG_XTAL_FREQ_26=y".into(),
+                "CONFIG_XTAL_FREQ=26".into(),
+                QIO_CONFIG.into(),
+            ],
+            ..dio.clone()
+        };
+
+        assert_eq!(with_qio_variants(vec![dio.clone()]).unwrap(), [dio, qio]);
+    }
+
+    #[test]
+    fn only_builds_the_named_entry_and_its_qio_variant() {
+        let named = |name: &str| Bootloader {
+            name: name.into(),
+            output: format!("{name}-bootloader.bin").into(),
+            ..entry("unused")
+        };
+        let manifest = Manifest {
+            defaults: Defaults {
+                idf_ref: "release/v6.1".into(),
+                configs: vec![],
+            },
+            bootloaders: vec![named("esp32c3"), named("esp32c5")],
+        };
+        let names = |only: &[&str]| -> Vec<String> {
+            let only: Vec<String> = only.iter().map(|name| name.to_string()).collect();
+            bootloaders_to_build(&manifest, &only)
+                .unwrap()
+                .into_iter()
+                .map(|bootloader| bootloader.name)
+                .collect()
+        };
+
+        assert_eq!(names(&["esp32c5"]), ["esp32c5", "esp32c5-qio"]);
+        assert_eq!(
+            names(&[]),
+            ["esp32c3", "esp32c3-qio", "esp32c5", "esp32c5-qio"]
+        );
+        assert!(bootloaders_to_build(&manifest, &["esp32c5-qio".into()]).is_err());
+    }
+
+    #[test]
+    fn output_without_the_bootloader_suffix_is_refused() {
+        assert!(with_qio_variants(vec![entry("foo.bin")]).is_err());
+    }
+
+    #[test]
+    fn manifest_matches_the_bundled_binaries() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../espflash/resources/bootloaders");
+        let manifest = fs::read_to_string(dir.join("manifest.yaml")).unwrap();
+        let manifest: Manifest = serde_yaml::from_str(&manifest).unwrap();
+
+        let outputs: BTreeSet<PathBuf> = with_qio_variants(manifest.bootloaders)
+            .unwrap()
+            .into_iter()
+            .map(|bootloader| bootloader.output)
+            .collect();
+        let binaries: BTreeSet<PathBuf> = fs::read_dir(&dir)
+            .unwrap()
+            .map(|entry| PathBuf::from(entry.unwrap().file_name()))
+            .filter(|file| file.extension() == Some(OsStr::new("bin")))
+            .collect();
+
+        assert_eq!(outputs, binaries);
+    }
 }
