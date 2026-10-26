@@ -3,9 +3,15 @@
 # The committed binaries are ESP-IDF second-stage bootloaders generated from a
 # minimal ESP-IDF project with the ESP-IDF refs and per-target sdkconfig fragments
 # listed below.
+#
+# Each entry also builds a `-qio` variant with the same settings plus
+# `CONFIG_ESPTOOLPY_FLASHMODE_QIO=y`, used for `--flash-mode qio`. It enables
+# quad mode on the flash chip itself, so it is never the default: a board may
+# use the flash's WP and HD pins for other things.
 
 defaults:
-  idf_ref: release/v6.1
+  # release/v6.1 (v6.1-829-g9a97f6c54ec)
+  idf_ref: 9a97f6c54ec638111ce55cd36581b3c192f15207
   configs:
     - '# CONFIG_BOOTLOADER_COMPILE_TIME_DATE is not set'
 
@@ -69,6 +75,7 @@ bootloaders:
   - name: esp32h21
     target: esp32h21
     output: esp32h21-bootloader.bin
+    idf_ref: c712a0dde385d659a1470a136251980d31a70bc1
     preview: true
     configs:
       - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y
@@ -77,6 +84,7 @@ bootloaders:
   - name: esp32h4
     target: esp32h4
     output: esp32h4-bootloader.bin
+    idf_ref: 08e0d30a74ad0bfd5a34933142b80f45619ee410
     preview: true
     configs:
       - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y

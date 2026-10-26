@@ -731,6 +731,25 @@ impl TestRunner {
             "standard flashing",
         )?;
 
+        self.run_timed_transfer_command_test(
+            &[
+                "flash",
+                "--no-skip",
+                "--monitor",
+                "--non-interactive",
+                "--flash-mode",
+                "qio",
+                &app,
+            ],
+            Some(&[
+                "Flashing has completed!",
+                "SPI Mode       : QIO",
+                "Hello world!",
+            ]),
+            self.timeout,
+            "QIO flashing",
+        )?;
+
         // Keep default-baud flash coverage on the representative extended
         // runner.
         if extended && self.baud.is_some_and(|baud| baud != 115_200) {

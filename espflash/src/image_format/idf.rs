@@ -43,46 +43,58 @@ const WP_PIN_DISABLED: u8 = 0xEE;
 /// Max partition size is 16 MB
 const MAX_PARTITION_SIZE: u32 = 16 * 1000 * 1024;
 
-const BOOTLOADER_ESP32_26MHZ: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32_26-bootloader.bin");
-const BOOTLOADER_ESP32_40MHZ: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32-bootloader.bin");
+/// The bundled bootloaders for one chip and crystal frequency.
+#[derive(Clone, Copy)]
+pub(crate) struct Bootloaders {
+    /// The default bootloader, which leaves the flash in dual mode.
+    pub(crate) dio: &'static [u8],
+    /// A bootloader built for QIO. It enables quad mode on the flash chip
+    /// itself, so it is used only when QIO is asked for.
+    pub(crate) qio: &'static [u8],
+}
 
-const BOOTLOADER_ESP32C2_26MHZ: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32c2_26-bootloader.bin");
-const BOOTLOADER_ESP32C2_40MHZ: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32c2-bootloader.bin");
+macro_rules! bootloaders {
+    ($name:literal) => {
+        Bootloaders {
+            dio: include_bytes!(concat!(
+                "../../resources/bootloaders/",
+                $name,
+                "-bootloader.bin"
+            )),
+            qio: include_bytes!(concat!(
+                "../../resources/bootloaders/",
+                $name,
+                "-qio-bootloader.bin"
+            )),
+        }
+    };
+}
 
-const BOOTLOADER_ESP32C3: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32c3-bootloader.bin");
-const BOOTLOADER_ESP32C5: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32c5-bootloader.bin");
-const BOOTLOADER_ESP32C6: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32c6-bootloader.bin");
-const BOOTLOADER_ESP32C61: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32c61-bootloader.bin");
-const BOOTLOADER_ESP32H2: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32h2-bootloader.bin");
-const BOOTLOADER_ESP32H4: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32h4-bootloader.bin");
-const BOOTLOADER_ESP32P4_V0: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32p4-v0-bootloader.bin");
-const BOOTLOADER_ESP32P4_V3: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32p4-v3-bootloader.bin");
-const BOOTLOADER_ESP32S2: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32s2-bootloader.bin");
-const BOOTLOADER_ESP32S3: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32s3-bootloader.bin");
-const BOOTLOADER_ESP32S31: &[u8] =
-    include_bytes!("../../resources/bootloaders/esp32s31-bootloader.bin");
-/// Get the default bootloader for the given chip, crystal frequency, and
+const BOOTLOADER_ESP32_26MHZ: Bootloaders = bootloaders!("esp32_26");
+const BOOTLOADER_ESP32_40MHZ: Bootloaders = bootloaders!("esp32");
+
+const BOOTLOADER_ESP32C2_26MHZ: Bootloaders = bootloaders!("esp32c2_26");
+const BOOTLOADER_ESP32C2_40MHZ: Bootloaders = bootloaders!("esp32c2");
+
+const BOOTLOADER_ESP32C3: Bootloaders = bootloaders!("esp32c3");
+const BOOTLOADER_ESP32C5: Bootloaders = bootloaders!("esp32c5");
+const BOOTLOADER_ESP32C6: Bootloaders = bootloaders!("esp32c6");
+const BOOTLOADER_ESP32C61: Bootloaders = bootloaders!("esp32c61");
+const BOOTLOADER_ESP32H2: Bootloaders = bootloaders!("esp32h2");
+const BOOTLOADER_ESP32H4: Bootloaders = bootloaders!("esp32h4");
+const BOOTLOADER_ESP32P4_V0: Bootloaders = bootloaders!("esp32p4-v0");
+const BOOTLOADER_ESP32P4_V3: Bootloaders = bootloaders!("esp32p4-v3");
+const BOOTLOADER_ESP32S2: Bootloaders = bootloaders!("esp32s2");
+const BOOTLOADER_ESP32S3: Bootloaders = bootloaders!("esp32s3");
+const BOOTLOADER_ESP32S31: Bootloaders = bootloaders!("esp32s31");
+/// Get the default bootloaders for the given chip, crystal frequency, and
 /// chip revision.
-pub(crate) fn default_bootloader(
+pub(crate) fn default_bootloaders(
     chip: Chip,
     xtal_freq: XtalFrequency,
     chip_revision: Option<u16>,
     min_chip_rev: u16,
-) -> Result<&'static [u8], Error> {
+) -> Result<Bootloaders, Error> {
     let error = Error::UnsupportedFeature {
         chip,
         feature: "the selected crystal frequency".into(),
@@ -147,6 +159,20 @@ pub(crate) fn default_bootloader(
             XtalFrequency::_40Mhz => Ok(BOOTLOADER_ESP32S31),
             _ => Err(error),
         },
+    }
+}
+
+/// The mode to write into the 2nd stage bootloader's own header.
+///
+/// The ROM cannot boot a bootloader marked QIO or QOUT. ESP-IDF marks it DIO
+/// for both ([`Kconfig.projbuild`]), and a bootloader built for quad mode
+/// enables quad mode itself.
+///
+/// [`Kconfig.projbuild`]: https://github.com/espressif/esp-idf/blob/9a97f6c54ec638111ce55cd36581b3c192f15207/components/esptool_py/Kconfig.projbuild#L76-L84
+fn bootloader_flash_mode(mode: FlashMode) -> FlashMode {
+    match mode {
+        FlashMode::Qio | FlashMode::Qout => FlashMode::Dio,
+        mode => mode,
     }
 }
 
@@ -351,13 +377,23 @@ impl<'a> IdfBootloaderFormat<'a> {
             let bootloader = fs::read(bootloader_path)?;
             Cow::Owned(bootloader)
         } else {
-            let default_bootloader = default_bootloader(
+            let bootloaders = default_bootloaders(
                 flash_data.chip,
                 flash_data.xtal_freq,
                 chip_revision,
                 min_chip_rev,
             )?;
-            Cow::Borrowed(default_bootloader)
+            match flash_data.flash_settings.mode {
+                Some(FlashMode::Qio) => Cow::Borrowed(bootloaders.qio),
+                Some(FlashMode::Qout) => {
+                    warn!(
+                        "There is no bundled {} bootloader for QOUT: the flash will be read in dual mode. Use `--bootloader` with an ESP-IDF bootloader built for QOUT to change that.",
+                        flash_data.chip
+                    );
+                    Cow::Borrowed(bootloaders.dio)
+                }
+                _ => Cow::Borrowed(bootloaders.dio),
+            }
         };
 
         // fetch the generated header from the bootloader
@@ -391,9 +427,15 @@ impl<'a> IdfBootloaderFormat<'a> {
             flash_data.chip,
         )?;
 
+        // The app header keeps the requested mode, the bootloader's own header
+        // must not be quad
+        let mut bootloader_header = header;
+        if let Some(mode) = flash_data.flash_settings.mode {
+            bootloader_header.flash_mode = bootloader_flash_mode(mode) as u8;
+        }
         bootloader.to_mut().splice(
             0..size_of::<ImageHeader>(),
-            bytes_of(&header).iter().copied(),
+            bytes_of(&bootloader_header).iter().copied(),
         );
 
         // The header was modified so we need to recalculate the hash of the
@@ -928,6 +970,7 @@ pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::flasher::FlashSettings;
 
     #[test]
     fn test_flash_config_write() {
@@ -941,6 +984,160 @@ mod tests {
             .write_flash_config(FlashSize::_32Mb, FlashFrequency::_80Mhz, Chip::Esp32s3)
             .unwrap();
         assert_eq!(header.flash_config, 0x5F);
+    }
+
+    /// The bootloader, partition table and app images, as flashed
+    fn image(chip: Chip, mode: Option<FlashMode>) -> Vec<Vec<u8>> {
+        image_with_bootloader(chip, mode, None)
+    }
+
+    fn image_with_bootloader(
+        chip: Chip,
+        mode: Option<FlashMode>,
+        bootloader: Option<&Path>,
+    ) -> Vec<Vec<u8>> {
+        let elf = std::fs::read(format!("tests/data/{chip}")).unwrap();
+        let flash_data = FlashData::new(
+            FlashSettings::new(mode, None, None),
+            0,
+            None,
+            chip,
+            XtalFrequency::_40Mhz,
+        );
+        let image =
+            IdfBootloaderFormat::new(&elf, &flash_data, None, bootloader, None, None).unwrap();
+        image
+            .flash_segments()
+            .map(|s| s.data.into_owned())
+            .collect()
+    }
+
+    fn sha256_valid(bootloader: &[u8]) -> bool {
+        let digest = bootloader.len() - 32;
+        Sha256::digest(&bootloader[..digest]).as_slice() == &bootloader[digest..]
+    }
+
+    #[test]
+    fn bootloader_header_is_never_quad() {
+        assert_eq!(bootloader_flash_mode(FlashMode::Qio), FlashMode::Dio);
+        assert_eq!(bootloader_flash_mode(FlashMode::Qout), FlashMode::Dio);
+        assert_eq!(bootloader_flash_mode(FlashMode::Dio), FlashMode::Dio);
+        assert_eq!(bootloader_flash_mode(FlashMode::Dout), FlashMode::Dout);
+    }
+
+    /// Whether `bootloader` is `bundled` apart from the header and the hash
+    fn is_bundled(bootloader: &[u8], bundled: &[u8]) -> bool {
+        let body = size_of::<ImageHeader>()..bundled.len() - 32;
+        bootloader.len() == bundled.len() && bootloader[body.clone()] == bundled[body]
+    }
+
+    /// The chips with test ELFs for a 40 MHz crystal
+    const CHIPS_40MHZ: [Chip; 10] = [
+        Chip::Esp32,
+        Chip::Esp32c2,
+        Chip::Esp32c3,
+        Chip::Esp32c5,
+        Chip::Esp32c6,
+        Chip::Esp32c61,
+        Chip::Esp32p4,
+        Chip::Esp32s2,
+        Chip::Esp32s3,
+        Chip::Esp32s31,
+    ];
+
+    #[test]
+    fn qio_uses_the_quad_bootloader_marked_dio() {
+        for chip in CHIPS_40MHZ {
+            let bundled = default_bootloaders(chip, XtalFrequency::_40Mhz, None, 0).unwrap();
+            assert_ne!(bundled.qio, bundled.dio, "{chip}");
+
+            let segments = image(chip, Some(FlashMode::Qio));
+            let (bootloader, app) = (&segments[0], &segments[2]);
+
+            assert!(is_bundled(bootloader, bundled.qio), "{chip}");
+            assert_eq!(bootloader[2], FlashMode::Dio as u8, "{chip}");
+            assert!(sha256_valid(bootloader), "{chip}");
+            assert_eq!(app[2], FlashMode::Qio as u8, "{chip}");
+        }
+    }
+
+    #[test]
+    fn dio_keeps_the_default_bootloader() {
+        let bundled = default_bootloaders(Chip::Esp32s3, XtalFrequency::_40Mhz, None, 0).unwrap();
+        let segments = image(Chip::Esp32s3, Some(FlashMode::Dio));
+        let (bootloader, app) = (&segments[0], &segments[2]);
+
+        assert!(is_bundled(bootloader, bundled.dio));
+        assert_eq!(bootloader[2], FlashMode::Dio as u8);
+        assert!(sha256_valid(bootloader));
+        assert_eq!(app[2], FlashMode::Dio as u8);
+    }
+
+    #[test]
+    fn qout_falls_back_to_the_dio_bootloader() {
+        let bundled = default_bootloaders(Chip::Esp32c3, XtalFrequency::_40Mhz, None, 0).unwrap();
+        let segments = image(Chip::Esp32c3, Some(FlashMode::Qout));
+        let (bootloader, app) = (&segments[0], &segments[2]);
+
+        assert!(is_bundled(bootloader, bundled.dio));
+        assert_eq!(bootloader[2], FlashMode::Dio as u8);
+        assert!(sha256_valid(bootloader));
+        assert_eq!(app[2], FlashMode::Qout as u8);
+    }
+
+    #[test]
+    fn no_mode_keeps_the_dio_bootloader_and_its_mode() {
+        let bundled = default_bootloaders(Chip::Esp32c3, XtalFrequency::_40Mhz, None, 0).unwrap();
+        let segments = image(Chip::Esp32c3, None);
+        let bootloader = &segments[0];
+
+        assert!(is_bundled(bootloader, bundled.dio));
+        assert_eq!(bootloader[2], bundled.dio[2]);
+        assert!(sha256_valid(bootloader));
+    }
+
+    #[test]
+    fn qio_with_a_given_bootloader_keeps_it_marked_dio() {
+        let path = Path::new("resources/bootloaders/esp32s3-bootloader.bin");
+        let given = std::fs::read(path).unwrap();
+        let segments = image_with_bootloader(Chip::Esp32s3, Some(FlashMode::Qio), Some(path));
+        let (bootloader, app) = (&segments[0], &segments[2]);
+
+        assert!(is_bundled(bootloader, &given));
+        assert_eq!(bootloader[2], FlashMode::Dio as u8);
+        assert!(sha256_valid(bootloader));
+        assert_eq!(app[2], FlashMode::Qio as u8);
+    }
+
+    #[test]
+    fn each_chip_crystal_and_revision_gets_its_own_bootloaders() {
+        let arms = [
+            (Chip::Esp32, XtalFrequency::_26Mhz, 0, "esp32_26"),
+            (Chip::Esp32, XtalFrequency::_40Mhz, 0, "esp32"),
+            (Chip::Esp32c2, XtalFrequency::_26Mhz, 0, "esp32c2_26"),
+            (Chip::Esp32c2, XtalFrequency::_40Mhz, 0, "esp32c2"),
+            (Chip::Esp32c3, XtalFrequency::_40Mhz, 0, "esp32c3"),
+            (Chip::Esp32c5, XtalFrequency::_40Mhz, 0, "esp32c5"),
+            (Chip::Esp32c5, XtalFrequency::_48Mhz, 0, "esp32c5"),
+            (Chip::Esp32c6, XtalFrequency::_40Mhz, 0, "esp32c6"),
+            (Chip::Esp32c61, XtalFrequency::_40Mhz, 0, "esp32c61"),
+            (Chip::Esp32h2, XtalFrequency::_32Mhz, 0, "esp32h2"),
+            (Chip::Esp32h4, XtalFrequency::_32Mhz, 0, "esp32h4"),
+            (Chip::Esp32p4, XtalFrequency::_40Mhz, 0, "esp32p4-v0"),
+            (Chip::Esp32p4, XtalFrequency::_40Mhz, 300, "esp32p4-v3"),
+            (Chip::Esp32s2, XtalFrequency::_40Mhz, 0, "esp32s2"),
+            (Chip::Esp32s3, XtalFrequency::_40Mhz, 0, "esp32s3"),
+            (Chip::Esp32s31, XtalFrequency::_40Mhz, 0, "esp32s31"),
+        ];
+
+        for (chip, xtal, revision, name) in arms {
+            let bundled = default_bootloaders(chip, xtal, Some(revision), 0).unwrap();
+            let file =
+                |suffix| std::fs::read(format!("resources/bootloaders/{name}{suffix}")).unwrap();
+
+            assert_eq!(bundled.dio, file("-bootloader.bin"), "{name}");
+            assert_eq!(bundled.qio, file("-qio-bootloader.bin"), "{name}");
+        }
     }
 
     #[test]

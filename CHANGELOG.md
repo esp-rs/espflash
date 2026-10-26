@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RiscV backtrace decoding based on `.debug_frame`s, in addition to the existing `.eh_frame` support
 - Release binaries for `aarch64-unknown-linux-musl` (e.g. OpenWrt routers, Alpine on ARM)
 - Add esp32c5 watchdog registers (#1079)
+- A bundled bootloader built for QIO for every chip, used with `--flash-mode qio`. `--flash-mode qout` warns and uses the DIO bootloader (#1099)
 
 ### Changed
 - Batching write for serial monitor input, to speed up text pasting, with writes timeout warning
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Move the update check into a new `update-check` feature, enabled by default, so `espflash` can be built without it
 - Place a section at its ELF load address if the load address is not in flash and differs from the run address, so an image can initialize memory that the bootloader cannot load directly, such as the ESP32-P4 uncached RAM alias (#1096)
+- Rebuild the bundled bootloaders from the head of ESP-IDF `release/v6.1`. The ESP32-H4 and ESP32-H21 ones are rebuilt at the ESP-IDF master commits they were built from before (#1099)
 
 ### Fixed
 
@@ -34,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `object` to 0.40, `addr2line` to 0.27, and `gimli` to 0.34, and drop the unused `object` compression support that pulled in `ruzstd` (RUSTSEC-2026-0344)
 - Build the ESP32-S31 bootloader for 64 KB MMU pages, as esp-hal images use, so it maps the app's first page at the last MMU entry (#1093)
 - Report the ROM error code for failed commands instead of `Other (0x1)` (#1060)
+- `--flash-mode qio`/`qout` marks the 2nd stage bootloader's image header DIO, because the ROM cannot boot a bootloader marked quad (#1099)
 
 ### Removed
 
