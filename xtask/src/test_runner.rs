@@ -674,6 +674,14 @@ impl TestRunner {
             self.test_espidf_stack_dump(&format!("espflash/tests/data/{chip}_espidf_abort"))?;
         }
 
+        // The ESP32-P4 test app drops off USB at startup when the image says
+        // the detected 16 MB, but boots with espflash's 4 MB default (#1101)
+        let flash_size: &[&str] = if chip == "esp32p4" {
+            &["--flash-size", "4mb"]
+        } else {
+            &[]
+        };
+
         // Exercise less common flash and image options on one representative
         // target without adding another flash operation to every HIL job.
         let mut standard_args = vec!["flash", "--no-skip", "--monitor", "--non-interactive"];
@@ -698,6 +706,7 @@ impl TestRunner {
                 "nvs",
             ]);
         }
+        standard_args.extend(flash_size);
         standard_args.push(&app);
         self.run_timed_transfer_command_test(
             &standard_args,
@@ -706,7 +715,7 @@ impl TestRunner {
             "standard flashing",
         )?;
 
-        self.run_timed_transfer_command_test(
+        let qio_args = [
             &[
                 "flash",
                 "--no-skip",
@@ -714,8 +723,13 @@ impl TestRunner {
                 "--non-interactive",
                 "--flash-mode",
                 "qio",
-                &app,
             ],
+            flash_size,
+            &[&app],
+        ]
+        .concat();
+        self.run_timed_transfer_command_test(
+            &qio_args,
             Some(&[
                 "Flashing has completed!",
                 "SPI Mode       : QIO",
@@ -728,8 +742,14 @@ impl TestRunner {
         // Keep default-baud flash coverage on the representative extended
         // runner.
         if extended && self.baud.is_some_and(|baud| baud != 115_200) {
+            let default_baud_args = [
+                &["flash", "--no-skip", "--monitor", "--non-interactive"],
+                flash_size,
+                &[&app],
+            ]
+            .concat();
             self.run_timed_command_test(
-                &["flash", "--no-skip", "--monitor", "--non-interactive", &app],
+                &default_baud_args,
                 Some(&["Flashing has completed!", "Hello world!"]),
                 self.timeout,
                 "standard flashing with default baud rate",
