@@ -21,10 +21,10 @@ jobs:
           - os: "ubuntu-22.04"
             target: "x86_64-unknown-linux-musl"
             arch: "x86_64"
-          - os: "ubuntu-22.04"
+          # Built natively on arm64 runners; `arch: x86_64` skips the cross setup.
+          - os: "ubuntu-22.04-arm"
             target: "aarch64-unknown-linux-gnu"
-            arch: "arm64"
-          # Built natively on an arm64 runner; `arch: x86_64` skips the cross setup.
+            arch: "x86_64"
           - os: "ubuntu-22.04-arm"
             target: "aarch64-unknown-linux-musl"
             arch: "x86_64"

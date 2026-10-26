@@ -42,9 +42,10 @@ jobs:
           - os: "ubuntu-22.04"
             target: "x86_64-unknown-linux-musl"
             arch: "x86_64"
-          - os: "ubuntu-22.04"
+          # Built natively on an arm64 runner; `arch: x86_64` skips the cross setup.
+          - os: "ubuntu-22.04-arm"
             target: "aarch64-unknown-linux-gnu"
-            arch: "arm64"
+            arch: "x86_64"
           - os: "ubuntu-22.04"
             target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
@@ -60,22 +61,30 @@ jobs:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
 
-      - run: cargo run -p cargo-espflash -- espflash completions bash
-      - run: cargo run -p espflash -- completions bash
+      - run: cargo build --target ${{ matrix.platform.target }} -p espflash -p cargo-espflash
+      # armv7 binaries cannot run on the x86_64 runner
+      - if: matrix.platform.target != 'armv7-unknown-linux-gnueabihf'
+        run: cargo run --target ${{ matrix.platform.target }} -p cargo-espflash -- espflash completions bash
+      - if: matrix.platform.target != 'armv7-unknown-linux-gnueabihf'
+        run: cargo run --target ${{ matrix.platform.target }} -p espflash -- completions bash
 
   check-lib:
     name: Check lib (${{ matrix.platform.target }})
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.platform.os }}
 
     strategy:
       fail-fast: false
       matrix:
         platform:
-          - target: "x86_64-unknown-linux-gnu"
+          - os: "ubuntu-22.04"
+            target: "x86_64-unknown-linux-gnu"
             arch: "x86_64"
-          - target: "aarch64-unknown-linux-gnu"
-            arch: "arm64"
-          - target: "armv7-unknown-linux-gnueabihf"
+          # Built natively on an arm64 runner; `arch: x86_64` skips the cross setup.
+          - os: "ubuntu-22.04-arm"
+            target: "aarch64-unknown-linux-gnu"
+            arch: "x86_64"
+          - os: "ubuntu-22.04"
+            target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
 
     steps:
@@ -86,23 +95,27 @@ jobs:
           arch: ${{ matrix.platform.arch }}
           target: ${{ matrix.platform.target }}
 
-      - run: RUSTFLAGS="-D warnings" cargo check -p espflash --lib --no-default-features
-      - run: RUSTFLAGS="-D warnings" cargo check -p espflash --lib --no-default-features --features serialport
-      - run: RUSTFLAGS="-D warnings" cargo check -p espflash --no-default-features --features cli
+      - run: RUSTFLAGS="-D warnings" cargo check --target ${{ matrix.platform.target }} -p espflash --lib --no-default-features
+      - run: RUSTFLAGS="-D warnings" cargo check --target ${{ matrix.platform.target }} -p espflash --lib --no-default-features --features serialport
+      - run: RUSTFLAGS="-D warnings" cargo check --target ${{ matrix.platform.target }} -p espflash --no-default-features --features cli
 
   msrv:
     name: Check lib MSRV  (${{ matrix.platform.target }})
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.platform.os }}
 
     strategy:
       fail-fast: false
       matrix:
         platform:
-          - target: "x86_64-unknown-linux-gnu"
+          - os: "ubuntu-22.04"
+            target: "x86_64-unknown-linux-gnu"
             arch: "x86_64"
-          - target: "aarch64-unknown-linux-gnu"
-            arch: "arm64"
-          - target: "armv7-unknown-linux-gnueabihf"
+          # Built natively on an arm64 runner; `arch: x86_64` skips the cross setup.
+          - os: "ubuntu-22.04-arm"
+            target: "aarch64-unknown-linux-gnu"
+            arch: "x86_64"
+          - os: "ubuntu-22.04"
+            target: "armv7-unknown-linux-gnueabihf"
             arch: "armhf"
 
     steps:
@@ -114,7 +127,7 @@ jobs:
           target: ${{ matrix.platform.target }}
           toolchain: ${{ env.MSRV }}
 
-      - run: cargo check -p espflash --lib
+      - run: cargo check --target ${{ matrix.platform.target }} -p espflash --lib
 
   xtask:
     name: Check xtask

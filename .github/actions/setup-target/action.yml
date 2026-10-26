@@ -17,15 +17,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - if: inputs.arch != 'x86_64'
-      name: Replace target string
-      id: findandreplace
-      uses: mad9000/actions-find-and-replace-string@5
-      with:
-        source: ${{ inputs.target }}
-        find: "unknown-"
-        replace: ""
-
     - name: Install toolchain
       uses: dtolnay/rust-toolchain@v1
       with:
@@ -35,47 +26,21 @@ runs:
 
     - uses: Swatinem/rust-cache@v2
 
+    # Only the cross-compiler is needed: no crate links against target system
+    # libraries, so the multiarch packages from ports.ubuntu.com are not required.
     - if: inputs.arch != 'x86_64'
-      name: Install Cross-Compile Support
-      uses: junelife/gha-ubuntu-cross@v6
-      with:
-        arch: ${{ inputs.arch }}
-
-    - if: inputs.arch != 'x86_64'
-      name: Install dependencies (Raspberry Pi)
+      name: Install cross-compiler
       shell: bash
       run: |
-        sudo apt-get update && sudo apt-get install -y \
-          curl \
-          gcc-aarch64-linux-gnu \
-          gcc-arm-linux-gnueabihf \
-          git \
-          libc-dev \
-          "libc6:${{ inputs.arch }}" \
-          "libgcc-s1:${{ inputs.arch }}" \
-          linux-libc-dev \
-          musl-tools \
-          pkg-config
+        if [[ "${{ inputs.arch }}" != armhf ]]; then
+          echo "Unsupported cross-compile arch: ${{ inputs.arch }}"
+          exit 1
+        fi
+        sudo apt-get update && sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armhf-cross
+        echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
 
     - if: inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-unknown-linux-musl' || inputs.target == 'aarch64-unknown-linux-musl'
       name: Install dependencies (native linux)
       shell: bash
       run: |
         sudo apt-get update && sudo apt-get -y install musl-tools pkg-config
-
-    - if: inputs.arch != 'x86_64'
-      name: Set environment variables
-      shell: bash
-      run: |
-        echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=0" >> $GITHUB_ENV
-        echo "PKG_CONFIG_DIR=/opt/" >> $GITHUB_ENV
-        echo "PKG_CONFIG_LIBDIR=/opt/usr/lib/pkgconfig:/opt/usr/share/pkgconfig" >> $GITHUB_ENV
-        echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-        if [[ ${{ inputs.arch }} == arm64 ]]; then
-          echo "PKG_CONFIG_PATH=/usr/lib/${{ steps.findandreplace.outputs.value }}/pkgconfig" >> $GITHUB_ENV
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=${{ steps.findandreplace.outputs.value }}-gcc" >> $GITHUB_ENV
-        fi
-        if [[ ${{ inputs.arch }} == armhf ]]; then
-          echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig" >> $GITHUB_ENV
-          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
-        fi
