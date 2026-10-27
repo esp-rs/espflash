@@ -25,6 +25,8 @@ runs:
         components: ${{ inputs.components }}
 
     - uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ inputs.target }}
 
     # Only the cross-compiler is needed: no crate links against target system
     # libraries, so the multiarch packages from ports.ubuntu.com are not required.
