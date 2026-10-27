@@ -81,7 +81,8 @@ const BOOTLOADER_ESP32C5: Bootloaders = bootloaders!("esp32c5");
 const BOOTLOADER_ESP32C6: Bootloaders = bootloaders!("esp32c6");
 const BOOTLOADER_ESP32C61: Bootloaders = bootloaders!("esp32c61");
 const BOOTLOADER_ESP32H2: Bootloaders = bootloaders!("esp32h2");
-const BOOTLOADER_ESP32H4: Bootloaders = bootloaders!("esp32h4");
+const BOOTLOADER_ESP32H4_V0_0: Bootloaders = bootloaders!("esp32h4-v0.0");
+const BOOTLOADER_ESP32H4_V0_2: Bootloaders = bootloaders!("esp32h4-v0.2");
 const BOOTLOADER_ESP32P4_V0: Bootloaders = bootloaders!("esp32p4-v0");
 const BOOTLOADER_ESP32P4_V3: Bootloaders = bootloaders!("esp32p4-v3");
 const BOOTLOADER_ESP32S2: Bootloaders = bootloaders!("esp32s2");
@@ -132,7 +133,15 @@ pub(crate) fn default_bootloaders(
             _ => Err(error),
         },
         Chip::Esp32h4 => match xtal_freq {
-            XtalFrequency::_32Mhz => Ok(BOOTLOADER_ESP32H4),
+            XtalFrequency::_32Mhz => {
+                let revision = chip_revision.unwrap_or(min_chip_rev);
+
+                if revision >= 2 {
+                    Ok(BOOTLOADER_ESP32H4_V0_2)
+                } else {
+                    Ok(BOOTLOADER_ESP32H4_V0_0)
+                }
+            }
             _ => Err(error),
         },
         Chip::Esp32p4 => match xtal_freq {
@@ -1122,7 +1131,8 @@ mod tests {
             (Chip::Esp32c6, XtalFrequency::_40Mhz, 0, "esp32c6"),
             (Chip::Esp32c61, XtalFrequency::_40Mhz, 0, "esp32c61"),
             (Chip::Esp32h2, XtalFrequency::_32Mhz, 0, "esp32h2"),
-            (Chip::Esp32h4, XtalFrequency::_32Mhz, 0, "esp32h4"),
+            (Chip::Esp32h4, XtalFrequency::_32Mhz, 1, "esp32h4-v0.0"),
+            (Chip::Esp32h4, XtalFrequency::_32Mhz, 2, "esp32h4-v0.2"),
             (Chip::Esp32p4, XtalFrequency::_40Mhz, 0, "esp32p4-v0"),
             (Chip::Esp32p4, XtalFrequency::_40Mhz, 300, "esp32p4-v3"),
             (Chip::Esp32s2, XtalFrequency::_40Mhz, 0, "esp32s2"),
