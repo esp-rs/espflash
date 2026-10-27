@@ -84,6 +84,9 @@ bootloaders:
   - name: esp32h4
     target: esp32h4
     output: esp32h4-bootloader.bin
+    # master (v6.1-dev-8798-g4d80c1b29ae), for chip revision v0.2 (ECO2) and
+    # later, which release/v6.1 does not support
+    idf_ref: 4d80c1b29aeabc8e735ffc6e1be9bb23e95d1d5d
     preview: true
     configs:
       - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y
