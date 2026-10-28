@@ -609,6 +609,7 @@ impl TestRunner {
             _ => "40mhz",
         };
         let bootloader_name = match chip {
+            "esp32h4" => "esp32h4-v0.2-bootloader.bin".to_owned(),
             "esp32p4" => "esp32p4-v3-bootloader.bin".to_owned(),
             _ => format!("{chip}-bootloader.bin"),
         };

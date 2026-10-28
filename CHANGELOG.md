@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move the update check into a new `update-check` feature, enabled by default, so `espflash` can be built without it
 - Place a section at its ELF load address if the load address is not in flash and differs from the run address, so an image can initialize memory that the bootloader cannot load directly, such as the ESP32-P4 uncached RAM alias (#1096)
 - Rebuild the bundled bootloaders from the head of ESP-IDF `release/v6.1`. The ESP32-H4 and ESP32-H21 ones are rebuilt at the ESP-IDF master commits they were built from before (#1099)
+- Bundle two ESP32-H4 bootloaders picked by chip revision, like the ESP32-P4 ones: one from ESP-IDF `release/v6.1` for v0.0 and v0.1, and one from a newer ESP-IDF master commit for v0.2 (ECO2) and later (#1103)
 
 ### Fixed
 

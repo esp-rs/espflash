@@ -81,10 +81,20 @@ bootloaders:
       - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y
       - CONFIG_ESPTOOLPY_FLASHSIZE="64MB"
 
-  - name: esp32h4
+  - name: esp32h4-v0.0
     target: esp32h4
-    output: esp32h4-bootloader.bin
-    idf_ref: 08e0d30a74ad0bfd5a34933142b80f45619ee410
+    output: esp32h4-v0.0-bootloader.bin
+    preview: true
+    configs:
+      - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y
+      - CONFIG_ESPTOOLPY_FLASHSIZE="64MB"
+
+  - name: esp32h4-v0.2
+    target: esp32h4
+    output: esp32h4-v0.2-bootloader.bin
+    # master (v6.1-dev-8798-g4d80c1b29ae), for chip revision v0.2 (ECO2) and
+    # later, which release/v6.1 does not support
+    idf_ref: 4d80c1b29aeabc8e735ffc6e1be9bb23e95d1d5d
     preview: true
     configs:
       - CONFIG_ESPTOOLPY_FLASHSIZE_64MB=y

@@ -17,7 +17,7 @@ Useful options:
 
 ESP-IDF tools are installed and exported with `IDF_TOOLS_PATH` set to `target/esp-idf-tools` by default, so they can be removed with the rest of `target`. Set `IDF_TOOLS_PATH` explicitly to use another location. On Unix this uses `install.sh`/`export.sh`; on Windows it uses `install.bat`/`export.bat`.
 
-For now, `esp-hal` uses MMU page size as `0x10000` (64k) for some chips, therefore those manifest entries set the ESP-IDF flash size to 64MB. ESP32-P4 revision-specific bootloader configs are also captured in the manifest.
+For now, `esp-hal` uses MMU page size as `0x10000` (64k) for some chips, therefore those manifest entries set the ESP-IDF flash size to 64MB. The ESP32-H4 and ESP32-P4 have one bootloader per chip revision range; espflash picks one by the connected chip's revision, or by `--min-chip-rev` when no chip is connected.
 
 The flasher stubs are from `esp-flasher-stub` v1.4.1:
 https://github.com/espressif/esp-flasher-stub/releases/tag/v1.4.1
