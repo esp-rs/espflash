@@ -413,28 +413,13 @@ impl TestRunner {
         Ok(())
     }
 
-    fn is_flash_empty(&self, file_path: &Path, chip: Option<&str>) -> Result<bool> {
+    fn is_flash_empty(&self, file_path: &Path) -> Result<bool> {
         let flash_data = fs::read(file_path)?;
-        Ok(Self::is_erased_flash_data(&flash_data, chip))
+        Ok(Self::is_erased_flash_data(&flash_data))
     }
 
-    fn is_erased_flash_data(data: &[u8], chip: Option<&str>) -> bool {
-        data.iter().enumerate().all(|(offset, &byte)| {
-            byte == 0xFF || Self::is_esp32p4_erased_read_artifact(offset, byte, chip)
-        })
-    }
-
-    fn is_esp32p4_erased_read_artifact(offset: usize, byte: u8, chip: Option<&str>) -> bool {
-        if !matches!(chip, Some("esp32p4")) || byte != 0x00 {
-            return false;
-        }
-
-        // ESP32-P4 flash stub reads erased flash as 0x00 in a few regular
-        // ranges. Treat only those ranges as erased so the test can
-        // still verify all other bytes.
-        let offset_in_sector = offset % 0x1000;
-        (offset >= 0x400 && offset % 0x400 < 0x100)
-            || (offset >= 0x1000 && (0x0e0..0x100).contains(&offset_in_sector))
+    fn is_erased_flash_data(data: &[u8]) -> bool {
+        data.iter().all(|&byte| byte == 0xFF)
     }
 
     fn flash_output_file(&self) -> PathBuf {
@@ -460,24 +445,14 @@ impl TestRunner {
             self.test_list_ports(false)?;
             self.test_flash(Some(chip), false)?;
             self.test_monitor(chip)?;
-        } else if chip == "esp32p4" {
-            // ESP32-P4 flash stub currently reports erased bytes and MD5
-            // checksums differently in some ranges, so keep the
-            // default suite to tests that are stable on this
-            // target.
-            self.test_board_info(chip)?;
-            self.test_erase_flash(Some(chip))?;
-            self.test_hold_in_reset()?;
-            self.test_reset()?;
-            self.test_list_ports(extended)?;
         } else {
             self.test_board_info(chip)?;
-            self.test_erase_flash(Some(chip))?;
+            self.test_erase_flash()?;
             self.test_save_image_write_bin(Some(chip))?;
             if extended {
-                self.test_erase_parts(Some(chip))?;
+                self.test_erase_parts()?;
             }
-            self.test_erase_region(Some(chip))?;
+            self.test_erase_region()?;
             self.test_hold_in_reset()?;
             self.test_reset()?;
             self.test_list_ports(extended)?;
@@ -519,12 +494,12 @@ impl TestRunner {
             "board-info" => self.test_board_info(chip),
             "flash" => self.test_flash(Some(chip), false),
             "monitor" => self.test_monitor(chip),
-            "erase-flash" => self.test_erase_flash(Some(chip)),
-            "erase-parts" => self.test_erase_parts(Some(chip)),
+            "erase-flash" => self.test_erase_flash(),
+            "erase-parts" => self.test_erase_parts(),
             "save-image" | "write-bin" | "save-image-write-bin" => {
                 self.test_save_image_write_bin(Some(chip))
             }
-            "erase-region" => self.test_erase_region(Some(chip)),
+            "erase-region" => self.test_erase_region(),
             "hold-in-reset" => self.test_hold_in_reset(),
             "reset" => self.test_reset(),
             "checksum-md5" => self.test_checksum_md5(),
@@ -700,6 +675,14 @@ impl TestRunner {
             self.test_espidf_stack_dump(&format!("espflash/tests/data/{chip}_espidf_abort"))?;
         }
 
+        // The ESP32-P4 test app drops off USB at startup when the image says
+        // the detected 16 MB, but boots with espflash's 4 MB default (#1101)
+        let flash_size: &[&str] = if chip == "esp32p4" {
+            &["--flash-size", "4mb"]
+        } else {
+            &[]
+        };
+
         // Exercise less common flash and image options on one representative
         // target without adding another flash operation to every HIL job.
         let mut standard_args = vec!["flash", "--no-skip", "--monitor", "--non-interactive"];
@@ -724,6 +707,7 @@ impl TestRunner {
                 "nvs",
             ]);
         }
+        standard_args.extend(flash_size);
         standard_args.push(&app);
         self.run_timed_transfer_command_test(
             &standard_args,
@@ -732,7 +716,7 @@ impl TestRunner {
             "standard flashing",
         )?;
 
-        self.run_timed_transfer_command_test(
+        let qio_args = [
             &[
                 "flash",
                 "--no-skip",
@@ -740,8 +724,13 @@ impl TestRunner {
                 "--non-interactive",
                 "--flash-mode",
                 "qio",
-                &app,
             ],
+            flash_size,
+            &[&app],
+        ]
+        .concat();
+        self.run_timed_transfer_command_test(
+            &qio_args,
             Some(&[
                 "Flashing has completed!",
                 "SPI Mode       : QIO",
@@ -754,8 +743,14 @@ impl TestRunner {
         // Keep default-baud flash coverage on the representative extended
         // runner.
         if extended && self.baud.is_some_and(|baud| baud != 115_200) {
+            let default_baud_args = [
+                &["flash", "--no-skip", "--monitor", "--non-interactive"],
+                flash_size,
+                &[&app],
+            ]
+            .concat();
             self.run_timed_command_test(
-                &["flash", "--no-skip", "--monitor", "--non-interactive", &app],
+                &default_baud_args,
                 Some(&["Flashing has completed!", "Hello world!"]),
                 self.timeout,
                 "standard flashing with default baud rate",
@@ -887,7 +882,7 @@ impl TestRunner {
     }
 
     /// Tests erasing the flash memory
-    pub fn test_erase_flash(&self, chip: Option<&str>) -> Result<()> {
+    pub fn test_erase_flash(&self) -> Result<()> {
         log::info!("Running erase-flash test");
         let flash_output = self.flash_output_file();
 
@@ -907,7 +902,7 @@ impl TestRunner {
         )?;
 
         // Verify the flash is empty (all 0xFF)
-        if let Ok(is_empty) = self.is_flash_empty(&flash_output, chip) {
+        if let Ok(is_empty) = self.is_flash_empty(&flash_output) {
             if !is_empty {
                 return Err("Flash is not empty after erase-flash command".into());
             }
@@ -920,7 +915,7 @@ impl TestRunner {
     }
 
     /// Tests erasing a specific region of the flash memory
-    pub fn test_erase_region(&self, chip: Option<&str>) -> Result<()> {
+    pub fn test_erase_region(&self) -> Result<()> {
         log::info!("Running erase-region test");
         let flash_output = self.flash_output_file();
 
@@ -963,13 +958,13 @@ impl TestRunner {
         if let Ok(flash_data) = fs::read(&flash_output) {
             // First 0x1000 bytes should be 0xFF (erased)
             let first_part = &flash_data[0..4096];
-            if !Self::is_erased_flash_data(first_part, chip) {
+            if !Self::is_erased_flash_data(first_part) {
                 return Err("First 0x1000 bytes should be empty (0xFF)".into());
             }
 
             // Next 0x1000 bytes should contain some non-erased bytes
             let second_part = &flash_data[4096..8192];
-            if Self::is_erased_flash_data(second_part, chip) {
+            if Self::is_erased_flash_data(second_part) {
                 return Err("Next 0x1000 bytes should contain some non-erased bytes".into());
             }
         } else {
@@ -981,7 +976,7 @@ impl TestRunner {
     }
 
     /// Tests erasing a named partition and verifies the resulting bytes.
-    pub fn test_erase_parts(&self, chip: Option<&str>) -> Result<()> {
+    pub fn test_erase_parts(&self) -> Result<()> {
         log::info!("Running erase-parts test");
         let pattern_file = self.tests_dir.join("partition-pattern.bin");
         let flash_output = self.flash_output_file();
@@ -1017,7 +1012,7 @@ impl TestRunner {
             "read erased partition",
         )?;
 
-        if !self.is_flash_empty(&flash_output, chip)? {
+        if !self.is_flash_empty(&flash_output)? {
             return Err("named partition was not erased".into());
         }
         Ok(())
@@ -1489,24 +1484,5 @@ mod tests {
             "espflash/tests/data/esp32c6_defmt_usb"
         );
         assert_eq!(runner.app("esp32p4"), "espflash/tests/data/esp32p4");
-    }
-
-    #[test]
-    fn erased_flash_artifacts_are_limited_to_esp32p4() {
-        assert!(TestRunner::is_erased_flash_data(&[0xff; 0x1200], None));
-
-        let mut artifact = vec![0xff; 0x1200];
-        artifact[0x400] = 0;
-        assert!(TestRunner::is_erased_flash_data(&artifact, Some("esp32p4")));
-        assert!(!TestRunner::is_erased_flash_data(
-            &artifact,
-            Some("esp32c6")
-        ));
-
-        artifact[0x300] = 0;
-        assert!(!TestRunner::is_erased_flash_data(
-            &artifact,
-            Some("esp32p4")
-        ));
     }
 }
