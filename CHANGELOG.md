@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundle two ESP32-H4 bootloaders picked by chip revision, like the ESP32-P4 ones: one from ESP-IDF `release/v6.1` for v0.0 and v0.1, and one from a newer ESP-IDF master commit for v0.2 (ECO2) and later (#1103)
 - Log the bytes received when the flash stub handshake fails, at debug level
 - The serial monitor waits for a disconnected port to reappear and reopens it, instead of exiting with `Broken pipe`, e.g. when the device re-enumerates over USB
+- A non-interactive monitor opened by `flash` or `write-bin` over USB-Serial-JTAG no longer resets the device again after it was hard-reset after flashing, which interrupted its first boot
 
 ### Fixed
 
