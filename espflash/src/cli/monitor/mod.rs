@@ -203,8 +203,13 @@ pub fn monitor(
 fn reopen(port_name: &str, baud: u32, non_interactive: bool) -> Result<Option<Port>> {
     warn!("Serial port {port_name} disconnected, waiting for it to reappear");
     loop {
-        if !non_interactive
-            && let Some(key) = key_event().into_diagnostic()?
+        let key = match key_event() {
+            Ok(key) => key,
+            Err(_) if non_interactive => None,
+            Err(err) => return Err(err).into_diagnostic(),
+        };
+        if let Some(key) = key
+            && key.kind == KeyEventKind::Press
             && key.modifiers.contains(KeyModifiers::CONTROL)
             && key.code == KeyCode::Char('c')
         {
