@@ -12,6 +12,7 @@
 
 use std::{
     io::{self, ErrorKind, Read, Write, stdout},
+    thread::sleep,
     time::{Duration, Instant},
 };
 
@@ -23,7 +24,7 @@ use external_processors::ExternalProcessors;
 use log::{debug, error, warn};
 use miette::{IntoDiagnostic, Result};
 #[cfg(feature = "serialport")]
-use serialport::SerialPort;
+use serialport::{FlowControl, SerialPort};
 use strum::{Display, EnumIter, EnumString, VariantNames};
 
 use crate::{
@@ -161,11 +162,26 @@ pub fn monitor(
     let mut user_input_handler = InputHandler::new(pid, non_interactive);
     loop {
         let read_count = match serial.read(&mut buff) {
-            Ok(count) => Ok(count),
-            Err(e) if e.kind() == ErrorKind::TimedOut => Ok(0),
+            Ok(count) => count,
+            Err(e) if e.kind() == ErrorKind::TimedOut => 0,
             Err(e) if e.kind() == ErrorKind::Interrupted => continue,
-            err => err.into_diagnostic(),
-        }?;
+            // The device disconnected, e.g. because its USB peripheral was
+            // reset.
+            Err(e) if e.kind() == ErrorKind::BrokenPipe => {
+                let Some(port_name) = serial.name() else {
+                    return Err(e).into_diagnostic();
+                };
+                // Close the port first, so that the device can re-enumerate
+                // under the same name.
+                drop(serial);
+                serial = match reopen(&port_name, baud, non_interactive)? {
+                    Some(serial) => serial,
+                    None => break,
+                };
+                continue;
+            }
+            Err(e) => return Err(e).into_diagnostic(),
+        };
 
         let processed = external_processors.process(&buff[0..read_count]);
         parser.feed(&processed, &mut stdout);
@@ -179,6 +195,38 @@ pub fn monitor(
     }
 
     Ok(())
+}
+
+/// Waits for a disconnected serial port to reappear and reopens it.
+///
+/// Returns `None` if the user pressed CTRL+C while waiting.
+fn reopen(port_name: &str, baud: u32, non_interactive: bool) -> Result<Option<Port>> {
+    warn!("Serial port {port_name} disconnected, waiting for it to reappear");
+    loop {
+        let key = match key_event() {
+            Ok(key) => key,
+            Err(_) if non_interactive => None,
+            Err(err) => return Err(err).into_diagnostic(),
+        };
+        if let Some(key) = key
+            && key.kind == KeyEventKind::Press
+            && key.modifiers.contains(KeyModifiers::CONTROL)
+            && key.code == KeyCode::Char('c')
+        {
+            return Ok(None);
+        }
+
+        if let Ok(serial) = serialport::new(port_name, baud)
+            .flow_control(FlowControl::None)
+            .timeout(Duration::from_millis(5))
+            .open_native()
+        {
+            warn!("Serial port {port_name} reconnected");
+            return Ok(Some(serial));
+        }
+
+        sleep(Duration::from_millis(100));
+    }
 }
 
 struct InputHandler {

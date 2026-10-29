@@ -330,6 +330,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         }
 
         flash_image(&mut flasher, image_format)?;
+        skip_monitor_reset_after_flash(&mut flasher, &mut monitor_args);
     }
 
     if args.flash_args.monitor {

@@ -669,6 +669,22 @@ pub fn preprocess_monitor_args(
     }
 }
 
+/// Skips the reset of a monitor opened right after flashing, if the device was
+/// already hard-reset over USB-Serial-JTAG.
+///
+/// The monitor receives the output of that boot regardless of the baud rate,
+/// so resetting the device again would only interrupt it. Over UART, the
+/// monitor still resets the device to receive the boot output at the monitor
+/// baud rate.
+pub fn skip_monitor_reset_after_flash(flasher: &mut Flasher, monitor_args: &mut MonitorConfigArgs) {
+    let connection = flasher.connection();
+    if connection.after_operation() == ResetAfterOperation::HardReset
+        && connection.is_using_usb_serial_jtag()
+    {
+        monitor_args.no_reset = true;
+    }
+}
+
 pub fn load_monitor_elfs<'a>(
     firmware_elf: Option<&'a [u8]>,
     monitor_args: &MonitorConfigArgs,
@@ -1277,6 +1293,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
         let mut monitor_args = args.monitor_args;
 
         preprocess_monitor_args(chip, target_xtal_freq, &mut monitor_args);
+        skip_monitor_reset_after_flash(&mut flasher, &mut monitor_args);
 
         let elfs = load_monitor_elfs(None, &monitor_args, &dev_info)?;
         let elf_refs = elfs.refs();
