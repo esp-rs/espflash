@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Without `--partition-table-offset`, write the partition table at 0x8000 for the bundled bootloader, which reads it there (#1107)
+
 ### Removed
 
 ## [4.7.0] - 2026-10-29

@@ -43,6 +43,10 @@ const WP_PIN_DISABLED: u8 = 0xEE;
 /// Max partition size is 16 MB
 const MAX_PARTITION_SIZE: u32 = 16 * 1000 * 1024;
 
+/// The partition table offset of the bundled bootloaders, which is the ESP-IDF
+/// default of `CONFIG_PARTITION_TABLE_OFFSET`.
+const BUNDLED_PARTITION_TABLE_OFFSET: u32 = 0x8000;
+
 /// The bundled bootloaders for one chip and crystal frequency.
 #[derive(Clone, Copy)]
 pub(crate) struct Bootloaders {
@@ -696,10 +700,14 @@ impl<'a> IdfBootloaderFormat<'a> {
             data: Cow::Owned(data),
         };
 
-        // If the user did not specify a partition offset, we need to assume
-        // that the partition offset is (first partition offset) -
-        // 0x1000, since this is the most common case.
+        // If the user did not specify a partition offset, use the offset of
+        // the bundled bootloader. For another bootloader, we need to assume
+        // that the partition offset is (first partition offset) - 0x1000,
+        // since this is the most common case.
         let partition_table_offset = partition_table_offset.unwrap_or_else(|| {
+            if bootloader_path.is_none() {
+                return BUNDLED_PARTITION_TABLE_OFFSET;
+            }
             let partitions = partition_table.partitions();
             let first_partition = partitions
                 .iter()
@@ -1116,6 +1124,41 @@ mod tests {
         assert_eq!(bootloader[2], FlashMode::Dio as u8);
         assert!(sha256_valid(bootloader));
         assert_eq!(app[2], FlashMode::Qio as u8);
+    }
+
+    /// The address of the partition table, for a table whose first partition
+    /// is at 0x40000
+    fn partition_table_address(bootloader: Option<&Path>) -> u32 {
+        let elf = std::fs::read("tests/data/esp32").unwrap();
+        let flash_data = FlashData::new(
+            FlashSettings::new(None, None, None),
+            0,
+            None,
+            Chip::Esp32,
+            XtalFrequency::_40Mhz,
+        );
+        let partition_table = Path::new("tests/data/partitions_app_at_0x40000.csv");
+        let image = IdfBootloaderFormat::new(
+            &elf,
+            &flash_data,
+            Some(partition_table),
+            bootloader,
+            None,
+            None,
+        )
+        .unwrap();
+        image.flash_segments().nth(1).unwrap().addr
+    }
+
+    #[test]
+    fn bundled_bootloader_gets_the_partition_table_at_its_offset() {
+        assert_eq!(partition_table_address(None), 0x8000);
+    }
+
+    #[test]
+    fn given_bootloader_gets_the_partition_table_below_the_first_partition() {
+        let path = Path::new("resources/bootloaders/esp32-bootloader.bin");
+        assert_eq!(partition_table_address(Some(path)), 0x3F000);
     }
 
     #[test]
