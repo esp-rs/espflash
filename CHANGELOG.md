@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - RISC-V backtrace decoding based on `.debug_frame`s, in addition to the existing `.eh_frame` support (#1072)
+- Decode the register and stack memory dump printed by the ESP-IDF panic handler on RISC-V chips (#1072)
+- `--unwind-tables` monitor option to choose which unwind tables decode stack dumps (`auto`, `debug-frame` or `eh-frame`) (#1072)
 - Release binaries for `aarch64-unknown-linux-musl` (e.g. OpenWrt routers, Alpine on ARM) (#1078)
 - Add esp32c5 watchdog registers (#1079)
 - A bundled bootloader built for QIO for every chip, used with `--flash-mode qio`. `--flash-mode qout` warns and uses the DIO bootloader (#1099)
