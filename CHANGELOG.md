@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rebuild the bundled bootloaders from the head of ESP-IDF `release/v6.1`. The ESP32-H4 and ESP32-H21 ones are rebuilt at the ESP-IDF master commits they were built from before (#1099)
 - Bundle two ESP32-H4 bootloaders picked by chip revision, like the ESP32-P4 ones: one from ESP-IDF `release/v6.1` for v0.0 and v0.1, and one from a newer ESP-IDF master commit for v0.2 (ECO2) and later (#1103)
 - Log the bytes received when the flash stub handshake fails, at debug level
+- The serial monitor waits for a disconnected port to reappear and reopens it, instead of exiting with `Broken pipe`, e.g. when the device re-enumerates over USB
 
 ### Fixed
 
