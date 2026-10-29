@@ -867,9 +867,12 @@ impl Flasher {
 
         match self.connection.read(EXPECTED_STUB_HANDSHAKE.len())? {
             Some(resp) if resp == EXPECTED_STUB_HANDSHAKE.as_bytes() => Ok(()),
-            _ => Err(Error::Connection(Box::new(
-                ConnectionError::InvalidStubHandshake,
-            ))),
+            resp => {
+                debug!("Unexpected stub handshake response: {resp:02x?}");
+                Err(Error::Connection(Box::new(
+                    ConnectionError::InvalidStubHandshake,
+                )))
+            }
         }?;
 
         // Re-detect chip to check stub is up
