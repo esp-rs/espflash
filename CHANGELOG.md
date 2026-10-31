@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Return an error when a partition overlaps the 0x1000 bytes of the partition table (#1107)
+- Warn when the bundled bootloader is used with a partition table offset other than 0x8000 (#1107)
+
 ### Fixed
 
 - Without `--partition-table-offset`, write the partition table at 0x8000 for the bundled bootloader, which reads it there (#1107)

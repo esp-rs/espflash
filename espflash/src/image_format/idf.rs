@@ -47,6 +47,9 @@ const MAX_PARTITION_SIZE: u32 = 16 * 1000 * 1024;
 /// default of `CONFIG_PARTITION_TABLE_OFFSET`.
 const BUNDLED_PARTITION_TABLE_OFFSET: u32 = 0x8000;
 
+/// The flash space of the partition table, from its offset
+const PARTITION_TABLE_SIZE: u32 = 0x1000;
+
 /// The bundled bootloaders for one chip and crystal frequency.
 #[derive(Clone, Copy)]
 pub(crate) struct Bootloaders {
@@ -713,8 +716,25 @@ impl<'a> IdfBootloaderFormat<'a> {
                 .iter()
                 .min_by(|a, b| a.offset().cmp(&b.offset()))
                 .unwrap();
-            first_partition.offset() - 0x1000
+            first_partition.offset() - PARTITION_TABLE_SIZE
         });
+
+        if bootloader_path.is_none() && partition_table_offset != BUNDLED_PARTITION_TABLE_OFFSET {
+            warn!(
+                "The bundled bootloader reads the partition table at {BUNDLED_PARTITION_TABLE_OFFSET:#x}, not at {partition_table_offset:#x}. Use `--bootloader` with an ESP-IDF bootloader built for this partition table offset."
+            );
+        }
+
+        let table_end = partition_table_offset.saturating_add(PARTITION_TABLE_SIZE);
+        if let Some(partition) = partition_table.partitions().iter().find(|p| {
+            p.offset() < table_end && partition_table_offset < p.offset().saturating_add(p.size())
+        }) {
+            return Err(Error::PartitionTableOverlap {
+                offset: partition_table_offset,
+                name: partition.name(),
+                partition_offset: partition.offset(),
+            });
+        }
 
         let boot_addr = flash_data.chip.boot_address();
 
@@ -986,6 +1006,8 @@ pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Mutex, MutexGuard, Once};
+
     use super::*;
     use crate::flasher::FlashSettings;
 
@@ -1126,39 +1148,128 @@ mod tests {
         assert_eq!(app[2], FlashMode::Qio as u8);
     }
 
-    /// The address of the partition table, for a table whose first partition
-    /// is at 0x40000
-    fn partition_table_address(bootloader: Option<&Path>) -> u32 {
+    /// The address of the partition table `tests/data/{table}`, as flashed
+    fn partition_table_address(
+        table: &str,
+        bootloader: Option<&Path>,
+        offset: Option<u32>,
+    ) -> Result<u32, Error> {
         let elf = std::fs::read("tests/data/esp32").unwrap();
         let flash_data = FlashData::new(
-            FlashSettings::new(None, None, None),
+            FlashSettings::new(None, Some(FlashSize::_16Mb), None),
             0,
             None,
             Chip::Esp32,
             XtalFrequency::_40Mhz,
         );
-        let partition_table = Path::new("tests/data/partitions_app_at_0x40000.csv");
+        let partition_table = Path::new("tests/data").join(table);
         let image = IdfBootloaderFormat::new(
             &elf,
             &flash_data,
-            Some(partition_table),
+            Some(&partition_table),
             bootloader,
+            offset,
             None,
-            None,
-        )
-        .unwrap();
-        image.flash_segments().nth(1).unwrap().addr
+        )?;
+        Ok(image.flash_segments().nth(1).unwrap().addr)
+    }
+
+    const GIVEN_BOOTLOADER: &str = "resources/bootloaders/esp32-bootloader.bin";
+
+    /// The messages of the warnings that the tests log
+    static WARNINGS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+    struct WarningLogger;
+
+    impl log::Log for WarningLogger {
+        fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
+            metadata.level() <= log::Level::Warn
+        }
+
+        fn log(&self, record: &log::Record<'_>) {
+            if self.enabled(record.metadata()) {
+                WARNINGS.lock().unwrap().push(record.args().to_string());
+            }
+        }
+
+        fn flush(&self) {}
+    }
+
+    /// The warnings logged so far, from the first call on
+    fn warnings() -> MutexGuard<'static, Vec<String>> {
+        static LOGGER: Once = Once::new();
+        LOGGER.call_once(|| {
+            log::set_logger(&WarningLogger).unwrap();
+            log::set_max_level(log::LevelFilter::Warn);
+        });
+        WARNINGS.lock().unwrap()
     }
 
     #[test]
     fn bundled_bootloader_gets_the_partition_table_at_its_offset() {
-        assert_eq!(partition_table_address(None), 0x8000);
+        let address = partition_table_address("partitions_app_at_0x40000.csv", None, None);
+        assert_eq!(address.unwrap(), 0x8000);
     }
 
     #[test]
     fn given_bootloader_gets_the_partition_table_below_the_first_partition() {
-        let path = Path::new("resources/bootloaders/esp32-bootloader.bin");
-        assert_eq!(partition_table_address(Some(path)), 0x3F000);
+        let given = Some(Path::new(GIVEN_BOOTLOADER));
+        let address = partition_table_address("partitions_app_at_0x40000.csv", given, None);
+        assert_eq!(address.unwrap(), 0x3F000);
+    }
+
+    #[test]
+    fn partition_table_must_not_overlap_a_partition() {
+        let given = Some(Path::new(GIVEN_BOOTLOADER));
+        let cases = [
+            ("partitions_nvs_at_0x6000.csv", None, None),
+            ("partitions.csv", None, Some(0x9000)),
+            ("partitions_app_at_0x40000.csv", given, Some(0x13F000)),
+        ];
+
+        for (table, bootloader, offset) in cases {
+            assert!(
+                matches!(
+                    partition_table_address(table, bootloader, offset),
+                    Err(Error::PartitionTableOverlap { .. })
+                ),
+                "{table} {offset:x?}"
+            );
+        }
+    }
+
+    #[test]
+    fn partition_table_may_touch_a_partition() {
+        let given = Some(Path::new(GIVEN_BOOTLOADER));
+        let cases = [
+            ("partitions.csv", None, None, 0x8000),
+            (
+                "partitions_app_at_0x40000.csv",
+                given,
+                Some(0x140000),
+                0x140000,
+            ),
+        ];
+
+        for (table, bootloader, offset, expected) in cases {
+            let address = partition_table_address(table, bootloader, offset);
+            assert_eq!(address.unwrap(), expected, "{table}");
+        }
+    }
+
+    #[test]
+    fn bundled_bootloader_warns_about_another_partition_table_offset() {
+        drop(warnings());
+        let given = Some(Path::new(GIVEN_BOOTLOADER));
+
+        let bundled = partition_table_address("partitions_app_at_0x40000.csv", None, Some(0xA000));
+        let other = partition_table_address("partitions_app_at_0x40000.csv", given, Some(0xB000));
+
+        assert_eq!(bundled.unwrap(), 0xA000);
+        assert_eq!(other.unwrap(), 0xB000);
+        let warnings = warnings();
+        assert!(warnings.iter().any(|w| w.contains("not at 0xa000")));
+        assert!(!warnings.iter().any(|w| w.contains("0xb000")));
     }
 
     #[test]

@@ -352,6 +352,25 @@ pub enum Error {
     )]
     PartitionTableDoesNotFit(FlashSize),
 
+    /// A partition overlaps the partition table
+    #[error(
+        "The partition table at {offset:#x} overlaps the `{name}` partition at {partition_offset:#x}"
+    )]
+    #[diagnostic(
+        code(espflash::partition_table::overlaps_partition),
+        help(
+            "The partition table takes 0x1000 bytes from its offset. Move the partition, or the partition table with `--partition-table-offset` and `--bootloader`"
+        )
+    )]
+    PartitionTableOverlap {
+        /// Offset of the partition table
+        offset: u32,
+        /// Name of the partition
+        name: String,
+        /// Offset of the partition
+        partition_offset: u32,
+    },
+
     /// App descriptor not present in the binary
     #[error("{0}")]
     #[diagnostic(code(espflash::app_desc::app_descriptor_not_present))]
