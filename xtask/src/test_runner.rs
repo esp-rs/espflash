@@ -21,7 +21,7 @@ const SUPPORTED_CHIPS: [&str; 12] = [
 ];
 
 /// Test firmware built with ESP-IDF instead of `esp-generate`
-const ESP_IDF_FIRMWARE: [&str; 2] = ["esp32h4", "esp32p4"];
+const ESP_IDF_FIRMWARE: [&str; 1] = ["esp32h4"];
 
 /// Espressif USB vendor ID
 const ESPRESSIF_VID: u16 = 0x303a;
@@ -1484,6 +1484,6 @@ mod tests {
             runner.app("esp32c6_defmt"),
             "espflash/tests/data/esp32c6_defmt_usb"
         );
-        assert_eq!(runner.app("esp32p4"), "espflash/tests/data/esp32p4");
+        assert_eq!(runner.app("esp32h4"), "espflash/tests/data/esp32h4");
     }
 }

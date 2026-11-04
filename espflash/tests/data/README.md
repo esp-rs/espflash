@@ -1,4 +1,4 @@
-The `$CHIP` elf files under this folder have been generated using `esp-generate@1.4.0`, `esp-hal@1.2.2`, `esp-println@0.18.0`, `esp-bootloader-esp-idf@0.6.0`, for `$CHIP` in `esp32`, `esp32c2`, `esp32c3`, `esp32c5`, `esp32c6`, `esp32c61`, `esp32h2`, `esp32s2`, `esp32s3` and `esp32s31`:
+The `$CHIP` elf files under this folder have been generated using `esp-generate@1.4.0`, `esp-hal@1.2.2`, `esp-println@0.18.0`, `esp-bootloader-esp-idf@0.6.0`, for `$CHIP` in `esp32`, `esp32c2`, `esp32c3`, `esp32c5`, `esp32c6`, `esp32c61`, `esp32h2`, `esp32s2`, `esp32s3` and `esp32s31`, and using `esp-generate@2.0.0` with the same crate versions for `esp32p4`:
 
 ```
 esp-generate --headless -o $CHIP -o log $CHIP
@@ -82,8 +82,6 @@ idf.py build
 The `esp_hal_backtrace_c6.elf` elf file under this folder has been generated using `esp-generate@f4213a9`, as the `esp32c6_backtrace` elf file.
 These files are used in the stack dump unwinding unit tests of the espflash monitor, which rely on their addresses, and are not flashed as HIL tests.
 
-The `esp32p4` elf file under this folder has been generated using `esp-idf@v5.5.2` as above, with `idf.py set-target esp32p4`, as `esp-generate` doesn't support the ESP32-P4.
-
 The `esp32h4` elf file under this folder has been generated using ESP-IDF `release/v6.1` (preview target):
 ```
 idf.py --preview set-target esp32h4
@@ -91,7 +89,7 @@ idf.py --preview build
 ```
 from `examples/get-started/hello_world`.
 
-The ESP-IDF elf files print to both UART and USB-Serial-JTAG, so a single elf file is used for both consoles.
+The `esp32h4` elf file prints to both UART and USB-Serial-JTAG, so a single elf file is used for both consoles.
 
 ## SDM HIL Setup for ESP32C6
 
