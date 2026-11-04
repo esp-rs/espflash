@@ -862,6 +862,7 @@ impl TestRunner {
         }
 
         let accept_output = result.output.contains("Silicon Labs")
+            || result.output.contains("FTDI")
             || result.output.contains("Espressif")
             || result.output.contains(":303A"); // Espressif USB VID
         if !accept_output {

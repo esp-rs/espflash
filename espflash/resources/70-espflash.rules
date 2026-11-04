@@ -15,6 +15,8 @@ SUBSYSTEM!="usb|tty|hidraw", GOTO="espflash_rules_end"
 
 # Please keep this list sorted by VID:PID
 
+# FTDI FT2232H (ESP-WROVER-KIT/ESP-Prog): interface 00 is JTAG, interface 01 is UART
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", ENV{ID_USB_INTERFACE_NUM}=="01", GROUP="plugdev", MODE="660", TAG+="uaccess", SYMLINK+="serial_ports/uart"
 # Espressif USB JTAG/serial debug unit and USB Bridge
 ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE="660", GROUP="plugdev", TAG+="uaccess", SYMLINK+="serial_ports/usb"
 ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1002", MODE="660", GROUP="plugdev", TAG+="uaccess", SYMLINK+="serial_ports/usb"
