@@ -7,10 +7,10 @@
 use std::{
     collections::HashMap,
     fmt,
-    io::{BufWriter, Read, Write},
+    io::{self, Read, Write},
     iter::zip,
     thread::sleep,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use log::{debug, info};
@@ -519,6 +519,19 @@ impl Connection {
         result
     }
 
+    /// Runs `f` with a deadline one serial timeout from now.
+    fn with_deadline<T>(
+        &mut self,
+        f: impl FnOnce(&mut Connection, Instant) -> Result<T, Error>,
+    ) -> Result<T, Error> {
+        let timeout = self.serial.timeout();
+        let result = f(self, Instant::now() + timeout);
+        // `DeadlinePort` shortens the serial timeout as the deadline approaches
+        self.serial.set_timeout(timeout)?;
+
+        result
+    }
+
     /// Reads the response from a serial port.
     pub fn read_flash_response(&mut self) -> Result<Option<CommandResponse>, Error> {
         let mut response = Vec::new();
@@ -547,8 +560,10 @@ impl Connection {
         &mut self,
         ty: CommandType,
     ) -> Result<Option<CommandResponse>, Error> {
-        self.read_response_bounded(ty.max_response_len())
-            .for_command(ty)
+        self.with_deadline(|connection, deadline| {
+            connection.read_response_bounded(ty.max_response_len(), deadline)
+        })
+        .for_command(ty)
     }
 
     /// Reads the response from a serial port.
@@ -556,11 +571,17 @@ impl Connection {
     pub fn read_response(&mut self) -> Result<Option<CommandResponse>, Error> {
         // don't know the command to expect a response for -- use the default
         // max length (the entire flash size)
-        self.read_response_bounded(DEFAULT_MAX_LEN)
+        self.with_deadline(|connection, deadline| {
+            connection.read_response_bounded(DEFAULT_MAX_LEN, deadline)
+        })
     }
 
-    fn read_response_bounded(&mut self, max_len: u64) -> Result<Option<CommandResponse>, Error> {
-        match self.read_bounded(10, max_len)? {
+    fn read_response_bounded(
+        &mut self,
+        max_len: u64,
+        deadline: Instant,
+    ) -> Result<Option<CommandResponse>, Error> {
+        match self.read_bounded(10, max_len, deadline)? {
             None => Ok(None),
             Some(response) => {
                 // Here is what esptool does: https://github.com/espressif/esptool/blob/81b2eaee261aed0d3d754e32c57959d6b235bfed/esptool/loader.py#L518
@@ -619,65 +640,86 @@ impl Connection {
 
     /// Writes raw data to the serial port.
     pub fn write_raw(&mut self, data: u32) -> Result<(), Error> {
-        let mut binding = Box::new(&mut self.serial);
-        let serial = binding.as_mut();
-        serial.clear(serialport::ClearBuffer::Input)?;
-        let mut writer = BufWriter::new(serial);
-        let mut encoder = SlipEncoder::new(&mut writer)?;
-        encoder.write_all(&data.to_le_bytes())?;
-        encoder.finish()?;
-        writer.flush()?;
-        Ok(())
+        self.with_deadline(|connection, deadline| {
+            connection.write_frame(&data.to_le_bytes(), deadline)
+        })
     }
 
     /// Writes a command to the serial port.
     pub fn write_command(&mut self, command: Command<'_>) -> Result<(), Error> {
-        debug!("Writing command: {command:02x?}");
-        let mut binding = Box::new(&mut self.serial);
-        let serial = binding.as_mut();
+        self.with_deadline(|connection, deadline| connection.write_command_until(command, deadline))
+    }
 
-        serial.clear(serialport::ClearBuffer::Input)?;
-        let mut writer = BufWriter::new(serial);
-        let mut encoder = SlipEncoder::new(&mut writer)?;
-        command.write(&mut encoder)?;
+    fn write_command_until(
+        &mut self,
+        command: Command<'_>,
+        deadline: Instant,
+    ) -> Result<(), Error> {
+        debug!("Writing command: {command:02x?}");
+        let mut payload = Vec::new();
+        command.write(&mut payload)?;
+        self.write_frame(&payload, deadline)
+    }
+
+    /// Writes `payload` as a SLIP frame and waits until it has been sent.
+    fn write_frame(&mut self, payload: &[u8], deadline: Instant) -> Result<(), Error> {
+        let mut frame = Vec::with_capacity(payload.len() + 2);
+        let mut encoder = SlipEncoder::new(&mut frame)?;
+        encoder.write_all(payload)?;
         encoder.finish()?;
-        writer.flush()?;
-        Ok(())
+
+        self.serial.clear(serialport::ClearBuffer::Input)?;
+        let mut port = DeadlinePort {
+            serial: &mut self.serial,
+            deadline,
+        };
+        port.write_all(&frame)
+            .and_then(|()| port.flush())
+            .map_err(|err| Error::Connection(Box::new(ConnectionError::from(err))))
     }
 
     /// Writes a command and reads the response.
+    ///
+    /// The whole exchange must complete within the serial timeout.
     pub fn command(&mut self, command: Command<'_>) -> Result<CommandResponseValue, Error> {
         let ty = command.command_type();
-        self.write_command(command).for_command(ty)?;
-        for _ in 0..100 {
-            match self.read_response_for_command(ty)? {
-                Some(response) if response.return_op == ty as u8 => {
-                    return if response.status != 0 {
-                        let _error = self.flush();
-                        Err(Error::RomError(Box::new(RomError::new(
-                            command.command_type(),
-                            RomErrorKind::from(response.error),
-                        ))))
-                    } else {
-                        // Check if the response is a Vector and strip header
-                        // (first 8 bytes) https://github.com/espressif/esptool/blob/749d1ad/esptool/loader.py#L481
-                        let modified_value = match response.value {
-                            CommandResponseValue::Vector(mut vec) if vec.len() >= 8 => {
-                                vec = vec[8..][..response.return_length as usize].to_vec();
-                                CommandResponseValue::Vector(vec)
-                            }
-                            _ => response.value, // If not Vector, return as is
-                        };
-
-                        Ok(modified_value)
-                    };
+        let response = self.with_deadline(|connection, deadline| {
+            connection
+                .write_command_until(command, deadline)
+                .for_command(ty)?;
+            for _ in 0..100 {
+                match connection
+                    .read_response_bounded(ty.max_response_len(), deadline)
+                    .for_command(ty)?
+                {
+                    Some(response) if response.return_op == ty as u8 => return Ok(response),
+                    _ => continue,
                 }
-                _ => continue,
             }
+            Err(Error::Connection(Box::new(
+                ConnectionError::ConnectionFailed,
+            )))
+        })?;
+
+        if response.status != 0 {
+            let _error = self.flush();
+            Err(Error::RomError(Box::new(RomError::new(
+                ty,
+                RomErrorKind::from(response.error),
+            ))))
+        } else {
+            // Check if the response is a Vector and strip header
+            // (first 8 bytes) https://github.com/espressif/esptool/blob/749d1ad/esptool/loader.py#L481
+            let modified_value = match response.value {
+                CommandResponseValue::Vector(mut vec) if vec.len() >= 8 => {
+                    vec = vec[8..][..response.return_length as usize].to_vec();
+                    CommandResponseValue::Vector(vec)
+                }
+                _ => response.value, // If not Vector, return as is
+            };
+
+            Ok(modified_value)
         }
-        Err(Error::Connection(Box::new(
-            ConnectionError::ConnectionFailed,
-        )))
     }
 
     /// Reads a register command with a timeout.
@@ -714,17 +756,22 @@ impl Connection {
 
     /// Reads a register command.
     pub(crate) fn read(&mut self, len: usize) -> Result<Option<Vec<u8>>, Error> {
-        self.read_bounded(len, u64::MAX)
+        self.with_deadline(|connection, deadline| connection.read_bounded(len, u64::MAX, deadline))
     }
 
     /// Reads a register command at most `max_len` bytes long.
-    pub(crate) fn read_bounded(
+    fn read_bounded(
         &mut self,
         len: usize,
         max_len: u64,
+        deadline: Instant,
     ) -> Result<Option<Vec<u8>>, Error> {
         let mut tmp = Vec::with_capacity(1024);
-        let mut serial = (&mut self.serial).take(max_len);
+        let mut serial = DeadlinePort {
+            serial: &mut self.serial,
+            deadline,
+        }
+        .take(max_len);
         loop {
             self.decoder.decode(&mut serial, &mut tmp)?;
             if tmp.len() >= len {
@@ -733,10 +780,16 @@ impl Connection {
         }
     }
 
-    /// Flushes  the serial port.
+    /// Waits until all pending output has been sent, for at most the serial
+    /// timeout.
     pub fn flush(&mut self) -> Result<(), Error> {
-        self.serial.flush()?;
-        Ok(())
+        let deadline = Instant::now() + self.serial.timeout();
+        DeadlinePort {
+            serial: &mut self.serial,
+            deadline,
+        }
+        .flush()
+        .map_err(|err| Error::Connection(Box::new(ConnectionError::from(err))))
     }
 
     /// Turns a serial port into a [Port].
@@ -821,6 +874,54 @@ impl From<Connection> for Port {
     }
 }
 
+/// Serial port I/O that fails once `deadline` has passed.
+///
+/// The serial timeout alone bounds each read or write call rather than a
+/// whole command, so a device that keeps sending unrelated bytes keeps a read
+/// alive indefinitely, and `Port::flush` blocks in `tcdrain` or
+/// `FlushFileBuffers` for as long as a USB device does not accept data.
+struct DeadlinePort<'a> {
+    serial: &'a mut Port,
+    deadline: Instant,
+}
+
+impl DeadlinePort<'_> {
+    /// Shortens the serial timeout to the time left until the deadline.
+    fn limit_timeout(&mut self) -> io::Result<()> {
+        let remaining = self.deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(io::ErrorKind::TimedOut.into());
+        }
+        self.serial.set_timeout(remaining)?;
+        Ok(())
+    }
+}
+
+impl Read for DeadlinePort<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.limit_timeout()?;
+        self.serial.read(buf)
+    }
+}
+
+impl Write for DeadlinePort<'_> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.limit_timeout()?;
+        self.serial.write(buf)
+    }
+
+    /// Waits until the OS has sent all pending output to the device.
+    fn flush(&mut self) -> io::Result<()> {
+        while self.serial.bytes_to_write()? > 0 {
+            if Instant::now() >= self.deadline {
+                return Err(io::ErrorKind::TimedOut.into());
+            }
+            sleep(Duration::from_millis(1));
+        }
+        Ok(())
+    }
+}
+
 mod encoder {
     use std::io::Write;
 
@@ -877,5 +978,117 @@ mod encoder {
         fn flush(&mut self) -> std::io::Result<()> {
             self.writer.flush()
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::{sync::mpsc, thread};
+
+    use super::*;
+
+    const TIMEOUT: Duration = Duration::from_millis(200);
+    /// END, 8-byte header, 4-byte address, END
+    const READ_REG_FRAME_LEN: usize = 14;
+
+    /// Sends `ReadReg` to a pseudo-terminal device driven by `device` and
+    /// returns the result and how long it took.
+    fn read_reg(device: impl FnOnce(&mut Port) + Send + 'static) -> (Result<u32, Error>, Duration) {
+        let (mut device_port, host_port) = Port::pair().unwrap();
+        let port_info = UsbPortInfo {
+            vid: 0,
+            pid: 0,
+            serial_number: None,
+            manufacturer: None,
+            product: None,
+        };
+        let mut connection = Connection::new(
+            host_port,
+            port_info,
+            ResetAfterOperation::HardReset,
+            ResetBeforeOperation::NoReset,
+            115_200,
+        );
+        // Closing the device end discards unread output, so the thread returns
+        // its port to keep it open until the command has finished
+        let _device = thread::spawn(move || {
+            device(&mut device_port);
+            device_port
+        });
+
+        // Run on another thread so a hang fails the test instead of stalling it
+        let (tx, rx) = mpsc::channel();
+        thread::spawn(move || {
+            let start = Instant::now();
+            let result = connection.with_timeout(TIMEOUT, |connection| {
+                connection
+                    .command(Command::ReadReg { address: 0 })?
+                    .try_into()
+            });
+            tx.send((result, start.elapsed())).ok();
+        });
+        rx.recv_timeout(TIMEOUT * 10)
+            .expect("command did not return within its timeout")
+    }
+
+    /// A ROM loader response frame for `ty` carrying `value`.
+    fn response(ty: CommandType, value: u32) -> Vec<u8> {
+        let mut frame = vec![0xc0, 0x01, ty as u8, 0x04, 0x00];
+        frame.extend(value.to_le_bytes());
+        frame.extend([0, 0, 0, 0, 0xc0]);
+        frame
+    }
+
+    /// Writes `data` to the device port every `TIMEOUT / 4`, which keeps every
+    /// single read within the serial timeout, for `TIMEOUT * 20`.
+    fn stream(device: &mut Port, data: &[u8]) {
+        device.read_exact(&mut [0; READ_REG_FRAME_LEN]).unwrap();
+        let start = Instant::now();
+        while start.elapsed() < TIMEOUT * 20 {
+            device.write_all(data).unwrap();
+            thread::sleep(TIMEOUT / 4);
+        }
+    }
+
+    fn assert_timed_out((result, elapsed): (Result<u32, Error>, Duration)) {
+        assert!(
+            matches!(
+                &result,
+                Err(Error::Connection(err))
+                    if matches!(err.downcast_ref(), Some(ConnectionError::Timeout(_)))
+            ),
+            "expected a timeout, got {result:?}"
+        );
+        assert!(elapsed < TIMEOUT * 2, "command took {elapsed:?}");
+    }
+
+    #[test]
+    fn command_returns_matching_response() {
+        let (result, _) = read_reg(|device| {
+            device.read_exact(&mut [0; READ_REG_FRAME_LEN]).unwrap();
+            device
+                .write_all(&response(CommandType::ReadReg, 0x1234_5678))
+                .unwrap();
+        });
+        assert_eq!(result.unwrap(), 0x1234_5678);
+    }
+
+    #[test]
+    fn command_times_out_when_device_never_reads() {
+        assert_timed_out(read_reg(|_| {}));
+    }
+
+    #[test]
+    fn command_times_out_on_unrelated_output() {
+        assert_timed_out(read_reg(|device| {
+            stream(device, b"Restarting in 5 seconds...\n")
+        }));
+    }
+
+    #[test]
+    fn command_times_out_on_responses_to_other_commands() {
+        assert_timed_out(read_reg(|device| {
+            stream(device, &response(CommandType::Sync, 0))
+        }));
     }
 }
