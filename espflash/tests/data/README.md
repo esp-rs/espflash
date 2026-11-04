@@ -82,14 +82,16 @@ idf.py build
 The `esp_hal_backtrace_c6.elf` elf file under this folder has been generated using `esp-generate@f4213a9`, as the `esp32c6_backtrace` elf file.
 These files are used in the stack dump unwinding unit tests of the espflash monitor, which rely on their addresses, and are not flashed as HIL tests.
 
-The `esp32h4` elf file under this folder has been generated using ESP-IDF `release/v6.1` (preview target):
+The `esp32h4` and `esp32h4_usb` elf files under this folder have been generated using `esp-generate@2.0.0` with the esp-hal template at [`831fff24bd`](https://github.com/esp-rs/esp-hal/tree/831fff24bd76d1e3384539341ecbb7232cb5783e/template), as no esp-hal release supports the ESP32-H4 yet. The template has no `esp32h4` chip option, so generate the project for the ESP32-H2:
 ```
-idf.py --preview set-target esp32h4
-idf.py --preview build
+esp-generate --headless --template esp-rs/esp-hal -o esp32h2 esp32h4
+cd esp32h4
 ```
-from `examples/get-started/hello_world`.
-
-The `esp32h4` elf file prints to both UART and USB-Serial-JTAG, so a single elf file is used for both consoles.
+The esp-hal dependencies are pinned to the template commit, so set their `rev` to `831fff24bd76d1e3384539341ecbb7232cb5783e` if `main` has moved. Then replace `esp32h2` with `esp32h4` and `riscv32imac-unknown-none-elf` with `riscv32imafc-unknown-none-elf` in `Cargo.toml`, `.cargo/config.toml` and `rust-toolchain.toml`, change `Cargo.toml` as for the `$CHIP` elf files (the dependencies are `[dependencies.esp-println]` tables, so add `default-features = false` and the features there), and build the elf files:
+```
+cargo build --release --features uart
+cargo build --release --features usb
+```
 
 ## SDM HIL Setup for ESP32C6
 
