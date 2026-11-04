@@ -526,6 +526,11 @@ impl Connection {
     ) -> Result<T, Error> {
         let timeout = self.serial.timeout();
         let result = f(self, Instant::now() + timeout);
+        if result.is_err() {
+            // Output the device has not taken would otherwise stay queued and
+            // block later writes and closing the port. Keep the original error.
+            let _error = self.serial.clear(serialport::ClearBuffer::Output);
+        }
         // `DeadlinePort` shortens the serial timeout as the deadline approaches
         self.serial.set_timeout(timeout)?;
 
@@ -783,13 +788,14 @@ impl Connection {
     /// Waits until all pending output has been sent, for at most the serial
     /// timeout.
     pub fn flush(&mut self) -> Result<(), Error> {
-        let deadline = Instant::now() + self.serial.timeout();
-        DeadlinePort {
-            serial: &mut self.serial,
-            deadline,
-        }
-        .flush()
-        .map_err(|err| Error::Connection(Box::new(ConnectionError::from(err))))
+        self.with_deadline(|connection, deadline| {
+            DeadlinePort {
+                serial: &mut connection.serial,
+                deadline,
+            }
+            .flush()
+            .map_err(|err| Error::Connection(Box::new(ConnectionError::from(err))))
+        })
     }
 
     /// Turns a serial port into a [Port].
@@ -992,7 +998,7 @@ mod tests {
     const READ_REG_FRAME_LEN: usize = 14;
 
     /// Sends `ReadReg` to a pseudo-terminal device driven by `device` and
-    /// returns the result and how long it took.
+    /// returns the result and how long it took, including closing the port.
     fn read_reg(device: impl FnOnce(&mut Port) + Send + 'static) -> (Result<u32, Error>, Duration) {
         let (mut device_port, host_port) = Port::pair().unwrap();
         let port_info = UsbPortInfo {
@@ -1025,6 +1031,8 @@ mod tests {
                     .command(Command::ReadReg { address: 0 })?
                     .try_into()
             });
+            // Closing the port must not wait for output the device never took
+            drop(connection);
             tx.send((result, start.elapsed())).ok();
         });
         rx.recv_timeout(TIMEOUT * 10)
