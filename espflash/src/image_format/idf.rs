@@ -1057,7 +1057,14 @@ mod tests {
     #[test]
     fn qio_uses_the_quad_bootloader_marked_dio() {
         for chip in CHIPS_40MHZ {
-            let bundled = default_bootloaders(chip, XtalFrequency::_40Mhz, None, 0).unwrap();
+            // The image uses the bootloader for the minimum chip revision in
+            // the ELF metadata, e.g. v3.0 for the ESP32-P4 esp-hal app.
+            let elf = std::fs::read(format!("tests/data/{chip}")).unwrap();
+            let min_chip_rev = Metadata::from_bytes(Some(&elf))
+                .min_chip_revision()
+                .unwrap_or(0);
+            let bundled =
+                default_bootloaders(chip, XtalFrequency::_40Mhz, None, min_chip_rev).unwrap();
             assert_ne!(bundled.qio, bundled.dio, "{chip}");
 
             let segments = image(chip, Some(FlashMode::Qio));
