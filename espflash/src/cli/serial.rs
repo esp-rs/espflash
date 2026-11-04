@@ -5,7 +5,7 @@ use crossterm::style::Stylize;
 use dialoguer::{Confirm, Select, theme::ColorfulTheme};
 use log::{error, info};
 use miette::{IntoDiagnostic, Result};
-use serialport::{SerialPortInfo, SerialPortType, available_ports};
+use serialport::{SerialPortInfo, SerialPortType, UsbPortInfo, available_ports};
 
 use crate::{
     Error,
@@ -161,6 +161,38 @@ const KNOWN_DEVICES: &[UsbDevice] = &[
     }, // Presented by ESP32S3FH4R2, e.g. as part of Waveshare ESP32-S3-Matrix
 ];
 
+/// USB vendors whose name we display instead of the one reported by the OS.
+///
+/// On Windows the reported manufacturer is the vendor of the installed driver
+/// package (e.g. "Microsoft" or "(Undefined Vendor)"), not of the device.
+const KNOWN_VENDORS: &[(u16, &str)] = &[
+    (0x0403, "FTDI"),
+    (0x10c4, "Silicon Labs"),
+    (0x1a86, "WCH"),
+    (0x303a, "Espressif"),
+];
+
+/// Manufacturer name to display for a USB serial port.
+pub(super) fn usb_manufacturer(info: &UsbPortInfo) -> Option<&str> {
+    KNOWN_VENDORS
+        .iter()
+        .find(|(vid, _)| *vid == info.vid)
+        .map(|(_, name)| *name)
+        .or(info.manufacturer.as_deref())
+}
+
+/// Product name to display for a USB serial port.
+///
+/// On Windows the reported product is the device's friendly name, which ends
+/// with the port name, e.g. "USB Serial Device (COM3)".
+pub(super) fn usb_product<'a>(port_name: &str, info: &'a UsbPortInfo) -> Option<&'a str> {
+    let product = info.product.as_deref()?;
+    let product = product
+        .strip_suffix(&format!(" ({port_name})"))
+        .unwrap_or(product);
+    Some(product)
+}
+
 pub(super) fn known_ports_filter(port: &SerialPortInfo, config: &PortConfig) -> bool {
     // Does this port match a known one?
     match &port.port_type {
@@ -209,7 +241,7 @@ fn select_serial_port(
                 };
                 match &port_info.port_type {
                     SerialPortType::UsbPort(info) => {
-                        if let Some(product) = &info.product {
+                        if let Some(product) = usb_product(&port_info.port_name, info) {
                             format!("{formatted} - {product}")
                         } else {
                             formatted.to_string()
@@ -243,7 +275,7 @@ fn select_serial_port(
         // A single port, but we didn't recognize it. Prompt for confirmation.
         let port_name = port.port_name.clone();
         let product = match &port.port_type {
-            SerialPortType::UsbPort(info) => info.product.as_ref(),
+            SerialPortType::UsbPort(info) => usb_product(&port_name, info),
             _ => None,
         };
         if confirm_port(&port_name, product)? {
@@ -258,7 +290,7 @@ fn select_serial_port(
 }
 
 /// Ask the user to confirm the use of a serial port.
-fn confirm_port(port_name: &str, product: Option<&String>) -> Result<bool, Error> {
+fn confirm_port(port_name: &str, product: Option<&str>) -> Result<bool, Error> {
     Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt({
             if let Some(product) = product {

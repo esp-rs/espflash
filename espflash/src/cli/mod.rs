@@ -527,7 +527,7 @@ pub fn list_ports(args: &ListPortsArgs, config: &PortConfig) -> Result<()> {
         let manufacturer_width = ports
             .iter()
             .filter_map(|p| match &p.port_type {
-                SerialPortType::UsbPort(p) => p.manufacturer.as_ref().map(|m| m.len()),
+                SerialPortType::UsbPort(p) => serial::usb_manufacturer(p).map(|m| m.len()),
                 _ => None,
             })
             .max()
@@ -555,10 +555,10 @@ pub fn list_ports(args: &ListPortsArgs, config: &PortConfig) -> Result<()> {
                         println!(
                             "{0: <name_width$}{3:04X}:{4:04X}  {1: <manufacturer_width$}{2}",
                             port.port_name,
-                            p.manufacturer.unwrap_or_default(),
-                            p.product.unwrap_or_default(),
-                            p.pid,
+                            serial::usb_manufacturer(&p).unwrap_or_default(),
+                            serial::usb_product(&port.port_name, &p).unwrap_or_default(),
                             p.vid,
+                            p.pid,
                             name_width = name_width,
                             manufacturer_width = manufacturer_width,
                         )
