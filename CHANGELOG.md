@@ -11,7 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Show the vendor name for known USB vendor IDs instead of the manufacturer reported by the OS, which on Windows is the driver vendor, e.g. `(Undefined Vendor)` (#1112)
+
 ### Fixed
+
+- `list-ports` prints USB IDs as `VID:PID` instead of `PID:VID` (#1112)
+- Port names are no longer printed twice on Windows (#1112)
 
 ### Removed
 
