@@ -725,9 +725,16 @@ impl<'a> IdfBootloaderFormat<'a> {
             );
         }
 
+        // The primary bootloader and partition table entries (type 0x02 and 0x03,
+        // subtype 0x00) describe these regions, so they can overlap the table.
+        let is_primary_region = |p: &Partition| {
+            matches!(u8::from(p.ty()), 0x02 | 0x03) && u8::from(p.subtype()) == 0x00
+        };
         let table_end = partition_table_offset.saturating_add(PARTITION_TABLE_SIZE);
         if let Some(partition) = partition_table.partitions().iter().find(|p| {
-            p.offset() < table_end && partition_table_offset < p.offset().saturating_add(p.size())
+            !is_primary_region(p)
+                && p.offset() < table_end
+                && partition_table_offset < p.offset().saturating_add(p.size())
         }) {
             return Err(Error::PartitionTableOverlap {
                 offset: partition_table_offset,
@@ -1255,6 +1262,17 @@ mod tests {
             let address = partition_table_address(table, bootloader, offset);
             assert_eq!(address.unwrap(), expected, "{table}");
         }
+    }
+
+    #[test]
+    fn primary_bootloader_and_partition_table_entries_may_overlap_the_table() {
+        let given = Some(Path::new(GIVEN_BOOTLOADER));
+        let table = "partitions_primary_entries.csv";
+        assert_eq!(partition_table_address(table, None, None).unwrap(), 0x8000);
+        assert_eq!(
+            partition_table_address(table, given, Some(0x8000)).unwrap(),
+            0x8000
+        );
     }
 
     #[test]
