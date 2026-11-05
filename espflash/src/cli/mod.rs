@@ -52,7 +52,13 @@ use crate::{
         FlashSize,
         Flasher,
     },
-    image_format::{ImageFormat, ImageFormatKind, Metadata, idf::IdfBootloaderFormat},
+    image_format::{
+        ImageFormat,
+        ImageFormatKind,
+        Metadata,
+        direct_boot::DirectBootFormat,
+        idf::IdfBootloaderFormat,
+    },
     target::{Chip, ProgressCallbacks, XtalFrequency},
 };
 
@@ -785,11 +791,11 @@ pub fn save_elf_as_image<'a>(
     image_format: ImageFormat<'a>,
 ) -> Result<()> {
     let metadata = image_format.metadata();
-    if metadata.contains_key("app_size") && metadata.contains_key("part_size") {
-        let app_size = metadata["app_size"].parse::<u32>().unwrap();
-        let part_size = metadata["part_size"].parse::<u32>().unwrap();
+    if let Some(app_size) = metadata.get("app_size") {
+        let app_size = app_size.parse::<u32>().unwrap();
+        let part_size = metadata.get("part_size").map(|s| s.parse::<u32>().unwrap());
 
-        display_image_size(app_size, Some(part_size));
+        display_image_size(app_size, part_size);
     }
 
     if merge {
@@ -1196,7 +1202,7 @@ pub fn make_image_format_with_chip_revision<'a>(
     build_ctx_partition_table: Option<PathBuf>,
     chip_revision: Option<u16>,
 ) -> Result<ImageFormat<'a>, Error> {
-    let image_format = match image_format_kind {
+    let image_format: ImageFormat<'a> = match image_format_kind {
         ImageFormatKind::EspIdf => {
             let mut args = idf_format_args.unwrap_or_default();
             // Set bootloader path with precedence
@@ -1227,10 +1233,56 @@ pub fn make_image_format_with_chip_revision<'a>(
                 args.target_app_partition.as_deref(),
                 chip_revision,
             )?
+            .into()
+        }
+        ImageFormatKind::DirectBoot => {
+            let chip = flash_data.chip;
+            if chip == Chip::Esp32c3 && chip_revision.is_some_and(|rev| rev < 3) {
+                return Err(Error::UnsupportedImageFormat {
+                    format: image_format_kind,
+                    chip,
+                    context: Some("direct boot requires revision v0.3 or later".to_string()),
+                });
+            }
+            DirectBootFormat::new(elf_data, chip)?.into()
         }
     };
 
-    Ok(image_format.into())
+    Ok(image_format)
+}
+
+/// Determines the image format to use.
+///
+/// The format given on the command line takes precedence over the one in the
+/// configuration file. If neither is given, the format the ELF image was
+/// built for is used, falling back to the ESP-IDF format. An explicitly given
+/// format that contradicts the ELF image is an error, unless `force` is set.
+pub fn resolve_image_format(
+    cli_format: Option<ImageFormatKind>,
+    config: &Config,
+    elf_data: &[u8],
+    force: bool,
+) -> Result<ImageFormatKind> {
+    let elf_format = Metadata::from_bytes(Some(elf_data)).image_format();
+
+    let Some(requested) = cli_format.or(config.project_config.format) else {
+        return Ok(elf_format.unwrap_or_default());
+    };
+
+    match elf_format {
+        Some(elf) if elf != requested => {
+            if force {
+                warn!(
+                    "The `{requested}` image format was requested, but the ELF image was built for `{elf}`"
+                );
+            } else {
+                return Err(Error::ImageFormatMismatch { requested, elf }).into_diagnostic();
+            }
+        }
+        _ => {}
+    }
+
+    Ok(requested)
 }
 
 /// Make flash data from the given arguments
@@ -1402,5 +1454,49 @@ mod test {
         assert!(parse_u32("0xg").is_err());
         assert!(parse_u32("-123").is_err());
         assert!(parse_u32("12.34").is_err());
+    }
+
+    #[test]
+    fn test_resolve_image_format() {
+        use ImageFormatKind::{DirectBoot, EspIdf};
+
+        let direct_boot = fs::read("tests/data/esp_hal_direct_boot_c6.elf").unwrap();
+        let esp_hal_idf = fs::read("tests/data/esp_hal_uncached_data_p4.elf").unwrap();
+        let esp_idf = fs::read("tests/data/esp_idf_firmware_c6.elf").unwrap();
+
+        let config = Config::default();
+        let mut config_direct_boot = Config::default();
+        config_direct_boot.project_config.format = Some(DirectBoot);
+
+        let resolve = |cli, config, elf, force| resolve_image_format(cli, config, elf, force).ok();
+
+        // Detected from the ELF metadata, falling back to ESP-IDF
+        assert_eq!(
+            resolve(None, &config, &direct_boot, false),
+            Some(DirectBoot)
+        );
+        assert_eq!(resolve(None, &config, &esp_hal_idf, false), Some(EspIdf));
+        assert_eq!(resolve(None, &config, &esp_idf, false), Some(EspIdf));
+
+        // Explicit formats take precedence, the CLI over the config
+        assert_eq!(
+            resolve(None, &config_direct_boot, &esp_idf, false),
+            Some(DirectBoot)
+        );
+        assert_eq!(
+            resolve(Some(EspIdf), &config_direct_boot, &esp_idf, false),
+            Some(EspIdf)
+        );
+
+        // Explicit formats that contradict the ELF metadata need `force`
+        assert_eq!(resolve(Some(EspIdf), &config, &direct_boot, false), None);
+        assert_eq!(
+            resolve(None, &config_direct_boot, &esp_hal_idf, false),
+            None
+        );
+        assert_eq!(
+            resolve(Some(EspIdf), &config, &direct_boot, true),
+            Some(EspIdf)
+        );
     }
 }

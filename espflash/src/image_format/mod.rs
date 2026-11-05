@@ -19,8 +19,12 @@ use object::{
 use serde::{Deserialize, Serialize};
 
 pub use self::metadata::Metadata;
-use crate::{image_format::idf::IdfBootloaderFormat, target::Chip};
+use crate::{
+    image_format::{direct_boot::DirectBootFormat, idf::IdfBootloaderFormat},
+    target::Chip,
+};
 
+pub mod direct_boot;
 pub mod idf;
 mod metadata;
 
@@ -33,7 +37,23 @@ pub enum ImageFormatKind {
     ///
     /// See: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html>
     #[default]
+    #[serde(alias = "esp-idf")]
     EspIdf,
+    /// Direct boot image format, started by the ROM without a second-stage
+    /// bootloader
+    ///
+    /// See: <https://docs.espressif.com/projects/rust/esp-bootloader-direct-boot/latest/>
+    #[serde(alias = "direct-boot")]
+    DirectBoot,
+}
+
+impl std::fmt::Display for ImageFormatKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ImageFormatKind::EspIdf => f.write_str("esp-idf"),
+            ImageFormatKind::DirectBoot => f.write_str("direct-boot"),
+        }
+    }
 }
 
 /// Binary application image format data
@@ -44,6 +64,8 @@ pub enum ImageFormat<'a> {
     ///
     /// See: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html>
     EspIdf(IdfBootloaderFormat<'a>),
+    /// Direct boot image format
+    DirectBoot(DirectBootFormat<'a>),
 }
 
 impl<'a> ImageFormat<'a> {
@@ -51,6 +73,7 @@ impl<'a> ImageFormat<'a> {
     pub fn flash_segments(self) -> Vec<Segment<'a>> {
         match self {
             ImageFormat::EspIdf(idf) => idf.flash_segments().collect(),
+            ImageFormat::DirectBoot(direct_boot) => direct_boot.flash_segments().collect(),
         }
     }
 
@@ -58,6 +81,7 @@ impl<'a> ImageFormat<'a> {
     pub fn ota_segments(self) -> Vec<Segment<'a>> {
         match self {
             ImageFormat::EspIdf(idf) => idf.ota_segments().collect(),
+            ImageFormat::DirectBoot(direct_boot) => direct_boot.ota_segments().collect(),
         }
     }
 
@@ -65,6 +89,7 @@ impl<'a> ImageFormat<'a> {
     pub fn metadata(&self) -> HashMap<&str, String> {
         match self {
             ImageFormat::EspIdf(idf) => idf.metadata(),
+            ImageFormat::DirectBoot(direct_boot) => direct_boot.metadata(),
         }
     }
 }
@@ -72,6 +97,12 @@ impl<'a> ImageFormat<'a> {
 impl<'a> From<IdfBootloaderFormat<'a>> for ImageFormat<'a> {
     fn from(idf: IdfBootloaderFormat<'a>) -> Self {
         Self::EspIdf(idf)
+    }
+}
+
+impl<'a> From<DirectBootFormat<'a>> for ImageFormat<'a> {
+    fn from(direct_boot: DirectBootFormat<'a>) -> Self {
+        Self::DirectBoot(direct_boot)
     }
 }
 
