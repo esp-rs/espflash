@@ -204,13 +204,15 @@ struct FlashArgs {
     connect_args: ConnectArgs,
     #[clap(flatten)]
     flash_args: cli::FlashArgs,
-    /// Application image format to use
-    #[clap(long, default_value = "esp-idf")]
-    format: ImageFormatKind,
+    /// Application image format to use [default: the format the ELF image was
+    /// built for, or esp-idf]
+    #[clap(long)]
+    format: Option<ImageFormatKind>,
     /// ESP-IDF format arguments
     #[clap(flatten)]
     idf_format_args: cli::IdfFormatArgs,
-    /// Skip compatibility checks (chip revision, etc.). Use with caution!
+    /// Skip compatibility checks (chip revision, image format, etc.). Use with
+    /// caution!
     #[clap(long)]
     force: bool,
 }
@@ -222,9 +224,10 @@ struct SaveImageArgs {
     build_args: BuildArgs,
     #[clap(flatten)]
     save_image_args: cli::SaveImageArgs,
-    /// Application image format to use
-    #[clap(long, default_value = "esp-idf")]
-    format: ImageFormatKind,
+    /// Application image format to use [default: the format the ELF image was
+    /// built for, or esp-idf]
+    #[clap(long)]
+    format: Option<ImageFormatKind>,
     /// ESP-IDF format arguments
     #[clap(flatten)]
     idf_format_args: cli::IdfFormatArgs,
@@ -337,6 +340,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     // Read the ELF data from the build path and load it to the target.
     let elf_data = fs::read(build_ctx.artifact_path.clone()).into_diagnostic()?;
+    let format = resolve_image_format(args.format, config, &elf_data, args.force)?;
 
     // Enforce minimum chip revision from ELF metadata (unless --force or secure
     // download mode).
@@ -352,7 +356,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         }
     }
 
-    if args.flash_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
+    if args.flash_args.image.check_app_descriptor && format == ImageFormatKind::EspIdf {
         check_idf_bootloader(&elf_data)?;
     }
 
@@ -365,7 +369,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         args.connect_args.non_interactive,
     )?;
     check_idf_args(
-        args.format,
+        format,
         &args.flash_args.erase_parts,
         &args.flash_args.erase_data_parts,
     )?;
@@ -396,7 +400,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         let image_format = make_image_format_with_chip_revision(
             &elf_data,
             &flash_data,
-            args.format,
+            format,
             config,
             Some(args.idf_format_args),
             build_ctx.bootloader_path,
@@ -634,7 +638,9 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     let build_ctx = build(&args.build_args, &cargo_config, args.save_image_args.chip)?;
     let elf_data = fs::read(&build_ctx.artifact_path).into_diagnostic()?;
 
-    if args.save_image_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
+    let format = resolve_image_format(args.format, config, &elf_data, true)?;
+
+    if args.save_image_args.image.check_app_descriptor && format == ImageFormatKind::EspIdf {
         check_idf_bootloader(&elf_data)?;
     }
 
@@ -665,7 +671,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     let image_format = make_image_format(
         &elf_data,
         &flash_data,
-        args.format,
+        format,
         config,
         Some(args.idf_format_args),
         build_ctx.bootloader_path,
