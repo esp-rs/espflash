@@ -20,9 +20,6 @@ const SUPPORTED_CHIPS: [&str; 12] = [
     "esp32p4", "esp32s2", "esp32s3", "esp32s31",
 ];
 
-/// Test firmware built with ESP-IDF instead of `esp-generate`
-const ESP_IDF_FIRMWARE: [&str; 2] = ["esp32h4", "esp32p4"];
-
 /// Espressif USB vendor ID
 const ESPRESSIF_VID: u16 = 0x303a;
 /// USB product ID of the USB-Serial-JTAG peripheral
@@ -168,13 +165,10 @@ impl TestRunner {
     /// Firmware printing through `esp-println` only prints to one console:
     /// its `auto` mode switches to USB-Serial-JTAG whenever the host polls
     /// the USB port, which loses the output on UART when both are connected.
-    /// ESP-IDF firmware prints to both, so a single build covers either.
     fn app(&self, name: &str) -> String {
         match self.console {
-            Console::Usb if !ESP_IDF_FIRMWARE.contains(&name) => {
-                format!("espflash/tests/data/{name}_usb")
-            }
-            _ => format!("espflash/tests/data/{name}"),
+            Console::Usb => format!("espflash/tests/data/{name}_usb"),
+            Console::Uart => format!("espflash/tests/data/{name}"),
         }
     }
 
@@ -862,8 +856,9 @@ impl TestRunner {
         }
 
         let accept_output = result.output.contains("Silicon Labs")
+            || result.output.contains("FTDI")
             || result.output.contains("Espressif")
-            || result.output.contains(":303A"); // Espressif USB VID
+            || result.output.contains("303A:"); // Espressif USB VID
         if !accept_output {
             return Err("list-ports did not include the connected Espressif device".into());
         }
@@ -1483,6 +1478,5 @@ mod tests {
             runner.app("esp32c6_defmt"),
             "espflash/tests/data/esp32c6_defmt_usb"
         );
-        assert_eq!(runner.app("esp32p4"), "espflash/tests/data/esp32p4");
     }
 }

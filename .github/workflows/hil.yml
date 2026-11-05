@@ -183,6 +183,23 @@ jobs:
             sleep 2
           }
 
+          is_ft2232h() {
+            local props
+            props=$(udevadm info --query=property --name="$1") || return 1
+            grep -qx 'ID_VENDOR_ID=0403' <<<"$props" && grep -qx 'ID_MODEL_ID=6010' <<<"$props"
+          }
+
+          # On FT2232H boards (e.g. ESP-WROVER-KIT), a previous probe-rs session
+          # can leave the JTAG channel driving MTDI high. ESP32 then selects a
+          # 1.8 V flash supply at reset and its 3.3 V flash stops responding.
+          # Resetting the FTDI chip releases the JTAG pins.
+          if [[ -e "$ESPFLASH_PORT" ]] && is_ft2232h "$ESPFLASH_PORT"; then
+            echo "Resetting FT2232H to release the JTAG pins"
+            usbreset 0403:6010
+            # Let the serial ports re-enumerate.
+            sleep 2
+          fi
+
           # Firmware left by a previous run may have disabled native USB.
           if [[ ! -e "$ESPFLASH_PORT" && "$port_kind" == "usb" && -e "$uart_port" ]]; then
             recover_usb_via_uart
