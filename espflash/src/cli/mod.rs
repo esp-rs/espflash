@@ -1414,15 +1414,49 @@ pub fn ensure_chip_compatibility(chip: Chip, elf: Option<&[u8]>) -> Result<()> {
     }
 }
 
-/// Check if the given arguments are valid for the ESP-IDF format
+/// Check that no ESP-IDF specific arguments are given for other formats
 pub fn check_idf_args(
     format: ImageFormatKind,
+    idf_format_args: &IdfFormatArgs,
+    flash_config_args: &FlashConfigArgs,
     erase_parts: &Option<Vec<String>>,
     erase_data_parts: &Option<Vec<DataType>>,
 ) -> Result<()> {
-    if format != ImageFormatKind::EspIdf && (erase_parts.is_some() || erase_data_parts.is_some()) {
+    if format == ImageFormatKind::EspIdf {
+        return Ok(());
+    }
+
+    let given = [
+        ("--bootloader", idf_format_args.bootloader.is_some()),
+        (
+            "--partition-table",
+            idf_format_args.partition_table.is_some(),
+        ),
+        (
+            "--partition-table-offset",
+            idf_format_args.partition_table_offset.is_some(),
+        ),
+        (
+            "--target-app-partition",
+            idf_format_args.target_app_partition.is_some(),
+        ),
+        ("--flash-mode", flash_config_args.flash_mode.is_some()),
+        ("--flash-freq", flash_config_args.flash_freq.is_some()),
+        ("--erase-parts", erase_parts.is_some()),
+        ("--erase-data-parts", erase_data_parts.is_some()),
+    ]
+    .into_iter()
+    .filter(|&(_, given)| given)
+    .map(|(arg, _)| format!("`{arg}`"))
+    .collect::<Vec<_>>();
+
+    if !given.is_empty() {
         return Err(miette::miette!(
-            "`erase-parts` and `erase-data` parts are only supported when using the `esp-idf` format."
+            "{} only supported when using the `esp-idf` format, not `{format}`.",
+            match given.as_slice() {
+                [arg] => format!("{arg} is"),
+                args => format!("{} are", args.join(", ")),
+            }
         ));
     }
 
@@ -1466,6 +1500,61 @@ mod test {
         assert!(parse_u32("0xg").is_err());
         assert!(parse_u32("-123").is_err());
         assert!(parse_u32("12.34").is_err());
+    }
+
+    #[test]
+    fn test_check_idf_args() {
+        use ImageFormatKind::{DirectBoot, EspIdf};
+
+        let idf_args = IdfFormatArgs {
+            bootloader: Some("bootloader.bin".into()),
+            ..Default::default()
+        };
+        let flash_config = FlashConfigArgs {
+            flash_mode: Some(FlashMode::Dio),
+            flash_freq: None,
+            flash_size: Some(FlashSize::_4Mb),
+        };
+        let no_flash_config = FlashConfigArgs {
+            flash_mode: None,
+            flash_freq: None,
+            flash_size: Some(FlashSize::_4Mb),
+        };
+        let erase_parts = Some(vec!["nvs".to_string()]);
+
+        assert!(check_idf_args(EspIdf, &idf_args, &flash_config, &erase_parts, &None).is_ok());
+        assert!(
+            check_idf_args(
+                DirectBoot,
+                &IdfFormatArgs::default(),
+                &no_flash_config,
+                &None,
+                &None
+            )
+            .is_ok()
+        );
+
+        assert!(check_idf_args(DirectBoot, &idf_args, &no_flash_config, &None, &None).is_err());
+        assert!(
+            check_idf_args(
+                DirectBoot,
+                &IdfFormatArgs::default(),
+                &flash_config,
+                &None,
+                &None
+            )
+            .is_err()
+        );
+        assert!(
+            check_idf_args(
+                DirectBoot,
+                &IdfFormatArgs::default(),
+                &no_flash_config,
+                &erase_parts,
+                &None
+            )
+            .is_err()
+        );
     }
 
     #[test]

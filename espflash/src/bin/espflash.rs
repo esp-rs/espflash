@@ -246,6 +246,8 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     check_idf_args(
         format,
+        &args.idf_format_args,
+        &args.flash_config_args,
         &args.flash_args.erase_parts,
         &args.flash_args.erase_data_parts,
     )?;
@@ -364,6 +366,13 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .wrap_err_with(|| format!("Failed to open image {}", args.image.display()))?;
 
     let format = resolve_image_format(args.format, config, &elf_data, true)?;
+    check_idf_args(
+        format,
+        &args.idf_format_args,
+        &args.flash_config_args,
+        &None,
+        &None,
+    )?;
 
     if args.save_image_args.image.check_app_descriptor && format == ImageFormatKind::EspIdf {
         check_idf_bootloader(&elf_data)?;

@@ -144,7 +144,9 @@ The `flash` and `save-image` subcommands support two application image formats, 
 
 If neither `--format` nor the `format` key in `espflash.toml` is given, the format is taken from the metadata that `esp-hal` applications embed in the ELF file, falling back to `esp-idf`. Explicitly selecting a format that contradicts this metadata is an error, which `--force` overrides when flashing.
 
-`espflash` only writes the flash range covered by a direct-boot image. When switching a device from an ESP-IDF image to direct boot, running `espflash erase-flash` once is safer, so a leftover second-stage bootloader can't get in the way. This applies in particular to the ESP32-S3, where the image starts at `0x400` and the bootloader at `0x0` is left as it is.
+`espflash` only writes the flash range covered by a direct-boot image, which always starts at `0x0`. When switching a device from an ESP-IDF image to direct boot, running `espflash erase-flash` once is safer, so leftovers of the previous image (e.g. the partition table or NVS data) can't get in the way.
+
+The ESP-IDF specific options (`--bootloader`, `--partition-table`, `--partition-table-offset`, `--target-app-partition`, `--flash-mode`, `--flash-freq`, `--erase-parts` and `--erase-data-parts`) are rejected when using the `direct-boot` format.
 
 [ESP-IDF app image format]: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html
 [`esp-bootloader-direct-boot`]: https://docs.espressif.com/projects/rust/esp-bootloader-direct-boot/latest/
