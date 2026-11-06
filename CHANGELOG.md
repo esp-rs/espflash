@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `list-ports` prints USB IDs as `VID:PID` instead of `PID:VID` (#1112)
 - Port names are no longer printed twice on Windows (#1112)
 - Without `--partition-table-offset`, write the partition table at 0x8000 for the bundled bootloader, which reads it there (#1107)
+- Serial commands fail with a timeout once their timeout elapses, instead of hanging when a device stops accepting data or keeps sending unrelated output (#1110)
 
 ### Removed
 
