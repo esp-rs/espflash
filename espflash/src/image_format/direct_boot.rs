@@ -100,13 +100,16 @@ impl<'a> DirectBootFormat<'a> {
         }
         segments.sort_by_key(|&(addr, _)| addr);
 
-        let Some(&(start, _)) = segments.first() else {
+        if segments.is_empty() {
             return Err(Error::InvalidDirectBootBinary);
-        };
+        }
 
+        // The image always starts at 0x0, so the sector holding the boot
+        // header is fully rewritten, even when the ROM looks for the magic
+        // at a non-zero offset (ESP32-S3).
         let mut data = Vec::new();
         for (addr, segment) in segments {
-            let offset = (addr - start) as usize;
+            let offset = addr as usize;
             if offset < data.len() {
                 return Err(Error::InvalidDirectBootBinary);
             }
@@ -114,9 +117,9 @@ impl<'a> DirectBootFormat<'a> {
             data.extend_from_slice(segment);
         }
 
-        let has_magic = magic_offset
-            .checked_sub(start)
-            .and_then(|offset| data.get(offset as usize..)?.get(..DIRECT_BOOT_MAGIC.len()))
+        let has_magic = data
+            .get(magic_offset as usize..)
+            .and_then(|data| data.get(..DIRECT_BOOT_MAGIC.len()))
             == Some(DIRECT_BOOT_MAGIC.as_slice());
         if !has_magic {
             return Err(Error::InvalidDirectBootBinary);
@@ -126,7 +129,7 @@ impl<'a> DirectBootFormat<'a> {
 
         Ok(Self {
             segment: Segment {
-                addr: start,
+                addr: 0,
                 data: Cow::Owned(data),
             },
         })
@@ -158,7 +161,9 @@ impl<'a> DirectBootFormat<'a> {
 mod tests {
     use super::*;
 
-    fn check_image(elf: &str, expected_bin: &str, chip: Chip, expected_addr: u32) {
+    /// `expected_bin` is the image as produced by `objcopy`, which starts at
+    /// the first section, `bin_offset`.
+    fn check_image(elf: &str, expected_bin: &str, chip: Chip, bin_offset: usize) {
         let elf_data = std::fs::read(elf).unwrap();
         let expected = std::fs::read(expected_bin).unwrap();
 
@@ -169,10 +174,13 @@ mod tests {
         assert_eq!(segments.len(), 1);
 
         let segment = &segments[0];
-        assert_eq!(segment.addr, expected_addr);
-        assert_eq!(segment.data().len(), expected.len().next_multiple_of(4));
-        assert_eq!(&segment.data()[..expected.len()], expected.as_slice());
-        assert!(segment.data()[expected.len()..].iter().all(|&b| b == 0xff));
+        let data = segment.data();
+        let end = bin_offset + expected.len();
+        assert_eq!(segment.addr, 0);
+        assert_eq!(data.len(), end.next_multiple_of(4));
+        assert!(data[..bin_offset].iter().all(|&b| b == 0xff));
+        assert_eq!(&data[bin_offset..end], expected.as_slice());
+        assert!(data[end..].iter().all(|&b| b == 0xff));
     }
 
     #[test]
