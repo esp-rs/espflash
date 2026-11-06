@@ -16,6 +16,7 @@ use crate::cli::monitor::parser::esp_defmt::DefmtError;
 use crate::command::CommandType;
 use crate::{
     flasher::{FlashFrequency, FlashSize},
+    image_format::ImageFormatKind,
     target::Chip,
 };
 
@@ -388,6 +389,46 @@ pub enum Error {
     /// Tried to write to address < 0x8000 with Secure Download enabled
     #[error("Tried to write to address < 0x8000 with Secure Download enabled")]
     SecureDownloadBootloaderProtection,
+
+    /// The ELF image is not set up for direct boot
+    #[error("Supplied ELF image is not set up for direct boot")]
+    #[diagnostic(
+        code(espflash::invalid_direct_boot),
+        help(
+            "Use `esp-bootloader-direct-boot` and invoke `esp_bootloader_direct_boot::direct_boot!()` in your application, see https://docs.espressif.com/projects/rust/esp-bootloader-direct-boot/latest/"
+        )
+    )]
+    InvalidDirectBootBinary,
+
+    /// The chip does not support the image format
+    #[error("The {chip} does not support the `{format}` image format{}", context.as_deref().map(|c| format!(": {c}")).unwrap_or_default())]
+    #[diagnostic(code(espflash::unsupported_image_format))]
+    UnsupportedImageFormat {
+        /// Image format
+        format: ImageFormatKind,
+        /// Chip
+        chip: Chip,
+        /// Additional context
+        context: Option<String>,
+    },
+
+    /// The requested image format does not match the one the ELF image was
+    /// built for
+    #[error(
+        "The `{requested}` image format was requested, but the ELF image was built for `{elf}`"
+    )]
+    #[diagnostic(
+        code(espflash::image_format_mismatch),
+        help(
+            "Remove the `--format` option (or the `format` key in the configuration file) to use the image format the ELF image was built for, or use `--force` to override this check"
+        )
+    )]
+    ImageFormatMismatch {
+        /// Requested image format
+        requested: ImageFormatKind,
+        /// Image format the ELF image was built for
+        elf: ImageFormatKind,
+    },
 }
 
 #[cfg(feature = "serialport")]

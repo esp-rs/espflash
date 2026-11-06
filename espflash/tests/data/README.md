@@ -82,6 +82,14 @@ idf.py build
 The `esp_hal_backtrace_c6.elf` elf file under this folder has been generated using `esp-generate@f4213a9`, as the `esp32c6_backtrace` elf file.
 These files are used in the stack dump unwinding unit tests of the espflash monitor, which rely on their addresses, and are not flashed as HIL tests.
 
+The `esp_hal_direct_boot_c6.elf` and `esp_hal_direct_boot_s3.elf` elf files under this folder are esp-hal's `examples/direct-boot-hello-world` at [`8728165e60`](https://github.com/esp-rs/esp-hal/tree/8728165e606860d8da2fd79a8055eb438d420847), built for the ESP32-C6 and ESP32-S3, with the debug info stripped. The `.img` files next to them are the expected direct-boot images (not `.bin`, which is ignored by git):
+```
+cargo xtask build direct-boot-hello-world esp32c6
+rust-objcopy --strip-debug target/riscv32imac-unknown-none-elf/release/direct-boot-hello-world esp_hal_direct_boot_c6.elf
+rust-objcopy -O binary --gap-fill 0xff esp_hal_direct_boot_c6.elf esp_hal_direct_boot_c6.img
+```
+and the same for `esp32s3` with the `xtensa-esp32s3-none-elf` target. These files are used in unit tests in espflash, and are not flashed as HIL tests.
+
 The `esp32h4` and `esp32h4_usb` elf files under this folder have been generated using `esp-generate@2.0.0` with the esp-hal template at [`831fff24bd`](https://github.com/esp-rs/esp-hal/tree/831fff24bd76d1e3384539341ecbb7232cb5783e/template), as no esp-hal release supports the ESP32-H4 yet. The template has no `esp32h4` chip option, so generate the project for the ESP32-H2:
 ```
 esp-generate --headless --template esp-rs/esp-hal -o esp32h2 esp32h4
