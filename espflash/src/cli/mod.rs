@@ -276,6 +276,9 @@ pub struct IdfFormatArgs {
     #[arg(long, value_name = "FILE")]
     pub partition_table: Option<PathBuf>,
     /// Partition table offset
+    ///
+    /// Defaults to 0x8000 for the bundled bootloader, and to 0x1000 below the
+    /// first partition for a bootloader given with `--bootloader`.
     #[arg(long, value_name = "OFFSET", value_parser = parse_u32)]
     pub partition_table_offset: Option<u32>,
     /// Label of target app partition
