@@ -719,27 +719,29 @@ impl<'a> IdfBootloaderFormat<'a> {
             first_partition.offset() - PARTITION_TABLE_SIZE
         });
 
-        if bootloader_path.is_none() && partition_table_offset != BUNDLED_PARTITION_TABLE_OFFSET {
+        if bundled_bootloader_misses_partition_table(bootloader_path, partition_table_offset) {
             warn!(
                 "The bundled bootloader reads the partition table at {BUNDLED_PARTITION_TABLE_OFFSET:#x}, not at {partition_table_offset:#x}. Use `--bootloader` with an ESP-IDF bootloader built for this partition table offset."
             );
         }
 
-        // The primary bootloader and partition table entries (type 0x02 and 0x03,
-        // subtype 0x00) describe these regions, so they can overlap the table.
+        // Partitions start after the partition table, like in
+        // `gen_esp32part.py`. The primary bootloader and partition table
+        // entries (type 0x02 and 0x03, subtype 0x00) describe the regions below
+        // its end.
         let is_primary_region = |p: &Partition| {
             matches!(u8::from(p.ty()), 0x02 | 0x03) && u8::from(p.subtype()) == 0x00
         };
         let table_end = partition_table_offset.saturating_add(PARTITION_TABLE_SIZE);
-        if let Some(partition) = partition_table.partitions().iter().find(|p| {
-            !is_primary_region(p)
-                && p.offset() < table_end
-                && partition_table_offset < p.offset().saturating_add(p.size())
-        }) {
-            return Err(Error::PartitionTableOverlap {
-                offset: partition_table_offset,
+        if let Some(partition) = partition_table
+            .partitions()
+            .iter()
+            .find(|p| p.offset() < table_end && !is_primary_region(p))
+        {
+            return Err(Error::PartitionBelowPartitionTable {
                 name: partition.name(),
                 partition_offset: partition.offset(),
+                table_end,
             });
         }
 
@@ -801,6 +803,11 @@ impl<'a> IdfBootloaderFormat<'a> {
     pub fn partition_table(&self) -> PartitionTable {
         self.partition_table.clone()
     }
+}
+
+/// Whether the bundled bootloader does not find a partition table at `offset`
+fn bundled_bootloader_misses_partition_table(bootloader_path: Option<&Path>, offset: u32) -> bool {
+    bootloader_path.is_none() && offset != BUNDLED_PARTITION_TABLE_OFFSET
 }
 
 /// Generates a default partition table.
@@ -1013,8 +1020,6 @@ pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Mutex, MutexGuard, Once};
-
     use super::*;
     use crate::flasher::FlashSettings;
 
@@ -1190,35 +1195,6 @@ mod tests {
 
     const GIVEN_BOOTLOADER: &str = "resources/bootloaders/esp32-bootloader.bin";
 
-    /// The messages of the warnings that the tests log
-    static WARNINGS: Mutex<Vec<String>> = Mutex::new(Vec::new());
-
-    struct WarningLogger;
-
-    impl log::Log for WarningLogger {
-        fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
-            metadata.level() <= log::Level::Warn
-        }
-
-        fn log(&self, record: &log::Record<'_>) {
-            if self.enabled(record.metadata()) {
-                WARNINGS.lock().unwrap().push(record.args().to_string());
-            }
-        }
-
-        fn flush(&self) {}
-    }
-
-    /// The warnings logged so far, from the first call on
-    fn warnings() -> MutexGuard<'static, Vec<String>> {
-        static LOGGER: Once = Once::new();
-        LOGGER.call_once(|| {
-            log::set_logger(&WarningLogger).unwrap();
-            log::set_max_level(log::LevelFilter::Warn);
-        });
-        WARNINGS.lock().unwrap()
-    }
-
     #[test]
     fn bundled_bootloader_gets_the_partition_table_at_its_offset() {
         let address = partition_table_address("partitions_app_at_0x40000.csv", None, None);
@@ -1233,19 +1209,21 @@ mod tests {
     }
 
     #[test]
-    fn partition_table_must_not_overlap_a_partition() {
+    fn partitions_must_start_after_the_partition_table() {
         let given = Some(Path::new(GIVEN_BOOTLOADER));
         let cases = [
+            ("partitions_nvs_at_0x4000.csv", None, None),
             ("partitions_nvs_at_0x6000.csv", None, None),
             ("partitions.csv", None, Some(0x9000)),
             ("partitions_app_at_0x40000.csv", given, Some(0x13F000)),
+            ("partitions_app_at_0x40000.csv", given, Some(0x140000)),
         ];
 
         for (table, bootloader, offset) in cases {
             assert!(
                 matches!(
                     partition_table_address(table, bootloader, offset),
-                    Err(Error::PartitionTableOverlap { .. })
+                    Err(Error::PartitionBelowPartitionTable { .. })
                 ),
                 "{table} {offset:x?}"
             );
@@ -1253,26 +1231,13 @@ mod tests {
     }
 
     #[test]
-    fn partition_table_may_touch_a_partition() {
-        let given = Some(Path::new(GIVEN_BOOTLOADER));
-        let cases = [
-            ("partitions.csv", None, None, 0x8000),
-            (
-                "partitions_app_at_0x40000.csv",
-                given,
-                Some(0x140000),
-                0x140000,
-            ),
-        ];
-
-        for (table, bootloader, offset, expected) in cases {
-            let address = partition_table_address(table, bootloader, offset);
-            assert_eq!(address.unwrap(), expected, "{table}");
-        }
+    fn partition_can_start_at_the_end_of_the_partition_table() {
+        let address = partition_table_address("partitions.csv", None, None);
+        assert_eq!(address.unwrap(), 0x8000);
     }
 
     #[test]
-    fn primary_bootloader_and_partition_table_entries_may_overlap_the_table() {
+    fn primary_bootloader_and_partition_table_entries_can_start_before_the_end_of_the_table() {
         let given = Some(Path::new(GIVEN_BOOTLOADER));
         let table = "partitions_primary_entries.csv";
         assert_eq!(partition_table_address(table, None, None).unwrap(), 0x8000);
@@ -1283,18 +1248,11 @@ mod tests {
     }
 
     #[test]
-    fn bundled_bootloader_warns_about_another_partition_table_offset() {
-        drop(warnings());
+    fn bundled_bootloader_misses_a_partition_table_at_another_offset() {
         let given = Some(Path::new(GIVEN_BOOTLOADER));
-
-        let bundled = partition_table_address("partitions_app_at_0x40000.csv", None, Some(0xA000));
-        let other = partition_table_address("partitions_app_at_0x40000.csv", given, Some(0xB000));
-
-        assert_eq!(bundled.unwrap(), 0xA000);
-        assert_eq!(other.unwrap(), 0xB000);
-        let warnings = warnings();
-        assert!(warnings.iter().any(|w| w.contains("not at 0xa000")));
-        assert!(!warnings.iter().any(|w| w.contains("0xb000")));
+        assert!(bundled_bootloader_misses_partition_table(None, 0xA000));
+        assert!(!bundled_bootloader_misses_partition_table(None, 0x8000));
+        assert!(!bundled_bootloader_misses_partition_table(given, 0xA000));
     }
 
     #[test]
