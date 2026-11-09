@@ -93,6 +93,10 @@ pub struct ConnectArgs {
     /// device
     #[arg(long)]
     pub non_interactive: bool,
+    /// Wait for the serial port to appear instead of failing when it is not
+    /// present
+    #[arg(long)]
+    pub wait: bool,
 }
 
 /// Generate completions for the given shell

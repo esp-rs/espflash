@@ -1,5 +1,6 @@
 #[cfg(not(target_os = "windows"))]
 use std::fs;
+use std::{sync::Once, thread, time::Duration};
 
 use crossterm::style::Stylize;
 use dialoguer::{Confirm, Select, theme::ColorfulTheme};
@@ -34,14 +35,24 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
     // doesn't work (on Windows) with "dummy" device paths like `COM4`. That's
     // the reason we need to handle Windows/Posix differently.
 
-    if let Some(serial) = &matches.port {
-        let ports = detect_usb_serial_ports(true).unwrap_or_default();
-        find_serial_port(&ports, serial)
-    } else if let Some(serial) = &config.port_config.connection.serial {
-        let ports = detect_usb_serial_ports(true).unwrap_or_default();
-        find_serial_port(&ports, serial)
+    if let Some(serial) = matches
+        .port
+        .as_ref()
+        .or(config.port_config.connection.serial.as_ref())
+    {
+        loop {
+            let ports = detect_usb_serial_ports(true).unwrap_or_default();
+            match find_serial_port(&ports, serial) {
+                Err(_) if matches.wait => wait_for_port(),
+                result => return result,
+            }
+        }
     } else {
-        let ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
+        let mut ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
+        while ports.is_empty() && matches.wait {
+            wait_for_port();
+            ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
+        }
         if ports.len() > 1 && matches.non_interactive {
             return Err(Error::SerialNotSelected);
         }
@@ -71,6 +82,14 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
 
         Ok(port)
     }
+}
+
+/// Log that we are waiting for a serial port, then sleep before the caller
+/// checks again.
+fn wait_for_port() {
+    static LOGGED: Once = Once::new();
+    LOGGED.call_once(|| info!("Waiting for serial port..."));
+    thread::sleep(Duration::from_millis(500));
 }
 
 /// Given a vector of `SerialPortInfo` structs, attempt to find and return one
