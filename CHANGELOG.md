@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `--wait` flag to wait for the serial port to appear instead of failing when it is not present (#650)
+- `--wait` flag to wait for the serial port to appear instead of failing when it is not present (#1116)
 
 ### Changed
 
