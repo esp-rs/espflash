@@ -814,33 +814,33 @@ pub fn save_elf_as_image<'a>(
     }
 
     if merge {
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .create(true)
-            .open(image_path)
-            .into_diagnostic()?;
-
+        let mut image = Vec::new();
         for segment in image_format.flash_segments() {
-            let padding_bytes = vec![
-                0xffu8;
-                segment.addr as usize
-                    - file.metadata().into_diagnostic()?.len() as usize
-            ];
-            file.write_all(&padding_bytes).into_diagnostic()?;
-            file.write_all(&segment.data).into_diagnostic()?;
+            let addr = segment.addr as usize;
+            if addr < image.len() {
+                return Err(miette::miette!(
+                    "The segment at {addr:#x} overlaps the previous one, which ends at {:#x}",
+                    image.len()
+                ));
+            }
+            image.resize(addr, 0xff);
+            image.extend_from_slice(&segment.data);
         }
 
         if !skip_padding {
             // Take flash_size as input parameter, if None, use default value of
             // 4Mb
-            let padding_bytes = vec![
-                0xffu8;
-                flash_size.unwrap_or_default().size() as usize
-                    - file.metadata().into_diagnostic()?.len() as usize
-            ];
-            file.write_all(&padding_bytes).into_diagnostic()?;
+            let flash_size = flash_size.unwrap_or_default();
+            if image.len() > flash_size.size() as usize {
+                return Err(miette::miette!(
+                    "The merged image ({:#x} bytes) does not fit into the {flash_size} flash",
+                    image.len()
+                ));
+            }
+            image.resize(flash_size.size() as usize, 0xff);
         }
+
+        fs::write(image_path, image).into_diagnostic()?;
     } else {
         match image_format.ota_segments().as_slice() {
             [single] => fs::write(&image_path, &single.data).into_diagnostic()?,

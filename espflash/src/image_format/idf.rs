@@ -377,16 +377,13 @@ impl<'a> IdfBootloaderFormat<'a> {
             )
         };
 
+        let flash_size = flash_data.flash_settings.size.unwrap_or_default();
         if partition_table
             .partitions()
             .iter()
-            .map(|p| p.size())
-            .sum::<u32>()
-            > flash_data.flash_settings.size.unwrap_or_default().size()
+            .any(|p| u64::from(p.offset()) + u64::from(p.size()) > u64::from(flash_size.size()))
         {
-            return Err(Error::PartitionTableDoesNotFit(
-                flash_data.flash_settings.size.unwrap_or_default(),
-            ));
+            return Err(Error::PartitionTableDoesNotFit(flash_size));
         }
 
         let mut bootloader = if let Some(bootloader_path) = bootloader_path {
