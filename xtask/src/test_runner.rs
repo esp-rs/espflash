@@ -974,8 +974,58 @@ impl TestRunner {
             return Err("Failed to read flash_content.bin file".into());
         }
 
+        // A region crossing the end of the flash must be rejected: flash chips
+        // wrap addresses around, so erasing it would erase sector 0 as well.
+        let sector0 = self.tests_dir.join("sector0.bin");
+        self.run_simple_command_test(
+            &["read-flash", "0x0", "0x1000", sector0.to_str().unwrap()],
+            Some(&["Flash content successfully read"]),
+            self.timeout,
+            "read sector 0",
+        )?;
+        let last_sector = format!("{:#x}", self.flash_size()? - 0x1000);
+        let mut cmd = self.create_espflash_command(&["erase-region", &last_sector, "0x2000"]);
+        if self.run_command_with_timeout(&mut cmd, self.timeout)? == 0 {
+            return Err("Erasing past the end of the flash should have failed".into());
+        }
+        self.run_simple_command_test(
+            &[
+                "read-flash",
+                "0x0",
+                "0x1000",
+                flash_output.to_str().unwrap(),
+            ],
+            Some(&["Flash content successfully read"]),
+            self.timeout,
+            "read sector 0 after erasing past the end",
+        )?;
+        if fs::read(&sector0)? != fs::read(&flash_output)? {
+            return Err("Erasing past the end of the flash changed sector 0".into());
+        }
+
         log::info!("erase-region test passed");
         Ok(())
+    }
+
+    /// Size in bytes of the flash of the device under test.
+    fn flash_size(&self) -> Result<u32> {
+        let mut cmd = self.create_espflash_command(&["board-info"]);
+        let result = self.execute_command(&mut cmd, self.timeout, None)?;
+        if result.timed_out || !result.status.success() {
+            return Err(format!("board-info failed with status {}", result.status).into());
+        }
+
+        let size = result
+            .output
+            .lines()
+            .find_map(|line| line.strip_prefix("Flash size:"))
+            .ok_or("board-info did not print the flash size")?
+            .trim();
+        let megabytes: u32 = size
+            .strip_suffix("MB")
+            .and_then(|megabytes| megabytes.parse().ok())
+            .ok_or_else(|| format!("Unexpected flash size: {size}"))?;
+        Ok(megabytes * 1024 * 1024)
     }
 
     /// Tests erasing a named partition and verifies the resulting bytes.
