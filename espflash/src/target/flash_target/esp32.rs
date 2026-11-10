@@ -273,35 +273,32 @@ impl FlashTarget for Esp32Target {
     }
 
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error> {
-        if self.need_flash_end {
+        // The ROM loader writes every block as it arrives, so outside of Secure
+        // Download Mode FLASH_END would only leave the loader, which the reset
+        // below does. Like esptool, don't send it: the ESP32-S3 ROM fails it
+        // when the size given to FLASH_BEGIN, rounded up to whole sectors, was
+        // not sent in full.
+        if self.need_flash_end && self.use_stub {
+            // Let the host-side reset path handle rebooting after stub
+            // flashing. Asking the stub to reboot from FLASH_DEFL_END can race
+            // with response handling on some ESP32-P4 revisions/stubs, while
+            // the command's non-reboot path just exits flash mode.
+            connection.with_timeout(CommandType::FlashDeflEnd.timeout(), |connection| {
+                connection.command(Command::FlashDeflEnd { reboot: false })
+            })?;
+        } else if self.need_flash_end && connection.secure_download_mode {
             // In Secure Download Mode, "run user code" (reboot: false) makes
-            // the ROM verify/run the flashed image, which fails for
-            // unsigned images. "Reboot" (reboot: true) only
-            // finalizes the write and reboots, avoiding that error.
-            let flash_end_reboot = connection.secure_download_mode || reboot;
-            let result = if self.use_stub {
-                // Let the host-side reset path handle rebooting after stub
-                // flashing. Asking the stub to reboot from
-                // FLASH_DEFL_END can race with response handling on some
-                // ESP32-P4 revisions/stubs, while the command's non-reboot path
-                // just exits flash mode.
-                connection.with_timeout(CommandType::FlashDeflEnd.timeout(), |connection| {
-                    connection.command(Command::FlashDeflEnd { reboot: false })
-                })
-            } else {
-                connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
-                    connection.command(Command::FlashEnd {
-                        reboot: flash_end_reboot,
-                    })
-                })
-            };
+            // the ROM verify/run the flashed image, which fails for unsigned
+            // images. "Reboot" (reboot: true) only finalizes the write and
+            // reboots, avoiding that error.
+            let result = connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
+                connection.command(Command::FlashEnd { reboot: true })
+            });
             match result {
-                Ok(_) => {}
-                Err(Error::RomError(_)) if connection.secure_download_mode => {
-                    // In SDM the ROM may still return an error for FlashEnd
-                    // (e.g. digest verification failed for
-                    // unsigned image). The data was written; treat as success.
-                }
+                // The ROM may still return an error for FlashEnd (e.g. digest
+                // verification failed for an unsigned image). The data was
+                // written; treat it as success.
+                Ok(_) | Err(Error::RomError(_)) => {}
                 Err(e) => return Err(e),
             }
         }
