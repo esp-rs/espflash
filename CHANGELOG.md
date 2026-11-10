@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The monitor opened after flashing waits for the serial port to reappear when the device has already disconnected, e.g. after `--after watchdog-reset` over USB, instead of failing with an I/O error (#1120)
 - Flash operations on a region that extends past the end of the flash are rejected, instead of wrapping around and e.g. erasing the bootloader with `erase-region`
 - `read-flash --no-stub` returns the right data beyond the first 128 bytes
+- Flashing with `--no-stub` no longer fails on ESP32-S3 when the written size is not a multiple of 4 KiB
 
 ### Removed
 

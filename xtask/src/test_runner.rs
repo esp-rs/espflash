@@ -447,6 +447,7 @@ impl TestRunner {
                 self.test_erase_parts()?;
             }
             self.test_erase_region()?;
+            self.test_write_bin_rom()?;
             self.test_hold_in_reset()?;
             self.test_reset()?;
             self.test_list_ports(extended)?;
@@ -496,6 +497,7 @@ impl TestRunner {
                 self.test_save_image_write_bin(Some(chip))
             }
             "erase-region" => self.test_erase_region(),
+            "write-bin-rom" => self.test_write_bin_rom(),
             "hold-in-reset" => self.test_hold_in_reset(),
             "reset" => self.test_reset(),
             "checksum-md5" => self.test_checksum_md5(),
@@ -1068,6 +1070,52 @@ impl TestRunner {
         if !self.is_flash_empty(&flash_output)? {
             return Err("named partition was not erased".into());
         }
+        Ok(())
+    }
+
+    /// Tests writing a binary with the ROM loader. Its size is not a multiple
+    /// of the flash sector size, which the ESP32-S3 ROM fails at FLASH_END.
+    pub fn test_write_bin_rom(&self) -> Result<()> {
+        log::info!("Running ROM write-bin test");
+        let pattern_file = self.tests_dir.join("rom-pattern.bin");
+        let flash_output = self.flash_output_file();
+        let pattern: Vec<u8> = (0..0x1400u32).map(|i| (i % 251) as u8).collect();
+        fs::write(&pattern_file, &pattern)?;
+
+        self.run_simple_command_test(
+            &["erase-region", "0x9000", "0x2000"],
+            Some(&["Erasing region at"]),
+            self.timeout,
+            "erase ROM write-bin test region",
+        )?;
+        self.run_simple_command_test(
+            &[
+                "write-bin",
+                "--no-stub",
+                "0x9000",
+                pattern_file.to_str().unwrap(),
+            ],
+            Some(&["Binary successfully written to flash!"]),
+            self.timeout,
+            "write-bin with ROM bootloader",
+        )?;
+        self.run_simple_command_test(
+            &[
+                "read-flash",
+                "0x9000",
+                "0x1400",
+                flash_output.to_str().unwrap(),
+            ],
+            Some(&["Flash content successfully read"]),
+            self.timeout,
+            "read ROM write-bin test region",
+        )?;
+
+        if fs::read(&flash_output)? != pattern {
+            return Err("ROM write-bin content does not match".into());
+        }
+
+        log::info!("ROM write-bin test passed");
         Ok(())
     }
 
