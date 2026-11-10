@@ -1375,18 +1375,15 @@ impl Flasher {
             .create(true)
             .open(&file_path)?;
 
-        let mut correct_offset = offset;
-
         while data.len() < size as usize {
             let block_len = std::cmp::min(BLOCK_LEN, size as usize - data.len());
-
-            correct_offset += data.len() as u32;
+            let block_offset = offset + data.len() as u32;
 
             let response = self.connection.with_timeout(
                 CommandType::ReadFlashSlow.timeout(),
                 |connection| {
                     connection.command(Command::ReadFlashSlow {
-                        offset: correct_offset,
+                        offset: block_offset,
                         size: block_len as u32,
                         block_size,
                         max_in_flight,
