@@ -568,13 +568,13 @@ pub fn check_monitor_args(
     monitor_args: &MonitorConfigArgs,
     non_interactive: bool,
 ) -> Result<()> {
-    // Check if any monitor args are provided but monitor flag isn't set
+    // Check if any monitor args are provided but monitor flag isn't set. The
+    // ELF is not checked, as flashing always sets it to the image, nor
+    // `--non-interactive`, which also applies to selecting the serial port.
     if !monitor
-        && (monitor_args.elf.is_some()
-            || monitor_args.log_format.is_some()
+        && (monitor_args.log_format.is_some()
             || monitor_args.output_format.is_some()
             || monitor_args.processors.is_some()
-            || non_interactive
             || monitor_args.no_reset
             || monitor_args.no_addresses
             || monitor_args.all_addresses
