@@ -6,7 +6,7 @@ use crossterm::style::Stylize;
 use dialoguer::{Confirm, Select, theme::ColorfulTheme};
 use log::{debug, error, info};
 use miette::{IntoDiagnostic, Result};
-use serialport::{SerialPortInfo, SerialPortType, UsbPortInfo, available_ports};
+use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo, available_ports};
 
 use crate::{
     Error,
@@ -14,6 +14,7 @@ use crate::{
         ConnectArgs,
         config::{Config, PortConfig, UsbDevice},
     },
+    connection::Port,
 };
 
 /// Return the information of a serial port taking into account the different
@@ -49,7 +50,7 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
                         info!("Waiting for serial port {serial} to appear...");
                         waiting = true;
                     }
-                    debug!("Serial port {serial} is not available yet: {e}");
+                    debug!("Serial port {serial} is not available yet: {e:?}");
                     sleep(WAIT_POLL_INTERVAL);
                 }
                 result => return result,
@@ -121,7 +122,41 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
 }
 
 /// How often `--wait` checks for the serial port.
-pub(super) const WAIT_POLL_INTERVAL: Duration = Duration::from_millis(500);
+const WAIT_POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Opens the serial port. With `wait`, a port that was just listed but
+/// can't be opened yet is retried for a few seconds:
+/// - `PermissionDenied`: udev may not have applied its rules yet on Linux.
+/// - `NotFound`: the device node may not exist yet.
+/// - `NoDevice`: in serialport this means the port is busy or locked on POSIX
+///   (e.g. ModemManager probing a freshly plugged port), and not found or
+///   access denied on Windows. It doesn't mean a missing device, and is retried
+///   for the busy case.
+pub(super) fn open_port(port_name: &str, wait: bool) -> serialport::Result<Port> {
+    let mut attempts = if wait { 10 } else { 1 };
+    loop {
+        attempts -= 1;
+        match serialport::new(port_name, 115_200)
+            .flow_control(FlowControl::None)
+            .open_native()
+        {
+            Err(e)
+                if attempts > 0
+                    && matches!(
+                        e.kind(),
+                        serialport::ErrorKind::NoDevice
+                            | serialport::ErrorKind::Io(
+                                std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound
+                            )
+                    ) =>
+            {
+                debug!("Serial port {port_name} cannot be opened yet: {e:?}");
+                sleep(WAIT_POLL_INTERVAL);
+            }
+            result => return result,
+        }
+    }
+}
 
 /// Given a vector of `SerialPortInfo` structs, attempt to find and return one
 /// whose `port_name` field matches the provided `name` argument.
