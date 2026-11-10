@@ -1077,12 +1077,10 @@ impl TestRunner {
         let flash_output = self.flash_output_file();
         let pattern_file = self.tests_dir.join("pattern.bin");
 
-        // Create a pattern to write to flash
-        let known_pattern: Vec<u8> = vec![
-            0x01, 0xA0, 0x02, 0xB3, 0x04, 0xC4, 0x08, 0xD5, 0x10, 0xE6, 0x20, 0xF7, 0x40, 0x88,
-            0x50, 0x99, 0x60, 0xAA, 0x70, 0xBB, 0x80, 0xCC, 0x90, 0xDD, 0xA0, 0xEE, 0xB0, 0xFF,
-            0xC0, 0x11, 0xD0, 0x22,
-        ];
+        // Create a pattern to write to flash. Its period of 251 bytes makes
+        // every 64-byte block of a ROM read differ, so that reading a block
+        // from the wrong offset is detected.
+        let known_pattern: Vec<u8> = (0..0x200u32).map(|i| (i % 251) as u8).collect();
 
         // Write the pattern to a file
         fs::write(&pattern_file, &known_pattern)?;
@@ -1104,8 +1102,8 @@ impl TestRunner {
             "write pattern",
         )?;
 
-        // Test reading various lengths
-        for &len in &[2, 5, 10, 26] {
+        // Test reading various lengths, including several ROM read blocks
+        for &len in &[2, 5, 10, 26, 0x200] {
             log::info!("Testing read-flash with length: {len}");
 
             // Test normal read
