@@ -93,6 +93,12 @@ pub struct ConnectArgs {
     /// device
     #[arg(long)]
     pub non_interactive: bool,
+    /// Wait for the serial port to appear instead of failing when it is not
+    /// present. Without a port, waits for a configured USB device if there is
+    /// one, otherwise for any serial port. There is no timeout; press Ctrl+C
+    /// to stop waiting
+    #[arg(long)]
+    pub wait: bool,
 }
 
 /// Generate completions for the given shell
@@ -431,9 +437,7 @@ pub fn connect(
     info!("Serial port: '{}'", port_info.port_name);
     info!("Connecting...");
 
-    let serial_port = serialport::new(&port_info.port_name, 115_200)
-        .flow_control(FlowControl::None)
-        .open_native()
+    let serial_port = serial::open_port(&port_info.port_name, args.wait)
         .map_err(Error::from)
         .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
 

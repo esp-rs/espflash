@@ -1,11 +1,12 @@
 #[cfg(not(target_os = "windows"))]
 use std::fs;
+use std::{thread::sleep, time::Duration};
 
 use crossterm::style::Stylize;
 use dialoguer::{Confirm, Select, theme::ColorfulTheme};
-use log::{error, info};
+use log::{debug, error, info};
 use miette::{IntoDiagnostic, Result};
-use serialport::{SerialPortInfo, SerialPortType, UsbPortInfo, available_ports};
+use serialport::{FlowControl, SerialPortInfo, SerialPortType, UsbPortInfo, available_ports};
 
 use crate::{
     Error,
@@ -13,6 +14,7 @@ use crate::{
         ConnectArgs,
         config::{Config, PortConfig, UsbDevice},
     },
+    connection::Port,
 };
 
 /// Return the information of a serial port taking into account the different
@@ -34,14 +36,60 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
     // doesn't work (on Windows) with "dummy" device paths like `COM4`. That's
     // the reason we need to handle Windows/Posix differently.
 
-    if let Some(serial) = &matches.port {
-        let ports = detect_usb_serial_ports(true).unwrap_or_default();
-        find_serial_port(&ports, serial)
-    } else if let Some(serial) = &config.port_config.connection.serial {
-        let ports = detect_usb_serial_ports(true).unwrap_or_default();
-        find_serial_port(&ports, serial)
+    if let Some(serial) = matches
+        .port
+        .as_ref()
+        .or(config.port_config.connection.serial.as_ref())
+    {
+        let mut waiting = false;
+        loop {
+            let ports = detect_usb_serial_ports(true).unwrap_or_default();
+            match find_serial_port(&ports, serial) {
+                Err(e) if matches.wait => {
+                    if !waiting {
+                        info!("Waiting for serial port {serial} to appear...");
+                        waiting = true;
+                    }
+                    debug!("Serial port {serial} is not available yet: {e:?}");
+                    sleep(WAIT_POLL_INTERVAL);
+                }
+                result => return result,
+            }
+        }
     } else {
-        let ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
+        // With USB devices configured, wait for one of them rather than for
+        // any port, so an unrelated adapter that is already connected isn't
+        // picked.
+        let usb_devices = &config.port_config.usb_device;
+        let ready = |ports: &[SerialPortInfo]| {
+            if usb_devices.is_empty() {
+                !ports.is_empty()
+            } else {
+                ports.iter().any(|port| match &port.port_type {
+                    SerialPortType::UsbPort(info) => {
+                        usb_devices.iter().any(|dev| dev.matches(info))
+                    }
+                    _ => false,
+                })
+            }
+        };
+
+        let mut ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
+        if matches.wait && !ready(&ports) {
+            if usb_devices.is_empty() {
+                info!("Waiting for a serial port to appear...");
+            } else {
+                info!("Waiting for a configured USB device to appear...");
+            }
+            while !ready(&ports) {
+                sleep(WAIT_POLL_INTERVAL);
+                ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
+            }
+            // Adapters with several interfaces (e.g. FT2232H) enumerate them a
+            // few milliseconds apart, so let the rest show up before selecting.
+            sleep(WAIT_POLL_INTERVAL);
+            ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
+        }
         if ports.len() > 1 && matches.non_interactive {
             return Err(Error::SerialNotSelected);
         }
@@ -70,6 +118,43 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
         }
 
         Ok(port)
+    }
+}
+
+/// How often `--wait` checks for the serial port.
+const WAIT_POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Opens the serial port. With `wait`, a port that was just listed but
+/// can't be opened yet is retried for a few seconds:
+/// - `PermissionDenied`: udev may not have applied its rules yet on Linux.
+/// - `NotFound`: the device node may not exist yet.
+/// - `NoDevice`: in serialport this means the port is busy or locked on POSIX
+///   (e.g. ModemManager probing a freshly plugged port), and not found or
+///   access denied on Windows. It doesn't mean a missing device, and is retried
+///   for the busy case.
+pub(super) fn open_port(port_name: &str, wait: bool) -> serialport::Result<Port> {
+    let mut attempts = if wait { 10 } else { 1 };
+    loop {
+        attempts -= 1;
+        match serialport::new(port_name, 115_200)
+            .flow_control(FlowControl::None)
+            .open_native()
+        {
+            Err(e)
+                if attempts > 0
+                    && matches!(
+                        e.kind(),
+                        serialport::ErrorKind::NoDevice
+                            | serialport::ErrorKind::Io(
+                                std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound
+                            )
+                    ) =>
+            {
+                debug!("Serial port {port_name} cannot be opened yet: {e:?}");
+                sleep(WAIT_POLL_INTERVAL);
+            }
+            result => return result,
+        }
     }
 }
 
