@@ -94,7 +94,9 @@ pub struct ConnectArgs {
     #[arg(long)]
     pub non_interactive: bool,
     /// Wait for the serial port to appear instead of failing when it is not
-    /// present
+    /// present. Without a port, waits for a configured USB device if there is
+    /// one, otherwise for any serial port. There is no timeout; press Ctrl+C
+    /// to stop waiting
     #[arg(long)]
     pub wait: bool,
 }
@@ -435,11 +437,39 @@ pub fn connect(
     info!("Serial port: '{}'", port_info.port_name);
     info!("Connecting...");
 
-    let serial_port = serialport::new(&port_info.port_name, 115_200)
-        .flow_control(FlowControl::None)
-        .open_native()
-        .map_err(Error::from)
-        .wrap_err_with(|| format!("Failed to open serial port {}", port_info.port_name))?;
+    // A port that just appeared can be listed before it can be opened, e.g.
+    // before udev has applied its permissions on Linux, so `--wait` retries
+    // the open for a few seconds.
+    let mut open_attempts = if args.wait { 10 } else { 1 };
+    let serial_port = loop {
+        open_attempts -= 1;
+        match serialport::new(&port_info.port_name, 115_200)
+            .flow_control(FlowControl::None)
+            .open_native()
+        {
+            Err(e)
+                if open_attempts > 0
+                    && matches!(
+                        e.kind(),
+                        serialport::ErrorKind::NoDevice
+                            | serialport::ErrorKind::Io(
+                                std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound
+                            )
+                    ) =>
+            {
+                debug!(
+                    "Serial port {} cannot be opened yet: {e}",
+                    port_info.port_name
+                );
+                std::thread::sleep(serial::WAIT_POLL_INTERVAL);
+            }
+            result => {
+                break result.map_err(Error::from).wrap_err_with(|| {
+                    format!("Failed to open serial port {}", port_info.port_name)
+                })?;
+            }
+        }
+    };
 
     // NOTE: since `serial_port_info` filters out all PCI Port and Bluetooth
     //       serial ports, we can just pretend these types don't exist here.

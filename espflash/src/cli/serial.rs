@@ -1,10 +1,10 @@
 #[cfg(not(target_os = "windows"))]
 use std::fs;
-use std::{sync::Once, thread, time::Duration};
+use std::{thread::sleep, time::Duration};
 
 use crossterm::style::Stylize;
 use dialoguer::{Confirm, Select, theme::ColorfulTheme};
-use log::{error, info};
+use log::{debug, error, info};
 use miette::{IntoDiagnostic, Result};
 use serialport::{SerialPortInfo, SerialPortType, UsbPortInfo, available_ports};
 
@@ -40,17 +40,53 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
         .as_ref()
         .or(config.port_config.connection.serial.as_ref())
     {
+        let mut waiting = false;
         loop {
             let ports = detect_usb_serial_ports(true).unwrap_or_default();
             match find_serial_port(&ports, serial) {
-                Err(_) if matches.wait => wait_for_port(),
+                Err(e) if matches.wait => {
+                    if !waiting {
+                        info!("Waiting for serial port {serial} to appear...");
+                        waiting = true;
+                    }
+                    debug!("Serial port {serial} is not available yet: {e}");
+                    sleep(WAIT_POLL_INTERVAL);
+                }
                 result => return result,
             }
         }
     } else {
+        // With USB devices configured, wait for one of them rather than for
+        // any port, so an unrelated adapter that is already connected isn't
+        // picked.
+        let usb_devices = &config.port_config.usb_device;
+        let ready = |ports: &[SerialPortInfo]| {
+            if usb_devices.is_empty() {
+                !ports.is_empty()
+            } else {
+                ports.iter().any(|port| match &port.port_type {
+                    SerialPortType::UsbPort(info) => {
+                        usb_devices.iter().any(|dev| dev.matches(info))
+                    }
+                    _ => false,
+                })
+            }
+        };
+
         let mut ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
-        while ports.is_empty() && matches.wait {
-            wait_for_port();
+        if matches.wait && !ready(&ports) {
+            if usb_devices.is_empty() {
+                info!("Waiting for a serial port to appear...");
+            } else {
+                info!("Waiting for a configured USB device to appear...");
+            }
+            while !ready(&ports) {
+                sleep(WAIT_POLL_INTERVAL);
+                ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
+            }
+            // Adapters with several interfaces (e.g. FT2232H) enumerate them a
+            // few milliseconds apart, so let the rest show up before selecting.
+            sleep(WAIT_POLL_INTERVAL);
             ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
         }
         if ports.len() > 1 && matches.non_interactive {
@@ -84,13 +120,8 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
     }
 }
 
-/// Log that we are waiting for a serial port, then sleep before the caller
-/// checks again.
-fn wait_for_port() {
-    static LOGGED: Once = Once::new();
-    LOGGED.call_once(|| info!("Waiting for serial port..."));
-    thread::sleep(Duration::from_millis(500));
-}
+/// How often `--wait` checks for the serial port.
+pub(super) const WAIT_POLL_INTERVAL: Duration = Duration::from_millis(500);
 
 /// Given a vector of `SerialPortInfo` structs, attempt to find and return one
 /// whose `port_name` field matches the provided `name` argument.
