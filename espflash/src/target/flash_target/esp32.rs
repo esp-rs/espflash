@@ -3,7 +3,7 @@
 //! This module defines the traits and types used for flashing operations on a
 //! target device's flash memory.
 
-use std::io::Write;
+use std::{borrow::Cow, io::Write};
 
 use flate2::{
     Compression,
@@ -114,6 +114,22 @@ impl FlashTarget for Esp32Target {
         segment: Segment<'_>,
         progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
+        let segment_addr = segment.addr;
+        let bytes_before = segment_addr as usize % FLASH_SECTOR_SIZE;
+
+        // The ROM loader can't write to an address that is not sector-aligned.
+        // Like esptool, pad the segment with erased bytes back to the start of
+        // its sector.
+        let segment = if bytes_before != 0 && !self.use_stub {
+            let mut data = vec![0xFF; bytes_before];
+            data.extend_from_slice(&segment.data);
+            Segment {
+                addr: segment_addr - bytes_before as u32,
+                data: Cow::Owned(data),
+            }
+        } else {
+            segment
+        };
         let addr = segment.addr;
 
         let mut md5_hasher = Md5::new();
