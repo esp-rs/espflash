@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Flashing with `--no-stub` no longer fails on ESP32-S3 when the written size is not a multiple of 4 KiB (#1119)
 - Partition tables with partitions extending past the end of the flash are rejected, and `save-image --merge` no longer panics on them or on overlapping segments (#1119)
 - `flash` and `write-bin` no longer warn about monitor options when `--monitor` is not set and no monitor option was given (#1119)
+- Writing with `--no-stub` to an address that is not sector-aligned no longer fails
 
 ### Removed
 
