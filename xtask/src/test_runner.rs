@@ -720,6 +720,24 @@ impl TestRunner {
             "QIO flashing",
         )?;
 
+        // The app must start after a watchdog reset, or after the hard reset
+        // that replaces it on chips without one. `--no-reset` keeps the monitor
+        // from resetting the device itself.
+        self.run_timed_transfer_command_test(
+            &[
+                "flash",
+                "--after",
+                "watchdog-reset",
+                "--monitor",
+                "--non-interactive",
+                "--no-reset",
+                &app,
+            ],
+            Some(&["Flashing has completed!", "Hello world!"]),
+            self.timeout,
+            "watchdog reset after flashing",
+        )?;
+
         // Keep default-baud flash coverage on the representative extended
         // runner.
         if extended && self.baud.is_some_and(|baud| baud != 115_200) {

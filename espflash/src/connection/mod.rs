@@ -13,7 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use log::{debug, info};
+use log::{debug, info, warn};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serialport::{SerialPort, UsbPortInfo};
@@ -417,49 +417,21 @@ impl Connection {
                 info!("Staying in flasher stub");
                 Ok(())
             }
+            // Like esptool, fall back to a hard reset where a watchdog reset is
+            // not possible, rather than failing after the operation succeeded.
+            ResetAfterOperation::WatchdogReset if self.secure_download_mode => {
+                warn!(
+                    "Watchdog reset is not supported in Secure Download Mode, using a hard reset instead"
+                );
+                hard_reset(&mut self.serial, pid)
+            }
+            ResetAfterOperation::WatchdogReset if !chip.supports_watchdog_reset() => {
+                warn!("Watchdog reset is not supported on {chip}, using a hard reset instead");
+                hard_reset(&mut self.serial, pid)
+            }
             ResetAfterOperation::WatchdogReset => {
                 info!("Resetting device with watchdog");
-
-                match chip {
-                    Chip::Esp32c3 | Chip::Esp32c5 => {
-                        if self.is_using_usb_serial_jtag() {
-                            chip.rtc_wdt_reset(self)?;
-                        }
-                    }
-                    Chip::Esp32p4 => {
-                        // Check if the connection is USB OTG
-                        if chip.is_using_usb_otg(self)? {
-                            chip.rtc_wdt_reset(self)?;
-                        }
-                    }
-                    Chip::Esp32s2 => {
-                        // Check if the connection is USB OTG
-                        if chip.is_using_usb_otg(self)? {
-                            // Check the strapping register to see if we can
-                            // perform RTC WDT reset
-                            if chip.can_rtc_wdt_reset(self)? {
-                                chip.rtc_wdt_reset(self)?;
-                            }
-                        }
-                    }
-                    Chip::Esp32s3 => {
-                        if self.is_using_usb_serial_jtag() || chip.is_using_usb_otg(self)? {
-                            // Check the strapping register to see if we can
-                            // perform RTC WDT reset
-                            if chip.can_rtc_wdt_reset(self)? {
-                                chip.rtc_wdt_reset(self)?;
-                            }
-                        }
-                    }
-                    _ => {
-                        return Err(Error::UnsupportedFeature {
-                            chip,
-                            feature: "watchdog reset".into(),
-                        });
-                    }
-                }
-
-                Ok(())
+                chip.rtc_wdt_reset(self)
             }
         }
     }

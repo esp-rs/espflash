@@ -390,6 +390,8 @@ pub enum ResetAfterOperation {
     NoReset,
     /// Leaves the chip in the stub bootloader, no reset is performed.
     NoResetNoStub,
-    /// Hard-resets the chip by triggering an internal watchdog reset.
+    /// Hard-resets the chip by triggering an internal watchdog reset. Uses the
+    /// `hard-reset` sequence instead on ESP32, ESP32-C6, ESP32-H2 and ESP32-H4,
+    /// and in Secure Download Mode.
     WatchdogReset,
 }
