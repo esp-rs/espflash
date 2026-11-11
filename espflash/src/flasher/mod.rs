@@ -683,8 +683,16 @@ impl Flasher {
     }
 
     /// Set the flash size.
+    ///
+    /// A size larger than the detected one is ignored with a warning, so that
+    /// flash accesses can't wrap around to the start of the real flash.
     pub fn set_flash_size(&mut self, flash_size: FlashSize) {
-        self.flash_size = Some(flash_size);
+        match self.flash_size {
+            Some(detected) if flash_size.size() > detected.size() => warn!(
+                "Flash size {flash_size} is larger than the detected flash size of {detected}, using {detected}"
+            ),
+            _ => self.flash_size = Some(flash_size),
+        }
     }
 
     fn chip_revision(&mut self) -> Result<Option<(u32, u32)>, Error> {
