@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Partition tables with partitions extending past the end of the flash are rejected, and `save-image --merge` no longer panics on them or on overlapping segments (#1119)
 - `flash` and `write-bin` no longer warn about monitor options when `--monitor` is not set and no monitor option was given (#1119)
 - Writing with `--no-stub` to an address that is not sector-aligned no longer fails
+- Writing to an address that is not sector-aligned warns that the bytes before it in its sector will be erased, like esptool
 
 ### Removed
 

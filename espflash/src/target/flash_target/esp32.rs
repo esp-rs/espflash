@@ -9,7 +9,7 @@ use flate2::{
     Compression,
     write::{ZlibDecoder, ZlibEncoder},
 };
-use log::debug;
+use log::{debug, warn};
 use md5::{Digest, Md5};
 
 use crate::{
@@ -114,6 +114,8 @@ impl FlashTarget for Esp32Target {
         segment: Segment<'_>,
         progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
+        // Writing erases whole sectors, including the bytes of the first one
+        // before the segment
         let segment_addr = segment.addr;
         let bytes_before = segment_addr as usize % FLASH_SECTOR_SIZE;
 
@@ -165,6 +167,12 @@ impl FlashTarget for Esp32Target {
                 progress.finish(true);
                 return Ok(());
             }
+        }
+
+        if bytes_before != 0 {
+            warn!(
+                "Flash address {segment_addr:#010x} is not aligned to a {FLASH_SECTOR_SIZE:#x} byte flash sector, so the {bytes_before:#x} bytes before it will be erased"
+            );
         }
 
         // Compression reduces the amount of data sent over the serial
