@@ -122,10 +122,13 @@ pub fn monitor(
         .and_then(|()| serial.set_timeout(Duration::from_millis(5)))
     {
         // The device may already have disconnected, e.g. because a watchdog
-        // reset re-enumerates its native USB port. Reopening the port, which
-        // also configures it, waits for it to reappear.
-        let Some(port_name) = serial.name() else {
-            return Err(e).into_diagnostic();
+        // reset re-enumerates its native USB port. A disconnected port fails
+        // every request, and reopening it, which also configures it, waits for
+        // it to reappear. Any other error, e.g. a baud rate the driver
+        // rejects, would fail the same way on every reopen.
+        let port_name = match serial.name() {
+            Some(port_name) if serial.bytes_to_read().is_err() => port_name,
+            _ => return Err(e).into_diagnostic(),
         };
         debug!("Failed to configure serial port {port_name}: {e}");
         drop(serial);
