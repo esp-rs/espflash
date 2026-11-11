@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Port names are no longer printed twice on Windows (#1112)
 - Serial commands fail with a timeout once their timeout elapses, instead of hanging when a device stops accepting data or keeps sending unrelated output (#1110)
 - `--after watchdog-reset` resets ESP32-C2, ESP32-C3, ESP32-C5, ESP32-C61, ESP32-P4, ESP32-S2, ESP32-S3 and ESP32-S31 with their watchdog on any serial port, and uses a hard reset on the other chips and in Secure Download Mode, like esptool. It used to do nothing on some ports and fail after the operation on other chips, leaving the chip in the bootloader (#1120)
+- The monitor opened after flashing waits for the serial port to reappear when the device has already disconnected, e.g. after `--after watchdog-reset` over USB, instead of failing with an I/O error (#1120)
 
 ### Removed
 
