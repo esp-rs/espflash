@@ -448,6 +448,7 @@ impl TestRunner {
             }
             self.test_erase_region()?;
             self.test_write_bin_rom()?;
+            self.test_write_bin_unaligned()?;
             self.test_hold_in_reset()?;
             self.test_reset()?;
             self.test_list_ports(extended)?;
@@ -498,6 +499,7 @@ impl TestRunner {
             }
             "erase-region" => self.test_erase_region(),
             "write-bin-rom" => self.test_write_bin_rom(),
+            "write-bin-unaligned" => self.test_write_bin_unaligned(),
             "hold-in-reset" => self.test_hold_in_reset(),
             "reset" => self.test_reset(),
             "checksum-md5" => self.test_checksum_md5(),
@@ -1070,6 +1072,65 @@ impl TestRunner {
         if !self.is_flash_empty(&flash_output)? {
             return Err("named partition was not erased".into());
         }
+        Ok(())
+    }
+
+    /// Tests writing at an address that is not sector-aligned, with the stub
+    /// and with the ROM loader. Writing erases whole sectors, so the bytes
+    /// before the address in its sector are erased, which espflash warns
+    /// about.
+    pub fn test_write_bin_unaligned(&self) -> Result<()> {
+        log::info!("Running unaligned write-bin test");
+        let fill_file = self.tests_dir.join("unaligned-fill.bin");
+        let data_file = self.tests_dir.join("unaligned-data.bin");
+        let flash_output = self.flash_output_file();
+        fs::write(&fill_file, vec![0x5a; 0x2000])?;
+        fs::write(&data_file, vec![0xa5; 0x200])?;
+
+        // The data crosses from the sector at 0x9000 into the one at 0xa000,
+        // and both are erased
+        let mut expected = vec![0xff; 0x2000];
+        expected[0xf00..0x1100].fill(0xa5);
+
+        for (loader, loader_args) in [("stub", &[][..]), ("ROM bootloader", &["--no-stub"][..])] {
+            self.run_simple_command_test(
+                &["write-bin", "0x9000", fill_file.to_str().unwrap()],
+                Some(&["Binary successfully written to flash!"]),
+                self.timeout,
+                "fill unaligned write-bin test region",
+            )?;
+
+            let mut args = vec!["write-bin", "0x9f00", data_file.to_str().unwrap()];
+            args.extend(loader_args);
+            self.run_simple_command_test(
+                &args,
+                Some(&[
+                    "Flash address 0x00009f00 is not aligned to a 0x1000 byte flash sector, so the 0xf00 bytes before it will be erased",
+                    "Binary successfully written to flash!",
+                ]),
+                self.timeout,
+                &format!("unaligned write-bin with {loader}"),
+            )?;
+
+            self.run_simple_command_test(
+                &[
+                    "read-flash",
+                    "0x9000",
+                    "0x2000",
+                    flash_output.to_str().unwrap(),
+                ],
+                Some(&["Flash content successfully read"]),
+                self.timeout,
+                "read unaligned write-bin test region",
+            )?;
+            if fs::read(&flash_output)? != expected {
+                return Err(
+                    format!("Unaligned write-bin with {loader}: content does not match").into(),
+                );
+            }
+        }
+
+        log::info!("unaligned write-bin test passed");
         Ok(())
     }
 
