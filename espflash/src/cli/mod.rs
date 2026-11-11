@@ -386,6 +386,12 @@ pub struct WriteBinArgs {
     /// Connection configuration
     #[clap(flatten)]
     connect_args: ConnectArgs,
+    /// Don't verify the flash contents after writing
+    #[arg(long)]
+    pub no_verify: bool,
+    /// Don't skip writing if the flash already contains the same data
+    #[arg(long)]
+    pub no_skip: bool,
     /// Open a serial monitor after writing
     #[arg(short = 'M', long)]
     pub monitor: bool,
@@ -1284,7 +1290,7 @@ pub fn write_bin(args: WriteBinArgs, config: &Config) -> Result<()> {
     let mut buffer = Vec::with_capacity(size.try_into().into_diagnostic()?);
     f.read_to_end(&mut buffer).into_diagnostic()?;
 
-    let mut flasher = connect(&args.connect_args, config, false, false)?;
+    let mut flasher = connect(&args.connect_args, config, args.no_verify, args.no_skip)?;
     let dev_info = print_board_info(&mut flasher)?;
 
     let chip = flasher.chip();

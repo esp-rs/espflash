@@ -1177,6 +1177,7 @@ impl TestRunner {
         self.run_timed_transfer_command_test(
             &[
                 "write-bin",
+                "--no-skip",
                 "--monitor",
                 "0x10000",
                 app_bin.to_str().unwrap(),
