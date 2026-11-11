@@ -453,6 +453,7 @@ impl TestRunner {
             self.test_checksum_md5()?;
             self.test_read_flash()?;
             self.test_flash(Some(chip), extended)?;
+            self.test_watchdog_reset(chip)?;
             self.test_monitor(chip)?;
         }
 
@@ -488,6 +489,7 @@ impl TestRunner {
             "board-info" => self.test_board_info(chip),
             "flash" => self.test_flash(Some(chip), false),
             "monitor" => self.test_monitor(chip),
+            "watchdog-reset" => self.test_watchdog_reset(chip),
             "erase-flash" => self.test_erase_flash(),
             "erase-parts" => self.test_erase_parts(),
             "save-image" | "write-bin" | "save-image-write-bin" => {
@@ -731,6 +733,32 @@ impl TestRunner {
             )?;
         }
 
+        Ok(())
+    }
+
+    /// Tests that the app starts after `--after watchdog-reset`, which resets
+    /// with the RTC watchdog, or with a hard reset on ESP32, ESP32-C6, ESP32-H2
+    /// and ESP32-H4.
+    ///
+    /// Not run in Secure Download Mode, where the ROM reboots into download
+    /// mode after flashing and only the monitor's own reset starts the app.
+    pub fn test_watchdog_reset(&self, chip: &str) -> Result<()> {
+        let app = self.app(chip);
+        // `--no-reset` keeps the monitor from resetting the device itself.
+        self.run_timed_transfer_command_test(
+            &[
+                "flash",
+                "--after",
+                "watchdog-reset",
+                "--monitor",
+                "--non-interactive",
+                "--no-reset",
+                &app,
+            ],
+            Some(&["Flashing has completed!", "Hello world!"]),
+            self.timeout,
+            "watchdog reset after flashing",
+        )?;
         Ok(())
     }
 

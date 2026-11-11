@@ -117,10 +117,26 @@ pub fn monitor(
 
     // Explicitly set the baud rate when starting the serial monitor, to allow
     // using different rates for flashing.
-    serial.set_baud_rate(baud).into_diagnostic()?;
-    serial
-        .set_timeout(Duration::from_millis(5))
-        .into_diagnostic()?;
+    if let Err(e) = serial
+        .set_baud_rate(baud)
+        .and_then(|()| serial.set_timeout(Duration::from_millis(5)))
+    {
+        // The device may already have disconnected, e.g. because a watchdog
+        // reset re-enumerates its native USB port. A disconnected port fails
+        // every request, and reopening it, which also configures it, waits for
+        // it to reappear. Any other error, e.g. a baud rate the driver
+        // rejects, would fail the same way on every reopen.
+        let port_name = match serial.name() {
+            Some(port_name) if serial.bytes_to_read().is_err() => port_name,
+            _ => return Err(e).into_diagnostic(),
+        };
+        debug!("Failed to configure serial port {port_name}: {e}");
+        drop(serial);
+        serial = match reopen(&port_name, baud, non_interactive)? {
+            Some(serial) => serial,
+            None => return Ok(()),
+        };
+    }
 
     // We are in raw mode until `_raw_mode` is dropped (ie. this function
     // returns).
