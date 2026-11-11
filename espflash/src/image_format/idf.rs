@@ -1060,6 +1060,30 @@ mod tests {
             .collect()
     }
 
+    #[test]
+    fn partitions_must_end_within_the_flash() {
+        // The partition sizes add up to less than 8 MB, but the factory
+        // partition ends at 0x8F0000.
+        let elf = std::fs::read("tests/data/esp32c6").unwrap();
+        let partitions = Path::new("tests/data/partitions_past_8mb.csv");
+        let image = |size| {
+            let flash_data = FlashData::new(
+                FlashSettings::new(None, Some(size), None),
+                0,
+                None,
+                Chip::Esp32c6,
+                XtalFrequency::_40Mhz,
+            );
+            IdfBootloaderFormat::new(&elf, &flash_data, Some(partitions), None, None, None)
+        };
+
+        assert!(matches!(
+            image(FlashSize::_8Mb),
+            Err(Error::PartitionTableDoesNotFit(FlashSize::_8Mb))
+        ));
+        assert!(image(FlashSize::_16Mb).is_ok());
+    }
+
     fn sha256_valid(bootloader: &[u8]) -> bool {
         let digest = bootloader.len() - 32;
         Sha256::digest(&bootloader[..digest]).as_slice() == &bootloader[digest..]
