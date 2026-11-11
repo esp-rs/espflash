@@ -30,11 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Serial commands fail with a timeout once their timeout elapses, instead of hanging when a device stops accepting data or keeps sending unrelated output (#1110)
 - `--after watchdog-reset` resets ESP32-C2, ESP32-C3, ESP32-C5, ESP32-C61, ESP32-P4, ESP32-S2, ESP32-S3 and ESP32-S31 with their watchdog on any serial port, and uses a hard reset on the other chips and in Secure Download Mode, like esptool. It used to do nothing on some ports and fail after the operation on other chips, leaving the chip in the bootloader (#1120)
 - The monitor opened after flashing waits for the serial port to reappear when the device has already disconnected, e.g. after `--after watchdog-reset` over USB, instead of failing with an I/O error (#1120)
-- Flash operations on a region that extends past the end of the flash are rejected, instead of wrapping around and e.g. erasing the bootloader with `erase-region`
-- `read-flash --no-stub` returns the right data beyond the first 128 bytes
-- Flashing with `--no-stub` no longer fails on ESP32-S3 when the written size is not a multiple of 4 KiB
-- Partition tables with partitions extending past the end of the flash are rejected, and `save-image --merge` no longer panics on them or on overlapping segments
-- `flash` and `write-bin` no longer warn about monitor options when `--monitor` is not set and no monitor option was given
+- Flash operations on a region that extends past the end of the flash are rejected, instead of wrapping around and e.g. erasing the bootloader with `erase-region` (#1119)
+- `read-flash --no-stub` returns the right data beyond the first 128 bytes (#1119)
+- Flashing with `--no-stub` no longer fails on ESP32-S3 when the written size is not a multiple of 4 KiB (#1119)
+- Partition tables with partitions extending past the end of the flash are rejected, and `save-image --merge` no longer panics on them or on overlapping segments (#1119)
+- `flash` and `write-bin` no longer warn about monitor options when `--monitor` is not set and no monitor option was given (#1119)
 
 ### Removed
 
