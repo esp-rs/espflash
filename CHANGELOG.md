@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Return an error when a partition starts before the end of the partition table. Primary bootloader and partition table entries are exempt (#1107)
 - Warn when the bundled bootloader is flashed or saved to a merged image with a partition table offset other than 0x8000 (#1107, #1131)
 - No longer warn that a baud rate higher than 115,200 can cause issues on every connection at such a rate
+- `cli::erase_partitions` takes the partitions to erase, which the new `cli::partitions_to_erase` finds by label or data type
 
 ### Fixed
 
@@ -47,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update the flasher stubs to esp-flasher-stub v2.0.0. The ESP32-C5 stub sets its CPU divider before switching to the PLL, so its handshake over USB-Serial-JTAG no longer intermittently arrives with every byte tripled (`OOOHHHAAAIII`)
 - Update the flasher stubs to esp-flasher-stub v2.0.0. The ESP32-C5 stub sets its CPU divider before switching to the PLL, so its handshake over USB-Serial-JTAG no longer intermittently arrives with every byte tripled (`OOOHHHAAAIII`) (#1128)
 - `read-flash --block-size 0` is rejected when parsing the arguments, instead of timing out after connecting
+- `erase-parts` checks the partition table and the partition labels before connecting, instead of resetting the device into the bootloader and then failing
 
 ### Removed
 

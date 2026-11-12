@@ -14,7 +14,7 @@
 
 use std::{
     borrow::Cow,
-    collections::HashMap,
+    collections::BTreeMap,
     fs::{self, File},
     io::{Read, Write},
     num::ParseIntError,
@@ -1002,58 +1002,44 @@ pub fn flash_image<'a>(flasher: &mut Flasher, image_format: ImageFormat<'a>) -> 
     Ok(())
 }
 
-/// Erase one or more partitions by label or [DataType]
-pub fn erase_partitions(
-    flasher: &mut Flasher,
-    partition_table: Option<PartitionTable>,
+/// Finds the partitions to erase by label or [DataType], ordered by offset
+pub fn partitions_to_erase(
+    partition_table: Option<&PartitionTable>,
     erase_parts: Option<Vec<String>>,
     erase_data_parts: Option<Vec<DataType>>,
-) -> Result<()> {
-    let partition_table = match &partition_table {
-        Some(partition_table) => partition_table,
-        None => return Err(MissingPartitionTable.into()),
-    };
+) -> Result<Vec<Partition>> {
+    let partition_table = partition_table.ok_or(MissingPartitionTable)?;
 
-    // Using a hashmap to deduplicate entries
-    let mut parts_to_erase = None;
+    // Keyed by offset to deduplicate entries
+    let mut parts = BTreeMap::new();
 
-    // Look for any partitions with specific labels
-    if let Some(part_labels) = erase_parts {
-        for label in part_labels {
-            let part = partition_table
-                .find(label.as_str())
-                .ok_or_else(|| MissingPartition::from(label))?;
-
-            parts_to_erase
-                .get_or_insert(HashMap::new())
-                .insert(part.offset(), part);
-        }
+    for label in erase_parts.into_iter().flatten() {
+        let part = partition_table
+            .find(label.as_str())
+            .ok_or_else(|| MissingPartition::from(label))?;
+        parts.insert(part.offset(), part.clone());
     }
 
-    // Look for any data partitions with specific data subtype
     // There might be multiple partition of the same subtype, e.g. when using
     // multiple FAT partitions
-    if let Some(partition_types) = erase_data_parts {
-        for ty in partition_types {
-            for part in partition_table.partitions() {
-                if part.ty() == esp_idf_part::Type::Data
-                    && part.subtype() == esp_idf_part::SubType::Data(ty)
-                {
-                    parts_to_erase
-                        .get_or_insert(HashMap::new())
-                        .insert(part.offset(), part);
-                }
+    for ty in erase_data_parts.into_iter().flatten() {
+        for part in partition_table.partitions() {
+            if part.ty() == esp_idf_part::Type::Data
+                && part.subtype() == esp_idf_part::SubType::Data(ty)
+            {
+                parts.insert(part.offset(), part.clone());
             }
         }
     }
 
-    if let Some(parts) = parts_to_erase {
-        parts
-            .iter()
-            .try_for_each(|(_, p)| erase_partition(flasher, p))?;
-    }
+    Ok(parts.into_values().collect())
+}
 
-    Ok(())
+/// Erase the given partitions
+pub fn erase_partitions(flasher: &mut Flasher, partitions: &[Partition]) -> Result<()> {
+    partitions
+        .iter()
+        .try_for_each(|part| erase_partition(flasher, part))
 }
 
 /// Erase a single partition
