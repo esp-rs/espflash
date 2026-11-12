@@ -11,6 +11,7 @@ use std::{
 
 use clap::{ArgAction, Args, ValueEnum};
 use log::info;
+use serde::Serialize;
 use serialport::SerialPortType;
 
 use crate::Result;
@@ -39,7 +40,8 @@ struct CommandOutput {
 }
 
 /// Serial console the test firmware prints to
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Console {
     /// UART0, through an external USB-UART bridge
     Uart,
@@ -50,23 +52,15 @@ pub enum Console {
 impl Console {
     /// Console of the port selected by `ESPFLASH_PORT`: USB-Serial-JTAG if the
     /// port reports its USB IDs, UART otherwise.
-    fn detect() -> Self {
-        // HIL runners select ports through symlinks, e.g.
-        // `/dev/serial_ports/usb`, so compare the resolved device nodes.
-        let Some(port) = env::var_os("ESPFLASH_PORT").and_then(|p| fs::canonicalize(p).ok()) else {
-            return Console::Uart;
-        };
-
-        let usb_serial_jtag = serialport::available_ports()
-            .unwrap_or_default()
-            .into_iter()
-            .any(|info| {
-                fs::canonicalize(&info.port_name).is_ok_and(|name| name == port)
-                    && matches!(
-                        info.port_type,
-                        SerialPortType::UsbPort(usb)
-                            if usb.vid == ESPRESSIF_VID && usb.pid == USB_SERIAL_JTAG_PID
-                    )
+    pub fn detect() -> Self {
+        let usb_serial_jtag = env::var_os("ESPFLASH_PORT")
+            .and_then(|port| port_type(Path::new(&port)))
+            .is_some_and(|port_type| {
+                matches!(
+                    port_type,
+                    SerialPortType::UsbPort(usb)
+                        if usb.vid == ESPRESSIF_VID && usb.pid == USB_SERIAL_JTAG_PID
+                )
             });
 
         if usb_serial_jtag {
@@ -75,6 +69,18 @@ impl Console {
             Console::Uart
         }
     }
+}
+
+/// Type of the serial port `port`, which may be a symlink.
+pub fn port_type(port: &Path) -> Option<SerialPortType> {
+    // HIL runners select ports through symlinks, e.g. `/dev/serial_ports/usb`,
+    // so compare the resolved device nodes.
+    let port = fs::canonicalize(port).ok()?;
+    serialport::available_ports()
+        .unwrap_or_default()
+        .into_iter()
+        .find(|info| fs::canonicalize(&info.port_name).is_ok_and(|name| name == port))
+        .map(|info| info.port_type)
 }
 
 /// Arguments for running tests

@@ -9,11 +9,13 @@ efuse-generator = ["pyo3"]
 
 [dependencies]
 chrono     = "0.4"
-clap       = { version = "4.5", features = ["derive"] }
+clap       = { version = "4.5", features = ["derive", "env"] }
 env_logger = "0.11"
+espflash   = { path = "../espflash", default-features = false, features = ["serialport"] }
 log        = "0.4"
 pyo3       = { version = "0.30", features = ["auto-initialize"], optional = true }
 serde      = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 serde_yaml = "0.9"
 serialport = { version = "4.7", default-features = false }
 sha2       = "0.11"
