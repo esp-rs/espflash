@@ -22,9 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Show the vendor name for known USB vendor IDs instead of the manufacturer reported by the OS, which on Windows is the driver vendor, e.g. `(Undefined Vendor)` (#1112)
 - Return an error when a partition starts before the end of the partition table. Primary bootloader and partition table entries are exempt (#1107)
 - Warn when the bundled bootloader is flashed or saved to a merged image with a partition table offset other than 0x8000 (#1107, #1131)
-- No longer warn that a baud rate higher than 115,200 can cause issues on every connection at such a rate
-- `cli::erase_partitions` takes the partitions to erase, which the new `cli::partitions_to_erase` finds by label or data type
-- The `hold-in-reset` help and log message say what it does: it resets the device into its ROM bootloader and leaves it there
+- No longer warn that a baud rate higher than 115,200 can cause issues on every connection at such a rate (#1127)
+- `cli::erase_partitions` takes the partitions to erase, which the new `cli::partitions_to_erase` finds by label or data type (#1127)
+- The `hold-in-reset` help and log message say what it does: it resets the device into its ROM bootloader and leaves it there (#1127)
 
 ### Fixed
 
@@ -48,8 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Writing to an address that is not sector-aligned warns that the bytes before it in its sector will be erased, like esptool (#1119)
 - Update the flasher stubs to esp-flasher-stub v2.0.0. The ESP32-C5 stub sets its CPU divider before switching to the PLL, so its handshake over USB-Serial-JTAG no longer intermittently arrives with every byte tripled (`OOOHHHAAAIII`)
 - Update the flasher stubs to esp-flasher-stub v2.0.0. The ESP32-C5 stub sets its CPU divider before switching to the PLL, so its handshake over USB-Serial-JTAG no longer intermittently arrives with every byte tripled (`OOOHHHAAAIII`) (#1128)
-- `read-flash --block-size 0` is rejected when parsing the arguments, instead of timing out after connecting
-- `erase-parts` checks the partition table and the partition labels before connecting, instead of resetting the device into the bootloader and then failing
+- `read-flash --block-size 0` is rejected when parsing the arguments, instead of timing out after connecting (#1127)
+- `erase-parts` checks the partition table and the partition labels before connecting, instead of resetting the device into the bootloader and then failing (#1127)
 
 ### Removed
 
