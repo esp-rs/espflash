@@ -1080,14 +1080,22 @@ impl TestRunner {
 
         // Check flash contents - first part should be erased
         if let Ok(flash_data) = fs::read(&flash_output) {
+            let (Some(first_part), Some(second_part)) =
+                (flash_data.get(..0x1000), flash_data.get(0x1000..0x2000))
+            else {
+                return Err(format!(
+                    "Read {:#x} bytes after erase-region instead of 0x2000",
+                    flash_data.len()
+                )
+                .into());
+            };
+
             // First 0x1000 bytes should be 0xFF (erased)
-            let first_part = &flash_data[0..4096];
             if !Self::is_erased_flash_data(first_part) {
                 return Err("First 0x1000 bytes should be empty (0xFF)".into());
             }
 
             // Next 0x1000 bytes should contain some non-erased bytes
-            let second_part = &flash_data[4096..8192];
             if Self::is_erased_flash_data(second_part) {
                 return Err("Next 0x1000 bytes should contain some non-erased bytes".into());
             }
@@ -1198,8 +1206,8 @@ impl TestRunner {
 
             // Verify the read data matches the expected pattern
             if let Ok(read_data) = fs::read(&flash_output) {
-                let expected = &known_pattern[0..len as usize];
-                if &read_data[0..len as usize] != expected {
+                let expected = &known_pattern[..len as usize];
+                if read_data.get(..len as usize) != Some(expected) {
                     return Err(format!(
                         "Verification failed for length {len}: content does not match"
                     )
@@ -1229,8 +1237,8 @@ impl TestRunner {
 
             // Verify the ROM read data matches the expected pattern
             if let Ok(read_data) = fs::read(&flash_output) {
-                let expected = &known_pattern[0..len as usize];
-                if &read_data[0..len as usize] != expected {
+                let expected = &known_pattern[..len as usize];
+                if read_data.get(..len as usize) != Some(expected) {
                     return Err(format!(
                         "ROM read verification failed for length {len}: content does not match"
                     )
