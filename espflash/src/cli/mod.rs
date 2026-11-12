@@ -24,7 +24,7 @@ use std::{
 use clap::{Args, ValueEnum};
 use clap_complete::Shell;
 use comfy_table::{Attribute, Cell, Color, Table, modifiers, presets::UTF8_FULL};
-use config::PortConfig;
+use config::{PortConfig, ProjectConfig};
 use esp_idf_part::{DataType, Partition, PartitionTable};
 use indicatif::{HumanCount, ProgressBar, style::ProgressStyle};
 use log::{debug, info, warn};
@@ -1251,19 +1251,41 @@ pub fn make_image_format_with_chip_revision<'a>(
             .into()
         }
         ImageFormatKind::DirectBoot => {
-            let chip = flash_data.chip;
-            if chip == Chip::Esp32c3 && chip_revision.is_some_and(|rev| rev < 3) {
-                return Err(Error::UnsupportedImageFormat {
-                    format: image_format_kind,
-                    chip,
-                    context: Some("direct boot requires revision v0.3 or later".to_string()),
-                });
-            }
-            DirectBootFormat::new(elf_data, chip)?.into()
+            warn_ignored_idf_config(&config.project_config, image_format_kind);
+            DirectBootFormat::new(elf_data, flash_data.chip, chip_revision)?.into()
         }
     };
 
     Ok(image_format)
+}
+
+/// Warns about the ESP-IDF specific settings of the configuration file, which
+/// other formats ignore.
+///
+/// Unlike the matching command line arguments (see [`check_idf_args`]), these
+/// are no error, as the configuration file can be a global one.
+fn warn_ignored_idf_config(config: &ProjectConfig, format: ImageFormatKind) {
+    let idf = &config.idf_format_args;
+    let ignored = [
+        ("idf.bootloader", idf.bootloader.is_some()),
+        ("idf.partition_table", idf.partition_table.is_some()),
+        (
+            "idf.partition_table_offset",
+            idf.partition_table_offset.is_some(),
+        ),
+        (
+            "idf.target_app_partition",
+            idf.target_app_partition.is_some(),
+        ),
+        ("flash.mode", config.flash.mode.is_some()),
+        ("flash.frequency", config.flash.freq.is_some()),
+    ];
+
+    for (key, _) in ignored.iter().filter(|&&(_, given)| given) {
+        warn!(
+            "Ignoring `{key}` from the configuration file, which the `{format}` format does not use"
+        );
+    }
 }
 
 /// Determines the image format to use.

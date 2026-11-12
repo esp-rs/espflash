@@ -20,6 +20,9 @@ const SUPPORTED_CHIPS: [&str; 12] = [
     "esp32p4", "esp32s2", "esp32s3", "esp32s31",
 ];
 
+/// Chips with direct-boot test firmware
+const DIRECT_BOOT_CHIPS: [&str; 2] = ["esp32c6", "esp32s3"];
+
 /// Espressif USB vendor ID
 const ESPRESSIF_VID: u16 = 0x303a;
 /// USB product ID of the USB-Serial-JTAG peripheral
@@ -351,6 +354,33 @@ impl TestRunner {
         Ok(())
     }
 
+    /// Runs a command that must fail, and verifies its output.
+    fn run_failing_command_test(
+        &self,
+        args: &[&str],
+        expected_contains: &[&str],
+        test_name: &str,
+    ) -> Result<()> {
+        log::info!("Running {test_name} test");
+        let mut cmd = self.create_espflash_command(args);
+        let result = self.execute_command(&mut cmd, self.timeout, None)?;
+
+        if result.timed_out {
+            return Err(format!("{test_name} timed out after {:?}", self.timeout).into());
+        }
+        if result.status.success() {
+            return Err(format!("{test_name} succeeded, but should have failed").into());
+        }
+        for value in expected_contains {
+            if !result.output.contains(value) {
+                return Err(format!("{test_name}: missing expected output: {value}").into());
+            }
+        }
+
+        log::info!("{test_name} test passed");
+        Ok(())
+    }
+
     /// Runs a command until all expected output is observed or the timeout
     /// expires. This is used for monitor commands which intentionally do not
     /// terminate naturally.
@@ -453,6 +483,9 @@ impl TestRunner {
             self.test_checksum_md5()?;
             self.test_read_flash()?;
             self.test_flash(Some(chip), extended)?;
+            if DIRECT_BOOT_CHIPS.contains(&chip) {
+                self.test_direct_boot(chip)?;
+            }
             self.test_watchdog_reset(chip)?;
             self.test_monitor(chip)?;
         }
@@ -488,6 +521,7 @@ impl TestRunner {
         match test_name {
             "board-info" => self.test_board_info(chip),
             "flash" => self.test_flash(Some(chip), false),
+            "direct-boot" => self.test_direct_boot(chip),
             "monitor" => self.test_monitor(chip),
             "watchdog-reset" => self.test_watchdog_reset(chip),
             "erase-flash" => self.test_erase_flash(),
@@ -732,6 +766,93 @@ impl TestRunner {
                 "standard flashing with default baud rate",
             )?;
         }
+
+        Ok(())
+    }
+
+    /// Tests the direct-boot image format: switching a device with an ESP-IDF
+    /// image to direct boot and back, without erasing the flash, and
+    /// `save-image` and `write-bin` with a direct-boot image.
+    ///
+    /// Not run in Secure Download Mode, which does not allow writing the
+    /// image at `0x0`.
+    pub fn test_direct_boot(&self, chip: &str) -> Result<()> {
+        if !DIRECT_BOOT_CHIPS.contains(&chip) {
+            return Err(format!("No direct-boot test firmware for {chip}").into());
+        }
+        log::info!("Running direct-boot test for chip: {chip}");
+
+        let app = self.app(&format!("{chip}_direct_boot"));
+        let idf_app = self.app(chip);
+        let app_bin = self.tests_dir.join("app.bin");
+
+        // Both fail before connecting to the device, so a port selection prompt
+        // can't block them.
+        self.run_failing_command_test(
+            &["flash", "--format", "esp-idf", &app],
+            &["The `esp-idf` image format was requested"],
+            "direct-boot image format mismatch",
+        )?;
+        self.run_failing_command_test(
+            &[
+                "flash",
+                "--partition-table",
+                "espflash/tests/data/partitions.csv",
+                &app,
+            ],
+            // miette wraps the message at 80 columns
+            &["`--partition-table` is only supported"],
+            "direct-boot ESP-IDF arguments",
+        )?;
+
+        // The format is detected from the ELF. The device still holds the
+        // ESP-IDF image of the previous tests.
+        self.run_timed_transfer_command_test(
+            &["flash", "--no-skip", "--monitor", "--non-interactive", &app],
+            Some(&["Flashing has completed!", "Hello from direct boot!"]),
+            self.timeout,
+            "direct-boot flashing over ESP-IDF",
+        )?;
+
+        // Erase the start of the image, so only the written binary can boot.
+        self.run_simple_command_test(
+            &["erase-region", "0x0", "0x1000"],
+            Some(&["Erasing region at"]),
+            self.timeout,
+            "erase direct-boot header",
+        )?;
+        self.run_simple_command_test(
+            &[
+                "save-image",
+                "--chip",
+                chip,
+                &app,
+                app_bin.to_str().unwrap(),
+            ],
+            Some(&["Image successfully saved!"]),
+            self.timeout,
+            "direct-boot save-image",
+        )?;
+        self.run_timed_transfer_command_test(
+            &[
+                "write-bin",
+                "--monitor",
+                "0x0",
+                app_bin.to_str().unwrap(),
+                "--non-interactive",
+            ],
+            Some(&["Hello from direct boot!"]),
+            self.timeout,
+            "direct-boot write-bin and monitor",
+        )?;
+
+        // The ESP-IDF bootloader replaces the direct-boot image header.
+        self.run_timed_transfer_command_test(
+            &["flash", "--monitor", "--non-interactive", &idf_app],
+            Some(&["Flashing has completed!", "Hello world!"]),
+            self.timeout,
+            "ESP-IDF flashing over direct-boot",
+        )?;
 
         Ok(())
     }

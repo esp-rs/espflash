@@ -90,6 +90,84 @@ rust-objcopy -O binary --gap-fill 0xff esp_hal_direct_boot_c6.elf esp_hal_direct
 ```
 and the same for `esp32s3` with the `xtensa-esp32s3-none-elf` target. These files are used in unit tests in espflash, and are not flashed as HIL tests.
 
+The `esp32c6_direct_boot`, `esp32c6_direct_boot_usb`, `esp32s3_direct_boot` and `esp32s3_direct_boot_usb` elf files under this folder are a hello world booted directly by the ROM, using `esp-bootloader-direct-boot` from esp-hal at [`4baf05904d`](https://github.com/esp-rs/esp-hal/tree/4baf05904d43e0b145adcb8c8ef302c4e0bc4ec6), as it is not released yet. They are used in the direct-boot HIL test, and print `Hello from direct boot!` instead of `Hello world!`, so the test can tell them apart from the ESP-IDF firmware. The project is not generated, as `esp-generate` has no direct-boot option. `Cargo.toml`:
+```toml
+[package]
+name    = "direct_boot"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+esp-bootloader-direct-boot = { git = "https://github.com/esp-rs/esp-hal", rev = "4baf05904d43e0b145adcb8c8ef302c4e0bc4ec6" }
+esp-hal     = { git = "https://github.com/esp-rs/esp-hal", rev = "4baf05904d43e0b145adcb8c8ef302c4e0bc4ec6", features = ["log-04", "unstable"] }
+esp-println = { git = "https://github.com/esp-rs/esp-hal", rev = "4baf05904d43e0b145adcb8c8ef302c4e0bc4ec6", default-features = false, features = ["log-04", "colors", "critical-section"] }
+log         = "0.4"
+
+[features]
+esp32c6 = ["esp-bootloader-direct-boot/esp32c6", "esp-hal/esp32c6", "esp-println/esp32c6"]
+esp32s3 = ["esp-bootloader-direct-boot/esp32s3", "esp-hal/esp32s3", "esp-println/esp32s3"]
+# Serial console the firmware prints to
+uart = ["esp-println/uart"]
+usb  = ["esp-println/jtag-serial"]
+
+[profile.release]
+strip         = "debuginfo"
+lto           = "fat"
+codegen-units = 1
+opt-level     = "s"
+```
+`.cargo/config.toml`:
+```toml
+[target.'cfg(target_arch = "riscv32")']
+rustflags = ["-C", "link-arg=-Tlinkall.x"]
+
+[target.'cfg(target_arch = "xtensa")']
+rustflags = ["-C", "link-arg=-Wl,-Tlinkall.x", "-C", "link-arg=-nostartfiles"]
+
+[env]
+ESP_LOG = "info"
+
+[unstable]
+build-std = ["core"]
+```
+`src/main.rs`:
+```rust
+#![no_std]
+#![no_main]
+
+use esp_hal::{
+    main,
+    time::{Duration, Instant},
+};
+use log::info;
+
+#[panic_handler]
+fn panic(_: &core::panic::PanicInfo) -> ! {
+    loop {}
+}
+
+esp_bootloader_direct_boot::direct_boot!();
+
+#[main]
+fn main() -> ! {
+    esp_println::logger::init_logger_from_env();
+    let _peripherals = esp_hal::init(esp_hal::Config::default());
+
+    loop {
+        info!("Hello from direct boot!");
+        let delay_start = Instant::now();
+        while delay_start.elapsed() < Duration::from_millis(500) {}
+    }
+}
+```
+Built with:
+```
+cargo +nightly build --release --target riscv32imac-unknown-none-elf --features esp32c6,uart
+cargo +nightly build --release --target riscv32imac-unknown-none-elf --features esp32c6,usb
+cargo +esp build --release --target xtensa-esp32s3-none-elf --features esp32s3,uart
+cargo +esp build --release --target xtensa-esp32s3-none-elf --features esp32s3,usb
+```
+
 The `esp32h4` and `esp32h4_usb` elf files under this folder have been generated using `esp-generate@2.0.0` with the esp-hal template at [`831fff24bd`](https://github.com/esp-rs/esp-hal/tree/831fff24bd76d1e3384539341ecbb7232cb5783e/template), as no esp-hal release supports the ESP32-H4 yet. The template has no `esp32h4` chip option, so generate the project for the ESP32-H2:
 ```
 esp-generate --headless --template esp-rs/esp-hal -o esp32h2 esp32h4

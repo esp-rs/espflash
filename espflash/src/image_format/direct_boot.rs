@@ -38,6 +38,19 @@ fn magic_offset(chip: Chip) -> Option<u32> {
     }
 }
 
+/// Returns the lowest revision, in `major * 100 + minor` format, that
+/// direct boot works on, or `None` if it works on every revision.
+fn min_revision(chip: Chip) -> Option<u16> {
+    match chip {
+        // Earlier ROMs do not support direct boot.
+        Chip::Esp32c3 => Some(3),
+        // The entry stub of `esp-bootloader-direct-boot` hangs on earlier
+        // revisions, before `esp_hal::init` can check the revision.
+        Chip::Esp32p4 => Some(300),
+        _ => None,
+    }
+}
+
 /// Image format for applications that the ROM boots directly, without a
 /// second-stage bootloader, partition table or app image header.
 ///
@@ -50,7 +63,10 @@ pub struct DirectBootFormat<'a> {
 
 impl<'a> DirectBootFormat<'a> {
     /// Create a new [`DirectBootFormat`].
-    pub fn new(elf_data: &'a [u8], chip: Chip) -> Result<Self, Error> {
+    ///
+    /// `chip_revision` is the revision of the target, in `major * 100 +
+    /// minor` format, if known.
+    pub fn new(elf_data: &'a [u8], chip: Chip, chip_revision: Option<u16>) -> Result<Self, Error> {
         let Some(magic_offset) = magic_offset(chip) else {
             return Err(Error::UnsupportedImageFormat {
                 format: ImageFormatKind::DirectBoot,
@@ -58,6 +74,22 @@ impl<'a> DirectBootFormat<'a> {
                 context: None,
             });
         };
+
+        if let (Some(min), Some(revision)) = (min_revision(chip), chip_revision)
+            && revision < min
+        {
+            return Err(Error::UnsupportedImageFormat {
+                format: ImageFormatKind::DirectBoot,
+                chip,
+                context: Some(format!(
+                    "direct boot requires revision v{}.{} or later, found v{}.{}",
+                    min / 100,
+                    min % 100,
+                    revision / 100,
+                    revision % 100
+                )),
+            });
+        }
 
         let elf = ElfFile::parse(elf_data)?;
         let endian = Endianness::Little;
@@ -167,7 +199,7 @@ mod tests {
         let elf_data = std::fs::read(elf).unwrap();
         let expected = std::fs::read(expected_bin).unwrap();
 
-        let segments = DirectBootFormat::new(&elf_data, chip)
+        let segments = DirectBootFormat::new(&elf_data, chip, None)
             .unwrap()
             .flash_segments()
             .collect::<Vec<_>>();
@@ -209,9 +241,33 @@ mod tests {
 
         for chip in [Chip::Esp32, Chip::Esp32s2] {
             assert!(matches!(
-                DirectBootFormat::new(&elf_data, chip),
+                DirectBootFormat::new(&elf_data, chip, None),
                 Err(Error::UnsupportedImageFormat { .. })
             ));
+        }
+    }
+
+    #[test]
+    fn test_direct_boot_min_revision() {
+        let elf_data = std::fs::read("tests/data/esp_hal_direct_boot_c6.elf").unwrap();
+
+        for (chip, revision, supported) in [
+            (Chip::Esp32c3, Some(2), false),
+            (Chip::Esp32c3, Some(3), true),
+            (Chip::Esp32p4, Some(101), false),
+            (Chip::Esp32p4, Some(300), true),
+            // Unknown revisions, e.g. in `save-image`, are not rejected
+            (Chip::Esp32p4, None, true),
+        ] {
+            let result = DirectBootFormat::new(&elf_data, chip, revision);
+            if supported {
+                assert!(result.is_ok(), "{chip} {revision:?}");
+            } else {
+                assert!(
+                    matches!(result, Err(Error::UnsupportedImageFormat { .. })),
+                    "{chip} {revision:?}"
+                );
+            }
         }
     }
 
@@ -220,7 +276,7 @@ mod tests {
         let elf_data = std::fs::read("tests/data/esp_hal_direct_boot_c6.elf").unwrap();
 
         assert!(matches!(
-            DirectBootFormat::new(&elf_data, Chip::Esp32s3),
+            DirectBootFormat::new(&elf_data, Chip::Esp32s3, None),
             Err(Error::InvalidDirectBootBinary)
         ));
     }
@@ -230,7 +286,7 @@ mod tests {
         let elf_data = std::fs::read("tests/data/esp_hal_backtrace_c6.elf").unwrap();
 
         assert!(matches!(
-            DirectBootFormat::new(&elf_data, Chip::Esp32c6),
+            DirectBootFormat::new(&elf_data, Chip::Esp32c6, None),
             Err(Error::InvalidDirectBootBinary)
         ));
     }
