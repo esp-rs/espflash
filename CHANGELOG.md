@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Warn when the bundled bootloader is flashed or saved to a merged image with a partition table offset other than 0x8000 (#1107, #1131)
 - No longer warn that a baud rate higher than 115,200 can cause issues on every connection at such a rate
 - `cli::erase_partitions` takes the partitions to erase, which the new `cli::partitions_to_erase` finds by label or data type
+- The `hold-in-reset` help and log message say what it does: it resets the device into its ROM bootloader and leaves it there
 
 ### Fixed
 

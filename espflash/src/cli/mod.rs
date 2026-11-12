@@ -1404,13 +1404,13 @@ pub fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
     Ok(())
 }
 
-/// Hold the target device in reset.
+/// Reset the target device into its ROM bootloader and leave it there.
 pub fn hold_in_reset(args: ConnectArgs, config: &Config) -> Result<()> {
     let mut args = args.clone();
     debug!("The flash stub is not used by `hold-in-reset`, `--no-stub` has no effect");
     args.no_stub = true;
     connect(&args, config, true, true)?;
-    info!("Holding target device in reset");
+    info!("Leaving target device in the ROM bootloader");
 
     Ok(())
 }

@@ -69,7 +69,11 @@ enum Commands {
     ///
     /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/app_image_format.html>
     Flash(FlashArgs),
-    /// Hold the target device in reset
+    /// Reset the target device into its ROM bootloader and leave it there
+    ///
+    /// The application does not run until the device is reset again. The
+    /// device is not held in reset: espflash releases its reset line when it
+    /// exits.
     HoldInReset(ConnectArgs),
     /// List available serial ports.
     ///
