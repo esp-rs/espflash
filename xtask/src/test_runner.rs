@@ -15,9 +15,9 @@ use serialport::SerialPortType;
 
 use crate::Result;
 
-const SUPPORTED_CHIPS: [&str; 12] = [
-    "esp32", "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32h2", "esp32h4",
-    "esp32p4", "esp32s2", "esp32s3", "esp32s31",
+const SUPPORTED_CHIPS: [&str; 13] = [
+    "esp32", "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32h2", "esp32h21",
+    "esp32h4", "esp32p4", "esp32s2", "esp32s3", "esp32s31",
 ];
 
 /// Chips with direct-boot test firmware
@@ -610,7 +610,7 @@ impl TestRunner {
 
         let flash_frequency = match chip {
             "esp32c2" => "30mhz",
-            "esp32h2" | "esp32h4" => "24mhz",
+            "esp32h2" | "esp32h21" | "esp32h4" => "24mhz",
             _ => "40mhz",
         };
         let bootloader_name = match chip {
@@ -648,7 +648,10 @@ impl TestRunner {
             &app,
             options_image.to_str().unwrap(),
         ];
-        if matches!(chip, "esp32c2" | "esp32c6" | "esp32h2" | "esp32h4") {
+        if matches!(
+            chip,
+            "esp32c2" | "esp32c6" | "esp32h2" | "esp32h21" | "esp32h4"
+        ) {
             args.extend(["--mmu-page-size", "0x10000"]);
         }
         if chip == "esp32c2" {
@@ -711,7 +714,7 @@ impl TestRunner {
         if extended {
             let flash_frequency = match chip {
                 "esp32c2" => "30mhz",
-                "esp32h2" | "esp32h4" => "24mhz",
+                "esp32h2" | "esp32h21" | "esp32h4" => "24mhz",
                 _ => "40mhz",
             };
             standard_args.extend([
@@ -858,8 +861,8 @@ impl TestRunner {
     }
 
     /// Tests that the app starts after `--after watchdog-reset`, which resets
-    /// with the RTC watchdog, or with a hard reset on ESP32, ESP32-C6, ESP32-H2
-    /// and ESP32-H4.
+    /// with the RTC watchdog, or with a hard reset on ESP32, ESP32-C6,
+    /// ESP32-H2, ESP32-H21 and ESP32-H4.
     ///
     /// Not run in Secure Download Mode, where the ROM reboots into download
     /// mode after flashing and only the monitor's own reset starts the app.

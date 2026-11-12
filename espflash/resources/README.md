@@ -19,7 +19,7 @@ ESP-IDF tools are installed and exported with `IDF_TOOLS_PATH` set to `target/es
 
 For now, `esp-hal` uses MMU page size as `0x10000` (64k) for some chips, therefore those manifest entries set the ESP-IDF flash size to 64MB. The ESP32-H4 and ESP32-P4 have one bootloader per chip revision range; espflash picks one by the connected chip's revision, or by `--min-chip-rev` when no chip is connected.
 
-The flasher stubs are from `esp-flasher-stub` v1.4.1:
+The flasher stubs are from `esp-flasher-stub` v1.4.1 (and v1.5.0 for `esp32h21.toml`):
 https://github.com/espressif/esp-flasher-stub/releases/tag/v1.4.1
 
 The roms are taken from the [`esp-rom-elfs`](https://github.com/espressif/esp-rom-elfs) repository, except for:
@@ -27,4 +27,4 @@ The roms are taken from the [`esp-rom-elfs`](https://github.com/espressif/esp-ro
 - `esp32c5_rev100_rom.elf` and `esp32c61_rev100_rom.elf`: taken from release `20260313` of `esp-rom-elfs`: https://github.com/espressif/esp-rom-elfs/releases/tag/20260313
 - `esp32s31_rev0_rom.elf`: taken from release `20260528` of `esp-rom-elfs`: https://github.com/espressif/esp-rom-elfs/releases/tag/20260528
 
-ESP32-H4 currently has no published ROM ELF in `esp-rom-elfs`.
+ESP32-H4 and ESP32-H21 currently have no published ROM ELF in `esp-rom-elfs`.

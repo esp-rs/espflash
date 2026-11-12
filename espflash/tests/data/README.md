@@ -179,6 +179,12 @@ cargo build --release --features uart
 cargo build --release --features usb
 ```
 
+The `esp32h21` elf file under this folder has been generated from `examples/get-started/hello_world` using ESP-IDF at [`c712a0dde3`](https://github.com/espressif/esp-idf/tree/c712a0dde385d659a1470a136251980d31a70bc1) (preview target):
+```
+idf.py --preview set-target esp32h21
+idf.py --preview build
+```
+
 ## SDM HIL Setup for ESP32C6
 
 The VM running SDM HIL is connected to a ESP32C6. To enable secure download mode, the following command needs to be run:
