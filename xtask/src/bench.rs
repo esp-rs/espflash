@@ -40,8 +40,9 @@ pub struct BenchArgs {
     #[arg(long, default_value = "115200")]
     pub baud: u32,
 
-    /// Number of samples of each metric
-    #[arg(long, default_value = "5")]
+    /// Number of samples of each metric. From 7 samples on, the nearest-rank
+    /// 10th and 90th percentiles exclude the fastest and slowest sample.
+    #[arg(long, default_value = "10")]
     pub samples: usize,
 
     /// Serial console of the port under test [default: detected from the USB
@@ -203,10 +204,10 @@ mod tests {
 
     #[test]
     fn percentiles_pick_nearest_rank() {
-        let values = [5.0, 1.0, 4.0, 2.0, 3.0];
-        assert_eq!(percentile(&values, 0.1), 1.0);
-        assert_eq!(percentile(&values, 0.5), 3.0);
-        assert_eq!(percentile(&values, 0.9), 5.0);
+        let values = [10.0, 1.0, 9.0, 2.0, 8.0, 3.0, 7.0, 4.0, 6.0, 5.0];
+        assert_eq!(percentile(&values, 0.1), 2.0);
+        assert_eq!(percentile(&values, 0.5), 6.0);
+        assert_eq!(percentile(&values, 0.9), 9.0);
         assert_eq!(percentile(&[7.0], 0.9), 7.0);
     }
 }

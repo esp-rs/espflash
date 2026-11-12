@@ -226,9 +226,12 @@ jobs:
           --espflash "$PWD/hil-bin/espflash" ${{ matrix.target.extraArgs }}
 
       # The benchmarks only feed the dashboard; they must not fail the HIL job.
+      # A hung benchmark would otherwise run into the job timeout, which
+      # `continue-on-error` does not cover.
       - name: Benchmark flash operations
         id: bench
         continue-on-error: true
+        timeout-minutes: 5
         run: >-
           xtask bench --runner ${{ matrix.target.runner }} --baud 921600
           --console ${{ matrix.target.port }} > "$RUNNER_TEMP/bench.jsonl"
