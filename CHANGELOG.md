@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update the flasher stubs to esp-flasher-stub v2.0.0. The ESP32-C5 stub sets its CPU divider before switching to the PLL, so its handshake over USB-Serial-JTAG no longer intermittently arrives with every byte tripled (`OOOHHHAAAIII`) (#1128)
 - `read-flash --block-size 0` is rejected when parsing the arguments, instead of timing out after connecting (#1127)
 - `erase-parts` checks the partition table and the partition labels before connecting, instead of resetting the device into the bootloader and then failing (#1127)
+- `board-info` decodes the embedded flash and PSRAM of ESP32-S3 chips from their eFuses like esptool, instead of reporting "Embedded Flash" or "Embedded PSRAM" based on the eFuse block version. It lists IEEE802.15.4 for ESP32-C6 and ESP32-H2, and shows ESP32 coding scheme 3 as "None (may contain encoding data)" instead of "Invalid"
 
 ### Removed
 
