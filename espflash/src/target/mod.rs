@@ -2020,7 +2020,7 @@ impl Chip {
         // Try to flash the eFuse up to 3 times in case not all bits ended up
         // being burned.
         let mut err = None;
-        for _ in 0..3 {
+        'burn: for _ in 0..3 {
             self.wait_efuse_idle(connection)?;
 
             // Write the encoded data to the block's write address.
@@ -2057,7 +2057,7 @@ impl Chip {
                 let wr_word = coded_data[word as usize];
                 if (rd_word & wr_word) != wr_word {
                     let _ = err.insert("Not all bits were set after burning");
-                    continue;
+                    continue 'burn;
                 }
             }
 
@@ -2176,5 +2176,137 @@ mod tests {
     #[test]
     fn other_chips_keep_their_metadata_windows() {
         assert!(!Chip::Esp32c5.addr_is_flash(0x5000_0000));
+    }
+}
+
+#[cfg(all(test, unix, feature = "serialport"))]
+mod efuse_write_tests {
+    use std::{
+        collections::HashMap,
+        sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        },
+        thread,
+        time::Duration,
+    };
+
+    use serialport::{SerialPort, UsbPortInfo};
+    use slip_codec::{SlipDecoder, SlipEncoder};
+
+    use super::*;
+    use crate::{
+        command::CommandType,
+        connection::{Port, ResetAfterOperation, ResetBeforeOperation},
+    };
+
+    /// Writes `data` to eFuse `block` of `chip` through a ROM loader emulated
+    /// on a pseudo-terminal, and returns the result and the number of burns.
+    ///
+    /// The emulated eFuse controller is always idle. If `bits_stick`, a burn
+    /// sets the programmed bits in the block's read registers.
+    fn write_efuse(
+        chip: Chip,
+        block: u32,
+        data: &[u8],
+        bits_stick: bool,
+    ) -> (Result<(), Error>, usize) {
+        let (cmd_reg, burn_cmd) = match chip {
+            Chip::Esp32 => (
+                efuse::esp32::defines::EFUSE_REG_CMD,
+                efuse::esp32::defines::EFUSE_CMD_WRITE,
+            ),
+            Chip::Esp32c6 => (
+                efuse::esp32c6::defines::EFUSE_CMD_REG,
+                efuse::esp32c6::defines::EFUSE_PGM_CMD,
+            ),
+            _ => unimplemented!("no emulated eFuse controller for {chip}"),
+        };
+        let efuse_block = chip.block(block).unwrap();
+        let burns = Arc::new(AtomicUsize::new(0));
+
+        let (mut device, host) = Port::pair().unwrap();
+        device.set_timeout(Duration::from_secs(10)).unwrap();
+        let device_burns = Arc::clone(&burns);
+        thread::spawn(move || {
+            let mut regs = HashMap::<u32, u32>::new();
+            let mut decoder = SlipDecoder::new();
+            loop {
+                let mut frame = Vec::new();
+                // Fails once the host has closed its end
+                if decoder.decode(&mut device, &mut frame).is_err() {
+                    return;
+                }
+                let word =
+                    |i: usize| u32::from_le_bytes(frame[8 + 4 * i..][..4].try_into().unwrap());
+
+                let value = match frame[1] {
+                    op if op == CommandType::ReadReg as u8 => {
+                        regs.get(&word(0)).copied().unwrap_or_default()
+                    }
+                    op if op == CommandType::WriteReg as u8 => {
+                        let (address, value) = (word(0), word(1));
+                        if address != cmd_reg {
+                            regs.insert(address, value);
+                        } else if value & burn_cmd != 0 {
+                            device_burns.fetch_add(1, Ordering::SeqCst);
+                            for i in 0..efuse_block.length as u32 {
+                                let programmed = regs
+                                    .get(&(efuse_block.write_address + 4 * i))
+                                    .copied()
+                                    .unwrap_or_default();
+                                if bits_stick {
+                                    *regs.entry(efuse_block.read_address + 4 * i).or_default() |=
+                                        programmed;
+                                }
+                            }
+                        }
+                        0
+                    }
+                    op => panic!("unexpected command {op:#04x}"),
+                };
+
+                let mut response = vec![0x01, frame[1], 4, 0];
+                response.extend(value.to_le_bytes());
+                response.extend([0; 4]);
+                SlipEncoder::new(true)
+                    .encode(&response, &mut device)
+                    .unwrap();
+            }
+        });
+
+        let port_info = UsbPortInfo {
+            vid: 0,
+            pid: 0,
+            serial_number: None,
+            manufacturer: None,
+            product: None,
+        };
+        let mut connection = Connection::new(
+            host,
+            port_info,
+            ResetAfterOperation::HardReset,
+            ResetBeforeOperation::NoReset,
+            115_200,
+        );
+        let result = chip.write_efuse(&mut connection, block, data);
+        (result, burns.load(Ordering::SeqCst))
+    }
+
+    #[test]
+    fn burn_that_sets_all_bits_succeeds() {
+        let (result, burns) = write_efuse(Chip::Esp32c6, 3, &[0xa5; 4], true);
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(burns, 1);
+    }
+
+    #[test]
+    fn burn_that_misses_bits_is_retried_and_fails() {
+        let (result, burns) = write_efuse(Chip::Esp32c6, 3, &[0xa5; 4], false);
+        assert!(
+            matches!(result, Err(Error::WritingEfuseFailed(_))),
+            "{result:?}"
+        );
+        assert_eq!(burns, 3);
     }
 }
