@@ -543,8 +543,8 @@ pub struct Flasher {
     chip: Chip,
     /// Chip revision (major, minor), if known
     chip_revision: Option<(u32, u32)>,
-    /// Flash size, loaded from SPI flash
-    flash_size: FlashSize,
+    /// Flash size, loaded from SPI flash or set by the user, if known
+    flash_size: Option<FlashSize>,
     /// Configuration for SPI attached flash (0 to use fused values)
     spi_params: SpiAttachParams,
     /// Indicate RAM stub loader is in use
@@ -635,7 +635,7 @@ impl Flasher {
             connection,
             chip: detected_chip,
             chip_revision,
-            flash_size: FlashSize::_4Mb,
+            flash_size: None,
             spi_params: SpiAttachParams::default(),
             use_stub,
             verify,
@@ -683,8 +683,16 @@ impl Flasher {
     }
 
     /// Set the flash size.
+    ///
+    /// A size larger than the detected one is ignored with a warning, so that
+    /// flash accesses can't wrap around to the start of the real flash.
     pub fn set_flash_size(&mut self, flash_size: FlashSize) {
-        self.flash_size = flash_size;
+        match self.flash_size {
+            Some(detected) if flash_size.size() > detected.size() => warn!(
+                "Flash size {flash_size} is larger than the detected flash size of {detected}, using {detected}"
+            ),
+            _ => self.flash_size = Some(flash_size),
+        }
     }
 
     fn chip_revision(&mut self) -> Result<Option<(u32, u32)>, Error> {
@@ -894,15 +902,17 @@ impl Flasher {
                 debug!("Flash enable failed");
             }
 
-            if let Some(flash_size) = self.flash_detect()? {
+            if let Some(flash_id) = self.read_flash_id()? {
                 debug!("Flash detect OK!");
 
                 // Flash detection was successful, so save the flash size and
-                // SPI parameters and return.
-                self.flash_size = flash_size;
+                // SPI parameters and return. An unrecognized size stays
+                // unknown, so that range checks don't reject a larger flash.
+                self.flash_size = flash_size_from_id(flash_id);
                 self.spi_params = spi_params;
 
-                let spi_set_params = SpiSetParams::default(self.flash_size.size());
+                let spi_set_params =
+                    SpiSetParams::default(self.flash_size.unwrap_or_default().size());
                 self.connection.with_timeout(
                     CommandType::SpiSetParams.timeout(),
                     |connection| {
@@ -926,28 +936,38 @@ impl Flasher {
 
     /// Detect the flash size of the connected device.
     pub fn flash_detect(&mut self) -> Result<Option<FlashSize>, Error> {
+        Ok(self
+            .read_flash_id()?
+            .map(|flash_id| flash_size_from_id(flash_id).unwrap_or_default()))
+    }
+
+    /// Reads the ID of the flash chip, or `None` if the flash did not respond
+    /// and other SPI parameters should be tried.
+    fn read_flash_id(&mut self) -> Result<Option<u32>, Error> {
         const FLASH_RETRY: u8 = 0xFF;
 
         let flash_id = self.spi_command(CommandType::FlashDetect, &[], 24)?;
-        let size_id = (flash_id >> 16) as u8;
+        Ok(((flash_id >> 16) as u8 != FLASH_RETRY).then_some(flash_id))
+    }
 
-        // This value indicates that an alternate detection method should be
-        // tried.
-        if size_id == FLASH_RETRY {
-            return Ok(None);
-        }
-
-        let flash_size = match FlashSize::from_detected(size_id) {
-            Ok(size) => size,
-            Err(_) => {
-                warn!(
-                    "Could not detect flash size (FlashID=0x{flash_id:02X}, SizeID=0x{size_id:02X}), defaulting to 4MB"
-                );
-                FlashSize::default()
+    /// Fails if the `size` bytes at `offset` extend past the end of the flash.
+    ///
+    /// Flash chips wrap addresses around, so such an access would reach the
+    /// start of the flash, where the bootloader lives. Nothing is checked when
+    /// the flash size is unknown, e.g. in Secure Download Mode.
+    fn check_flash_region(&self, offset: u32, size: u32) -> Result<(), Error> {
+        match self.flash_size {
+            Some(flash_size)
+                if u64::from(offset) + u64::from(size) > u64::from(flash_size.size()) =>
+            {
+                Err(Error::FlashRegionOutOfBounds {
+                    offset,
+                    size,
+                    flash_size,
+                })
             }
-        };
-
-        Ok(Some(flash_size))
+            _ => Ok(()),
+        }
     }
 
     fn enable_flash(&mut self, spi_params: SpiAttachParams) -> Result<(), Error> {
@@ -1092,7 +1112,7 @@ impl Flasher {
             chip,
             revision,
             crystal_frequency,
-            flash_size: self.flash_size,
+            flash_size: self.flash_size.unwrap_or_default(),
             features,
             mac_address,
         };
@@ -1146,18 +1166,6 @@ impl Flasher {
         progress: &mut dyn ProgressCallbacks,
         image_format: ImageFormat<'a>,
     ) -> Result<(), Error> {
-        let (mut verify, mut skip) = (self.verify, self.skip);
-
-        if self.connection.secure_download_mode {
-            self.validate_secure_download_args()?;
-            (verify, skip) = (false, false);
-        }
-
-        let mut target = self
-            .chip
-            .flash_target(self.spi_params, self.use_stub, verify, skip);
-        target.begin(&mut self.connection).flashing()?;
-
         // When the `cli` feature is enabled, display the image size
         // information.
         #[cfg(feature = "cli")]
@@ -1174,7 +1182,26 @@ impl Flasher {
             }
         }
 
-        for segment in image_format.flash_segments() {
+        // Check every segment before writing any, so that an image which does
+        // not fit leaves the flash untouched.
+        let segments = image_format.flash_segments();
+        for segment in &segments {
+            self.check_flash_region(segment.addr, segment.size())?;
+        }
+
+        let (mut verify, mut skip) = (self.verify, self.skip);
+
+        if self.connection.secure_download_mode {
+            self.validate_secure_download_args()?;
+            (verify, skip) = (false, false);
+        }
+
+        let mut target = self
+            .chip
+            .flash_target(self.spi_params, self.use_stub, verify, skip);
+        target.begin(&mut self.connection).flashing()?;
+
+        for segment in segments {
             target
                 .write_segment(&mut self.connection, segment, progress)
                 .flashing()?;
@@ -1221,6 +1248,10 @@ impl Flasher {
         segments: &[Segment<'_>],
         progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
+        for segment in segments {
+            self.check_flash_region(segment.addr, segment.size())?;
+        }
+
         let (mut verify, mut skip) = (self.verify, self.skip);
 
         if self.connection.secure_download_mode {
@@ -1245,6 +1276,8 @@ impl Flasher {
 
     /// Get MD5 of region
     pub fn checksum_md5(&mut self, addr: u32, length: u32) -> Result<u128, Error> {
+        self.check_flash_region(addr, length)?;
+
         self.connection.with_timeout(
             CommandType::FlashMd5.timeout_for_size(length),
             |connection| {
@@ -1303,6 +1336,7 @@ impl Flasher {
     /// Erase a region of flash.
     pub fn erase_region(&mut self, offset: u32, size: u32) -> Result<(), Error> {
         debug!("Erasing region of 0x{size:x}B at 0x{offset:08x}");
+        self.check_flash_region(offset, size)?;
 
         self.connection.with_timeout(
             CommandType::EraseRegion.timeout_for_size(size),
@@ -1339,6 +1373,8 @@ impl Flasher {
         // ROM read limit per command
         const BLOCK_LEN: usize = 64;
 
+        self.check_flash_region(offset, size)?;
+
         let mut data: Vec<u8> = Vec::new();
 
         let mut file = OpenOptions::new()
@@ -1347,18 +1383,15 @@ impl Flasher {
             .create(true)
             .open(&file_path)?;
 
-        let mut correct_offset = offset;
-
         while data.len() < size as usize {
             let block_len = std::cmp::min(BLOCK_LEN, size as usize - data.len());
-
-            correct_offset += data.len() as u32;
+            let block_offset = offset + data.len() as u32;
 
             let response = self.connection.with_timeout(
                 CommandType::ReadFlashSlow.timeout(),
                 |connection| {
                     connection.command(Command::ReadFlashSlow {
-                        offset: correct_offset,
+                        offset: block_offset,
                         size: block_len as u32,
                         block_size,
                         max_in_flight,
@@ -1395,6 +1428,7 @@ impl Flasher {
         file_path: PathBuf,
     ) -> Result<(), Error> {
         debug!("Reading 0x{size:x}B from 0x{offset:08x}");
+        self.check_flash_region(offset, size)?;
 
         let mut data = Vec::new();
 
@@ -1488,6 +1522,19 @@ impl Flasher {
     pub fn into_connection(self) -> Connection {
         self.connection
     }
+}
+
+/// Returns the size encoded in a flash chip ID, if it is a known one.
+#[cfg(feature = "serialport")]
+fn flash_size_from_id(flash_id: u32) -> Option<FlashSize> {
+    let size_id = (flash_id >> 16) as u8;
+    let flash_size = FlashSize::from_detected(size_id).ok();
+    if flash_size.is_none() {
+        warn!(
+            "Could not detect flash size (FlashID=0x{flash_id:02X}, SizeID=0x{size_id:02X}), defaulting to 4MB"
+        );
+    }
+    flash_size
 }
 
 #[cfg(feature = "serialport")]

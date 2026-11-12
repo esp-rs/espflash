@@ -477,6 +477,8 @@ impl TestRunner {
                 self.test_erase_parts()?;
             }
             self.test_erase_region()?;
+            self.test_write_bin_rom()?;
+            self.test_write_bin_unaligned()?;
             self.test_hold_in_reset()?;
             self.test_reset()?;
             self.test_list_ports(extended)?;
@@ -530,6 +532,8 @@ impl TestRunner {
                 self.test_save_image_write_bin(Some(chip))
             }
             "erase-region" => self.test_erase_region(),
+            "write-bin-rom" => self.test_write_bin_rom(),
+            "write-bin-unaligned" => self.test_write_bin_unaligned(),
             "hold-in-reset" => self.test_hold_in_reset(),
             "reset" => self.test_reset(),
             "checksum-md5" => self.test_checksum_md5(),
@@ -1095,8 +1099,58 @@ impl TestRunner {
             return Err("Failed to read flash_content.bin file".into());
         }
 
+        // A region crossing the end of the flash must be rejected: flash chips
+        // wrap addresses around, so erasing it would erase sector 0 as well.
+        let sector0 = self.tests_dir.join("sector0.bin");
+        self.run_simple_command_test(
+            &["read-flash", "0x0", "0x1000", sector0.to_str().unwrap()],
+            Some(&["Flash content successfully read"]),
+            self.timeout,
+            "read sector 0",
+        )?;
+        let last_sector = format!("{:#x}", self.flash_size()? - 0x1000);
+        let mut cmd = self.create_espflash_command(&["erase-region", &last_sector, "0x2000"]);
+        if self.run_command_with_timeout(&mut cmd, self.timeout)? == 0 {
+            return Err("Erasing past the end of the flash should have failed".into());
+        }
+        self.run_simple_command_test(
+            &[
+                "read-flash",
+                "0x0",
+                "0x1000",
+                flash_output.to_str().unwrap(),
+            ],
+            Some(&["Flash content successfully read"]),
+            self.timeout,
+            "read sector 0 after erasing past the end",
+        )?;
+        if fs::read(&sector0)? != fs::read(&flash_output)? {
+            return Err("Erasing past the end of the flash changed sector 0".into());
+        }
+
         log::info!("erase-region test passed");
         Ok(())
+    }
+
+    /// Size in bytes of the flash of the device under test.
+    fn flash_size(&self) -> Result<u32> {
+        let mut cmd = self.create_espflash_command(&["board-info"]);
+        let result = self.execute_command(&mut cmd, self.timeout, None)?;
+        if result.timed_out || !result.status.success() {
+            return Err(format!("board-info failed with status {}", result.status).into());
+        }
+
+        let size = result
+            .output
+            .lines()
+            .find_map(|line| line.strip_prefix("Flash size:"))
+            .ok_or("board-info did not print the flash size")?
+            .trim();
+        let megabytes: u32 = size
+            .strip_suffix("MB")
+            .and_then(|megabytes| megabytes.parse().ok())
+            .ok_or_else(|| format!("Unexpected flash size: {size}"))?;
+        Ok(megabytes * 1024 * 1024)
     }
 
     /// Tests erasing a named partition and verifies the resulting bytes.
@@ -1142,18 +1196,121 @@ impl TestRunner {
         Ok(())
     }
 
+    /// Tests writing at an address that is not sector-aligned, with the stub
+    /// and with the ROM loader. Writing erases whole sectors, so the bytes
+    /// before the address in its sector are erased, which espflash warns
+    /// about.
+    pub fn test_write_bin_unaligned(&self) -> Result<()> {
+        log::info!("Running unaligned write-bin test");
+        let fill_file = self.tests_dir.join("unaligned-fill.bin");
+        let data_file = self.tests_dir.join("unaligned-data.bin");
+        let flash_output = self.flash_output_file();
+        fs::write(&fill_file, vec![0x5a; 0x2000])?;
+        fs::write(&data_file, vec![0xa5; 0x200])?;
+
+        // The data crosses from the sector at 0x9000 into the one at 0xa000,
+        // and both are erased
+        let mut expected = vec![0xff; 0x2000];
+        expected[0xf00..0x1100].fill(0xa5);
+
+        for (loader, loader_args) in [("stub", &[][..]), ("ROM bootloader", &["--no-stub"][..])] {
+            self.run_simple_command_test(
+                &["write-bin", "0x9000", fill_file.to_str().unwrap()],
+                Some(&["Binary successfully written to flash!"]),
+                self.timeout,
+                "fill unaligned write-bin test region",
+            )?;
+
+            let mut args = vec!["write-bin", "0x9f00", data_file.to_str().unwrap()];
+            args.extend(loader_args);
+            self.run_simple_command_test(
+                &args,
+                Some(&[
+                    "Flash address 0x00009f00 is not aligned to a 0x1000 byte flash sector, so the 0xf00 bytes before it will be erased",
+                    "Binary successfully written to flash!",
+                ]),
+                self.timeout,
+                &format!("unaligned write-bin with {loader}"),
+            )?;
+
+            self.run_simple_command_test(
+                &[
+                    "read-flash",
+                    "0x9000",
+                    "0x2000",
+                    flash_output.to_str().unwrap(),
+                ],
+                Some(&["Flash content successfully read"]),
+                self.timeout,
+                "read unaligned write-bin test region",
+            )?;
+            if fs::read(&flash_output)? != expected {
+                return Err(
+                    format!("Unaligned write-bin with {loader}: content does not match").into(),
+                );
+            }
+        }
+
+        log::info!("unaligned write-bin test passed");
+        Ok(())
+    }
+
+    /// Tests writing a binary with the ROM loader. Its size is not a multiple
+    /// of the flash sector size, which the ESP32-S3 ROM fails at FLASH_END.
+    pub fn test_write_bin_rom(&self) -> Result<()> {
+        log::info!("Running ROM write-bin test");
+        let pattern_file = self.tests_dir.join("rom-pattern.bin");
+        let flash_output = self.flash_output_file();
+        let pattern: Vec<u8> = (0..0x1400u32).map(|i| (i % 251) as u8).collect();
+        fs::write(&pattern_file, &pattern)?;
+
+        self.run_simple_command_test(
+            &["erase-region", "0x9000", "0x2000"],
+            Some(&["Erasing region at"]),
+            self.timeout,
+            "erase ROM write-bin test region",
+        )?;
+        self.run_simple_command_test(
+            &[
+                "write-bin",
+                "--no-stub",
+                "0x9000",
+                pattern_file.to_str().unwrap(),
+            ],
+            Some(&["Binary successfully written to flash!"]),
+            self.timeout,
+            "write-bin with ROM bootloader",
+        )?;
+        self.run_simple_command_test(
+            &[
+                "read-flash",
+                "0x9000",
+                "0x1400",
+                flash_output.to_str().unwrap(),
+            ],
+            Some(&["Flash content successfully read"]),
+            self.timeout,
+            "read ROM write-bin test region",
+        )?;
+
+        if fs::read(&flash_output)? != pattern {
+            return Err("ROM write-bin content does not match".into());
+        }
+
+        log::info!("ROM write-bin test passed");
+        Ok(())
+    }
+
     /// Tests reading the flash memory
     pub fn test_read_flash(&self) -> Result<()> {
         log::info!("Running read-flash test");
         let flash_output = self.flash_output_file();
         let pattern_file = self.tests_dir.join("pattern.bin");
 
-        // Create a pattern to write to flash
-        let known_pattern: Vec<u8> = vec![
-            0x01, 0xA0, 0x02, 0xB3, 0x04, 0xC4, 0x08, 0xD5, 0x10, 0xE6, 0x20, 0xF7, 0x40, 0x88,
-            0x50, 0x99, 0x60, 0xAA, 0x70, 0xBB, 0x80, 0xCC, 0x90, 0xDD, 0xA0, 0xEE, 0xB0, 0xFF,
-            0xC0, 0x11, 0xD0, 0x22,
-        ];
+        // Create a pattern to write to flash. Its period of 251 bytes makes
+        // every 64-byte block of a ROM read differ, so that reading a block
+        // from the wrong offset is detected.
+        let known_pattern: Vec<u8> = (0..0x200u32).map(|i| (i % 251) as u8).collect();
 
         // Write the pattern to a file
         fs::write(&pattern_file, &known_pattern)?;
@@ -1175,8 +1332,8 @@ impl TestRunner {
             "write pattern",
         )?;
 
-        // Test reading various lengths
-        for &len in &[2, 5, 10, 26] {
+        // Test reading various lengths, including several ROM read blocks
+        for &len in &[2, 5, 10, 26, 0x200] {
             log::info!("Testing read-flash with length: {len}");
 
             // Test normal read
