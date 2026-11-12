@@ -744,10 +744,48 @@ impl Chip {
 
                 Ok(features)
             }
-            Chip::Esp32c2 => Ok(vec!["WiFi", "BLE"]),
-            Chip::Esp32c3 => Ok(vec!["WiFi", "BLE"]),
+            Chip::Esp32c2 => {
+                // `FLASH_CAP`, which the generated ESP32-C2 definitions
+                // predate. Regenerating them would remove the public
+                // `BLK2_RESERVED_DATA_1` it overlaps.
+                const FLASH_CAP: EfuseField = EfuseField::new(2, 7, 253, 3);
+
+                let mut features = vec!["WiFi", "BLE"];
+                features.extend(self.embedded_flash(
+                    connection,
+                    FLASH_CAP,
+                    &[
+                        "Embedded Flash 4MB",
+                        "Embedded Flash 2MB",
+                        "Embedded Flash 1MB",
+                    ],
+                )?);
+                Ok(features)
+            }
+            Chip::Esp32c3 => {
+                let mut features = vec!["WiFi", "BLE"];
+                features.extend(self.embedded_flash(
+                    connection,
+                    efuse::esp32c3::FLASH_CAP,
+                    &[
+                        "Embedded Flash 4MB",
+                        "Embedded Flash 2MB",
+                        "Embedded Flash 1MB",
+                        "Embedded Flash 8MB",
+                    ],
+                )?);
+                Ok(features)
+            }
             Chip::Esp32c5 => Ok(vec!["WiFi", "BLE", "IEEE802.15.4", "240MHz"]),
-            Chip::Esp32c6 => Ok(vec!["WiFi 6", "BT 5", "IEEE802.15.4"]),
+            Chip::Esp32c6 => {
+                let mut features = vec!["WiFi 6", "BT 5", "IEEE802.15.4"];
+                features.extend(self.embedded_flash(
+                    connection,
+                    efuse::esp32c6::FLASH_CAP,
+                    &["Embedded Flash 4MB", "Embedded Flash 8MB"],
+                )?);
+                Ok(features)
+            }
             Chip::Esp32c61 => Ok(vec!["WiFi 6", "BT 5"]),
             Chip::Esp32h2 => Ok(vec!["BLE", "IEEE802.15.4"]),
             Chip::Esp32h4 => Ok(vec!["BT 5 (LE)", "IEEE802.15.4", "Dual Core", "96MHz"]),
@@ -791,15 +829,13 @@ impl Chip {
             Chip::Esp32s3 => {
                 let mut features = vec!["WiFi", "BLE"];
 
-                // Capacities of the memory in the package, as decoded by
-                // esptool
-                match self.read_efuse_le::<u32>(connection, efuse::esp32s3::FLASH_CAP)? {
-                    0 => {}
-                    1 => features.push("Embedded Flash 8MB"),
-                    2 => features.push("Embedded Flash 4MB"),
-                    _ => features.push("Unknown Embedded Flash"),
-                }
+                features.extend(self.embedded_flash(
+                    connection,
+                    efuse::esp32s3::FLASH_CAP,
+                    &["Embedded Flash 8MB", "Embedded Flash 4MB"],
+                )?);
 
+                // Capacity of the PSRAM in the package, as decoded by esptool
                 let psram_cap =
                     (self.read_efuse_le::<u32>(connection, efuse::esp32s3::PSRAM_CAP_3)? << 2)
                         | self.read_efuse_le::<u32>(connection, efuse::esp32s3::PSRAM_CAP)?;
@@ -815,6 +851,22 @@ impl Chip {
                 Ok(features)
             }
         }
+    }
+
+    /// Returns the embedded flash feature of the chip from its flash capacity
+    /// eFuse `field`, as esptool decodes it: nothing for 0, and
+    /// `features[n - 1]` for `n`.
+    #[cfg(feature = "serialport")]
+    fn embedded_flash(
+        &self,
+        connection: &mut Connection,
+        field: EfuseField,
+        features: &[&'static str],
+    ) -> Result<Option<&'static str>, Error> {
+        let flash_cap = self.read_efuse_le::<u32>(connection, field)? as usize;
+        Ok(flash_cap
+            .checked_sub(1)
+            .map(|n| features.get(n).copied().unwrap_or("Unknown Embedded Flash")))
     }
 
     /// Determine the chip's revision number
