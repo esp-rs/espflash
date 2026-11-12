@@ -740,8 +740,8 @@ impl TestRunner {
     }
 
     /// Tests that the app starts after `--after watchdog-reset`, which resets
-    /// with the RTC watchdog, or with a hard reset on ESP32, ESP32-C6, ESP32-H2
-    /// and ESP32-H4.
+    /// with the RTC watchdog, or with a hard reset on ESP32, ESP32-C6,
+    /// ESP32-H2, ESP32-H21 and ESP32-H4.
     ///
     /// Not run in Secure Download Mode, where the ROM reboots into download
     /// mode after flashing and only the monitor's own reset starts the app.

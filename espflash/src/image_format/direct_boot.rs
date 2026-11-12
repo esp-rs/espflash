@@ -32,6 +32,7 @@ fn magic_offset(chip: Chip) -> Option<u32> {
         | Chip::Esp32c6
         | Chip::Esp32c61
         | Chip::Esp32h2
+        | Chip::Esp32h21
         | Chip::Esp32h4
         | Chip::Esp32p4
         | Chip::Esp32s31 => Some(0x0),
