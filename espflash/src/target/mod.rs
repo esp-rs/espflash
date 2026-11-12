@@ -1500,23 +1500,23 @@ impl Chip {
                 }
 
                 connection.update_reg(
-                    efuse::esp32s3::defines::EFUSE_DAC_CONF_REG,
-                    efuse::esp32s3::defines::EFUSE_DAC_NUM_M,
+                    efuse::esp32h2::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32h2::defines::EFUSE_DAC_NUM_M,
                     0xFF,
                 )?;
                 connection.update_reg(
-                    efuse::esp32s3::defines::EFUSE_DAC_CONF_REG,
-                    efuse::esp32s3::defines::EFUSE_DAC_CLK_DIV_M,
+                    efuse::esp32h2::defines::EFUSE_DAC_CONF_REG,
+                    efuse::esp32h2::defines::EFUSE_DAC_CLK_DIV_M,
                     0x28,
                 )?;
                 connection.update_reg(
-                    efuse::esp32s3::defines::EFUSE_WR_TIM_CONF1_REG,
-                    efuse::esp32s3::defines::EFUSE_PWR_ON_NUM_M,
+                    efuse::esp32h2::defines::EFUSE_WR_TIM_CONF1_REG,
+                    efuse::esp32h2::defines::EFUSE_PWR_ON_NUM_M,
                     0x3000,
                 )?;
                 connection.update_reg(
-                    efuse::esp32s3::defines::EFUSE_WR_TIM_CONF2_REG,
-                    efuse::esp32s3::defines::EFUSE_PWR_OFF_NUM_M,
+                    efuse::esp32h2::defines::EFUSE_WR_TIM_CONF2_REG,
+                    efuse::esp32h2::defines::EFUSE_PWR_OFF_NUM_M,
                     0x190,
                 )?;
             }
