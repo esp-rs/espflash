@@ -134,13 +134,15 @@ struct FlashArgs {
     flash_args: cli::FlashArgs,
     /// ELF image to flash
     image: PathBuf,
-    /// Application image format to use
-    #[clap(long, default_value = "esp-idf")]
-    format: ImageFormatKind,
+    /// Application image format to use [default: the format the ELF image was
+    /// built for, or esp-idf]
+    #[clap(long)]
+    format: Option<ImageFormatKind>,
     /// ESP-IDF arguments
     #[clap(flatten)]
     idf_format_args: cli::IdfFormatArgs,
-    /// Skip compatibility checks (chip revision, etc.). Use with caution!
+    /// Skip compatibility checks (chip revision, image format, etc.). Use with
+    /// caution!
     #[clap(long)]
     force: bool,
 }
@@ -156,9 +158,10 @@ struct SaveImageArgs {
     /// Sage image arguments
     #[clap(flatten)]
     save_image_args: cli::SaveImageArgs,
-    /// Application image format to use
-    #[clap(long, default_value = "esp-idf")]
-    format: ImageFormatKind,
+    /// Application image format to use [default: the format the ELF image was
+    /// built for, or esp-idf]
+    #[clap(long)]
+    format: Option<ImageFormatKind>,
     // ESP-IDF arguments
     #[clap(flatten)]
     idf_format_args: cli::IdfFormatArgs,
@@ -237,8 +240,14 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         &monitor_args,
         args.connect_args.non_interactive,
     )?;
+
+    let elf_data = fs::read(&args.image).into_diagnostic()?;
+    let format = resolve_image_format(args.format, config, &elf_data, args.force)?;
+
     check_idf_args(
-        args.format,
+        format,
+        &args.idf_format_args,
+        &args.flash_config_args,
         &args.flash_args.erase_parts,
         &args.flash_args.erase_data_parts,
     )?;
@@ -261,10 +270,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let chip = flasher.chip();
     let target_xtal_freq = chip.xtal_frequency(flasher.connection())?;
 
-    // Read the ELF data from the build path and load it to the target.
-    let elf_data = fs::read(&args.image).into_diagnostic()?;
-
-    if args.flash_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
+    if args.flash_args.image.check_app_descriptor && format == ImageFormatKind::EspIdf {
         check_idf_bootloader(&elf_data)?;
     }
 
@@ -309,7 +315,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         let image_format = make_image_format_with_chip_revision(
             &elf_data,
             &flash_data,
-            args.format,
+            format,
             config,
             Some(args.idf_format_args),
             None,
@@ -359,7 +365,16 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
         .into_diagnostic()
         .wrap_err_with(|| format!("Failed to open image {}", args.image.display()))?;
 
-    if args.save_image_args.image.check_app_descriptor && args.format == ImageFormatKind::EspIdf {
+    let format = resolve_image_format(args.format, config, &elf_data, true)?;
+    check_idf_args(
+        format,
+        &args.idf_format_args,
+        &args.flash_config_args,
+        &None,
+        &None,
+    )?;
+
+    if args.save_image_args.image.check_app_descriptor && format == ImageFormatKind::EspIdf {
         check_idf_bootloader(&elf_data)?;
     }
 
@@ -390,7 +405,7 @@ fn save_image(args: SaveImageArgs, config: &Config) -> Result<()> {
     let image_format = make_image_format(
         &elf_data,
         &flash_data,
-        args.format,
+        format,
         config,
         Some(args.idf_format_args),
         None,

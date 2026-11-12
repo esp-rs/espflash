@@ -17,6 +17,7 @@ Supports the **ESP32**, **ESP32-C2/C3/C5/C6/C61**, **ESP32-H2/H4**, **ESP32-P4**
   - [Permissions on Linux](#permissions-on-linux)
   - [Windows Subsystem for Linux](#windows-subsystem-for-linux)
 - [Bootloader and Partition Table](#bootloader-and-partition-table)
+- [Image Formats](#image-formats)
 - [Configuration Files](#configuration-files)
   - [`espflash_ports.toml`](#espflash_portstoml)
   - [`espflash.toml`](#espflashtoml)
@@ -114,6 +115,22 @@ If the `--bootloader` and/or `--partition-table` options are provided then these
 
 [esp-idf-sys]: https://github.com/esp-rs/esp-idf-sys
 
+## Image Formats
+
+The `flash` and `save-image` subcommands support two application image formats, selected with the `--format` argument:
+
+- `esp-idf`: The [ESP-IDF app image format], flashed together with a second-stage bootloader and a partition table.
+- `direct-boot`: The ROM starts the application directly, without a second-stage bootloader, partition table or app image header. Used by applications built with [`esp-bootloader-direct-boot`]. Supported on all chips except the ESP32 and ESP32-S2, and on the ESP32-C3 from revision v0.3.
+
+If neither `--format` nor the `format` key in `espflash.toml` is given, the format is taken from the metadata that `esp-hal` applications embed in the ELF file, falling back to `esp-idf`. Explicitly selecting a format that contradicts this metadata is an error, which `--force` overrides when flashing.
+
+`cargo-espflash` only writes the flash range covered by a direct-boot image, which always starts at `0x0`. When switching a device from an ESP-IDF image to direct boot, running `cargo espflash erase-flash` once is safer, so leftovers of the previous image (e.g. the partition table or NVS data) can't get in the way.
+
+The ESP-IDF specific options (`--bootloader`, `--partition-table`, `--partition-table-offset`, `--target-app-partition`, `--flash-mode`, `--flash-freq`, `--erase-parts` and `--erase-data-parts`) are rejected when using the `direct-boot` format.
+
+[ESP-IDF app image format]: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html
+[`esp-bootloader-direct-boot`]: https://docs.espressif.com/projects/rust/esp-bootloader-direct-boot/latest/
+
 ## Configuration Files
 
 There are two configuration files allowing you to define various parameters for your application:
@@ -144,6 +161,10 @@ This file allows you to define different flash parameters:
 - Baudrate:
 ```toml
 baudrate = 460800
+```
+- [Image format](#image-formats):
+```toml
+format = "direct-boot"
 ```
 - Bootloader:
 ```toml

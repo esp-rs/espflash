@@ -87,9 +87,10 @@ pub struct ProjectConfig {
     /// Baudrate
     #[serde(default)]
     pub baudrate: Option<u32>,
-    /// Image format
+    /// Image format. If unset, the format the ELF image was built for is
+    /// used.
     #[serde(default)]
-    pub format: ImageFormatKind,
+    pub format: Option<ImageFormatKind>,
     /// ESP-IDF format arguments
     #[serde(default, alias = "idf")]
     pub idf_format_args: cli::IdfFormatArgs,
@@ -352,5 +353,20 @@ mod tests {
         // Invalid input (non-hexadecimal character)
         let result: Result<TestData, _> = toml::from_str(r#"value = "xyz""#);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_deserialize_image_format() {
+        let config: ProjectConfig = toml::from_str("").unwrap();
+        assert_eq!(config.format, None);
+
+        let config: ProjectConfig = toml::from_str(r#"format = "direct-boot""#).unwrap();
+        assert_eq!(config.format, Some(ImageFormatKind::DirectBoot));
+
+        let config: ProjectConfig = toml::from_str(r#"format = "esp-idf""#).unwrap();
+        assert_eq!(config.format, Some(ImageFormatKind::EspIdf));
+
+        let config: ProjectConfig = toml::from_str(r#"format = "EspIdf""#).unwrap();
+        assert_eq!(config.format, Some(ImageFormatKind::EspIdf));
     }
 }

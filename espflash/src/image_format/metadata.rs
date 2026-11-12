@@ -5,6 +5,8 @@ use std::{collections::HashMap, error::Error};
 use object::{File, Object, ObjectSection, ObjectSymbol};
 use serde::{Deserialize, Serialize};
 
+use super::ImageFormatKind;
+
 /// Image format metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Metadata {
@@ -81,10 +83,52 @@ impl Metadata {
         self.read_string("espflash.LOG_FORMAT")
     }
 
+    /// Returns the name of the bootloader the image was built for.
+    pub fn bootloader_name(&self) -> Option<&str> {
+        self.read_string("bootloader.NAME")
+    }
+
+    /// Returns the image format the image was built for, based on its
+    /// bootloader name.
+    pub fn image_format(&self) -> Option<ImageFormatKind> {
+        match self.bootloader_name()? {
+            "ESP-IDF" => Some(ImageFormatKind::EspIdf),
+            "DIRECT-BOOT" => Some(ImageFormatKind::DirectBoot),
+            _ => None,
+        }
+    }
+
     /// Returns the minimum chip revision declared by the image, in
     /// `major * 100 + minor` format (e.g. `300` for v3.0).
     pub fn min_chip_revision(&self) -> Option<u16> {
         self.read_string("build_info.MIN_CHIP_REVISION")
             .and_then(|s| s.parse().ok())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn image_format(path: &str) -> Option<ImageFormatKind> {
+        let elf_data = std::fs::read(path).unwrap();
+        Metadata::from_bytes(Some(&elf_data)).image_format()
+    }
+
+    #[test]
+    fn test_image_format() {
+        assert_eq!(
+            image_format("tests/data/esp_hal_direct_boot_c6.elf"),
+            Some(ImageFormatKind::DirectBoot)
+        );
+        assert_eq!(
+            image_format("tests/data/esp_hal_direct_boot_s3.elf"),
+            Some(ImageFormatKind::DirectBoot)
+        );
+        assert_eq!(
+            image_format("tests/data/esp_hal_uncached_data_p4.elf"),
+            Some(ImageFormatKind::EspIdf)
+        );
+        assert_eq!(image_format("tests/data/esp_idf_firmware_c6.elf"), None);
     }
 }
