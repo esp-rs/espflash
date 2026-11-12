@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Show the vendor name for known USB vendor IDs instead of the manufacturer reported by the OS, which on Windows is the driver vendor, e.g. `(Undefined Vendor)` (#1112)
 - Return an error when a partition starts before the end of the partition table. Primary bootloader and partition table entries are exempt (#1107)
 - Warn when the bundled bootloader is used with a partition table offset other than 0x8000 (#1107)
+- No longer warn that a baud rate higher than 115,200 can cause issues on every connection at such a rate
 
 ### Fixed
 

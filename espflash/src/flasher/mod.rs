@@ -672,11 +672,9 @@ impl Flasher {
         // configured value.
         if let Some(baud) = baud
             && baud > 115_200
+            && let Err(e) = flasher.change_baud(baud)
         {
-            warn!("Setting baud rate higher than 115,200 can cause issues");
-            if let Err(e) = flasher.change_baud(baud) {
-                return Err(Box::new((e, flasher.into_connection())));
-            }
+            return Err(Box::new((e, flasher.into_connection())));
         }
 
         Ok(flasher)
