@@ -43,6 +43,13 @@ const WP_PIN_DISABLED: u8 = 0xEE;
 /// Max partition size is 16 MB
 const MAX_PARTITION_SIZE: u32 = 16 * 1000 * 1024;
 
+/// The partition table offset of the bundled bootloaders, which is the ESP-IDF
+/// default of `CONFIG_PARTITION_TABLE_OFFSET`.
+const BUNDLED_PARTITION_TABLE_OFFSET: u32 = 0x8000;
+
+/// The flash space of the partition table, from its offset
+const PARTITION_TABLE_SIZE: u32 = 0x1000;
+
 /// The bundled bootloaders for one chip and crystal frequency.
 #[derive(Clone, Copy)]
 pub(crate) struct Bootloaders {
@@ -696,17 +703,47 @@ impl<'a> IdfBootloaderFormat<'a> {
             data: Cow::Owned(data),
         };
 
-        // If the user did not specify a partition offset, we need to assume
-        // that the partition offset is (first partition offset) -
-        // 0x1000, since this is the most common case.
+        // If the user did not specify a partition offset, use the offset of
+        // the bundled bootloader. For another bootloader, we need to assume
+        // that the partition offset is (first partition offset) - 0x1000,
+        // since this is the most common case.
         let partition_table_offset = partition_table_offset.unwrap_or_else(|| {
+            if bootloader_path.is_none() {
+                return BUNDLED_PARTITION_TABLE_OFFSET;
+            }
             let partitions = partition_table.partitions();
             let first_partition = partitions
                 .iter()
                 .min_by(|a, b| a.offset().cmp(&b.offset()))
                 .unwrap();
-            first_partition.offset() - 0x1000
+            first_partition.offset() - PARTITION_TABLE_SIZE
         });
+
+        if bundled_bootloader_misses_partition_table(bootloader_path, partition_table_offset) {
+            warn!(
+                "The bundled bootloader reads the partition table at {BUNDLED_PARTITION_TABLE_OFFSET:#x}, not at {partition_table_offset:#x}. Use `--bootloader` with an ESP-IDF bootloader built for this partition table offset."
+            );
+        }
+
+        // Partitions start after the partition table, like in
+        // `gen_esp32part.py`. The primary bootloader and partition table
+        // entries (type 0x02 and 0x03, subtype 0x00) describe the regions below
+        // its end.
+        let is_primary_region = |p: &Partition| {
+            matches!(u8::from(p.ty()), 0x02 | 0x03) && u8::from(p.subtype()) == 0x00
+        };
+        let table_end = partition_table_offset.saturating_add(PARTITION_TABLE_SIZE);
+        if let Some(partition) = partition_table
+            .partitions()
+            .iter()
+            .find(|p| p.offset() < table_end && !is_primary_region(p))
+        {
+            return Err(Error::PartitionBelowPartitionTable {
+                name: partition.name(),
+                partition_offset: partition.offset(),
+                table_end,
+            });
+        }
 
         let boot_addr = flash_data.chip.boot_address();
 
@@ -766,6 +803,11 @@ impl<'a> IdfBootloaderFormat<'a> {
     pub fn partition_table(&self) -> PartitionTable {
         self.partition_table.clone()
     }
+}
+
+/// Whether the bundled bootloader does not find a partition table at `offset`
+fn bundled_bootloader_misses_partition_table(bootloader_path: Option<&Path>, offset: u32) -> bool {
+    bootloader_path.is_none() && offset != BUNDLED_PARTITION_TABLE_OFFSET
 }
 
 /// Generates a default partition table.
@@ -1123,6 +1165,94 @@ mod tests {
         assert_eq!(bootloader[2], FlashMode::Dio as u8);
         assert!(sha256_valid(bootloader));
         assert_eq!(app[2], FlashMode::Qio as u8);
+    }
+
+    /// The address of the partition table `tests/data/{table}`, as flashed
+    fn partition_table_address(
+        table: &str,
+        bootloader: Option<&Path>,
+        offset: Option<u32>,
+    ) -> Result<u32, Error> {
+        let elf = std::fs::read("tests/data/esp32").unwrap();
+        let flash_data = FlashData::new(
+            FlashSettings::new(None, Some(FlashSize::_16Mb), None),
+            0,
+            None,
+            Chip::Esp32,
+            XtalFrequency::_40Mhz,
+        );
+        let partition_table = Path::new("tests/data").join(table);
+        let image = IdfBootloaderFormat::new(
+            &elf,
+            &flash_data,
+            Some(&partition_table),
+            bootloader,
+            offset,
+            None,
+        )?;
+        Ok(image.flash_segments().nth(1).unwrap().addr)
+    }
+
+    const GIVEN_BOOTLOADER: &str = "resources/bootloaders/esp32-bootloader.bin";
+
+    #[test]
+    fn bundled_bootloader_gets_the_partition_table_at_its_offset() {
+        let address = partition_table_address("partitions_app_at_0x40000.csv", None, None);
+        assert_eq!(address.unwrap(), 0x8000);
+    }
+
+    #[test]
+    fn given_bootloader_gets_the_partition_table_below_the_first_partition() {
+        let given = Some(Path::new(GIVEN_BOOTLOADER));
+        let address = partition_table_address("partitions_app_at_0x40000.csv", given, None);
+        assert_eq!(address.unwrap(), 0x3F000);
+    }
+
+    #[test]
+    fn partitions_must_start_after_the_partition_table() {
+        let given = Some(Path::new(GIVEN_BOOTLOADER));
+        let cases = [
+            ("partitions_nvs_at_0x4000.csv", None, None),
+            ("partitions_nvs_at_0x6000.csv", None, None),
+            ("partitions.csv", None, Some(0x9000)),
+            ("partitions_app_at_0x40000.csv", given, Some(0x13F000)),
+            ("partitions_app_at_0x40000.csv", given, Some(0x140000)),
+        ];
+
+        for (table, bootloader, offset) in cases {
+            assert!(
+                matches!(
+                    partition_table_address(table, bootloader, offset),
+                    Err(Error::PartitionBelowPartitionTable { .. })
+                ),
+                "{table} {offset:x?}"
+            );
+        }
+    }
+
+    #[test]
+    fn partition_can_start_at_the_end_of_the_partition_table() {
+        let address = partition_table_address("partitions.csv", None, None);
+        assert_eq!(address.unwrap(), 0x8000);
+    }
+
+    #[test]
+    fn primary_bootloader_and_partition_table_entries_can_start_before_the_end_of_the_table() {
+        let given = Some(Path::new(GIVEN_BOOTLOADER));
+        let table = "partitions_primary_entries.csv";
+        assert_eq!(partition_table_address(table, None, None).unwrap(), 0x8000);
+        assert_eq!(
+            partition_table_address(table, given, Some(0x8000)).unwrap(),
+            0x8000
+        );
+    }
+
+    #[test]
+    fn bundled_bootloader_misses_a_partition_table_at_another_offset() {
+        let given = Some(Path::new(GIVEN_BOOTLOADER));
+        assert!(bundled_bootloader_misses_partition_table(None, 0xA000));
+        assert!(!bundled_bootloader_misses_partition_table(None, 0x8000));
+        assert!(!bundled_bootloader_misses_partition_table(given, 0xA000));
     }
 
     #[test]

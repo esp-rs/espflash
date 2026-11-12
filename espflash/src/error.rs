@@ -353,6 +353,25 @@ pub enum Error {
     )]
     PartitionTableDoesNotFit(FlashSize),
 
+    /// A partition starts before the end of the partition table
+    #[error(
+        "The `{name}` partition at {partition_offset:#x} starts before the end of the partition table at {table_end:#x}"
+    )]
+    #[diagnostic(
+        code(espflash::partition_table::partition_below_table),
+        help(
+            "The partition table takes 0x1000 bytes from its offset, and partitions start after it. Move the partition, or the partition table with `--partition-table-offset` and `--bootloader`"
+        )
+    )]
+    PartitionBelowPartitionTable {
+        /// Name of the partition
+        name: String,
+        /// Offset of the partition
+        partition_offset: u32,
+        /// End of the partition table
+        table_end: u32,
+    },
+
     /// App descriptor not present in the binary
     #[error("{0}")]
     #[diagnostic(code(espflash::app_desc::app_descriptor_not_present))]

@@ -1,0 +1,4 @@
+# Name,         Type, SubType, Offset,  Size, Flags
+PrimaryBTLDR,    0x02, 0x00,    0x1000,  0x7000,
+PrimaryPrtTable, 0x03, 0x00,    0x8000,  0x1000,
+factory,         app,  factory, 0x10000, 1M,

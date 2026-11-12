@@ -1,0 +1,2 @@
+# Name,  Type, SubType, Offset,  Size, Flags
+factory, app,  factory, 0x40000, 1M,

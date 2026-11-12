@@ -19,11 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--format` is now optional, and the `format` key in `espflash.toml` is now used. Selecting a format that contradicts the ELF metadata is an error unless `--force` is passed (#1114)
 - ESP-IDF specific options (`--bootloader`, `--partition-table`, `--flash-mode`, etc.) are rejected when not using the `esp-idf` format (#1114)
 - Show the vendor name for known USB vendor IDs instead of the manufacturer reported by the OS, which on Windows is the driver vendor, e.g. `(Undefined Vendor)` (#1112)
+- Return an error when a partition starts before the end of the partition table. Primary bootloader and partition table entries are exempt (#1107)
+- Warn when the bundled bootloader is used with a partition table offset other than 0x8000 (#1107)
 
 ### Fixed
 
 - `list-ports` prints USB IDs as `VID:PID` instead of `PID:VID` (#1112)
 - Port names are no longer printed twice on Windows (#1112)
+- Without `--partition-table-offset`, write the partition table at 0x8000 for the bundled bootloader, which reads it there (#1107)
 - Serial commands fail with a timeout once their timeout elapses, instead of hanging when a device stops accepting data or keeps sending unrelated output (#1110)
 - `--after watchdog-reset` resets ESP32-C2, ESP32-C3, ESP32-C5, ESP32-C61, ESP32-P4, ESP32-S2, ESP32-S3 and ESP32-S31 with their watchdog on any serial port, and uses a hard reset on the other chips and in Secure Download Mode, like esptool. It used to do nothing on some ports and fail after the operation on other chips, leaving the chip in the bootloader (#1120)
 - The monitor opened after flashing waits for the serial port to reappear when the device has already disconnected, e.g. after `--after watchdog-reset` over USB, instead of failing with an I/O error (#1120)
