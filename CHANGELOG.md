@@ -11,13 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `--wait` flag to wait for the serial port to appear instead of failing when it is not present (#1116)
 - `--no-verify` and `--no-skip` flags for `write-bin` (#1117)
-- `direct-boot` image format for applications built with `esp-bootloader-direct-boot`, which the ROM starts without a second-stage bootloader. It is rejected on ESP32-C3 revisions before v0.3 and ESP32-P4 revisions before v3.0 (#1114)
+- `direct-boot` image format for applications built with `esp-bootloader-direct-boot`, which the ROM starts without a second-stage bootloader. It is rejected on ESP32-C3 revisions before v0.3 and ESP32-P4 revisions before v3.0 (#1114, #1123)
 - The image format is detected from the ELF metadata of `esp-hal` applications when no format is given (#1114)
 
 ### Changed
 
 - `--format` is now optional, and the `format` key in `espflash.toml` is now used. Selecting a format that contradicts the ELF metadata is an error unless `--force` is passed (#1114)
-- ESP-IDF specific options (`--bootloader`, `--partition-table`, `--flash-mode`, etc.) are rejected when not using the `esp-idf` format, and their `espflash.toml` counterparts are ignored with a warning (#1114)
+- ESP-IDF specific options (`--bootloader`, `--partition-table`, `--flash-mode`, etc.) are rejected when not using the `esp-idf` format, and their `espflash.toml` counterparts are ignored with a warning (#1114, #1123)
 - Show the vendor name for known USB vendor IDs instead of the manufacturer reported by the OS, which on Windows is the driver vendor, e.g. `(Undefined Vendor)` (#1112)
 
 ### Fixed
