@@ -221,7 +221,7 @@ pub struct ReadFlashArgs {
     /// Size of each individual packet of data
     ///
     /// Defaults to 0x1000 (FLASH_SECTOR_SIZE)
-    #[arg(long, default_value = "0x1000", value_parser = parse_u32)]
+    #[arg(long, default_value = "0x1000", value_parser = parse_nonzero_u32)]
     pub block_size: u32,
     /// Connection configuration
     #[clap(flatten)]
@@ -416,6 +416,14 @@ pub fn parse_bootloader(path: &Path) -> Result<Vec<u8>, Error> {
     fs::canonicalize(path)
         .and_then(fs::read)
         .map_err(|e| Error::FileOpenError(path.display().to_string(), e))
+}
+
+/// Parses a non-zero integer, in base-10 or hexadecimal format, into a [u32]
+fn parse_nonzero_u32(input: &str) -> Result<u32, String> {
+    match parse_u32(input) {
+        Ok(0) => Err("must not be 0".to_owned()),
+        result => result.map_err(|e| e.to_string()),
+    }
 }
 
 /// Parses an integer, in base-10 or hexadecimal format, into a [u32]
