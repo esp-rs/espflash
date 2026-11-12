@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `erase-parts` checks the partition table and the partition labels before connecting, instead of resetting the device into the bootloader and then failing (#1127)
 - `board-info` decodes the embedded flash and PSRAM of ESP32-S3 chips from their eFuses like esptool, instead of reporting "Embedded Flash" or "Embedded PSRAM" based on the eFuse block version. It lists IEEE802.15.4 for ESP32-C6 and ESP32-H2, and shows ESP32 coding scheme 3 as "None (may contain encoding data)" instead of "Invalid"
 - `board-info` decodes the embedded flash and PSRAM of ESP32-S3 chips from their eFuses like esptool, instead of reporting "Embedded Flash" or "Embedded PSRAM" based on the eFuse block version. It lists IEEE802.15.4 for ESP32-C6 and ESP32-H2, and shows ESP32 coding scheme 3 as "None (may contain encoding data)" instead of "Invalid" (#1126)
+- `board-info` decodes the embedded flash and PSRAM of ESP32-S3 chips from their eFuses like esptool, instead of reporting "Embedded Flash" or "Embedded PSRAM" based on the eFuse block version. It reports the embedded flash of ESP32-C2, ESP32-C3 and ESP32-C6, lists IEEE802.15.4 for ESP32-C6 and ESP32-H2, and shows ESP32 coding scheme 3 as "None (may contain encoding data)" instead of "Invalid" (#1126)
 
 ### Removed
 
