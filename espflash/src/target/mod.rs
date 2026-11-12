@@ -1809,13 +1809,10 @@ impl Chip {
         block: EfuseBlock,
     ) -> Result<bool, Error> {
         let Some(block_errors) = self.block_errors(block)? else {
-            // ESP32 chips can only detect write errors while using the 3/4
-            // encoding scheme, in other cases the return value is
-            // meaningless.
-            if self.efuse_coding_scheme(connection, block)? != CodingScheme::_34 {
-                return Ok(true);
-            }
-
+            // ESP32 chips only detect write errors with the 3/4 coding scheme.
+            // Like espefuse, read the decoder status regardless: it reports no
+            // errors with the other schemes, and the read-back check of the
+            // burned bits still applies.
             let errors = connection.read_reg(efuse::esp32::defines::EFUSE_REG_DEC_STATUS)?
                 & efuse::esp32::defines::EFUSE_REG_DEC_STATUS_MASK;
 
@@ -2308,5 +2305,12 @@ mod efuse_write_tests {
             "{result:?}"
         );
         assert_eq!(burns, 3);
+    }
+
+    #[test]
+    fn esp32_burn_without_3_4_coding_succeeds() {
+        let (result, burns) = write_efuse(Chip::Esp32, 3, &[0xa5; 4], true);
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(burns, 1);
     }
 }
