@@ -1449,7 +1449,7 @@ impl TestRunner {
     pub fn test_hold_in_reset(&self) -> Result<()> {
         self.run_simple_command_test(
             &["hold-in-reset"],
-            Some(&["Holding target device in reset"]),
+            Some(&["Leaving target device in the ROM bootloader"]),
             self.timeout,
             "hold-in-reset",
         )?;
