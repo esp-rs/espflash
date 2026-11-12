@@ -738,7 +738,8 @@ impl Chip {
                     0 => "Coding Scheme None",
                     1 => "Coding Scheme 3/4",
                     2 => "Coding Scheme Repeat (UNSUPPORTED)",
-                    _ => "Coding Scheme Invalid",
+                    // The field has two bits, and esptool treats 3 like 0
+                    _ => "Coding Scheme None (may contain encoding data)",
                 });
 
                 Ok(features)
@@ -746,9 +747,9 @@ impl Chip {
             Chip::Esp32c2 => Ok(vec!["WiFi", "BLE"]),
             Chip::Esp32c3 => Ok(vec!["WiFi", "BLE"]),
             Chip::Esp32c5 => Ok(vec!["WiFi", "BLE", "IEEE802.15.4", "240MHz"]),
-            Chip::Esp32c6 => Ok(vec!["WiFi 6", "BT 5"]),
+            Chip::Esp32c6 => Ok(vec!["WiFi 6", "BT 5", "IEEE802.15.4"]),
             Chip::Esp32c61 => Ok(vec!["WiFi 6", "BT 5"]),
-            Chip::Esp32h2 => Ok(vec!["BLE"]),
+            Chip::Esp32h2 => Ok(vec!["BLE", "IEEE802.15.4"]),
             Chip::Esp32h4 => Ok(vec!["BT 5 (LE)", "IEEE802.15.4", "Dual Core", "96MHz"]),
             Chip::Esp32s31 => Ok(vec![
                 "WiFi 6",
@@ -790,13 +791,25 @@ impl Chip {
             Chip::Esp32s3 => {
                 let mut features = vec!["WiFi", "BLE"];
 
-                // Special handling for chip revision 0
-                if self.esp32s3_blk_version_major(connection)? == 1
-                    && self.esp32s3_blk_version_minor(connection)? == 1
-                {
-                    features.push("Embedded PSRAM");
-                } else {
-                    features.push("Embedded Flash");
+                // Capacities of the memory in the package, as decoded by
+                // esptool
+                match self.read_efuse_le::<u32>(connection, efuse::esp32s3::FLASH_CAP)? {
+                    0 => {}
+                    1 => features.push("Embedded Flash 8MB"),
+                    2 => features.push("Embedded Flash 4MB"),
+                    _ => features.push("Unknown Embedded Flash"),
+                }
+
+                let psram_cap =
+                    (self.read_efuse_le::<u32>(connection, efuse::esp32s3::PSRAM_CAP_3)? << 2)
+                        | self.read_efuse_le::<u32>(connection, efuse::esp32s3::PSRAM_CAP)?;
+                match psram_cap {
+                    0 => {}
+                    1 => features.push("Embedded PSRAM 8MB"),
+                    2 => features.push("Embedded PSRAM 2MB"),
+                    3 => features.push("Embedded PSRAM 16MB"),
+                    4 => features.push("Embedded PSRAM 4MB"),
+                    _ => features.push("Unknown Embedded PSRAM"),
                 }
 
                 Ok(features)
