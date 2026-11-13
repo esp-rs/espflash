@@ -184,7 +184,7 @@ pub enum Error {
     #[diagnostic(
         code(espflash::serial_not_selected),
         help(
-            "Make sure to provide a serial port via argument, environment variable or configuration file when using the `--non-interactive` flag"
+            "Make sure to provide a serial port via argument, environment variable or configuration file when using the `--non-interactive` flag, unless exactly one port matches a known dev board or a configured USB device"
         )
     )]
     SerialNotSelected,
