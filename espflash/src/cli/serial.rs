@@ -189,7 +189,34 @@ fn find_serial_port(ports: &[SerialPortInfo], name: &str) -> Result<SerialPortIn
     if let Some(port) = port_info {
         Ok(port.to_owned())
     } else {
-        Err(Error::SerialNotFound(name.to_string()))
+        // An explicitly given port that exists but is not enumerated, e.g. an
+        // on-chip UART of an embedded Linux board: use it as it is.
+        // canonicalize() above already failed if it does not exist, and only
+        // a character device can be a serial port: other paths (directories,
+        // regular files) keep failing as not found.
+        //
+        // Without USB device information, the USB-Serial-JTAG handling is
+        // disabled and the classic DTR/RTS reset is used, so say so: a USB
+        // port that enumeration missed would otherwise fail to reset with
+        // nothing pointing at the cause.
+        #[cfg(not(target_os = "windows"))]
+        {
+            use std::os::unix::fs::FileTypeExt;
+
+            if !fs::metadata(name.as_ref())?.file_type().is_char_device() {
+                return Err(Error::SerialNotFound(name.to_string()));
+            }
+            info!("Serial port {name} was not detected; using it without USB device information");
+            Ok(SerialPortInfo {
+                port_name: name.to_string(),
+                port_type: SerialPortType::Unknown,
+            })
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            Err(Error::SerialNotFound(name.to_string()))
+        }
     }
 }
 
@@ -386,4 +413,52 @@ fn confirm_port(port_name: &str, product: Option<&str>) -> Result<bool, Error> {
         })
         .interact_opt()?
         .ok_or(Error::Cancelled)
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn find_serial_port_uses_an_existing_port_that_is_not_enumerated() {
+        let port = find_serial_port(&[], "/dev/null").unwrap();
+        assert_eq!(port.port_name, "/dev/null");
+        assert_eq!(port.port_type, SerialPortType::Unknown);
+    }
+
+    #[test]
+    fn find_serial_port_rejects_a_port_that_does_not_exist() {
+        assert!(find_serial_port(&[], "/nonexistent").is_err());
+    }
+
+    #[test]
+    fn find_serial_port_rejects_a_path_that_is_not_a_character_device() {
+        assert!(matches!(
+            find_serial_port(&[], "/tmp"),
+            Err(Error::SerialNotFound(_))
+        ));
+
+        let regular_file = std::env::current_exe().unwrap();
+        assert!(matches!(
+            find_serial_port(&[], regular_file.to_str().unwrap()),
+            Err(Error::SerialNotFound(_))
+        ));
+    }
+
+    #[test]
+    fn find_serial_port_prefers_the_enumerated_port_info() {
+        let usb = UsbPortInfo {
+            vid: 0x303a,
+            pid: 0x1001,
+            serial_number: None,
+            manufacturer: None,
+            product: None,
+        };
+        let ports = [SerialPortInfo {
+            port_name: "/dev/null".to_string(),
+            port_type: SerialPortType::UsbPort(usb.clone()),
+        }];
+        let port = find_serial_port(&ports, "/dev/null").unwrap();
+        assert_eq!(port.port_type, SerialPortType::UsbPort(usb));
+    }
 }

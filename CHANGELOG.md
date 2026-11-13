@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An explicitly given `--port` that is a character device but not among the enumerated serial ports, e.g. an on-chip UART of an embedded Linux board, is used instead of failing with "serial port not found" (#1122)
 - `list-ports` prints USB IDs as `VID:PID` instead of `PID:VID` (#1112)
 - Port names are no longer printed twice on Windows (#1112)
 - Without `--partition-table-offset`, write the partition table at 0x8000 for the bundled bootloader, which reads it there (#1107)
