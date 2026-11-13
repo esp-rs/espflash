@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Chip::write_efuse` configures the ESP32-H2 eFuse write timing in the ESP32-H2 eFuse registers instead of the ESP32-S3 register addresses (#1125)
 - `Chip::write_efuse` retries a burn that did not set all bits, and fails if they are still not set after three attempts, instead of reporting success (#1125)
 - `Chip::write_efuse` no longer reports every ESP32 burn outside the 3/4 coding scheme as failed, and checks the decoder status like espefuse (#1125)
+- Update the flasher stubs to esp-flasher-stub v2.0.0. The ESP32-C5 stub sets its CPU divider before switching to the PLL, so its handshake over USB-Serial-JTAG no longer intermittently arrives with every byte tripled (`OOOHHHAAAIII`) (#1128)
 
 ### Removed
 
