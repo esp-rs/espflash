@@ -90,8 +90,9 @@ pub fn serial_port_info(matches: &ConnectArgs, config: &Config) -> Result<Serial
             sleep(WAIT_POLL_INTERVAL);
             ports = detect_usb_serial_ports(matches.list_all_ports).unwrap_or_default();
         }
-        if ports.len() > 1 && matches.non_interactive {
-            return Err(Error::SerialNotSelected);
+        if matches.non_interactive {
+            // `--confirm-port` can't be honored without asking
+            return select_known_port(&ports, &config.port_config);
         }
         let (port, matches) = select_serial_port(ports, &config.port_config, matches.confirm_port)?;
         match &port.port_type {
@@ -317,22 +318,39 @@ pub(super) fn known_ports_filter(port: &SerialPortInfo, config: &PortConfig) -> 
     }
 }
 
+/// The only port that matches a known dev board or a configured USB device.
+fn unique_known_port<'a>(
+    ports: &'a [SerialPortInfo],
+    config: &PortConfig,
+) -> Option<&'a SerialPortInfo> {
+    let mut known = ports.iter().filter(|port| known_ports_filter(port, config));
+    match (known.next(), known.next()) {
+        (Some(port), None) => Some(port),
+        _ => None,
+    }
+}
+
+/// Select a serial port without asking the user, which is only possible when
+/// it is the only known one.
+fn select_known_port(
+    ports: &[SerialPortInfo],
+    config: &PortConfig,
+) -> Result<SerialPortInfo, Error> {
+    match unique_known_port(ports, config) {
+        Some(port) => Ok(port.to_owned()),
+        None if ports.is_empty() => Err(Error::NoSerial),
+        None => Err(Error::SerialNotSelected),
+    }
+}
+
 /// Ask the user to select a serial port from a list of detected serial ports.
 fn select_serial_port(
     mut ports: Vec<SerialPortInfo>,
     config: &PortConfig,
     force_confirm_port: bool,
 ) -> Result<(SerialPortInfo, bool), Error> {
-    if let [port] = ports
-        .iter()
-        .filter(|&p| known_ports_filter(p, config))
-        .collect::<Vec<_>>()
-        .as_slice()
-    {
-        // There is a unique recognized device.
-        if !force_confirm_port {
-            return Ok(((*port).to_owned(), true));
-        }
+    if !force_confirm_port && let Some(port) = unique_known_port(&ports, config) {
+        return Ok((port.to_owned(), true));
     }
 
     if ports.len() > 1 {
@@ -442,6 +460,66 @@ mod tests {
         assert!(matches!(
             find_serial_port(&[], regular_file.to_str().unwrap()),
             Err(Error::SerialNotFound(_))
+        ));
+    }
+
+    fn usb_port(name: &str, vid: u16, pid: u16) -> SerialPortInfo {
+        SerialPortInfo {
+            port_name: name.to_string(),
+            port_type: SerialPortType::UsbPort(UsbPortInfo {
+                vid,
+                pid,
+                serial_number: None,
+                manufacturer: None,
+                product: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn select_known_port_picks_the_only_known_port() {
+        let ports = [
+            usb_port("/dev/ttyUSB0", 0x0403, 0x6001), // FTDI, not a known dev board
+            usb_port("/dev/ttyACM0", 0x303a, 0x1001),
+        ];
+        let port = select_known_port(&ports, &PortConfig::default()).unwrap();
+        assert_eq!(port.port_name, "/dev/ttyACM0");
+    }
+
+    #[test]
+    fn select_known_port_picks_a_configured_usb_device() {
+        let ports = [
+            usb_port("/dev/ttyUSB0", 0x0403, 0x6001),
+            usb_port("/dev/ttyUSB1", 0x0403, 0x6010),
+        ];
+        let mut config = PortConfig::default();
+        config.usb_device.push(UsbDevice {
+            vid: 0x0403,
+            pid: 0x6010,
+        });
+        let port = select_known_port(&ports, &config).unwrap();
+        assert_eq!(port.port_name, "/dev/ttyUSB1");
+    }
+
+    #[test]
+    fn select_known_port_needs_a_unique_known_port() {
+        let config = PortConfig::default();
+        let two_known = [
+            usb_port("/dev/ttyACM0", 0x303a, 0x1001),
+            usb_port("/dev/ttyUSB0", 0x10c4, 0xea60),
+        ];
+        let unknown = [usb_port("/dev/ttyUSB0", 0x0403, 0x6001)];
+        assert!(matches!(
+            select_known_port(&two_known, &config),
+            Err(Error::SerialNotSelected)
+        ));
+        assert!(matches!(
+            select_known_port(&unknown, &config),
+            Err(Error::SerialNotSelected)
+        ));
+        assert!(matches!(
+            select_known_port(&[], &config),
+            Err(Error::NoSerial)
         ));
     }
 

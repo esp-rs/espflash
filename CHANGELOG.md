@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Chip::write_efuse` no longer reports every ESP32 burn outside the 3/4 coding scheme as failed, and checks the decoder status like espefuse (#1125)
 - Over USB-Serial-JTAG, every command disables the RTC watchdog and makes the super watchdog feed itself when connecting, like esptool, on every chip with USB-Serial-JTAG. Only flashing disabled the RTC watchdog before, not on ESP32-C6, ESP32-H2, ESP32-H21 and ESP32-H4, and the super watchdog never
 - A flash stub that is still running, e.g. after `--after no-reset-no-stub`, is detected when connecting and used like esptool does, also with `--no-stub`. espflash used to upload the stub again, and with `--no-stub` failed with "expected response of at least 20 bytes, received 18 bytes"
+- With `--non-interactive` and no port given, the only port that matches a known dev board or a configured USB device is used, as without `--non-interactive`. It used to fail whenever more than one port was detected. Without such a port, it fails instead of asking to confirm a single unknown port
 
 ### Removed
 
