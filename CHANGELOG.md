@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Writing with `--no-stub` to an address that is not sector-aligned no longer fails (#1119)
 - Writing to an address that is not sector-aligned warns that the bytes before it in its sector will be erased, like esptool (#1119)
 - Update the flasher stubs to esp-flasher-stub v2.0.0. The ESP32-C5 stub sets its CPU divider before switching to the PLL, so its handshake over USB-Serial-JTAG no longer intermittently arrives with every byte tripled (`OOOHHHAAAIII`)
+- Update the flasher stubs to esp-flasher-stub v2.0.0. The ESP32-C5 stub sets its CPU divider before switching to the PLL, so its handshake over USB-Serial-JTAG no longer intermittently arrives with every byte tripled (`OOOHHHAAAIII`) (#1128)
 
 ### Removed
 
