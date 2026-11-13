@@ -1469,9 +1469,7 @@ impl TestRunner {
         let result = self.connect_to_running_stub();
         // Also after a failure, don't leave the device in the stub for the
         // next job on this board: resets that don't sample the strapping pins
-        // again, e.g. over JTAG, keep it in download mode. With `--before
-        // no-reset`, the DTR line stays as opening the port set it, so the
-        // last step's hard reset may not reset the chip on a UART port.
+        // again, e.g. over JTAG, keep it in download mode.
         let reset = self.test_reset();
         result.and(reset)
     }
