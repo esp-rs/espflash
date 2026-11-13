@@ -505,7 +505,8 @@ pub fn board_info(args: &ConnectArgs, config: &Config) -> Result<()> {
         println!("Security features: None");
     }
 
-    flasher.connection().reset_after(!args.no_stub, chip)?;
+    let use_stub = flasher.uses_stub();
+    flasher.connection().reset_after(use_stub, chip)?;
 
     Ok(())
 }
@@ -520,9 +521,8 @@ pub fn checksum_md5(args: &ChecksumMd5Args, config: &Config) -> Result<()> {
     println!("0x{checksum:032x}");
 
     let chip = flasher.chip();
-    flasher
-        .connection()
-        .reset_after(!args.connect_args.no_stub, chip)?;
+    let use_stub = flasher.uses_stub();
+    flasher.connection().reset_after(use_stub, chip)?;
 
     Ok(())
 }
@@ -945,9 +945,8 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     let chip = flasher.chip();
 
     flasher.erase_flash()?;
-    flasher
-        .connection()
-        .reset_after(!args.connect_args.no_stub, chip)?;
+    let use_stub = flasher.uses_stub();
+    flasher.connection().reset_after(use_stub, chip)?;
 
     info!("Flash has been erased!");
 
@@ -979,9 +978,8 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
     );
 
     flasher.erase_region(args.address, args.size)?;
-    flasher
-        .connection()
-        .reset_after(!args.connect_args.no_stub, chip)?;
+    let use_stub = flasher.uses_stub();
+    flasher.connection().reset_after(use_stub, chip)?;
 
     Ok(())
 }
@@ -1063,8 +1061,8 @@ pub fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
     let mut flasher = connect(&args.connect_args, config, false, false)?;
     print_board_info(&mut flasher)?;
 
-    if args.connect_args.no_stub {
-        flasher.read_flash_rom(
+    if flasher.uses_stub() {
+        flasher.read_flash(
             args.address,
             args.size,
             args.block_size,
@@ -1072,7 +1070,7 @@ pub fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
             args.file,
         )?;
     } else {
-        flasher.read_flash(
+        flasher.read_flash_rom(
             args.address,
             args.size,
             args.block_size,
@@ -1082,9 +1080,8 @@ pub fn read_flash(args: ReadFlashArgs, config: &Config) -> Result<()> {
     }
 
     let chip = flasher.chip();
-    flasher
-        .connection()
-        .reset_after(!args.connect_args.no_stub, chip)?;
+    let use_stub = flasher.uses_stub();
+    flasher.connection().reset_after(use_stub, chip)?;
 
     Ok(())
 }
