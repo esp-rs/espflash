@@ -16,7 +16,7 @@ use crate::{
     Error,
     flasher::{FLASH_SECTOR_SIZE, SpiAttachParams},
     image_format::Segment,
-    target::{Chip, WDT_WKEY},
+    target::Chip,
 };
 #[cfg(feature = "serialport")]
 use crate::{
@@ -73,37 +73,6 @@ impl FlashTarget for Esp32Target {
 
             connection.command(command)
         })?;
-
-        // The stub usually disables these watchdog timers, however if we're not
-        // using the stub we need to disable them before flashing
-        // begins.
-        //
-        // TODO: the stub doesn't appear to disable the watchdog on ESP32-S3, so
-        // we       explicitly disable the watchdog here.
-        //
-        // NOTE: In Secure Download Mode, WRITE_REG commands are not allowed, so
-        // we must skip the watchdog disable.
-        if connection.is_using_usb_serial_jtag()
-            && !connection.secure_download_mode
-            && let (Some(wdt_wprotect), Some(wdt_config0)) =
-                (self.chip.wdt_wprotect(), self.chip.wdt_config0())
-        {
-            connection.command(Command::WriteReg {
-                address: wdt_wprotect,
-                value: WDT_WKEY,
-                mask: None,
-            })?; // WP disable
-            connection.command(Command::WriteReg {
-                address: wdt_config0,
-                value: 0x0,
-                mask: None,
-            })?; // turn off RTC WDT
-            connection.command(Command::WriteReg {
-                address: wdt_wprotect,
-                value: 0x0,
-                mask: None,
-            })?; // WP enable
-        }
 
         Ok(())
     }

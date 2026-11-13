@@ -38,6 +38,19 @@ pub(crate) mod flash_target;
 #[cfg(feature = "serialport")]
 pub(crate) const WDT_WKEY: u32 = 0x50D8_3AA1;
 
+/// Registers to disable the RTC watchdog and to make the super watchdog feed
+/// itself.
+#[cfg(feature = "serialport")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct WatchdogRegisters {
+    pub rtc_wdt_config0: u32,
+    pub rtc_wdt_wprotect: u32,
+    pub swd_config: u32,
+    pub swd_wprotect: u32,
+    pub swd_wkey: u32,
+    pub swd_auto_feed_en: u32,
+}
+
 /// Maximum block size for RAM flashing.
 pub(crate) const MAX_RAM_BLOCK_SIZE: usize = 0x1800;
 
@@ -196,6 +209,44 @@ impl Chip {
             Chip::Esp32s3 => Some(0x6000_809C),
             Chip::Esp32s31 => Some(0x2080_1004),
             _ => None,
+        }
+    }
+
+    /// The RTC watchdog and super watchdog registers of chips with a
+    /// USB-Serial-JTAG port, from ESP-IDF's `rtc_cntl_reg.h`, `lp_wdt_reg.h`
+    /// and `rtc_wdt_reg.h`.
+    #[cfg(feature = "serialport")]
+    pub(crate) fn usb_serial_jtag_watchdogs(&self) -> Option<WatchdogRegisters> {
+        // RTC_CNTL of ESP32-C3 and ESP32-S3
+        let rtc_cntl =
+            |rtc_wdt_config0, rtc_wdt_wprotect, swd_config, swd_wprotect| WatchdogRegisters {
+                rtc_wdt_config0,
+                rtc_wdt_wprotect,
+                swd_config,
+                swd_wprotect,
+                swd_wkey: 0x8F1D_312A,
+                swd_auto_feed_en: 1 << 31,
+            };
+        // LP_WDT (RTC_WDT on ESP32-S31); `wprotect` is the offset of the RTC
+        // watchdog write protection, the super watchdog registers follow it
+        let lp_wdt = |base, wprotect| WatchdogRegisters {
+            rtc_wdt_config0: base,
+            rtc_wdt_wprotect: base + wprotect,
+            swd_config: base + wprotect + 0x4,
+            swd_wprotect: base + wprotect + 0x8,
+            swd_wkey: WDT_WKEY,
+            swd_auto_feed_en: 1 << 18,
+        };
+
+        match self {
+            Chip::Esp32 | Chip::Esp32c2 | Chip::Esp32s2 => None,
+            Chip::Esp32c3 => Some(rtc_cntl(0x6000_8090, 0x6000_80A8, 0x6000_80AC, 0x6000_80B0)),
+            Chip::Esp32s3 => Some(rtc_cntl(0x6000_8098, 0x6000_80B0, 0x6000_80B4, 0x6000_80B8)),
+            Chip::Esp32c5 | Chip::Esp32c6 | Chip::Esp32c61 => Some(lp_wdt(0x600B_1C00, 0x18)),
+            Chip::Esp32h2 | Chip::Esp32h21 => Some(lp_wdt(0x600B_1C00, 0x1C)),
+            Chip::Esp32h4 => Some(lp_wdt(0x600B_5400, 0x1C)),
+            Chip::Esp32p4 => Some(lp_wdt(0x5011_6000, 0x18)),
+            Chip::Esp32s31 => Some(lp_wdt(0x2080_1000, 0x18)),
         }
     }
 
@@ -2239,6 +2290,44 @@ mod tests {
     #[test]
     fn other_chips_keep_their_metadata_windows() {
         assert!(!Chip::Esp32c5.addr_is_flash(0x5000_0000));
+    }
+
+    #[cfg(feature = "serialport")]
+    #[test]
+    fn watchdog_disable_uses_the_watchdog_reset_registers() {
+        for chip in Chip::iter() {
+            if let (Some(wdt), Some(wprotect), Some(config0)) = (
+                chip.usb_serial_jtag_watchdogs(),
+                chip.wdt_wprotect(),
+                chip.wdt_config0(),
+            ) {
+                assert_eq!(wdt.rtc_wdt_wprotect, wprotect, "{chip}");
+                assert_eq!(wdt.rtc_wdt_config0, config0, "{chip}");
+            }
+        }
+    }
+
+    #[cfg(feature = "serialport")]
+    #[test]
+    fn super_watchdog_registers_match_esp_idf() {
+        // (SWD config, SWD write protection) from ESP-IDF
+        let expected = [
+            (Chip::Esp32c3, 0x6000_80AC, 0x6000_80B0),
+            (Chip::Esp32s3, 0x6000_80B4, 0x6000_80B8),
+            (Chip::Esp32c6, 0x600B_1C1C, 0x600B_1C20),
+            (Chip::Esp32h2, 0x600B_1C20, 0x600B_1C24),
+            (Chip::Esp32h4, 0x600B_5420, 0x600B_5424),
+            (Chip::Esp32p4, 0x5011_601C, 0x5011_6020),
+            (Chip::Esp32s31, 0x2080_101C, 0x2080_1020),
+        ];
+        for (chip, config, wprotect) in expected {
+            let wdt = chip.usb_serial_jtag_watchdogs().unwrap();
+            assert_eq!(
+                (wdt.swd_config, wdt.swd_wprotect),
+                (config, wprotect),
+                "{chip}"
+            );
+        }
     }
 }
 

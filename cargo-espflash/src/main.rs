@@ -304,9 +304,8 @@ fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     info!("Erasing the following partitions: {:?}", args.erase_parts);
 
     erase_partitions(&mut flasher, partition_table, Some(args.erase_parts), None)?;
-    flasher
-        .connection()
-        .reset_after(!args.connect_args.no_stub, chip)?;
+    let use_stub = flasher.uses_stub();
+    flasher.connection().reset_after(use_stub, chip)?;
 
     Ok(())
 }
@@ -332,8 +331,6 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     let chip = flasher.chip();
     let target_xtal_freq = chip.xtal_frequency(flasher.connection())?;
-
-    flasher.disable_watchdog()?;
 
     let build_ctx =
         build(&args.build_args, &cargo_config, chip).wrap_err("Failed to build project")?;
