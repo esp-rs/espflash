@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Chip::write_efuse` configures the ESP32-H2 eFuse write timing in the ESP32-H2 eFuse registers instead of the ESP32-S3 register addresses (#1125)
 - `Chip::write_efuse` retries a burn that did not set all bits, and fails if they are still not set after three attempts, instead of reporting success (#1125)
 - `Chip::write_efuse` no longer reports every ESP32 burn outside the 3/4 coding scheme as failed, and checks the decoder status like espefuse (#1125)
+- Over USB-Serial-JTAG, every command disables the RTC watchdog and makes the super watchdog feed itself when connecting, like esptool, on every chip with USB-Serial-JTAG. Only flashing disabled the RTC watchdog before, not on ESP32-C6, ESP32-H2, ESP32-H21 and ESP32-H4, and the super watchdog never
 
 ### Removed
 

@@ -333,8 +333,6 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let chip = flasher.chip();
     let target_xtal_freq = chip.xtal_frequency(flasher.connection())?;
 
-    flasher.disable_watchdog()?;
-
     let build_ctx =
         build(&args.build_args, &cargo_config, chip).wrap_err("Failed to build project")?;
 

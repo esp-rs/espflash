@@ -26,7 +26,7 @@ use crate::connection::Port;
 #[cfg(feature = "serialport")]
 pub use crate::connection::SecurityInfo;
 #[cfg(feature = "serialport")]
-use crate::target::{DefaultProgressCallback, ProgressCallbacks};
+use crate::target::{DefaultProgressCallback, ProgressCallbacks, WDT_WKEY};
 use crate::{
     Error,
     target::{Chip, XtalFrequency},
@@ -650,6 +650,9 @@ impl Flasher {
             if let Err(e) = flasher.power_on_flash() {
                 return Err(Box::new((e, flasher.into_connection())));
             }
+            if let Err(e) = flasher.disable_watchdog() {
+                return Err(Box::new((e, flasher.into_connection())));
+            }
 
             // Load flash stub if enabled.
             if use_stub {
@@ -696,12 +699,31 @@ impl Flasher {
         Ok(self.chip_revision)
     }
 
-    /// Disable the watchdog timer.
+    /// Disables the RTC watchdog and makes the super watchdog feed itself,
+    /// when connected over USB-Serial-JTAG.
+    ///
+    /// Resetting into the bootloader over USB-Serial-JTAG resets neither of
+    /// them, so one that the application or the bootloader armed could reset
+    /// the chip during a long operation. Like esptool, [`Flasher::connect`]
+    /// already does this; the flasher stub also does it when it starts.
     pub fn disable_watchdog(&mut self) -> Result<(), Error> {
-        let mut target = self
-            .chip
-            .flash_target(self.spi_params, self.use_stub, false, false);
-        target.begin(&mut self.connection).flashing()?;
+        let Some(wdt) = self.chip.usb_serial_jtag_watchdogs() else {
+            return Ok(());
+        };
+        // WRITE_REG is not allowed in Secure Download Mode
+        if !self.connection.is_using_usb_serial_jtag() || self.connection.secure_download_mode {
+            return Ok(());
+        }
+
+        debug!("Disabling the RTC watchdog and auto-feeding the super watchdog");
+        let connection = &mut self.connection;
+        connection.write_reg(wdt.rtc_wdt_wprotect, WDT_WKEY, None)?;
+        connection.write_reg(wdt.rtc_wdt_config0, 0, None)?;
+        connection.write_reg(wdt.rtc_wdt_wprotect, 0, None)?;
+        connection.write_reg(wdt.swd_wprotect, wdt.swd_wkey, None)?;
+        connection.update_reg(wdt.swd_config, wdt.swd_auto_feed_en, 1)?;
+        connection.write_reg(wdt.swd_wprotect, 0, None)?;
+
         Ok(())
     }
 
