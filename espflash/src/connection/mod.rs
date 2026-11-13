@@ -234,6 +234,10 @@ pub struct Connection {
     after_operation: ResetAfterOperation,
     before_operation: ResetBeforeOperation,
     pub(crate) secure_download_mode: bool,
+    /// Whether the last SYNC was answered by a flasher stub that was already
+    /// running, e.g. after `--after no-reset-no-stub`, instead of the ROM
+    /// loader.
+    pub(crate) stub_running: bool,
     pub(crate) baud: u32,
 }
 
@@ -253,6 +257,7 @@ impl Connection {
             after_operation,
             before_operation,
             secure_download_mode: false,
+            stub_running: false,
             baud,
         }
     }
@@ -361,9 +366,14 @@ impl Connection {
     }
 
     /// Syncs with a device.
+    ///
+    /// The ROM loader and the flasher stub both send eight replies, but only
+    /// the stub's have the value 0. esptool detects a running stub this way.
     pub(crate) fn sync(&mut self) -> Result<(), Error> {
-        self.with_timeout(CommandType::Sync.timeout(), |connection| {
-            connection.command(Command::Sync)?;
+        const STUB_VALUE: CommandResponseValue = CommandResponseValue::ValueU32(0);
+
+        self.stub_running = self.with_timeout(CommandType::Sync.timeout(), |connection| {
+            let mut stub_running = connection.command(Command::Sync)? == STUB_VALUE;
             connection.flush()?;
 
             sleep(Duration::from_millis(10));
@@ -378,6 +388,7 @@ impl Connection {
                                 RomErrorKind::from(response.error),
                             ))));
                         }
+                        stub_running &= response.value == STUB_VALUE;
                     }
                     _ => {
                         return Err(Error::RomError(Box::new(RomError::new(
@@ -388,7 +399,7 @@ impl Connection {
                 }
             }
 
-            Ok(())
+            Ok(stub_running)
         })?;
 
         Ok(())
@@ -969,10 +980,9 @@ mod tests {
     /// END, 8-byte header, 4-byte address, END
     const READ_REG_FRAME_LEN: usize = 14;
 
-    /// Sends `ReadReg` to a pseudo-terminal device driven by `device` and
-    /// returns the result and how long it took, including closing the port.
-    fn read_reg(device: impl FnOnce(&mut Port) + Send + 'static) -> (Result<u32, Error>, Duration) {
-        let (mut device_port, host_port) = Port::pair().unwrap();
+    /// A connection to a pseudo-terminal, and the device end of it.
+    fn connection() -> (Connection, Port) {
+        let (device_port, host_port) = Port::pair().unwrap();
         let port_info = UsbPortInfo {
             vid: 0,
             pid: 0,
@@ -980,13 +990,20 @@ mod tests {
             manufacturer: None,
             product: None,
         };
-        let mut connection = Connection::new(
+        let connection = Connection::new(
             host_port,
             port_info,
             ResetAfterOperation::HardReset,
             ResetBeforeOperation::NoReset,
             115_200,
         );
+        (connection, device_port)
+    }
+
+    /// Sends `ReadReg` to a pseudo-terminal device driven by `device` and
+    /// returns the result and how long it took, including closing the port.
+    fn read_reg(device: impl FnOnce(&mut Port) + Send + 'static) -> (Result<u32, Error>, Duration) {
+        let (mut connection, mut device_port) = connection();
         // Closing the device end discards unread output, so the thread returns
         // its port to keep it open until the command has finished
         let _device = thread::spawn(move || {
@@ -1017,6 +1034,47 @@ mod tests {
         frame.extend(value.to_le_bytes());
         frame.extend([0, 0, 0, 0, 0xc0]);
         frame
+    }
+
+    /// A flasher stub response frame for `ty` carrying `value`.
+    fn stub_response(ty: CommandType, value: u32) -> Vec<u8> {
+        let mut frame = vec![0xc0, 0x01, ty as u8, 0x02, 0x00];
+        frame.extend(value.to_le_bytes());
+        frame.extend([0, 0, 0xc0]);
+        frame
+    }
+
+    /// Syncs with a device that answers with eight `reply` frames, and returns
+    /// whether a running stub was detected.
+    fn sync_detects_stub(reply: Vec<u8>) -> bool {
+        let (mut connection, mut device_port) = connection();
+        let device = thread::spawn(move || {
+            // Read the SYNC frame up to its closing END
+            let mut byte = [0];
+            let mut ends = 0;
+            while ends < 2 {
+                device_port.read_exact(&mut byte).unwrap();
+                ends += usize::from(byte[0] == 0xc0);
+            }
+            for _ in 0..8 {
+                device_port.write_all(&reply).unwrap();
+            }
+            device_port
+        });
+
+        connection.sync().unwrap();
+        drop(device.join().unwrap());
+        connection.stub_running
+    }
+
+    #[test]
+    fn sync_detects_a_running_stub() {
+        assert!(sync_detects_stub(stub_response(CommandType::Sync, 0)));
+    }
+
+    #[test]
+    fn sync_with_the_rom_loader_detects_no_stub() {
+        assert!(!sync_detects_stub(response(CommandType::Sync, 0x2012_0707)));
     }
 
     /// Writes `data` to the device port every `TIMEOUT / 4`, which keeps every

@@ -481,6 +481,7 @@ impl TestRunner {
             self.test_write_bin_unaligned()?;
             self.test_hold_in_reset()?;
             self.test_reset()?;
+            self.test_running_stub()?;
             self.test_list_ports(extended)?;
             self.test_checksum_md5()?;
             self.test_read_flash()?;
@@ -536,6 +537,7 @@ impl TestRunner {
             "write-bin-unaligned" => self.test_write_bin_unaligned(),
             "hold-in-reset" => self.test_hold_in_reset(),
             "reset" => self.test_reset(),
+            "running-stub" => self.test_running_stub(),
             "checksum-md5" => self.test_checksum_md5(),
             "list-ports" => self.test_list_ports(true),
             "partition-table" | "offline" => self.test_offline_commands(chip),
@@ -1620,6 +1622,60 @@ impl TestRunner {
             Some(&["Leaving target device in the ROM bootloader"]),
             self.timeout,
             "hold-in-reset",
+        )?;
+        Ok(())
+    }
+
+    /// Tests connecting without a reset to a flash stub that is still running,
+    /// which only answers the stub protocol, with and without `--no-stub`.
+    ///
+    /// The stub keeps the baud rate it was left at, so all steps use 115200.
+    pub fn test_running_stub(&self) -> Result<()> {
+        self.run_simple_command_test(
+            &[
+                "board-info",
+                "--baud",
+                "115200",
+                "--after",
+                "no-reset-no-stub",
+            ],
+            Some(&["Staying in flasher stub"]),
+            self.timeout,
+            "leave the flash stub running",
+        )?;
+        self.run_simple_command_test(
+            &[
+                "board-info",
+                "--baud",
+                "115200",
+                "--before",
+                "no-reset",
+                "--after",
+                "no-reset-no-stub",
+            ],
+            Some(&["The flash stub is already running, no upload is necessary"]),
+            self.timeout,
+            "connect to the running flash stub",
+        )?;
+        let flash_output = self.flash_output_file();
+        self.run_simple_command_test(
+            &[
+                "read-flash",
+                "--baud",
+                "115200",
+                "--before",
+                "no-reset",
+                "--no-stub",
+                "0x0",
+                "0x200",
+                flash_output.to_str().unwrap(),
+            ],
+            Some(&[
+                "The flash stub is already running, using it instead of the ROM loader",
+                "Flash content successfully read and written to",
+            ]),
+            self.timeout,
+            "read flash through the running flash stub with --no-stub",
         )?;
         Ok(())
     }

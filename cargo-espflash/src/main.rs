@@ -317,9 +317,8 @@ fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     );
 
     erase_partitions(&mut flasher, &partitions)?;
-    flasher
-        .connection()
-        .reset_after(!args.connect_args.no_stub, chip)?;
+    let use_stub = flasher.uses_stub();
+    flasher.connection().reset_after(use_stub, chip)?;
 
     Ok(())
 }

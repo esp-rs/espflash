@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Flasher::uses_stub` returns whether the flash stub is in use
 - `--wait` flag to wait for the serial port to appear instead of failing when it is not present (#1116)
 - `--no-verify` and `--no-skip` flags for `write-bin` (#1117)
 - `direct-boot` image format for applications built with `esp-bootloader-direct-boot`, which the ROM starts without a second-stage bootloader. It is rejected on ESP32-C3 revisions before v0.3 and ESP32-P4 revisions before v3.0 (#1114, #1123)
@@ -55,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `board-info` decodes the embedded flash and PSRAM of ESP32-S3 chips from their eFuses like esptool, instead of reporting "Embedded Flash" or "Embedded PSRAM" based on the eFuse block version. It lists IEEE802.15.4 for ESP32-C6 and ESP32-H2, and shows ESP32 coding scheme 3 as "None (may contain encoding data)" instead of "Invalid" (#1126)
 - `board-info` decodes the embedded flash and PSRAM of ESP32-S3 chips from their eFuses like esptool, instead of reporting "Embedded Flash" or "Embedded PSRAM" based on the eFuse block version. It reports the embedded flash of ESP32-C2, ESP32-C3 and ESP32-C6, lists IEEE802.15.4 for ESP32-C6 and ESP32-H2, and shows ESP32 coding scheme 3 as "None (may contain encoding data)" instead of "Invalid" (#1126)
 - Over USB-Serial-JTAG, every command disables the RTC watchdog and makes the super watchdog feed itself when connecting, like esptool, on every chip with USB-Serial-JTAG. Only flashing disabled the RTC watchdog before, not on ESP32-C6, ESP32-H2, ESP32-H21 and ESP32-H4, and the super watchdog never
+- A flash stub that is still running, e.g. after `--after no-reset-no-stub`, is detected when connecting and used like esptool does, also with `--no-stub`. espflash used to upload the stub again, and with `--no-stub` failed with "expected response of at least 20 bytes, received 18 bytes"
 
 ### Removed
 
