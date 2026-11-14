@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ESP-IDF specific options (`--bootloader`, `--partition-table`, `--flash-mode`, etc.) are rejected when not using the `esp-idf` format, and their `espflash.toml` counterparts are ignored with a warning (#1114, #1123)
 - Show the vendor name for known USB vendor IDs instead of the manufacturer reported by the OS, which on Windows is the driver vendor, e.g. `(Undefined Vendor)` (#1112)
 - Return an error when a partition starts before the end of the partition table. Primary bootloader and partition table entries are exempt (#1107)
-- Warn when the bundled bootloader is used with a partition table offset other than 0x8000 (#1107)
+- Warn when the bundled bootloader is flashed or saved to a merged image with a partition table offset other than 0x8000 (#1107, #1131)
 
 ### Fixed
 
@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Chip::write_efuse` configures the ESP32-H2 eFuse write timing in the ESP32-H2 eFuse registers instead of the ESP32-S3 register addresses (#1125)
 - `Chip::write_efuse` retries a burn that did not set all bits, and fails if they are still not set after three attempts, instead of reporting success (#1125)
 - `Chip::write_efuse` no longer reports every ESP32 burn outside the 3/4 coding scheme as failed, and checks the decoder status like espefuse (#1125)
+- `save-image` without `--merge` no longer warns that there is no bundled bootloader for `--flash-mode qout`, as it does not save the bootloader (#1131)
 
 ### Removed
 

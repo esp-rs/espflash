@@ -324,6 +324,8 @@ impl AppDescriptor {
 pub struct IdfBootloaderFormat<'a> {
     boot_addr: u32,
     bootloader: Cow<'a, [u8]>,
+    /// Warnings about the bundled bootloader, logged where it is written
+    bootloader_warnings: Vec<String>,
     partition_table: PartitionTable,
     flash_segment: Segment<'a>,
     app_size: u32,
@@ -394,6 +396,7 @@ impl<'a> IdfBootloaderFormat<'a> {
             ));
         }
 
+        let mut bootloader_warnings = Vec::new();
         let mut bootloader = if let Some(bootloader_path) = bootloader_path {
             let bootloader = fs::read(bootloader_path)?;
             Cow::Owned(bootloader)
@@ -407,10 +410,10 @@ impl<'a> IdfBootloaderFormat<'a> {
             match flash_data.flash_settings.mode {
                 Some(FlashMode::Qio) => Cow::Borrowed(bootloaders.qio),
                 Some(FlashMode::Qout) => {
-                    warn!(
+                    bootloader_warnings.push(format!(
                         "There is no bundled {} bootloader for QOUT: the flash will be read in dual mode. Use `--bootloader` with an ESP-IDF bootloader built for QOUT to change that.",
                         flash_data.chip
-                    );
+                    ));
                     Cow::Borrowed(bootloaders.dio)
                 }
                 _ => Cow::Borrowed(bootloaders.dio),
@@ -725,9 +728,9 @@ impl<'a> IdfBootloaderFormat<'a> {
         });
 
         if bundled_bootloader_misses_partition_table(bootloader_path, partition_table_offset) {
-            warn!(
+            bootloader_warnings.push(format!(
                 "The bundled bootloader reads the partition table at {BUNDLED_PARTITION_TABLE_OFFSET:#x}, not at {partition_table_offset:#x}. Use `--bootloader` with an ESP-IDF bootloader built for this partition table offset."
-            );
+            ));
         }
 
         // Partitions start after the partition table, like in
@@ -755,6 +758,7 @@ impl<'a> IdfBootloaderFormat<'a> {
         Ok(Self {
             boot_addr,
             bootloader,
+            bootloader_warnings,
             partition_table,
             flash_segment,
             app_size,
@@ -764,10 +768,18 @@ impl<'a> IdfBootloaderFormat<'a> {
     }
 
     /// Returns an iterator over the [Segment]'s that should be placed in flash.
+    ///
+    /// Logs a warning when the bundled bootloader does not find the partition
+    /// table or does not support the flash mode, because these segments
+    /// include the bootloader.
     pub fn flash_segments<'b>(self) -> impl Iterator<Item = Segment<'b>>
     where
         'a: 'b,
     {
+        for warning in &self.bootloader_warnings {
+            warn!("{warning}");
+        }
+
         let bootloader_segment = Segment {
             addr: self.boot_addr,
             data: self.bootloader,
@@ -1026,6 +1038,8 @@ pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use std::{cell::RefCell, sync::Once};
+
     use super::*;
     use crate::flasher::FlashSettings;
 
@@ -1259,6 +1273,99 @@ mod tests {
         assert!(bundled_bootloader_misses_partition_table(None, 0xA000));
         assert!(!bundled_bootloader_misses_partition_table(None, 0x8000));
         assert!(!bundled_bootloader_misses_partition_table(given, 0xA000));
+    }
+
+    thread_local! {
+        /// The warnings that `warnings` collects on this thread
+        static WARNINGS: RefCell<Option<Vec<String>>> = const { RefCell::new(None) };
+    }
+
+    /// Collects the warnings for `warnings`
+    struct WarningLogger;
+
+    impl log::Log for WarningLogger {
+        fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
+            metadata.level() <= log::Level::Warn
+        }
+
+        fn log(&self, record: &log::Record<'_>) {
+            if self.enabled(record.metadata()) {
+                WARNINGS.with_borrow_mut(|warnings| {
+                    if let Some(warnings) = warnings {
+                        warnings.push(record.args().to_string());
+                    }
+                });
+            }
+        }
+
+        fn flush(&self) {}
+    }
+
+    /// The warnings that `f` logs
+    fn warnings(f: impl FnOnce()) -> Vec<String> {
+        static LOGGER: Once = Once::new();
+        LOGGER.call_once(|| {
+            log::set_logger(&WarningLogger).unwrap();
+            log::set_max_level(log::LevelFilter::Warn);
+        });
+        WARNINGS.set(Some(Vec::new()));
+        f();
+        WARNINGS.take().unwrap()
+    }
+
+    /// The warnings logged to build an image and get its flash segments, and
+    /// to build it and get its OTA segments
+    fn bootloader_warnings(
+        mode: Option<FlashMode>,
+        bootloader: Option<&Path>,
+        offset: Option<u32>,
+    ) -> (Vec<String>, Vec<String>) {
+        let elf = std::fs::read("tests/data/esp32").unwrap();
+        let flash_data = FlashData::new(
+            FlashSettings::new(mode, Some(FlashSize::_16Mb), None),
+            0,
+            None,
+            Chip::Esp32,
+            XtalFrequency::_40Mhz,
+        );
+        let partition_table = Path::new("tests/data/partitions_app_at_0x40000.csv");
+        let image = || {
+            let partition_table = Some(partition_table);
+            IdfBootloaderFormat::new(&elf, &flash_data, partition_table, bootloader, offset, None)
+                .unwrap()
+        };
+        let flash = warnings(|| image().flash_segments().for_each(drop));
+        let ota = warnings(|| image().ota_segments().for_each(drop));
+        (flash, ota)
+    }
+
+    #[test]
+    fn bundled_bootloader_warnings_are_logged_only_where_it_is_written() {
+        let (flash, ota) = bootloader_warnings(None, None, Some(0xA000));
+        assert_eq!(flash.len(), 1, "{flash:?}");
+        assert!(flash[0].contains("at 0x8000, not at 0xa000"), "{flash:?}");
+        assert!(ota.is_empty(), "{ota:?}");
+
+        let (flash, ota) = bootloader_warnings(Some(FlashMode::Qout), None, None);
+        assert_eq!(flash.len(), 1, "{flash:?}");
+        assert!(flash[0].contains("bootloader for QOUT"), "{flash:?}");
+        assert!(ota.is_empty(), "{ota:?}");
+    }
+
+    #[test]
+    fn no_bootloader_warning_at_the_bundled_offset_or_with_a_given_bootloader() {
+        let given = Some(Path::new(GIVEN_BOOTLOADER));
+        let cases = [
+            (None, None, None),
+            (None, None, Some(0x8000)),
+            (Some(FlashMode::Qout), given, Some(0xA000)),
+        ];
+
+        for (mode, bootloader, offset) in cases {
+            let (flash, ota) = bootloader_warnings(mode, bootloader, offset);
+            assert!(flash.is_empty(), "{mode:?} {offset:x?}: {flash:?}");
+            assert!(ota.is_empty(), "{mode:?} {offset:x?}: {ota:?}");
+        }
     }
 
     #[test]
