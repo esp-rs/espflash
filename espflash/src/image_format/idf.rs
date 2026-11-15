@@ -325,6 +325,7 @@ pub struct IdfBootloaderFormat<'a> {
     boot_addr: u32,
     bootloader: Cow<'a, [u8]>,
     /// Warnings about the bundled bootloader, logged where it is written
+    #[serde(skip)]
     bootloader_warnings: Vec<String>,
     partition_table: PartitionTable,
     flash_segment: Segment<'a>,
