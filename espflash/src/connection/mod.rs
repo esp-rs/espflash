@@ -46,7 +46,7 @@ pub use reset::{ResetAfterOperation, ResetBeforeOperation};
 
 const MAX_CONNECT_ATTEMPTS: usize = 7;
 const MAX_SYNC_ATTEMPTS: usize = 5;
-const USB_SERIAL_JTAG_PID: u16 = 0x1001;
+pub(crate) const USB_SERIAL_JTAG_PID: u16 = 0x1001;
 
 #[cfg(unix)]
 /// Alias for the serial TTYPort.
