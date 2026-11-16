@@ -213,7 +213,7 @@ pub fn monitor(
             && detector.feed(&buff[0..read_count])
         {
             warn!(
-                "The device booted into download mode. Resets over USB-Serial-JTAG keep the boot mode latched at the last power-on or EN reset, e.g. while the BOOT button was held or through the UART port. Press the RESET button or power-cycle the device to boot the application."
+                "The device booted into download mode. Resets over USB-Serial-JTAG cannot leave it if the boot pin was low at the last power-on or EN reset, e.g. because the BOOT button was held or the device was reset into download mode through its UART port. In that case, press the RESET button or power-cycle the device."
             );
         }
 
