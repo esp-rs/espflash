@@ -27,3 +27,16 @@ finishes, and again whenever the run is re-run.
 
 Full HIL runs automatically when a pull request enters the merge queue;
 ordinary pull request events do not occupy the hardware runners.
+
+## Benchmarks
+
+After its tests, each HIL job runs `xtask bench`, which measures the connect
+time and the write, read and erase throughput of the device. Merge queue runs
+publish these results to the `bench-data` branch as `<commit>.jsonl`, together
+with the dashboard in `.github/bench/index.html`, which GitHub Pages serves
+from that branch. To benchmark a local device with a release build, as HIL
+does:
+
+```sh
+ESPFLASH_PORT=/dev/ttyACM0 cargo run --release -p xtask -- bench --runner local --baud 921600
+```
