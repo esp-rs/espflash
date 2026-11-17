@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `board-info` decodes the embedded flash and PSRAM of ESP32-S3 chips from their eFuses like esptool, instead of reporting "Embedded Flash" or "Embedded PSRAM" based on the eFuse block version. It lists IEEE802.15.4 for ESP32-C6 and ESP32-H2, and shows ESP32 coding scheme 3 as "None (may contain encoding data)" instead of "Invalid"
 - `board-info` decodes the embedded flash and PSRAM of ESP32-S3 chips from their eFuses like esptool, instead of reporting "Embedded Flash" or "Embedded PSRAM" based on the eFuse block version. It lists IEEE802.15.4 for ESP32-C6 and ESP32-H2, and shows ESP32 coding scheme 3 as "None (may contain encoding data)" instead of "Invalid" (#1126)
 - `board-info` decodes the embedded flash and PSRAM of ESP32-S3 chips from their eFuses like esptool, instead of reporting "Embedded Flash" or "Embedded PSRAM" based on the eFuse block version. It reports the embedded flash of ESP32-C2, ESP32-C3 and ESP32-C6, lists IEEE802.15.4 for ESP32-C6 and ESP32-H2, and shows ESP32 coding scheme 3 as "None (may contain encoding data)" instead of "Invalid" (#1126)
-- Secure Download Mode is only assumed when the ROM loader rejects reading a register, like esptool. A chip that does not answer, e.g. with `--before no-reset-no-sync` while the application runs, is reported as a connection error instead of with a false Secure Download Mode warning
+- Secure Download Mode is only assumed when the ROM loader rejects reading a register, like esptool. A chip that does not answer, e.g. with `--before no-reset-no-sync` while the application runs, is reported as a connection error instead of with a false Secure Download Mode warning (#1145)
 
 ### Removed
 
