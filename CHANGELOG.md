@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cli::erase_partitions` takes the partitions to erase, which the new `cli::partitions_to_erase` finds by label or data type (#1127)
 - The `hold-in-reset` help and log message say what it does: it resets the device into its ROM bootloader and leaves it there (#1127)
 - With `--baud` above 115,200, the flash stub is uploaded at the requested baud rate, capped at 921,600, instead of at 115,200, which makes connecting over UART about 0.5 s faster
+- With `--baud` above 115,200, the flash stub is uploaded at the requested baud rate, capped at 921,600, instead of at 115,200, which makes connecting over UART about 0.5 s faster (#1144)
 
 ### Fixed
 
@@ -36,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Without `--partition-table-offset`, write the partition table at 0x8000 for the bundled bootloader, which reads it there (#1107)
 - Serial commands fail with a timeout once their timeout elapses, instead of hanging when a device stops accepting data or keeps sending unrelated output (#1110)
 - `--after watchdog-reset` resets ESP32-C2, ESP32-C3, ESP32-C5, ESP32-C61, ESP32-P4, ESP32-S2, ESP32-S3 and ESP32-S31 with their watchdog on any serial port, and uses a hard reset on the other chips and in Secure Download Mode, like esptool. It used to do nothing on some ports and fail after the operation on other chips, leaving the chip in the bootloader (#1120)
-- The monitor opened after flashing waits for the serial port to reappear when the device has already disconnected, e.g. after `--after watchdog-reset` over USB, instead of failing with an I/O error (#1120)
+- The monitor opened after flashing waits for the serial port to reappear when the device has already disconnected, e.g. after `--after watchdog-reset` over USB, instead of failing with an I/O error (#1120, #1144)
 - `Chip::write_efuse` configures the ESP32-H2 eFuse write timing in the ESP32-H2 eFuse registers instead of the ESP32-S3 register addresses (#1125)
 - `Chip::write_efuse` retries a burn that did not set all bits, and fails if they are still not set after three attempts, instead of reporting success (#1125)
 - `Chip::write_efuse` no longer reports every ESP32 burn outside the 3/4 coding scheme as failed, and checks the decoder status like espefuse (#1125)
