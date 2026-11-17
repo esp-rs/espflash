@@ -330,6 +330,23 @@ pub enum Error {
         size: u32,
     },
 
+    /// A flash region extends past the end of the flash
+    #[error(
+        "The region of {size:#x} bytes at {offset:#x} extends past the end of the {flash_size} flash"
+    )]
+    #[diagnostic(
+        code(espflash::flash_region_out_of_bounds),
+        help("Flash chips wrap addresses around, so this would access the start of the flash")
+    )]
+    FlashRegionOutOfBounds {
+        /// Start of the region
+        offset: u32,
+        /// Size of the region
+        size: u32,
+        /// Size of the flash
+        flash_size: FlashSize,
+    },
+
     /// Firmware was built for a chip other than what was detected
     #[error("The firmware was built for {elf}, but the detected chip is {detected}")]
     #[diagnostic(

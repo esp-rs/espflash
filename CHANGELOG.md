@@ -36,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Chip::write_efuse` retries a burn that did not set all bits, and fails if they are still not set after three attempts, instead of reporting success (#1125)
 - `Chip::write_efuse` no longer reports every ESP32 burn outside the 3/4 coding scheme as failed, and checks the decoder status like espefuse (#1125)
 - `save-image` without `--merge` no longer warns that there is no bundled bootloader for `--flash-mode qout`, as it does not save the bootloader (#1131)
+- Flash operations on a region that extends past the end of the flash are rejected, instead of wrapping around and e.g. erasing the bootloader with `erase-region` (#1119)
+- `read-flash --no-stub` returns the right data beyond the first 128 bytes (#1119)
+- Flashing with `--no-stub` no longer fails on ESP32-S3 when the written size is not a multiple of 4 KiB (#1119)
+- Partition tables with partitions extending past the end of the flash are rejected, and `save-image --merge` no longer panics on them or on overlapping segments (#1119)
+- `flash` and `write-bin` no longer warn about monitor options when `--monitor` is not set and no monitor option was given (#1119)
+- Writing with `--no-stub` to an address that is not sector-aligned no longer fails (#1119)
+- Writing to an address that is not sector-aligned warns that the bytes before it in its sector will be erased, like esptool (#1119)
 
 ### Removed
 

@@ -3,13 +3,13 @@
 //! This module defines the traits and types used for flashing operations on a
 //! target device's flash memory.
 
-use std::io::Write;
+use std::{borrow::Cow, io::Write};
 
 use flate2::{
     Compression,
     write::{ZlibDecoder, ZlibEncoder},
 };
-use log::debug;
+use log::{debug, warn};
 use md5::{Digest, Md5};
 
 use crate::{
@@ -114,6 +114,24 @@ impl FlashTarget for Esp32Target {
         segment: Segment<'_>,
         progress: &mut dyn ProgressCallbacks,
     ) -> Result<(), Error> {
+        // Writing erases whole sectors, including the bytes of the first one
+        // before the segment
+        let segment_addr = segment.addr;
+        let bytes_before = segment_addr as usize % FLASH_SECTOR_SIZE;
+
+        // The ROM loader can't write to an address that is not sector-aligned.
+        // Like esptool, pad the segment with erased bytes back to the start of
+        // its sector.
+        let segment = if bytes_before != 0 && !self.use_stub {
+            let mut data = vec![0xFF; bytes_before];
+            data.extend_from_slice(&segment.data);
+            Segment {
+                addr: segment_addr - bytes_before as u32,
+                data: Cow::Owned(data),
+            }
+        } else {
+            segment
+        };
         let addr = segment.addr;
 
         let mut md5_hasher = Md5::new();
@@ -149,6 +167,12 @@ impl FlashTarget for Esp32Target {
                 progress.finish(true);
                 return Ok(());
             }
+        }
+
+        if bytes_before != 0 {
+            warn!(
+                "Flash address {segment_addr:#010x} is not aligned to a {FLASH_SECTOR_SIZE:#x} byte flash sector, so the {bytes_before:#x} bytes before it will be erased"
+            );
         }
 
         // Compression reduces the amount of data sent over the serial
@@ -273,35 +297,32 @@ impl FlashTarget for Esp32Target {
     }
 
     fn finish(&mut self, connection: &mut Connection, reboot: bool) -> Result<(), Error> {
-        if self.need_flash_end {
+        // The ROM loader writes every block as it arrives, so outside of Secure
+        // Download Mode FLASH_END would only leave the loader, which the reset
+        // below does. Like esptool, don't send it: the ESP32-S3 ROM fails it
+        // when the size given to FLASH_BEGIN, rounded up to whole sectors, was
+        // not sent in full.
+        if self.need_flash_end && self.use_stub {
+            // Let the host-side reset path handle rebooting after stub
+            // flashing. Asking the stub to reboot from FLASH_DEFL_END can race
+            // with response handling on some ESP32-P4 revisions/stubs, while
+            // the command's non-reboot path just exits flash mode.
+            connection.with_timeout(CommandType::FlashDeflEnd.timeout(), |connection| {
+                connection.command(Command::FlashDeflEnd { reboot: false })
+            })?;
+        } else if self.need_flash_end && connection.secure_download_mode {
             // In Secure Download Mode, "run user code" (reboot: false) makes
-            // the ROM verify/run the flashed image, which fails for
-            // unsigned images. "Reboot" (reboot: true) only
-            // finalizes the write and reboots, avoiding that error.
-            let flash_end_reboot = connection.secure_download_mode || reboot;
-            let result = if self.use_stub {
-                // Let the host-side reset path handle rebooting after stub
-                // flashing. Asking the stub to reboot from
-                // FLASH_DEFL_END can race with response handling on some
-                // ESP32-P4 revisions/stubs, while the command's non-reboot path
-                // just exits flash mode.
-                connection.with_timeout(CommandType::FlashDeflEnd.timeout(), |connection| {
-                    connection.command(Command::FlashDeflEnd { reboot: false })
-                })
-            } else {
-                connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
-                    connection.command(Command::FlashEnd {
-                        reboot: flash_end_reboot,
-                    })
-                })
-            };
+            // the ROM verify/run the flashed image, which fails for unsigned
+            // images. "Reboot" (reboot: true) only finalizes the write and
+            // reboots, avoiding that error.
+            let result = connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
+                connection.command(Command::FlashEnd { reboot: true })
+            });
             match result {
-                Ok(_) => {}
-                Err(Error::RomError(_)) if connection.secure_download_mode => {
-                    // In SDM the ROM may still return an error for FlashEnd
-                    // (e.g. digest verification failed for
-                    // unsigned image). The data was written; treat as success.
-                }
+                // The ROM may still return an error for FlashEnd (e.g. digest
+                // verification failed for an unsigned image). The data was
+                // written; treat it as success.
+                Ok(_) | Err(Error::RomError(_)) => {}
                 Err(e) => return Err(e),
             }
         }
