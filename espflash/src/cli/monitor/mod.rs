@@ -129,7 +129,7 @@ pub fn monitor(
         // it to reappear. Any other error, e.g. a baud rate the driver
         // rejects, would fail the same way on every reopen.
         let port_name = match serial.name() {
-            Some(port_name) if serial.bytes_to_read().is_err() => port_name,
+            Some(port_name) if is_disconnecting(&serial) => port_name,
             _ => return Err(e).into_diagnostic(),
         };
         debug!("Failed to configure serial port {port_name}: {e}");
@@ -223,6 +223,21 @@ pub fn monitor(
     }
 
     Ok(())
+}
+
+/// Whether every request to the port fails within a short grace period.
+///
+/// On macOS, configuring a disconnecting USB device fails with `EDEVERR`
+/// slightly before other requests start failing with `ENXIO`.
+fn is_disconnecting(serial: &Port) -> bool {
+    let deadline = Instant::now() + Duration::from_millis(500);
+    while serial.bytes_to_read().is_ok() {
+        if Instant::now() >= deadline {
+            return false;
+        }
+        sleep(Duration::from_millis(10));
+    }
+    true
 }
 
 /// Waits for a disconnected serial port to reappear and reopens it.
