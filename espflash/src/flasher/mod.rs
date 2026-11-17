@@ -57,6 +57,11 @@ pub(crate) const TRY_SPI_PARAMS: [SpiAttachParams; 2] =
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
 pub(crate) const STUB_FLASH_WRITE_SIZE: usize = 0x4000;
+/// Highest baud rate the ROM loaders receive reliably. Through a CP2102N, the
+/// ESP32-C2 ROM drops data at 1,152,000 baud and the ESP32-C61 ROM at
+/// 1,500,000 baud.
+#[cfg(feature = "serialport")]
+const MAX_ROM_BAUD: u32 = 921_600;
 
 /// Supported flash frequencies
 ///
@@ -637,13 +642,21 @@ impl Flasher {
             chip_revision,
             flash_size: None,
             spi_params: SpiAttachParams::default(),
-            use_stub,
+            // Set by `load_stub` once the stub runs
+            use_stub: false,
             verify,
             skip,
         };
 
         if flasher.connection.before_operation() == ResetBeforeOperation::NoResetNoSync {
+            // The loader of a previous connection is still running.
+            flasher.use_stub = use_stub;
             return Ok(flasher);
+        }
+
+        let baud = baud.filter(|&baud| baud > 115_200);
+        if baud.is_some() {
+            warn!("Setting baud rate higher than 115,200 can cause issues");
         }
 
         if !flasher.connection.secure_download_mode {
@@ -654,6 +667,14 @@ impl Flasher {
             // Load flash stub if enabled.
             if use_stub {
                 info!("Using flash stub");
+                // Uploading the stub at 115,200 baud takes about half a second
+                // over UART, so switch the ROM loader to the requested rate
+                // first, as far as it receives reliably.
+                if let Some(baud) = baud
+                    && let Err(e) = flasher.change_baud(baud.min(MAX_ROM_BAUD))
+                {
+                    return Err(Box::new((e, flasher.into_connection())));
+                }
                 if let Err(e) = flasher.load_stub() {
                     return Err(Box::new((e, flasher.into_connection())));
                 }
@@ -664,17 +685,21 @@ impl Flasher {
             }
         } else if use_stub {
             warn!("Stub is not supported in Secure Download Mode, setting --no-stub");
-            flasher.use_stub = false;
         }
 
         // Now that we have established a connection and detected the chip and
         // flash size, we can set the baud rate of the connection to the
         // configured value.
-        if let Some(baud) = baud
-            && baud > 115_200
-            && let Err(e) = flasher.change_baud(baud)
-        {
-            return Err(Box::new((e, flasher.into_connection())));
+        if let Some(baud) = baud {
+            let current_baud = match flasher.connection.baud() {
+                Ok(current_baud) => current_baud,
+                Err(e) => return Err(Box::new((e, flasher.into_connection()))),
+            };
+            if current_baud != baud
+                && let Err(e) = flasher.change_baud(baud)
+            {
+                return Err(Box::new((e, flasher.into_connection())));
+            }
         }
 
         Ok(flasher)
@@ -880,6 +905,7 @@ impl Flasher {
                 )))
             }
         }?;
+        self.use_stub = true;
 
         // Re-detect chip to check stub is up
         let chip = self.connection.detect_chip(self.use_stub)?;
