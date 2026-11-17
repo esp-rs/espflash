@@ -1560,12 +1560,13 @@ impl TestRunner {
     pub fn test_checksum_md5(&self) -> Result<()> {
         log::info!("Running checksum-md5 test");
 
-        // First erase the flash
+        // Erase only the checked sector: erasing the whole flash takes over
+        // 20 s on some chips, and `test_erase_flash` already covers it.
         self.run_simple_command_test(
-            &["erase-flash"],
-            Some(&["Flash has been erased!"]),
+            &["erase-region", "0x1000", "0x1000"],
+            Some(&["Erasing region at"]),
             self.timeout,
-            "erase-flash for checksum",
+            "erase-region for checksum",
         )?;
 
         // Then check the MD5 checksum of a region
