@@ -590,7 +590,9 @@ impl Flasher {
             return Err(Box::new((e, connection)));
         }
 
-        detect_sdm(&mut connection);
+        if let Err(e) = detect_sdm(&mut connection) {
+            return Err(Box::new((e, connection)));
+        }
 
         let detected_chip = if connection.before_operation() != ResetBeforeOperation::NoResetNoSync
         {
@@ -1536,17 +1538,27 @@ fn flash_size_from_id(flash_id: u32) -> Option<FlashSize> {
 }
 
 #[cfg(feature = "serialport")]
-fn detect_sdm(connection: &mut Connection) {
+fn detect_sdm(connection: &mut Connection) -> Result<(), Error> {
     if let Ok(security_info) = connection.security_info(false) {
         // Newer chips tell us if SDM is enabled.
         connection.secure_download_mode =
             security_info.security_flag_status("SECURE_DOWNLOAD_ENABLE");
-    } else if connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR).is_err() {
-        // On older chips, we have to guess by reading something. On these
-        // chips, there is always something readable at 0x40001000.
-        log::warn!("Secure Download Mode is enabled on this chip");
-        connection.secure_download_mode = true;
+        return Ok(());
     }
+
+    // On older chips, we have to guess by reading something that is always
+    // readable. Like esptool, only a ROM loader that rejects the command means
+    // Secure Download Mode, other errors mean that the chip is not answering.
+    match connection.read_reg(CHIP_DETECT_MAGIC_REG_ADDR) {
+        Ok(_) => {}
+        Err(Error::RomError(_)) => {
+            warn!("Secure Download Mode is enabled on this chip");
+            connection.secure_download_mode = true;
+        }
+        Err(e) => return Err(e),
+    }
+
+    Ok(())
 }
 
 #[cfg(feature = "serialport")]
@@ -1562,5 +1574,105 @@ impl From<Flasher> for Port {
         // Enables `monitor(flasher.into(), …)`
         let connection: Connection = flasher.into();
         connection.into()
+    }
+}
+
+#[cfg(all(test, unix, feature = "serialport"))]
+mod tests {
+    use std::{io::Read, thread};
+
+    use serialport::UsbPortInfo;
+
+    use super::*;
+    use crate::connection::reset::ResetAfterOperation;
+
+    /// Reads one SLIP frame from the device end of the port.
+    fn read_frame(device: &mut Port) {
+        let mut ends = 0;
+        while ends < 2 {
+            let mut byte = [0];
+            device.read_exact(&mut byte).unwrap();
+            ends += usize::from(byte[0] == 0xc0);
+        }
+    }
+
+    /// A ROM loader response frame for `ty` with the given status.
+    fn response(ty: CommandType, status: u8, error: u8) -> Vec<u8> {
+        vec![
+            0xc0, 0x01, ty as u8, 0x04, 0x00, 0, 0, 0, 0, status, error, 0, 0, 0xc0,
+        ]
+    }
+
+    /// Runs `detect_sdm` against a device that rejects `GetSecurityInfo`, as
+    /// the ESP32 ROM loader does, and then runs `read_reg`.
+    fn detect_sdm_with(
+        read_reg: impl FnOnce(&mut Port) + Send + 'static,
+    ) -> (Result<(), Error>, bool) {
+        let (mut device_port, host_port) = Port::pair().unwrap();
+        let port_info = UsbPortInfo {
+            vid: 0,
+            pid: 0,
+            serial_number: None,
+            manufacturer: None,
+            product: None,
+        };
+        let mut connection = Connection::new(
+            host_port,
+            port_info,
+            ResetAfterOperation::HardReset,
+            ResetBeforeOperation::NoReset,
+            115_200,
+        );
+        // The thread returns its port to keep it open until detection finishes
+        let device = thread::spawn(move || {
+            read_frame(&mut device_port);
+            device_port
+                .write_all(&response(CommandType::GetSecurityInfo, 1, 0x05))
+                .unwrap();
+            read_reg(&mut device_port);
+            device_port
+        });
+
+        let result = detect_sdm(&mut connection);
+        drop(device.join().unwrap());
+        (result, connection.secure_download_mode)
+    }
+
+    #[test]
+    fn rejected_read_reg_means_secure_download_mode() {
+        let (result, sdm) = detect_sdm_with(|device| {
+            read_frame(device);
+            device
+                .write_all(&response(CommandType::ReadReg, 1, 0x05))
+                .unwrap();
+        });
+        assert!(result.is_ok(), "{result:?}");
+        assert!(sdm);
+    }
+
+    #[test]
+    fn answered_read_reg_is_not_secure_download_mode() {
+        let (result, sdm) = detect_sdm_with(|device| {
+            read_frame(device);
+            device
+                .write_all(&response(CommandType::ReadReg, 0, 0))
+                .unwrap();
+        });
+        assert!(result.is_ok(), "{result:?}");
+        assert!(!sdm);
+    }
+
+    #[test]
+    fn read_reg_timeout_is_a_connection_error() {
+        let (result, sdm) = detect_sdm_with(|_| {});
+        assert!(
+            matches!(
+                &result,
+                Err(Error::Connection(err))
+                    if matches!(err.downcast_ref(), Some(ConnectionError::Timeout(_)))
+            ),
+            "expected a timeout, got {result:?}"
+        );
+        assert!(!sdm);
     }
 }
