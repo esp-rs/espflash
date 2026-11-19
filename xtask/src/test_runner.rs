@@ -107,7 +107,8 @@ pub struct RunTestsArgs {
     #[arg(long, value_name = "PATH")]
     pub espflash: Option<PathBuf>,
 
-    /// Baud rate for transfer-heavy hardware tests
+    /// Baud rate for hardware tests that use the flash stub. Other tests,
+    /// e.g. board-info, keep the default rate.
     #[arg(long, value_name = "BAUD")]
     pub baud: Option<u32>,
 
@@ -136,7 +137,7 @@ pub struct TestRunner {
     pub timeout: Duration,
     /// espflash executable under test
     pub espflash: PathBuf,
-    /// Baud rate for transfer-heavy hardware tests
+    /// Baud rate for hardware tests that use the flash stub
     pub baud: Option<u32>,
     /// Serial console of the port under test
     pub console: Console,
@@ -332,8 +333,30 @@ impl TestRunner {
         timeout: Duration,
         test_name: &str,
     ) -> Result<()> {
+        let cmd = self.create_espflash_command(args);
+        self.run_simple_command(cmd, expected_contains, timeout, test_name)
+    }
+
+    /// Like [Self::run_simple_command_test], at the configured baud rate.
+    fn run_simple_transfer_command_test(
+        &self,
+        args: &[&str],
+        expected_contains: Option<&[&str]>,
+        timeout: Duration,
+        test_name: &str,
+    ) -> Result<()> {
+        let cmd = self.create_transfer_command(args);
+        self.run_simple_command(cmd, expected_contains, timeout, test_name)
+    }
+
+    fn run_simple_command(
+        &self,
+        mut cmd: Command,
+        expected_contains: Option<&[&str]>,
+        timeout: Duration,
+        test_name: &str,
+    ) -> Result<()> {
         log::info!("Running {test_name} test");
-        let mut cmd = self.create_espflash_command(args);
         let result = self.execute_command(&mut cmd, timeout, None)?;
 
         if result.timed_out {
@@ -822,7 +845,7 @@ impl TestRunner {
         )?;
 
         // Erase the start of the image, so only the written binary can boot.
-        self.run_simple_command_test(
+        self.run_simple_transfer_command_test(
             &["erase-region", "0x0", "0x1000"],
             Some(&["Erasing region at"]),
             self.timeout,
@@ -1017,7 +1040,7 @@ impl TestRunner {
         log::info!("Running erase-flash test");
         let flash_output = self.flash_output_file();
 
-        self.run_simple_command_test(
+        self.run_simple_transfer_command_test(
             &["erase-flash"],
             Some(&["Flash has been erased!"]),
             self.timeout,
@@ -1025,7 +1048,7 @@ impl TestRunner {
         )?;
 
         // Read a portion of the flash to verify it's erased
-        self.run_simple_command_test(
+        self.run_simple_transfer_command_test(
             &["read-flash", "0", "0x4000", flash_output.to_str().unwrap()],
             Some(&["Flash content successfully read"]),
             self.timeout,
@@ -1065,7 +1088,7 @@ impl TestRunner {
         }
 
         // Valid erase - should succeed
-        self.run_simple_command_test(
+        self.run_simple_transfer_command_test(
             &["erase-region", "0x1000", "0x1000"],
             Some(&["Erasing region at"]),
             self.timeout,
@@ -1073,7 +1096,7 @@ impl TestRunner {
         )?;
 
         // Read the region to verify it was erased
-        self.run_simple_command_test(
+        self.run_simple_transfer_command_test(
             &[
                 "read-flash",
                 "0x1000",
@@ -1172,13 +1195,13 @@ impl TestRunner {
         let pattern = vec![0x5a; 256];
         fs::write(&pattern_file, &pattern)?;
 
-        self.run_simple_command_test(
+        self.run_simple_transfer_command_test(
             &["write-bin", "0x9000", pattern_file.to_str().unwrap()],
             Some(&["Binary successfully written to flash!"]),
             self.timeout,
             "populate partition",
         )?;
-        self.run_simple_command_test(
+        self.run_simple_transfer_command_test(
             &[
                 "erase-parts",
                 "nvs",
@@ -1189,7 +1212,7 @@ impl TestRunner {
             self.timeout,
             "erase named partition",
         )?;
-        self.run_simple_command_test(
+        self.run_simple_transfer_command_test(
             &[
                 "read-flash",
                 "0x9000",
@@ -1328,7 +1351,7 @@ impl TestRunner {
 
         // Ensure the test region can be programmed regardless of the current
         // flash contents.
-        self.run_simple_command_test(
+        self.run_simple_transfer_command_test(
             &["erase-region", "0x0", "0x1000"],
             Some(&["Erasing region at"]),
             self.timeout,
@@ -1336,7 +1359,7 @@ impl TestRunner {
         )?;
 
         // Write the pattern to the flash
-        self.run_simple_command_test(
+        self.run_simple_transfer_command_test(
             &["write-bin", "0x0", pattern_file.to_str().unwrap()],
             Some(&["Binary successfully written to flash!"]),
             self.timeout,
@@ -1348,7 +1371,7 @@ impl TestRunner {
             log::info!("Testing read-flash with length: {len}");
 
             // Test normal read
-            self.run_simple_command_test(
+            self.run_simple_transfer_command_test(
                 &[
                     "read-flash",
                     "--block-size",
@@ -1560,16 +1583,17 @@ impl TestRunner {
     pub fn test_checksum_md5(&self) -> Result<()> {
         log::info!("Running checksum-md5 test");
 
-        // First erase the flash
-        self.run_simple_command_test(
-            &["erase-flash"],
-            Some(&["Flash has been erased!"]),
+        // Erase only the checked sector: erasing the whole flash takes over
+        // 20 s on some chips, and `test_erase_flash` already covers it.
+        self.run_simple_transfer_command_test(
+            &["erase-region", "0x1000", "0x1000"],
+            Some(&["Erasing region at"]),
             self.timeout,
-            "erase-flash for checksum",
+            "erase-region for checksum",
         )?;
 
         // Then check the MD5 checksum of a region
-        self.run_simple_command_test(
+        self.run_simple_transfer_command_test(
             &["checksum-md5", "0x1000", "0x100"],
             Some(&["0x827f263ef9fb63d05499d14fcef32f60"]),
             self.timeout,
