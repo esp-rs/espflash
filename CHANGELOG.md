@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `direct-boot` image format for applications built with `esp-bootloader-direct-boot`, which the ROM starts without a second-stage bootloader. It is rejected on ESP32-C3 revisions before v0.3 and ESP32-P4 revisions before v3.0 (#1114, #1123)
 - The image format is detected from the ELF metadata of `esp-hal` applications when no format is given (#1114)
 - Add ESP32-H21 support (#1121)
+- The monitor warns when a device connected over USB-Serial-JTAG boots into download mode, and explains that resets over USB-Serial-JTAG cannot leave it if the boot pin was low at the last power-on or EN reset (#1132)
 
 ### Changed
 

@@ -20,6 +20,7 @@ use crossterm::{
     event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, poll, read},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
+use download_mode::DownloadModeDetector;
 use external_processors::ExternalProcessors;
 use log::{debug, error, warn};
 use miette::{IntoDiagnostic, Result};
@@ -32,7 +33,7 @@ use crate::{
         MonitorConfigArgs,
         monitor::parser::{InputParser, ResolvingPrinter},
     },
-    connection::{Port, reset::reset_after_flash},
+    connection::{Port, USB_SERIAL_JTAG_PID, reset::reset_after_flash},
     image_format::Metadata,
 };
 
@@ -40,6 +41,7 @@ pub mod external_processors;
 pub mod parser;
 
 mod cfi_unwind;
+mod download_mode;
 mod line_endings;
 mod stack_dump;
 mod symbols;
@@ -174,6 +176,8 @@ pub fn monitor(
     let mut external_processors =
         ExternalProcessors::new(monitor_args.processors, monitor_args.elf)?;
 
+    let mut download_mode = (pid == USB_SERIAL_JTAG_PID).then(DownloadModeDetector::default);
+
     let mut buff = [0; 1024];
     let mut user_input_handler = InputHandler::new(pid, non_interactive);
     loop {
@@ -204,6 +208,14 @@ pub fn monitor(
 
         // Don't forget to flush the writer!
         stdout.flush().ok();
+
+        if let Some(detector) = &mut download_mode
+            && detector.feed(&buff[0..read_count])
+        {
+            warn!(
+                "The device booted into download mode. Resets over USB-Serial-JTAG cannot leave it if the boot pin was low at the last power-on or EN reset, e.g. because the BOOT button was held or the device was reset into download mode through its UART port. In that case, press the RESET button or power-cycle the device."
+            );
+        }
 
         if !user_input_handler.handle(&mut serial)? {
             break;
