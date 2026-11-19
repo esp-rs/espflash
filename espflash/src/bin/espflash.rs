@@ -69,7 +69,11 @@ enum Commands {
     ///
     /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/app_image_format.html>
     Flash(FlashArgs),
-    /// Hold the target device in reset
+    /// Reset the target device into its ROM bootloader and leave it there
+    ///
+    /// The application does not run until the device is reset again. The
+    /// device is not held in reset: espflash releases its reset line when it
+    /// exits.
     HoldInReset(ConnectArgs),
     /// List available serial ports.
     ///
@@ -213,16 +217,25 @@ fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
         return Err(Error::StubRequired.into());
     }
 
-    let mut flasher = connect(&args.connect_args, config, false, false)?;
-    let chip = flasher.chip();
     let partition_table = match args.partition_table {
         Some(path) => Some(parse_partition_table(&path)?),
         None => None,
     };
+    // Find the partitions before connecting, which resets the device
+    let partitions = partitions_to_erase(partition_table.as_ref(), Some(args.erase_parts), None)?;
 
-    info!("Erasing the following partitions: {:?}", args.erase_parts);
+    let mut flasher = connect(&args.connect_args, config, false, false)?;
+    let chip = flasher.chip();
 
-    erase_partitions(&mut flasher, partition_table, Some(args.erase_parts), None)?;
+    info!(
+        "Erasing the following partitions: {:?}",
+        partitions
+            .iter()
+            .map(|part| part.name())
+            .collect::<Vec<_>>()
+    );
+
+    erase_partitions(&mut flasher, &partitions)?;
     flasher
         .connection()
         .reset_after(!args.connect_args.no_stub, chip)?;
@@ -327,12 +340,12 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         if let ImageFormat::EspIdf(idf_format) = &image_format
             && (args.flash_args.erase_parts.is_some() || args.flash_args.erase_data_parts.is_some())
         {
-            erase_partitions(
-                &mut flasher,
-                Some(idf_format.partition_table()),
+            let partitions = partitions_to_erase(
+                Some(&idf_format.partition_table()),
                 args.flash_args.erase_parts,
                 args.flash_args.erase_data_parts,
             )?;
+            erase_partitions(&mut flasher, &partitions)?;
         }
 
         flash_image(&mut flasher, image_format)?;

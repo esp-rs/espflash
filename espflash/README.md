@@ -64,7 +64,7 @@ Commands:
   erase-parts      Erase specified partitions
   erase-region     Erase specified region
   flash            Flash an application in ELF format to a connected target device
-  hold-in-reset    Hold the target device in reset
+  hold-in-reset    Reset the target device into its ROM bootloader and leave it there
   list-ports       List available serial ports
   monitor          Open the serial monitor without flashing the connected target device
   partition-table  Convert partition tables between CSV and binary format
