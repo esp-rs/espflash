@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The image format is detected from the ELF metadata of `esp-hal` applications when no format is given (#1114)
 - Add ESP32-H21 support (#1121)
 - The monitor warns when a device connected over USB-Serial-JTAG boots into download mode, and explains that resets over USB-Serial-JTAG cannot leave it if the boot pin was low at the last power-on or EN reset (#1132)
+- `MonitorConfigArgs::no_reset` is public (#1149)
 
 ### Changed
 
@@ -54,6 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `board-info` decodes the embedded flash and PSRAM of ESP32-S3 chips from their eFuses like esptool, instead of reporting "Embedded Flash" or "Embedded PSRAM" based on the eFuse block version. It lists IEEE802.15.4 for ESP32-C6 and ESP32-H2, and shows ESP32 coding scheme 3 as "None (may contain encoding data)" instead of "Invalid"
 - `board-info` decodes the embedded flash and PSRAM of ESP32-S3 chips from their eFuses like esptool, instead of reporting "Embedded Flash" or "Embedded PSRAM" based on the eFuse block version. It lists IEEE802.15.4 for ESP32-C6 and ESP32-H2, and shows ESP32 coding scheme 3 as "None (may contain encoding data)" instead of "Invalid" (#1126)
 - `board-info` decodes the embedded flash and PSRAM of ESP32-S3 chips from their eFuses like esptool, instead of reporting "Embedded Flash" or "Embedded PSRAM" based on the eFuse block version. It reports the embedded flash of ESP32-C2, ESP32-C3 and ESP32-C6, lists IEEE802.15.4 for ESP32-C6 and ESP32-H2, and shows ESP32 coding scheme 3 as "None (may contain encoding data)" instead of "Invalid" (#1126)
+- `flash --ram --monitor` monitors the RAM application instead of resetting the device, which booted the application in flash (#1149)
+- `flash --ram` rejects images that overlap the running flash stub before writing them, instead of overwriting the stub and timing out (#1149)
+- `flash --ram` no longer requires the ESP-IDF app descriptor (#1149)
 
 ### Removed
 
