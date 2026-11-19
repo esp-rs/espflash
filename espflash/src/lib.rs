@@ -68,15 +68,12 @@ pub mod update {
     pub fn check_for_update(name: &str, version: &str) {
         #[cfg(feature = "update-check")]
         {
-            use std::time::Duration;
-
             use log::info;
             use update_informer::{Check, registry::Crates};
 
-            // By setting the interval to 0 seconds we invalidate the cache with
-            // each invocation and ensure we're getting up-to-date results
-            let informer =
-                update_informer::new(Crates, name, version).interval(Duration::from_secs(0));
+            // The default interval caches the result and queries crates.io at
+            // most once a day
+            let informer = update_informer::new(Crates, name, version);
 
             if let Some(version) = informer.check_version().ok().flatten() {
                 info!("🚀 A new version of {name} is available: {version}");
