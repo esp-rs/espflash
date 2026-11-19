@@ -48,7 +48,7 @@ impl PackageMetadata {
                 .cloned()
         };
 
-        let package = maybe_package.ok_or(Error::NoPackage).into_diagnostic()?;
+        let package = maybe_package.ok_or(Error::NoPackage)?;
 
         let package_metadata = Self {
             workspace_root: metadata.workspace_root.clone().into(),
