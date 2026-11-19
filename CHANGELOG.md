@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The image format is detected from the ELF metadata of `esp-hal` applications when no format is given (#1114)
 - Add ESP32-H21 support (#1121)
 - The monitor warns when a device connected over USB-Serial-JTAG boots into download mode, and explains that resets over USB-Serial-JTAG cannot leave it if the boot pin was low at the last power-on or EN reset (#1132)
-- The monitor then starts the app anyway, by running the bootloader in flash from RAM through the stub. The device returns to download mode on the next reset
+- The monitor then starts the app anyway, by running the bootloader in flash from RAM through the stub. The device returns to download mode on the next reset (#1146)
 
 ### Changed
 
