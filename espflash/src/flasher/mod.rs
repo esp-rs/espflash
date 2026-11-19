@@ -25,6 +25,8 @@ use crate::connection::Port;
 // TODO: Remove in the next major release
 #[cfg(feature = "serialport")]
 pub use crate::connection::SecurityInfo;
+#[cfg(feature = "cli")]
+use crate::image_format::idf::read_image;
 #[cfg(feature = "serialport")]
 use crate::target::{DefaultProgressCallback, ProgressCallbacks};
 use crate::{
@@ -1394,15 +1396,34 @@ impl Flasher {
         max_in_flight: u32,
         file_path: PathBuf,
     ) -> Result<(), Error> {
-        debug!("Reading 0x{size:x}B from 0x{offset:08x}");
-
-        let mut data = Vec::new();
-
         let mut file = OpenOptions::new()
             .write(true)
             .truncate(true)
             .create(true)
             .open(&file_path)?;
+
+        let data = self.read_flash_data(offset, size, block_size, max_in_flight)?;
+        file.write_all(&data)?;
+
+        info!(
+            "Flash content successfully read and written to '{}'!",
+            file_path.display()
+        );
+
+        Ok(())
+    }
+
+    /// Read the flash with the stub.
+    fn read_flash_data(
+        &mut self,
+        offset: u32,
+        size: u32,
+        block_size: u32,
+        max_in_flight: u32,
+    ) -> Result<Vec<u8>, Error> {
+        debug!("Reading 0x{size:x}B from 0x{offset:08x}");
+
+        let mut data = Vec::new();
 
         self.connection
             .with_timeout(CommandType::ReadFlash.timeout(), |connection| {
@@ -1454,14 +1475,35 @@ impl Flasher {
             return Err(Error::DigestMismatch(digest, checksum_md5.to_vec()));
         }
 
-        file.write_all(&data)?;
+        Ok(data)
+    }
 
-        info!(
-            "Flash content successfully read and written to '{}'!",
-            file_path.display()
-        );
+    /// Runs the bootloader in flash from RAM, which then starts the
+    /// application.
+    ///
+    /// This starts the application without a reset, e.g. of a device whose boot
+    /// mode is latched as download mode, which resets over USB-Serial-JTAG
+    /// cannot leave. It requires the stub: the ROM loader doesn't start the
+    /// bootloader (on the ESP32-C6, `MEM_END` gets no response and nothing
+    /// runs). The bootloader keeps the stub's flash read mode.
+    #[cfg(feature = "cli")]
+    pub(crate) fn run_bootloader_from_ram(&mut self) -> Result<(), Error> {
+        if !self.use_stub {
+            return Err(Error::StubRequired);
+        }
 
-        Ok(())
+        let boot_address = self.chip.boot_address();
+        let (entry, segments) = read_image(|offset, length| {
+            self.read_flash_data(boot_address + offset, length, FLASH_SECTOR_SIZE as u32, 64)
+        })?;
+
+        let mut target = self
+            .chip
+            .ram_target(Some(entry), self.chip.max_ram_block_size());
+        for segment in segments {
+            target.write_segment(&mut self.connection, segment, &mut DefaultProgressCallback)?;
+        }
+        target.finish(&mut self.connection, true)
     }
 
     /// Verify the minimum chip revision.

@@ -213,8 +213,20 @@ pub fn monitor(
             && detector.feed(&buff[0..read_count])
         {
             warn!(
-                "The device booted into download mode. Resets over USB-Serial-JTAG cannot leave it if the boot pin was low at the last power-on or EN reset, e.g. because the BOOT button was held or the device was reset into download mode through its UART port. In that case, press the RESET button or power-cycle the device."
+                "The device booted into download mode. Resets over USB-Serial-JTAG cannot leave it if the boot pin was low at the last power-on or EN reset, e.g. because the BOOT button was held or the device was reset into download mode through its UART port. Starting the app by running the bootloader from RAM, which lasts until the next reset. To boot normally, press the RESET button or power-cycle the device."
             );
+            let result;
+            (serial, result) = download_mode::start_app(serial, pid);
+            match result {
+                // Start the app again after the next reset into download mode.
+                Ok(()) => *detector = DownloadModeDetector::default(),
+                Err(e) => warn!("Failed to run the bootloader from RAM: {e}"),
+            }
+            // The connection changed the timeout.
+            serial
+                .set_baud_rate(baud)
+                .and_then(|()| serial.set_timeout(Duration::from_millis(5)))
+                .into_diagnostic()?;
         }
 
         if !user_input_handler.handle(&mut serial)? {

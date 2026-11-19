@@ -1,4 +1,13 @@
-//! Detection of a device stuck in download mode.
+//! Detection of a device stuck in download mode, and starting its application
+//! anyway.
+
+use serialport::UsbPortInfo;
+
+use crate::{
+    Error,
+    connection::{Connection, Port, ResetAfterOperation, ResetBeforeOperation},
+    flasher::Flasher,
+};
 
 /// What the ROM bootloader prints when it boots into download mode.
 const DOWNLOAD_MODE_MESSAGE: &[u8] = b"waiting for download";
@@ -42,6 +51,40 @@ impl DownloadModeDetector {
         self.tail.drain(..self.tail.len() - keep);
         false
     }
+}
+
+/// Starts the application of a device waiting in download mode by running its
+/// bootloader from RAM.
+///
+/// The device stays latched in download mode, so it returns to it on the next
+/// reset. Returns the serial port also on failure, to keep monitoring.
+pub(crate) fn start_app(serial: Port, pid: u16) -> (Port, Result<(), Error>) {
+    let port_info = UsbPortInfo {
+        vid: 0x303a,
+        pid,
+        serial_number: None,
+        manufacturer: None,
+        product: None,
+    };
+    // The device is already waiting in download mode, so connect without a
+    // reset.
+    let connection = Connection::new(
+        serial,
+        port_info,
+        ResetAfterOperation::NoReset,
+        ResetBeforeOperation::NoReset,
+        115_200,
+    );
+    let mut flasher = match Flasher::try_connect(connection, true, false, false, None, None) {
+        Ok(flasher) => flasher,
+        Err(error) => {
+            let (error, connection) = *error;
+            return (connection.into_serial(), Err(error));
+        }
+    };
+
+    let result = flasher.run_bootloader_from_ram();
+    (flasher.into(), result)
 }
 
 #[cfg(test)]

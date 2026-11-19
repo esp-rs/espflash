@@ -278,6 +278,36 @@ struct SegmentHeader {
     length: u32,
 }
 
+/// Reads the entry point and segments of an image, e.g. of the bootloader in
+/// flash.
+///
+/// `read(offset, length)` returns `length` bytes at `offset` from the start
+/// of the image.
+#[cfg(feature = "cli")]
+pub(crate) fn read_image(
+    mut read: impl FnMut(u32, u32) -> Result<Vec<u8>, Error>,
+) -> Result<(u32, Vec<Segment<'static>>), Error> {
+    let header: ImageHeader = pod_read_unaligned(&read(0, size_of::<ImageHeader>() as u32)?);
+    if header.magic != ESP_MAGIC {
+        return Err(Error::InvalidBootloader);
+    }
+
+    let mut offset = size_of::<ImageHeader>() as u32;
+    let mut segments = Vec::new();
+    for _ in 0..header.segment_count {
+        let segment: SegmentHeader =
+            pod_read_unaligned(&read(offset, size_of::<SegmentHeader>() as u32)?);
+        offset += size_of::<SegmentHeader>() as u32;
+        segments.push(Segment {
+            addr: segment.addr,
+            data: Cow::Owned(read(offset, segment.length)?),
+        });
+        offset += segment.length;
+    }
+
+    Ok((header.entry, segments))
+}
+
 /// Application descriptor used by the ESP-IDF bootloader.
 ///
 /// [Documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description)
