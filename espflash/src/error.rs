@@ -2,7 +2,7 @@
 
 #[cfg(feature = "serialport")]
 use std::fmt::{Display, Formatter};
-use std::{array::TryFromSliceError, io, num::ParseIntError, str::Utf8Error};
+use std::{array::TryFromSliceError, io, num::ParseIntError, ops::Range, str::Utf8Error};
 
 use miette::Diagnostic;
 #[cfg(feature = "serialport")]
@@ -92,6 +92,23 @@ pub enum Error {
         )
     )]
     ElfNotRamLoadable,
+
+    /// A RAM segment of the image overlaps the running flash stub
+    #[error(
+        "The flash stub is resident at {stub:#010x?}, so the image can't be loaded at the overlapping address range {segment:#010x?}"
+    )]
+    #[diagnostic(
+        code(espflash::ram_segment_overlaps_stub),
+        help(
+            "Link the image at addresses the stub does not use, or use the `--no-stub` option to load it with the ROM loader"
+        )
+    )]
+    RamSegmentOverlapsStub {
+        /// Address range of the RAM segment
+        segment: Range<u32>,
+        /// Address range of the stub
+        stub: Range<u32>,
+    },
 
     /// The supplied ELF image is too large for the configured app partition
     #[error(

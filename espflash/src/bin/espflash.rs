@@ -283,7 +283,11 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
     let chip = flasher.chip();
     let target_xtal_freq = chip.xtal_frequency(flasher.connection())?;
 
-    if args.flash_args.image.check_app_descriptor && format == ImageFormatKind::EspIdf {
+    // A RAM image does not go through the second-stage bootloader
+    if args.flash_args.image.check_app_descriptor
+        && format == ImageFormatKind::EspIdf
+        && !args.flash_args.ram
+    {
         check_idf_bootloader(&elf_data)?;
     }
 
@@ -316,6 +320,8 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
 
     if args.flash_args.ram {
         flasher.load_elf_to_ram(&elf_data, &mut EspflashProgress::default())?;
+        // A reset would boot the application in flash instead
+        monitor_args.no_reset = true;
     } else {
         let flash_data = make_flash_data(
             args.flash_args.image,
