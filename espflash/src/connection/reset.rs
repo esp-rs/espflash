@@ -217,6 +217,11 @@ pub fn reset_after_flash(serial: &mut Port, pid: u16) -> Result<(), serialport::
 
         serial.write_request_to_send(false)?;
     } else {
+        // Without a reset before, e.g. with `--before no-reset`, DTR is still
+        // asserted from opening the port. With DTR and RTS both asserted, the
+        // auto-reset circuit of dev boards pulls neither EN nor IO0 low, so
+        // pulsing RTS alone would not reset the chip.
+        serial.write_data_terminal_ready(false)?;
         serial.write_request_to_send(true)?;
 
         sleep(Duration::from_millis(100));
