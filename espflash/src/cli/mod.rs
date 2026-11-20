@@ -632,7 +632,6 @@ pub fn parse_chip_rev(chip_rev: &str) -> Result<u16> {
                     chip_rev: chip_rev.to_string(),
                 })
             })
-            .into_diagnostic()
     };
 
     let major = parse_or_error(split.next())?;
@@ -641,8 +640,8 @@ pub fn parse_chip_rev(chip_rev: &str) -> Result<u16> {
     if split.next().is_some() {
         return Err(Error::ParseChipRevError {
             chip_rev: chip_rev.to_string(),
-        })
-        .into_diagnostic();
+        }
+        .into());
     }
 
     Ok(major * 100 + minor)
@@ -965,7 +964,7 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
 /// Erase a specified region of flash memory
 pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
-        return Err(Error::StubRequired).into_diagnostic();
+        return Err(Error::StubRequired.into());
     }
 
     if !args.address.is_multiple_of(FLASH_SECTOR_SIZE as u32)
@@ -974,8 +973,8 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
         return Err(Error::InvalidEraseRegionArgument {
             address: args.address,
             size: args.size,
-        })
-        .into_diagnostic();
+        }
+        .into());
     }
 
     let mut flasher = connect(&args.connect_args, config, true, true)?;
@@ -1049,7 +1048,7 @@ fn erase_partition(flasher: &mut Flasher, part: &Partition) -> Result<()> {
     let offset = part.offset();
     let size = part.size();
 
-    flasher.erase_region(offset, size).into_diagnostic()
+    Ok(flasher.erase_region(offset, size)?)
 }
 
 /// Read flash content and write it to a file
@@ -1307,7 +1306,7 @@ pub fn resolve_image_format(
                     "The `{requested}` image format was requested, but the ELF image was built for `{elf}`"
                 );
             } else {
-                return Err(Error::ImageFormatMismatch { requested, elf }).into_diagnostic();
+                return Err(Error::ImageFormatMismatch { requested, elf }.into());
             }
         }
         _ => {}
@@ -1428,8 +1427,8 @@ pub fn ensure_chip_compatibility(chip: Chip, elf: Option<&[u8]>) -> Result<()> {
         _ => Err(Error::FirmwareChipMismatch {
             elf: elf_chip.to_string(),
             detected: chip,
-        })
-        .into_diagnostic(),
+        }
+        .into()),
     }
 }
 
@@ -1618,5 +1617,45 @@ mod test {
             resolve(Some(EspIdf), &config, &direct_boot, true),
             Some(EspIdf)
         );
+    }
+
+    #[test]
+    fn test_errors_keep_code_and_help() {
+        #[derive(Parser)]
+        struct EraseRegionParser {
+            #[clap(flatten)]
+            args: EraseRegionArgs,
+        }
+
+        // Both errors are returned before connecting to a device
+        let erase_region_error = |command: &str| {
+            let args = EraseRegionParser::parse_from(command.split_whitespace()).args;
+            erase_region(args, &Config::default()).unwrap_err()
+        };
+        let direct_boot = fs::read("tests/data/esp_hal_direct_boot_c6.elf").unwrap();
+
+        for (error, code) in [
+            (
+                erase_region_error("erase-region 0x1001 0x1000"),
+                "espflash::erase_region::invalid_argument",
+            ),
+            (
+                erase_region_error("erase-region --no-stub 0x1000 0x1000"),
+                "espflash::stub_required",
+            ),
+            (
+                resolve_image_format(
+                    Some(ImageFormatKind::EspIdf),
+                    &Config::default(),
+                    &direct_boot,
+                    false,
+                )
+                .unwrap_err(),
+                "espflash::image_format_mismatch",
+            ),
+        ] {
+            assert_eq!(error.code().map(|c| c.to_string()).as_deref(), Some(code));
+            assert!(error.help().is_some(), "{code} has no help");
+        }
     }
 }
