@@ -405,6 +405,13 @@ impl Connection {
     pub fn reset_after(&mut self, is_stub: bool, chip: Chip) -> Result<(), Error> {
         let pid = self.usb_pid();
 
+        if matches!(
+            self.after_operation,
+            ResetAfterOperation::HardReset | ResetAfterOperation::WatchdogReset
+        ) {
+            chip.clear_force_download_boot(self);
+        }
+
         match self.after_operation {
             ResetAfterOperation::HardReset => hard_reset(&mut self.serial, pid),
             ResetAfterOperation::NoReset => {

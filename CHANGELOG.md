@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Hard and watchdog resets of an ESP32-S3 clear `RTC_CNTL_FORCE_DOWNLOAD_BOOT` first, as esptool does, so a device whose firmware rebooted into download mode over USB boots its application instead of staying in download mode
 - An explicitly given `--port` that is a character device but not among the enumerated serial ports, e.g. an on-chip UART of an embedded Linux board, is used instead of failing with "serial port not found" (#1122)
 - `list-ports` prints USB IDs as `VID:PID` instead of `PID:VID` (#1112)
 - Port names are no longer printed twice on Windows (#1112)

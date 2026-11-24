@@ -290,6 +290,24 @@ impl Chip {
         }
     }
 
+    /// Clears `RTC_CNTL_FORCE_DOWNLOAD_BOOT` on chips that have it.
+    ///
+    /// Firmware that reboots into download mode over USB sets this bit, and it
+    /// survives every reset except a power-on, so a hard or watchdog reset
+    /// would land in download mode again. esptool clears it before a hard
+    /// reset. Errors are only logged, so the reset still goes ahead.
+    #[cfg(feature = "serialport")]
+    pub(crate) fn clear_force_download_boot(&self, connection: &mut Connection) {
+        const FORCE_DOWNLOAD_BOOT_MASK: u32 = 0x1;
+        let option1 = match self {
+            Chip::Esp32s3 => 0x6000_812C,
+            _ => return,
+        };
+        if let Err(e) = connection.write_reg(option1, 0, Some(FORCE_DOWNLOAD_BOOT_MASK)) {
+            log::debug!("Could not clear the force download boot flag: {e}");
+        }
+    }
+
     /// Perform RTC WDT reset
     #[cfg(feature = "serialport")]
     pub fn rtc_wdt_reset(&self, connection: &mut Connection) -> Result<(), Error> {
