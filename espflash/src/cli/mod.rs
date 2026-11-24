@@ -324,9 +324,12 @@ pub struct MonitorConfigArgs {
     /// try to use a matching built-in ROM
     #[arg(long, value_name = "FILE")]
     pub rom_elf: Option<PathBuf>,
-    /// Avoids restarting the device before monitoring
+    /// Do not reset the device before monitoring
     ///
-    /// Only valid when `non_interactive` is also set.
+    /// With `monitor`, the device is not reset at all: this implies `--before
+    /// no-reset-no-sync`, which requires `--chip`. With `flash --monitor`, only
+    /// the reset after flashing is skipped, and only together with
+    /// `--non-interactive`.
     #[arg(long)]
     no_reset: bool,
     /// The encoding of the target's serial output.
@@ -734,11 +737,40 @@ pub fn load_monitor_elfs<'a>(
     Ok(MonitorElfs { elfs })
 }
 
+/// Apply `--no-reset` of the `monitor` command to the connection arguments
+///
+/// Monitoring without a reset must not reset the device when connecting
+/// either, so this selects `--before no-reset-no-sync`, which requires the
+/// chip to be given.
+fn apply_monitor_no_reset(connect_args: &mut ConnectArgs, no_reset: bool) -> Result<()> {
+    if !no_reset {
+        return Ok(());
+    }
+
+    if !matches!(
+        connect_args.before,
+        ResetBeforeOperation::DefaultReset | ResetBeforeOperation::NoResetNoSync
+    ) {
+        warn!(
+            "`--no-reset` does not reset the device, ignoring the pre-connection option '{:#?}'",
+            connect_args.before
+        );
+    }
+    connect_args.before = ResetBeforeOperation::NoResetNoSync;
+
+    if connect_args.chip.is_none() {
+        return Err(Error::ChipNotProvided.into());
+    }
+
+    Ok(())
+}
+
 /// Open a serial monitor
 pub fn serial_monitor(args: MonitorArgs, config: &Config) -> Result<()> {
     let mut connect_args = args.connect_args.clone();
     debug!("The flash stub is not used by `monitor`, `--no-stub` has no effect");
     connect_args.no_stub = true;
+    apply_monitor_no_reset(&mut connect_args, args.monitor_args.no_reset)?;
     let mut flasher = connect(&connect_args, config, true, true)?;
     let pid = flasher.connection().usb_pid();
 
@@ -1499,6 +1531,45 @@ mod test {
         let iter = command.split_whitespace();
         let parser = TestParser::parse_from(iter);
         assert_eq!(parser.args.partition_table_offset, Some(0x8000));
+    }
+
+    #[derive(Parser)]
+    struct MonitorTestParser {
+        #[clap(flatten)]
+        args: MonitorArgs,
+    }
+
+    #[test]
+    fn test_monitor_no_reset_skips_connect_reset() {
+        let args =
+            MonitorTestParser::parse_from("monitor --no-reset --chip esp32c6".split_whitespace())
+                .args;
+        let mut connect_args = args.connect_args.clone();
+        apply_monitor_no_reset(&mut connect_args, args.monitor_args.no_reset).unwrap();
+        assert_eq!(connect_args.before, ResetBeforeOperation::NoResetNoSync);
+
+        let args = MonitorTestParser::parse_from(
+            "monitor --no-reset --chip esp32c6 --before usb-reset".split_whitespace(),
+        )
+        .args;
+        let mut connect_args = args.connect_args.clone();
+        apply_monitor_no_reset(&mut connect_args, args.monitor_args.no_reset).unwrap();
+        assert_eq!(connect_args.before, ResetBeforeOperation::NoResetNoSync);
+    }
+
+    #[test]
+    fn test_monitor_no_reset_requires_chip() {
+        let args = MonitorTestParser::parse_from("monitor --no-reset".split_whitespace()).args;
+        let mut connect_args = args.connect_args.clone();
+        assert!(apply_monitor_no_reset(&mut connect_args, args.monitor_args.no_reset).is_err());
+    }
+
+    #[test]
+    fn test_monitor_without_no_reset_keeps_before() {
+        let args = MonitorTestParser::parse_from("monitor".split_whitespace()).args;
+        let mut connect_args = args.connect_args.clone();
+        apply_monitor_no_reset(&mut connect_args, args.monitor_args.no_reset).unwrap();
+        assert_eq!(connect_args.before, ResetBeforeOperation::DefaultReset);
     }
 
     #[test]
