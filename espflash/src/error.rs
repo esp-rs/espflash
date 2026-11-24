@@ -318,7 +318,7 @@ pub enum Error {
     InvalidResponse(String),
 
     /// An invalid address and/or size argument was provided
-    #[error("Invalid `address`({address})  and/or `size`({size}) argument(s)")]
+    #[error("Invalid `address`({address}) and/or `size`({size}) argument(s)")]
     #[diagnostic(
         code(espflash::erase_region::invalid_argument),
         help("`address` ({address}) and `size` ({size}) must be multiples of 0x1000 (4096)")

@@ -290,7 +290,7 @@ struct BuildContext {
 
 fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     if args.connect_args.no_stub {
-        return Err(EspflashError::StubRequired).into_diagnostic();
+        return Err(EspflashError::StubRequired.into());
     }
 
     let partition_table = args.partition_table.as_deref().or(config
@@ -363,9 +363,7 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
             .unwrap_or(0);
         let effective_min_rev = args.flash_args.image.min_chip_rev.max(metadata_min_rev);
         if effective_min_rev > 0 {
-            flasher
-                .verify_minimum_revision(effective_min_rev)
-                .into_diagnostic()?;
+            flasher.verify_minimum_revision(effective_min_rev)?;
         }
     }
 
