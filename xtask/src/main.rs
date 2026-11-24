@@ -3,6 +3,7 @@ use std::{env, path::PathBuf};
 use clap::Parser;
 
 // Import modules
+mod bench;
 mod bootloader_builder;
 #[cfg(feature = "efuse-generator")]
 mod efuse_generator;
@@ -16,6 +17,9 @@ pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[derive(Debug, Parser)]
 enum Cli {
+    /// Benchmark flash operations on the device at `ESPFLASH_PORT`
+    Bench(bench::BenchArgs),
+
     /// Build bundled ESP-IDF bootloader binaries
     #[command(visible_alias = "bootloaders")]
     BuildBootloaders(bootloader_builder::BuildBootloadersArgs),
@@ -59,6 +63,7 @@ fn main() -> Result<()> {
     };
 
     match Cli::parse() {
+        Cli::Bench(args) => bench::run_bench(args),
         Cli::BuildBootloaders(args) => bootloader_builder::build_bootloaders(&workspace, args),
         #[cfg(feature = "efuse-generator")]
         Cli::GenerateEfuseFields(args) => efuse_generator::generate_efuse_fields(&workspace, args),

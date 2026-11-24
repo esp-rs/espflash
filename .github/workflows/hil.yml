@@ -225,6 +225,73 @@ jobs:
           --console ${{ matrix.target.port }}
           --espflash "$PWD/hil-bin/espflash" ${{ matrix.target.extraArgs }}
 
+      # The benchmarks only feed the dashboard; they must not fail the HIL job.
+      # A hung benchmark would otherwise run into the job timeout, which
+      # `continue-on-error` does not cover.
+      - name: Benchmark flash operations
+        id: bench
+        continue-on-error: true
+        timeout-minutes: 5
+        run: >-
+          xtask bench --runner ${{ matrix.target.runner }} --baud 921600
+          --console ${{ matrix.target.port }} > "$RUNNER_TEMP/bench.jsonl"
+
+      - uses: actions/upload-artifact@v7
+        if: steps.bench.outcome == 'success'
+        with:
+          name: bench-${{ matrix.target.soc }}-${{ matrix.target.port }}
+          path: ${{ runner.temp }}/bench.jsonl
+          retention-days: 1
+
+  # The merge queue tests the commit that lands on main. Its results go to the
+  # bench-data branch, which GitHub Pages serves together with the dashboard.
+  publish-bench:
+    needs: [run-tests, hil-gate]
+    if: >-
+      !cancelled() && needs.hil-gate.result == 'success' &&
+      github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: bench-*
+          path: ${{ runner.temp }}/bench
+
+      # Other merge groups can push at the same time. If the push fails, start
+      # again from the new branch head.
+      - name: Add the results to the bench-data branch
+        run: |
+          # A single artifact is extracted without its own directory.
+          mkdir -p "$RUNNER_TEMP/bench"
+          find "$RUNNER_TEMP/bench" -name bench.jsonl -exec cat {} + > "$RUNNER_TEMP/results.jsonl"
+          if [ ! -s "$RUNNER_TEMP/results.jsonl" ]; then
+            echo "::warning::No benchmark results to publish"
+            exit 0
+          fi
+          cp .github/bench/index.html "$RUNNER_TEMP/index.html"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3 4 5; do
+            if git fetch -q --depth=1 origin bench-data; then
+              git switch -q --detach FETCH_HEAD
+            else
+              git switch -q --orphan "bench-data-$attempt"
+            fi
+            cp "$RUNNER_TEMP/results.jsonl" "$GITHUB_SHA.jsonl"
+            cp "$RUNNER_TEMP/index.html" index.html
+            git add "$GITHUB_SHA.jsonl" index.html
+            git diff --cached --quiet && exit 0
+            git commit -q -m "Add benchmark results for $GITHUB_SHA"
+            git push -q origin HEAD:refs/heads/bench-data && exit 0
+            sleep $((attempt * 5))
+          done
+          exit 1
+
   build-sdm-packages:
     if: needs.resolve.outputs.suite == 'sdm' || needs.resolve.outputs.suite == 'full'
     needs: resolve
