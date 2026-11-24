@@ -17,6 +17,7 @@ Supports the **ESP32**, **ESP32-C2/C3/C5/C6/C61**, **ESP32-H2/H21/H4**, **ESP32-
 - [Usage](#usage)
   - [Permissions on Linux](#permissions-on-linux)
   - [Windows Subsystem for Linux](#windows-subsystem-for-linux)
+  - [Monitoring a Running Application](#monitoring-a-running-application)
   - [Cargo Runner](#cargo-runner)
 - [Using `espflash` as a Library](#using-espflash-as-a-library)
 - [Image Formats](#image-formats)
@@ -108,6 +109,16 @@ wsl.exe --shutdown
 ```
 
 For more information, please refer [here](https://github.com/esp-rs/espflash/issues/641#issuecomment-2408771592).
+
+### Monitoring a Running Application
+
+`espflash monitor` resets the device into its bootloader before monitoring, to detect the chip and its crystal frequency. To watch an application that is already running without resetting it, pass `--no-reset` and the chip:
+
+```bash
+espflash monitor --no-reset --chip esp32c6
+```
+
+`--no-reset` implies `--before no-reset-no-sync`, which skips the reset and the synchronization when connecting and therefore needs `--chip`. With `flash --monitor`, `--no-reset` only skips the reset after flashing, and only together with `--non-interactive`.
 
 ### Cargo Runner
 

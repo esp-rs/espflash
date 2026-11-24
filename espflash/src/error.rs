@@ -60,9 +60,9 @@ pub enum Error {
     ChipMismatch(String, String),
 
     /// Chip argument not provided, this is required when using the `--before
-    /// no-reset-no-sync` option
+    /// no-reset-no-sync` option, which `monitor --no-reset` implies
     #[error(
-        "Chip argument not provided, this is required when using the `--before no-reset-no-sync` option"
+        "Chip argument not provided, this is required when using the `--before no-reset-no-sync` option, which `monitor --no-reset` implies"
     )]
     #[diagnostic(
         code(espflash::chip_not_provided),

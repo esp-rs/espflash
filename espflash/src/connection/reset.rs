@@ -357,7 +357,8 @@ pub enum ResetBeforeOperation {
     /// synchronisation command to the chip.
     NoReset,
     /// Skips DTR/RTS control signal assignments and also skips the serial
-    /// synchronization command.
+    /// synchronization command. Requires `--chip`. With `monitor`, a running
+    /// application keeps running; `monitor --no-reset` selects this option.
     NoResetNoSync,
     /// Reset sequence for USB-JTAG-Serial peripheral.
     UsbReset,
