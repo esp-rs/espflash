@@ -328,7 +328,7 @@ pub struct MonitorConfigArgs {
     ///
     /// Only valid when `non_interactive` is also set.
     #[arg(long)]
-    no_reset: bool,
+    pub no_reset: bool,
     /// The encoding of the target's serial output.
     #[arg(long, short = 'L')]
     log_format: Option<LogFormat>,

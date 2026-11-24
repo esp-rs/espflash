@@ -1,6 +1,6 @@
 //! Stub loader module.
 
-use std::time::Duration;
+use std::{ops::Range, time::Duration};
 
 use base64::{Engine as _, engine::general_purpose};
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,8 @@ pub struct FlashStub {
     data: String,
     /// Start of data section address
     data_start: u32,
+    /// Start of BSS section address, which precedes the data section
+    bss_start: u32,
 }
 
 pub(crate) const CHIP_DETECT_MAGIC_REG_ADDR: u32 = 0x40001000;
@@ -101,6 +103,17 @@ impl FlashStub {
         let v = general_purpose::STANDARD.decode(&self.data).unwrap();
         (self.data_start, v)
     }
+
+    /// Address ranges the running stub occupies: its BSS and data, and its
+    /// text
+    pub fn resident_ranges(&self) -> [Range<u32>; 2] {
+        let (data_start, data) = self.data();
+        let (text_start, text) = self.text();
+        [
+            self.bss_start..data_start + data.len() as u32,
+            text_start..text_start + text.len() as u32,
+        ]
+    }
 }
 
 #[cfg(test)]
@@ -119,6 +132,9 @@ mod tests {
             // Data decoded from b64
             let _ = s.text();
             let _ = s.data();
+
+            // The BSS precedes the data, so the first range covers both
+            assert!(s.bss_start <= s.data_start, "{c}");
         }
     }
 

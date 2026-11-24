@@ -807,9 +807,8 @@ impl Flasher {
         Ok(())
     }
 
-    fn load_stub(&mut self) -> Result<(), Error> {
-        debug!("Loading flash stub for chip: {:?}", self.chip);
-
+    /// Returns the flash stub for the connected chip and revision.
+    fn stub(&mut self) -> FlashStub {
         // Get chip revision for ESP32-P4 (needed to select correct stub)
         let revision = if matches!(self.chip, Chip::Esp32p4) {
             match self.chip_revision() {
@@ -830,8 +829,13 @@ impl Flasher {
             None
         };
 
-        // Load flash stub
-        let stub = FlashStub::get_with_rev(self.chip, revision);
+        FlashStub::get_with_rev(self.chip, revision)
+    }
+
+    fn load_stub(&mut self) -> Result<(), Error> {
+        debug!("Loading flash stub for chip: {:?}", self.chip);
+
+        let stub = self.stub();
 
         let mut ram_target = self
             .chip
@@ -1129,6 +1133,23 @@ impl Flasher {
         let elf = ElfFile::parse(elf_data)?;
         if rom_segments(self.chip, &elf).next().is_some() {
             return Err(Error::ElfNotRamLoadable);
+        }
+
+        // Loading a segment over the running stub would overwrite it
+        if self.use_stub {
+            let stub_ranges = self.stub().resident_ranges();
+            for segment in ram_segments(self.chip, &elf) {
+                let segment = segment.addr..segment.addr + segment.data.len() as u32;
+                if let Some(stub) = stub_ranges
+                    .iter()
+                    .find(|stub| stub.start < segment.end && segment.start < stub.end)
+                {
+                    return Err(Error::RamSegmentOverlapsStub {
+                        segment,
+                        stub: stub.clone(),
+                    });
+                }
+            }
         }
 
         let mut target = self.chip.ram_target(
