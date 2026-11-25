@@ -290,20 +290,31 @@ impl Chip {
         }
     }
 
-    /// Clears `RTC_CNTL_FORCE_DOWNLOAD_BOOT` on chips that have it.
+    /// Clears the force download boot flag on chips that have it.
     ///
-    /// Firmware that reboots into download mode over USB sets this bit, and it
-    /// survives every reset except a power-on, so a hard or watchdog reset
+    /// Firmware that reboots into download mode over USB sets this flag, and
+    /// it survives every reset except a power-on, so a hard or watchdog reset
     /// would land in download mode again. esptool clears it before a hard
     /// reset. Errors are only logged, so the reset still goes ahead.
     #[cfg(feature = "serialport")]
     pub(crate) fn clear_force_download_boot(&self, connection: &mut Connection) {
-        const FORCE_DOWNLOAD_BOOT_MASK: u32 = 0x1;
-        let option1 = match self {
-            Chip::Esp32s3 => 0x6000_812C,
-            _ => return,
+        // `RTC_CNTL_OPTION1`, `LP_AON_SYS_CFG` or `LP_SYSTEM_REG_SYS_CTRL`,
+        // from ESP-IDF's register headers.
+        let (reg, mask) = match self {
+            Chip::Esp32s2 => (0x3F40_8128, 1 << 0),
+            Chip::Esp32s3 => (0x6000_812C, 1 << 0),
+            Chip::Esp32c2 => (0x6000_80E0, 1 << 0),
+            Chip::Esp32c3 => (0x6000_80F4, 1 << 0),
+            // Two bits on the C5: download boot0 and boot1.
+            Chip::Esp32c5 => (0x600B_1034, 0b11 << 29),
+            Chip::Esp32c6 | Chip::Esp32c61 | Chip::Esp32h2 | Chip::Esp32h21 => {
+                (0x600B_1034, 1 << 30)
+            }
+            Chip::Esp32p4 => (0x5011_0008, 1 << 2),
+            Chip::Esp32s31 => (0x2070_0008, 1 << 2),
+            Chip::Esp32 | Chip::Esp32h4 => return,
         };
-        if let Err(e) = connection.write_reg(option1, 0, Some(FORCE_DOWNLOAD_BOOT_MASK)) {
+        if let Err(e) = connection.write_reg(reg, 0, Some(mask)) {
             log::debug!("Could not clear the force download boot flag: {e}");
         }
     }
