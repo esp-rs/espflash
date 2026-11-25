@@ -784,7 +784,20 @@ impl Chip {
                 )?);
                 Ok(features)
             }
-            Chip::Esp32c5 => Ok(vec!["WiFi", "BLE", "IEEE802.15.4", "240MHz"]),
+            Chip::Esp32c5 => {
+                let mut features = vec!["Wi-Fi 6 (dual-band)", "BLE", "IEEE802.15.4", "240MHz"];
+                features.extend(self.embedded_flash(
+                    connection,
+                    efuse::esp32c5::FLASH_CAP,
+                    &["Embedded Flash 4MB"],
+                )?);
+                features.extend(self.embedded_psram(
+                    connection,
+                    efuse::esp32c5::PSRAM_CAP,
+                    &["Embedded PSRAM 4MB", "Embedded PSRAM 8MB"],
+                )?);
+                Ok(features)
+            }
             Chip::Esp32c6 => {
                 let mut features = vec!["WiFi 6", "BT 5", "IEEE802.15.4"];
                 features.extend(self.embedded_flash(
@@ -794,7 +807,20 @@ impl Chip {
                 )?);
                 Ok(features)
             }
-            Chip::Esp32c61 => Ok(vec!["WiFi 6", "BT 5"]),
+            Chip::Esp32c61 => {
+                let mut features = vec!["WiFi 6", "BT 5", "160MHz"];
+                features.extend(self.embedded_flash(
+                    connection,
+                    efuse::esp32c61::FLASH_CAP,
+                    &["Embedded Flash 4MB", "Embedded Flash 8MB"],
+                )?);
+                features.extend(self.embedded_psram(
+                    connection,
+                    efuse::esp32c61::PSRAM_CAP,
+                    &["Embedded PSRAM 2MB", "Embedded PSRAM 8MB"],
+                )?);
+                Ok(features)
+            }
             Chip::Esp32h2 => Ok(vec!["BLE", "IEEE802.15.4"]),
             Chip::Esp32h21 => Ok(vec!["BT 5 (LE)", "IEEE802.15.4", "Single Core", "96MHz"]),
             Chip::Esp32h4 => Ok(vec!["BT 5 (LE)", "IEEE802.15.4", "Dual Core", "96MHz"]),
@@ -872,10 +898,34 @@ impl Chip {
         field: EfuseField,
         features: &[&'static str],
     ) -> Result<Option<&'static str>, Error> {
-        let flash_cap = self.read_efuse_le::<u32>(connection, field)? as usize;
-        Ok(flash_cap
+        self.embedded_memory(connection, field, features, "Unknown Embedded Flash")
+    }
+
+    /// Returns the embedded PSRAM feature of the chip from its PSRAM capacity
+    /// eFuse `field`, as esptool decodes it: nothing for 0, and
+    /// `features[n - 1]` for `n`.
+    #[cfg(feature = "serialport")]
+    fn embedded_psram(
+        &self,
+        connection: &mut Connection,
+        field: EfuseField,
+        features: &[&'static str],
+    ) -> Result<Option<&'static str>, Error> {
+        self.embedded_memory(connection, field, features, "Unknown Embedded PSRAM")
+    }
+
+    #[cfg(feature = "serialport")]
+    fn embedded_memory(
+        &self,
+        connection: &mut Connection,
+        field: EfuseField,
+        features: &[&'static str],
+        unknown: &'static str,
+    ) -> Result<Option<&'static str>, Error> {
+        let cap = self.read_efuse_le::<u32>(connection, field)? as usize;
+        Ok(cap
             .checked_sub(1)
-            .map(|n| features.get(n).copied().unwrap_or("Unknown Embedded Flash")))
+            .map(|n| features.get(n).copied().unwrap_or(unknown)))
     }
 
     /// Determine the chip's revision number
@@ -2305,6 +2355,24 @@ mod tests {
     fn other_chips_keep_their_metadata_windows() {
         assert!(!Chip::Esp32c5.addr_is_flash(0x5000_0000));
     }
+
+    #[test]
+    fn esp32c5_and_esp32c61_memory_cap_efuse_fields_match_esptool() {
+        for (flash_cap, psram_cap) in [
+            (efuse::esp32c5::FLASH_CAP, efuse::esp32c5::PSRAM_CAP),
+            (efuse::esp32c61::FLASH_CAP, efuse::esp32c61::PSRAM_CAP),
+        ] {
+            assert_eq!(flash_cap.block, 1);
+            assert_eq!(flash_cap.word, 2);
+            assert_eq!(flash_cap.bit_start, 2 * 32 + 13);
+            assert_eq!(flash_cap.bit_count, 3);
+
+            assert_eq!(psram_cap.block, 1);
+            assert_eq!(psram_cap.word, 2);
+            assert_eq!(psram_cap.bit_start, 2 * 32 + 19);
+            assert_eq!(psram_cap.bit_count, 3);
+        }
+    }
 }
 
 #[cfg(all(test, unix, feature = "serialport"))]
@@ -2443,5 +2511,116 @@ mod efuse_write_tests {
         let (result, burns) = write_efuse(Chip::Esp32, 3, &[0xa5; 4], true);
         assert!(result.is_ok(), "{result:?}");
         assert_eq!(burns, 1);
+    }
+}
+
+#[cfg(all(test, unix, feature = "serialport"))]
+mod chip_features_tests {
+    use std::{collections::HashMap, thread, time::Duration};
+
+    use serialport::{SerialPort, UsbPortInfo};
+    use slip_codec::{SlipDecoder, SlipEncoder};
+
+    use super::*;
+    use crate::{
+        command::CommandType,
+        connection::{Port, ResetAfterOperation, ResetBeforeOperation},
+    };
+
+    fn chip_features(chip: &Chip, block1_word2: u32) -> Vec<&str> {
+        let read_addr = chip.block(1).unwrap().read_address + 2 * 4;
+
+        let (mut device, host) = Port::pair().unwrap();
+        device.set_timeout(Duration::from_secs(10)).unwrap();
+        thread::spawn(move || {
+            let regs = HashMap::from([(read_addr, block1_word2)]);
+            let mut decoder = SlipDecoder::new();
+            loop {
+                let mut frame = Vec::new();
+                if decoder.decode(&mut device, &mut frame).is_err() {
+                    return;
+                }
+                assert_eq!(frame[1], CommandType::ReadReg as u8);
+                let address = u32::from_le_bytes(frame[8..12].try_into().unwrap());
+                let value = regs.get(&address).copied().unwrap_or_default();
+
+                let mut response = vec![0x01, frame[1], 4, 0];
+                response.extend(value.to_le_bytes());
+                response.extend([0; 4]);
+                SlipEncoder::new(true)
+                    .encode(&response, &mut device)
+                    .unwrap();
+            }
+        });
+
+        let port_info = UsbPortInfo {
+            vid: 0,
+            pid: 0,
+            serial_number: None,
+            manufacturer: None,
+            product: None,
+        };
+        let mut connection = Connection::new(
+            host,
+            port_info,
+            ResetAfterOperation::HardReset,
+            ResetBeforeOperation::NoReset,
+            115_200,
+        );
+        chip.chip_features(&mut connection).unwrap()
+    }
+
+    #[test]
+    fn esp32c5_decodes_flash_and_psram_capacities() {
+        assert_eq!(
+            chip_features(&Chip::Esp32c5, 2 << 19),
+            [
+                "Wi-Fi 6 (dual-band)",
+                "BLE",
+                "IEEE802.15.4",
+                "240MHz",
+                "Embedded PSRAM 8MB",
+            ],
+        );
+        assert_eq!(
+            chip_features(&Chip::Esp32c5, (1 << 13) | (1 << 19)),
+            [
+                "Wi-Fi 6 (dual-band)",
+                "BLE",
+                "IEEE802.15.4",
+                "240MHz",
+                "Embedded Flash 4MB",
+                "Embedded PSRAM 4MB",
+            ],
+        );
+        assert_eq!(
+            chip_features(&Chip::Esp32c5, (7 << 13) | (7 << 19)),
+            [
+                "Wi-Fi 6 (dual-band)",
+                "BLE",
+                "IEEE802.15.4",
+                "240MHz",
+                "Unknown Embedded Flash",
+                "Unknown Embedded PSRAM",
+            ],
+        );
+    }
+
+    #[test]
+    fn esp32c61_decodes_flash_and_psram_capacities() {
+        assert_eq!(
+            chip_features(&Chip::Esp32c61, 1 << 19),
+            ["WiFi 6", "BT 5", "160MHz", "Embedded PSRAM 2MB"],
+        );
+        assert_eq!(
+            chip_features(&Chip::Esp32c61, (2 << 13) | (2 << 19)),
+            [
+                "WiFi 6",
+                "BT 5",
+                "160MHz",
+                "Embedded Flash 8MB",
+                "Embedded PSRAM 8MB",
+            ],
+        );
     }
 }
