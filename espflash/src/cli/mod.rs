@@ -1399,6 +1399,8 @@ pub fn reset(args: ConnectArgs, config: &Config) -> Result<()> {
     args.no_stub = true;
     let mut flasher = connect(&args, config, true, true)?;
     info!("Resetting target device");
+    let chip = flasher.chip();
+    chip.clear_force_download_boot(flasher.connection());
     flasher.connection().reset()?;
 
     Ok(())
