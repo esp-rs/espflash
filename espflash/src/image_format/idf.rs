@@ -1002,8 +1002,8 @@ where
 }
 
 /// Check if the provided ELF contains the app descriptor required by [the IDF bootloader](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/bootloader.html).
-pub fn check_idf_bootloader(elf_data: &Vec<u8>) -> Result<()> {
-    let object = File::parse(elf_data.as_slice()).into_diagnostic()?;
+pub fn check_idf_bootloader(elf_data: &[u8]) -> Result<()> {
+    let object = File::parse(elf_data).into_diagnostic()?;
 
     // A project with `strip = true` will discard the
     // symbol we are looking for but the section is kept

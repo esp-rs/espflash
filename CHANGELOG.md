@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cli::erase_partitions` takes the partitions to erase, which the new `cli::partitions_to_erase` finds by label or data type (#1127)
 - The `hold-in-reset` help and log message say what it does: it resets the device into its ROM bootloader and leaves it there (#1127)
 - The update check queries crates.io at most once a day instead of on every command (#1147)
+- `image_format::idf::check_idf_bootloader` takes a `&[u8]` instead of a `&Vec<u8>` (#1154)
 
 ### Fixed
 
